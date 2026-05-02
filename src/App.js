@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
   process.env.REACT_APP_SUPABASE_KEY
 );
+
+const CACHE_KEY = "loudr_stream_cache";
 
 const SYSTEM_PROMPT = `Você é o Brand Intelligence Agent da LOUDR — agência de Smart Branding que conecta estratégia, design e tecnologia.
 
@@ -87,16 +89,6 @@ const PRATICAS = [
   { key:"futuro_escala",              label:"Futuro & Escala",              sub:"Data · AI · Growth · Performance",    color:DS.amber },
 ];
 
-const STEPS = [
-  "Buscando site e presença digital",
-  "Analisando LinkedIn, redes e tone of voice",
-  "Pesquisando vagas, Glassdoor e cultura",
-  "Verificando reviews e reputação pública",
-  "Mapeando concorrentes e anúncios ativos",
-  "Aplicando framework Smart Branding",
-  "Gerando diagnóstico das 4 práticas LOUDR",
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const sc    = s => s >= 7 ? DS.green    : s >= 5 ? DS.amber    : DS.pink;
 const scBg  = s => s >= 7 ? DS.greenPale: s >= 5 ? DS.amberPale: DS.pinkPale;
@@ -105,6 +97,97 @@ const fmtDate = iso => new Date(iso).toLocaleDateString("pt-BR", {
   day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"
 });
 
+function tryParseJSON(txt) {
+  if (!txt) return null;
+  let s = txt.replace(/^```[a-z]*\n?/im, "").replace(/\n?```$/im, "").trim();
+  // tenta direto
+  try { const r = JSON.parse(s); if (r.empresa) return r; } catch {}
+  // tenta extrair maior bloco {}
+  const j0 = s.indexOf("{"), j1 = s.lastIndexOf("}");
+  if (j0 >= 0 && j1 > j0) {
+    try { const r = JSON.parse(s.slice(j0, j1+1)); if (r.empresa) return r; } catch {}
+  }
+  return null;
+}
+
+// ─── SSE Stream runner ────────────────────────────────────────────────────────
+async function runStream({ empresa, contexto, onSearchStep, onText, onDone, onError }) {
+  try {
+    const res = await fetch("/api/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 6000,
+        stream: true,
+        system: SYSTEM_PROMPT,
+        tools: [{ type:"web_search_20250305", name:"web_search" }],
+        messages: [{ role:"user", content:`Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ""}\nPesquise todas as fontes e gere o JSON completo.` }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `Erro ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullText = "";
+    let searchCount = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // guarda linha incompleta
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") continue;
+
+        let evt;
+        try { evt = JSON.parse(data); } catch { continue; }
+
+        // Busca sendo executada
+        if (evt.type === "content_block_start" && evt.content_block?.type === "tool_use") {
+          searchCount++;
+          onSearchStep(searchCount, evt.content_block?.input?.query || "");
+        }
+
+        // Texto chegando em stream
+        if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+          fullText += evt.delta.text || "";
+          onText(fullText);
+
+          // Salva progresso no localStorage
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ text: fullText, ts: Date.now() }));
+          } catch {}
+        }
+
+        // Stream terminou
+        if (evt.type === "message_stop") {
+          const parsed = tryParseJSON(fullText);
+          if (parsed) {
+            localStorage.removeItem(CACHE_KEY);
+            onDone(parsed);
+          } else {
+            onError("Não foi possível extrair o diagnóstico. Tente novamente.");
+          }
+        }
+      }
+    }
+  } catch (e) {
+    onError(e.message || "Erro desconhecido.");
+  }
+}
+
+// ─── Componentes visuais ──────────────────────────────────────────────────────
 function Bar({ score, color }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -143,6 +226,167 @@ function Card({ children, className="", style={} }) {
   return <div className={className} style={{ background:DS.white, border:`1px solid ${DS.border}`, borderRadius:12, padding:"20px 24px", ...style }}>{children}</div>;
 }
 
+// ─── Loading com stream ao vivo ───────────────────────────────────────────────
+function StreamingView({ searchSteps, streamText, partialData }) {
+  const textRef = useRef(null);
+
+  useEffect(() => {
+    if (textRef.current) {
+      textRef.current.scrollTop = textRef.current.scrollHeight;
+    }
+  }, [streamText]);
+
+  return (
+    <div>
+      {/* Header animado */}
+      <div style={{ background:DS.navy, borderRadius:16, padding:"28px 32px", marginBottom:14, position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", right:-24, top:-24, width:200, height:200, borderRadius:"50%", background:DS.green, opacity:0.05 }} />
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+          <div style={{ width:10, height:10, background:DS.pink, flexShrink:0 }} />
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.2em", color:DS.green, textTransform:"uppercase" }}>
+            LOUDR · BRAND INTELLIGENCE AGENT
+          </div>
+        </div>
+        <div style={{ fontSize:20, fontWeight:900, color:DS.white, marginBottom:6, letterSpacing:"-0.02em" }}>
+          Analisando marca em tempo real
+        </div>
+        <p style={{ fontSize:13, color:DS.gray }}>
+          O agent está pesquisando dados públicos e gerando o diagnóstico. As informações aparecem conforme chegam.
+        </p>
+      </div>
+
+      {/* Buscas em tempo real */}
+      {searchSteps.length > 0 && (
+        <Card style={{ marginBottom:14 }}>
+          <Lbl color={DS.textLight}>Buscas realizadas pelo agent</Lbl>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {searchSteps.map((s, i) => (
+              <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                <div style={{
+                  width:20, height:20, borderRadius:"50%",
+                  background: i === searchSteps.length-1 ? DS.green : DS.grayLight,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:10, fontWeight:700,
+                  color: i === searchSteps.length-1 ? DS.white : DS.textLight,
+                  flexShrink:0, marginTop:1,
+                  transition:"background 0.3s",
+                }}>
+                  {i === searchSteps.length-1 ? (
+                    <span style={{ animation:"pulse 1s infinite" }}>▶</span>
+                  ) : "✓"}
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:DS.textLight, marginBottom:2 }}>Busca {i+1}</div>
+                  <div style={{ fontSize:13, color:DS.textMid }}>{s}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Preview dos dados parciais */}
+      {partialData && (
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:14 }}>
+
+          {partialData.empresa && (
+            <div className="a0" style={{ background:DS.navy, borderRadius:12, padding:"20px 24px", position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", right:-20, top:-20, width:120, height:120, borderRadius:"50%", background:DS.green, opacity:0.06 }} />
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.2em", color:DS.green, marginBottom:6, textTransform:"uppercase" }}>
+                Identificado
+              </div>
+              <div style={{ fontSize:22, fontWeight:900, color:DS.white, letterSpacing:"-0.02em", marginBottom:4 }}>{partialData.empresa}</div>
+              <div style={{ fontSize:13, color:DS.gray }}>
+                {[partialData.setor, partialData.porte, partialData.dominio].filter(Boolean).join(" · ")}
+              </div>
+              {partialData.frase_diagnostico && (
+                <div style={{ marginTop:14, borderLeft:`3px solid ${DS.green}`, paddingLeft:14, fontSize:14, color:"#c9d8e8", fontStyle:"italic", lineHeight:1.6 }}>
+                  "{partialData.frase_diagnostico}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {partialData.resumo_executivo && (
+            <Card className="a1">
+              <Lbl color={DS.textLight}>Resumo executivo</Lbl>
+              <p style={{ fontSize:14, color:DS.textMid, lineHeight:1.8 }}>{partialData.resumo_executivo}</p>
+            </Card>
+          )}
+
+          {(partialData.score_singularidade || partialData.score_consistencia || partialData.score_posicionamento) && (
+            <div className="a2" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:10 }}>
+              {[
+                { label:"Singularidade",  key:"score_singularidade",  desc:"Diferenciação no mercado" },
+                { label:"Consistência",   key:"score_consistencia",   desc:"Coerência da identidade" },
+                { label:"Posicionamento", key:"score_posicionamento", desc:"Clareza da proposta de valor" },
+              ].filter(s => partialData[s.key]).map(s => (
+                <Card key={s.key}>
+                  <div style={{ fontSize:13, fontWeight:700, color:DS.text, marginBottom:2 }}>{s.label}</div>
+                  <div style={{ fontSize:11, color:DS.textLight, marginBottom:12 }}>{s.desc}</div>
+                  <Bar score={partialData[s.key]} color={sc(partialData[s.key])} />
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {partialData.praticas_loudr && Object.keys(partialData.praticas_loudr).length > 0 && (
+            <div className="a3">
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, marginBottom:10, fontFamily:F }}>
+                Práticas Smart Branding
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10 }}>
+                {PRATICAS.map(p => {
+                  const pr = partialData.praticas_loudr[p.key];
+                  if (!pr) return null;
+                  return (
+                    <div key={p.key} style={{ background:DS.white, border:`1px solid ${DS.border}`, borderRadius:12, padding:"16px 18px", borderTop:`3px solid ${p.color}` }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                        <div style={{ fontSize:12, fontWeight:800, color:DS.text }}>{p.label}</div>
+                        {pr.score && <Bar score={pr.score} color={p.color} />}
+                      </div>
+                      {pr.diagnostico && <p style={{ fontSize:12, color:DS.textMid, lineHeight:1.6 }}>{pr.diagnostico}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {partialData.territorio_inexplorado && (
+            <div className="a4" style={{ background:DS.navy, borderRadius:12, padding:"18px 22px" }}>
+              <Lbl color={DS.green}>Território inexplorado</Lbl>
+              <p style={{ fontSize:14, color:"#d1e8e0", lineHeight:1.7, fontStyle:"italic" }}>{partialData.territorio_inexplorado}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stream de texto bruto — quando ainda não tem dados parseados */}
+      {!partialData && streamText && (
+        <Card style={{ marginBottom:14 }}>
+          <Lbl color={DS.textLight}>Gerando diagnóstico</Lbl>
+          <div ref={textRef} style={{
+            fontFamily:"monospace", fontSize:12, color:DS.textMid,
+            lineHeight:1.6, maxHeight:300, overflow:"auto",
+            background:DS.grayLight, borderRadius:8, padding:"12px 14px",
+            whiteSpace:"pre-wrap", wordBreak:"break-all",
+          }}>
+            {streamText}
+            <span style={{ animation:"pulse 1s infinite", color:DS.green }}>█</span>
+          </div>
+        </Card>
+      )}
+
+      {/* Indicador de progresso */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, color:DS.textLight, fontSize:12 }}>
+        <div style={{ width:8, height:8, borderRadius:"50%", background:DS.green, animation:"pulse 1s infinite" }} />
+        Processando... os resultados aparecerão automaticamente
+      </div>
+    </div>
+  );
+}
+
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 function Nav({ user, page, onNavigate, onLogout, histCount }) {
   return (
@@ -154,7 +398,7 @@ function Nav({ user, page, onNavigate, onLogout, histCount }) {
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
         <span style={{ fontSize:12, color:DS.textLight }}>{user?.email}</span>
-        <button onClick={() => onNavigate(page === "historico" || page === "relatorio" ? "home" : "historico")}
+        <button onClick={() => onNavigate(page==="historico"||page==="relatorio" ? "home" : "historico")}
           style={{
             background: (page==="historico"||page==="relatorio") ? DS.navy : "none",
             color: (page==="historico"||page==="relatorio") ? DS.white : DS.textMid,
@@ -177,11 +421,10 @@ function Nav({ user, page, onNavigate, onLogout, histCount }) {
   );
 }
 
-// ─── Relatório completo (reutilizável) ────────────────────────────────────────
+// ─── Relatório completo ───────────────────────────────────────────────────────
 function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) {
   return (
     <div>
-      {/* Breadcrumb / meta do histórico */}
       {meta && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20, flexWrap:"wrap", gap:10 }}>
           <button onClick={onBack} style={{ background:"none", border:"none", color:DS.textLight, cursor:"pointer", fontSize:13, fontFamily:F, padding:0 }}>
@@ -194,7 +437,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       )}
 
-      {/* Cabeçalho */}
       <div className="a0" style={{ background:DS.navy, borderRadius:16, padding:"30px 34px", marginBottom:14, position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", right:-24, top:-24, width:200, height:200, borderRadius:"50%", background:DS.green, opacity:0.05 }} />
         <div style={{ width:14, height:14, background:DS.pink, marginBottom:16 }} />
@@ -214,7 +456,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         <p style={{ fontSize:14, color:DS.textMid, lineHeight:1.8 }}>{data.resumo_executivo}</p>
       </Card>
 
-      {/* 4 Práticas */}
       <div className="a2" style={{ marginBottom:14 }}>
         <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, marginBottom:12, fontFamily:F }}>
           Diagnóstico por prática Smart Branding
@@ -251,7 +492,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       </div>
 
-      {/* Scores */}
       <div className="a3" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:10, marginBottom:14 }}>
         {[
           { label:"Singularidade",  key:"score_singularidade",  desc:"Diferenciação no mercado" },
@@ -271,7 +511,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         <p style={{ fontSize:13, color:DS.textMid, lineHeight:1.7 }}>{data.justificativa_scores}</p>
       </div>
 
-      {/* Identidade */}
       <div className="a4" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
         {[
           { label:"Identidade declarada", key:"identidade_declarada", accent:DS.green },
@@ -289,8 +528,7 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         <p style={{ fontSize:14, color:"#78350f", lineHeight:1.7 }}>{data.gap_identidade}</p>
       </div>
 
-      {/* Sinais */}
-      {(data.sinais_cultura || data.sinais_investimento || data.evolucao_marca || data.gap_ads_vs_site) && (
+      {(data.sinais_cultura||data.sinais_investimento||data.evolucao_marca||data.gap_ads_vs_site) && (
         <div className="a5" style={{ marginBottom:14 }}>
           <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, marginBottom:12, fontFamily:F }}>Sinais de inteligência</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:10 }}>
@@ -302,7 +540,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       )}
 
-      {/* Diferenciais + Ruído */}
       <div className="a5" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
         <Card>
           <Lbl color={DS.greenDim}>Diferenciais ativos</Lbl>
@@ -336,7 +573,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       )}
 
-      {/* Concorrentes */}
       {data.concorrentes?.length > 0 && (
         <Card className="a7" style={{ marginBottom:14 }}>
           <Lbl color={DS.textLight}>Contexto competitivo</Lbl>
@@ -356,7 +592,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </Card>
       )}
 
-      {/* Oportunidades */}
       {data.oportunidades?.length > 0 && (
         <div className="a7" style={{ marginBottom:14 }}>
           <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, marginBottom:12, fontFamily:F }}>Oportunidades estratégicas</div>
@@ -377,7 +612,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       )}
 
-      {/* Quick wins */}
       {data.quick_wins?.length > 0 && (
         <div className="a8" style={{ background:DS.greenPale, border:`1px solid #A7DFD0`, borderRadius:12, padding:"18px 22px", marginBottom:14 }}>
           <Lbl color={DS.greenDim}>Quick wins — ações imediatas</Lbl>
@@ -390,7 +624,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       )}
 
-      {/* Metodologia */}
       <div className="a8" style={{ background:DS.grayLight, border:`1px solid ${DS.border}`, borderRadius:12, padding:"20px 24px", marginBottom:14 }}>
         <Lbl color={DS.textLight}>Como os scores são calculados</Lbl>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:12 }}>
@@ -414,7 +647,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </p>
       </div>
 
-      {/* Assinatura */}
       <div className="a8" style={{ background:DS.navyMid, borderRadius:12, padding:"16px 22px", marginBottom:14, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
         <div style={{ width:10, height:10, background:DS.pink, flexShrink:0 }} />
         <div style={{ flex:1 }}>
@@ -430,7 +662,6 @@ function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) 
         </div>
       )}
 
-      {/* CTA */}
       <div className="a8" style={{ background:DS.navy, borderRadius:12, padding:"24px 28px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:20, flexWrap:"wrap", marginBottom:14 }}>
         <div>
           <Lbl color={DS.green}>Próximo passo</Lbl>
@@ -468,6 +699,7 @@ function LoginView({ onLogin }) {
 
   return (
     <div style={{ minHeight:"100vh", background:DS.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F, padding:20 }}>
+      <style>{`*, *::before, *::after { box-sizing: border-box !important; }`}</style>
       <div style={{ width:"100%", maxWidth:400 }}>
         <div style={{ textAlign:"center", marginBottom:36 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:8 }}>
@@ -476,22 +708,22 @@ function LoginView({ onLogin }) {
           </div>
           <div style={{ fontSize:13, color:DS.gray }}>Brand Intelligence · Uso interno</div>
         </div>
-        <div style={{ background:DS.navyMid, borderRadius:16, padding:"28px 28px" }}>
+        <div style={{ background:DS.navyMid, borderRadius:16, padding:"28px" }}>
           <div style={{ fontSize:16, fontWeight:800, color:DS.white, marginBottom:20 }}>Entrar</div>
           {error && <div style={{ background:DS.pinkPale, borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#72243E" }}>{error}</div>}
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:10, fontWeight:700, letterSpacing:"0.15em", textTransform:"uppercase", color:DS.gray, display:"block", marginBottom:6 }}>E-mail</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="seu@email.com"
-                style={{ width:"100%", padding:"11px 14px", fontSize:14, fontFamily:F, background:DS.navy, border:`1px solid ${DS.navyLight}`, borderRadius:8, color:DS.white }} />
+                style={{ width:"100%", padding:"11px 14px", fontSize:14, fontFamily:F, background:DS.navy, border:`1px solid ${DS.navyLight}`, borderRadius:8, color:DS.white, boxSizing:"border-box" }} />
             </div>
             <div style={{ marginBottom:24 }}>
               <label style={{ fontSize:10, fontWeight:700, letterSpacing:"0.15em", textTransform:"uppercase", color:DS.gray, display:"block", marginBottom:6 }}>Senha</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
-                style={{ width:"100%", padding:"11px 14px", fontSize:14, fontFamily:F, background:DS.navy, border:`1px solid ${DS.navyLight}`, borderRadius:8, color:DS.white }} />
+                style={{ width:"100%", padding:"11px 14px", fontSize:14, fontFamily:F, background:DS.navy, border:`1px solid ${DS.navyLight}`, borderRadius:8, color:DS.white, boxSizing:"border-box" }} />
             </div>
             <button type="submit" disabled={loading}
-              style={{ width:"100%", background:DS.green, color:DS.white, border:"none", borderRadius:8, padding:"13px", fontSize:14, fontWeight:800, fontFamily:F, cursor:loading?"not-allowed":"pointer" }}>
+              style={{ width:"100%", background:DS.green, color:DS.white, border:"none", borderRadius:8, padding:"13px", fontSize:14, fontWeight:800, fontFamily:F, cursor:loading?"not-allowed":"pointer", boxSizing:"border-box" }}>
               {loading ? "Entrando..." : "Entrar →"}
             </button>
           </form>
@@ -501,7 +733,7 @@ function LoginView({ onLogin }) {
   );
 }
 
-// ─── Página Histórico ─────────────────────────────────────────────────────────
+// ─── Histórico ────────────────────────────────────────────────────────────────
 function PaginaHistorico({ onAbrirRelatorio }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -512,10 +744,7 @@ function PaginaHistorico({ onAbrirRelatorio }) {
 
   async function fetchHistory() {
     setLoading(true);
-    const { data } = await supabase
-      .from("diagnosticos")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data } = await supabase.from("diagnosticos").select("*").order("created_at", { ascending: false });
     setHistory(data || []);
     setLoading(false);
   }
@@ -539,13 +768,11 @@ function PaginaHistorico({ onAbrirRelatorio }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{ marginBottom:24 }}>
         <h2 style={{ fontSize:24, fontWeight:900, color:DS.navy, letterSpacing:"-0.02em", marginBottom:4 }}>Histórico de diagnósticos</h2>
         <p style={{ fontSize:13, color:DS.textLight }}>Todos os relatórios gerados pela equipe LOUDR.</p>
       </div>
 
-      {/* Stats */}
       {history.length > 0 && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:10, marginBottom:20 }}>
           {[
@@ -553,7 +780,7 @@ function PaginaHistorico({ onAbrirRelatorio }) {
             { val: avgSing,             lbl: "score médio singularidade" },
             { val: avgCons,             lbl: "score médio consistência" },
             { val: history[0]?.empresa, lbl: "último diagnóstico" },
-          ].map((s, i) => (
+          ].map((s,i) => (
             <div key={i} style={{ background:DS.grayLight, borderRadius:10, padding:"12px 16px" }}>
               <div style={{ fontSize:20, fontWeight:900, color:DS.navy, letterSpacing:"-0.02em" }}>{s.val}</div>
               <div style={{ fontSize:11, color:DS.textLight, marginTop:2 }}>{s.lbl}</div>
@@ -562,25 +789,15 @@ function PaginaHistorico({ onAbrirRelatorio }) {
         </div>
       )}
 
-      {/* Busca + Filtros */}
       {history.length > 0 && (
         <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-          <input
-            type="text"
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
+          <input type="text" value={busca} onChange={e => setBusca(e.target.value)}
             placeholder="Buscar por empresa, setor ou usuário..."
-            style={{
-              flex:1, minWidth:200, padding:"8px 14px", fontSize:13, fontFamily:F,
-              border:`1.5px solid ${DS.border}`, borderRadius:8, background:DS.white, color:DS.text,
-              outline:"none",
-            }}
-          />
+            style={{ flex:1, minWidth:200, padding:"8px 14px", fontSize:13, fontFamily:F, border:`1.5px solid ${DS.border}`, borderRadius:8, background:DS.white, color:DS.text, outline:"none", boxSizing:"border-box" }} />
           <div style={{ display:"flex", gap:6 }}>
             {[["todos","Todos"],["alta","Score alto"],["media","Score médio"],["baixa","Score baixo"]].map(([v,l]) => (
               <button key={v} onClick={() => setFilter(v)} style={{
-                background: filter===v ? DS.navy : "none",
-                color: filter===v ? DS.white : DS.textMid,
+                background: filter===v ? DS.navy : "none", color: filter===v ? DS.white : DS.textMid,
                 border: `1px solid ${filter===v ? DS.navy : DS.border}`,
                 borderRadius:99, padding:"5px 14px", fontSize:12, cursor:"pointer", fontFamily:F,
               }}>{l}</button>
@@ -589,7 +806,6 @@ function PaginaHistorico({ onAbrirRelatorio }) {
         </div>
       )}
 
-      {/* Lista */}
       {loading ? (
         <div style={{ textAlign:"center", padding:"3rem", color:DS.textLight, fontSize:13 }}>Carregando...</div>
       ) : history.length === 0 ? (
@@ -601,20 +817,12 @@ function PaginaHistorico({ onAbrirRelatorio }) {
         <div style={{ textAlign:"center", padding:"2rem", color:DS.textLight, fontSize:13 }}>Nenhum diagnóstico encontrado.</div>
       ) : (
         filtered.map(d => (
-          <div
-            key={d.id}
-            onClick={() => onAbrirRelatorio(d)}
-            style={{
-              background:DS.white, border:`1px solid ${DS.border}`,
-              borderRadius:12, padding:"18px 22px", marginBottom:10,
-              cursor:"pointer", transition:"all 0.15s",
-              display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = DS.green; e.currentTarget.style.boxShadow = `0 2px 12px rgba(13,158,122,0.08)`; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = DS.border; e.currentTarget.style.boxShadow = "none"; }}
+          <div key={d.id} onClick={() => onAbrirRelatorio(d)}
+            style={{ background:DS.white, border:`1px solid ${DS.border}`, borderRadius:12, padding:"18px 22px", marginBottom:10, cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor=DS.green; e.currentTarget.style.boxShadow=`0 2px 12px rgba(13,158,122,0.08)`; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor=DS.border; e.currentTarget.style.boxShadow="none"; }}
           >
             <div style={{ flex:1 }}>
-              {/* Empresa + meta */}
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4, flexWrap:"wrap" }}>
                 <span style={{ fontSize:16, fontWeight:800, color:DS.navy }}>{d.empresa}</span>
                 <span style={{ fontSize:12, color:DS.textLight }}>{d.setor} · {d.porte}</span>
@@ -622,8 +830,6 @@ function PaginaHistorico({ onAbrirRelatorio }) {
               <div style={{ fontSize:11, color:DS.textLight, marginBottom:10 }}>
                 {fmtDate(d.created_at)} · por {d.user_name || d.user_email}
               </div>
-
-              {/* Scores */}
               <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
                 {[
                   { l:"Singularidade",  v:d.score_singularidade },
@@ -635,19 +841,13 @@ function PaginaHistorico({ onAbrirRelatorio }) {
                   </span>
                 ))}
               </div>
-
-              {/* Frase */}
               {d.frase_diagnostico && (
                 <div style={{ borderLeft:`2px solid ${DS.green}`, paddingLeft:10, fontSize:13, color:DS.textMid, fontStyle:"italic", lineHeight:1.55 }}>
                   "{d.frase_diagnostico}"
                 </div>
               )}
             </div>
-
-            {/* CTA */}
-            <div style={{ flexShrink:0, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
-              <span style={{ fontSize:12, color:DS.green, fontWeight:700 }}>Ver relatório →</span>
-            </div>
+            <span style={{ fontSize:12, color:DS.green, fontWeight:700, flexShrink:0 }}>Ver relatório →</span>
           </div>
         ))
       )}
@@ -657,18 +857,20 @@ function PaginaHistorico({ onAbrirRelatorio }) {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser]               = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  // pages: "home" | "loading" | "report" | "historico" | "relatorio"
-  const [page, setPage]               = useState("home");
-  const [empresa, setEmpresa]         = useState("");
-  const [contexto, setContexto]       = useState("");
-  const [stepIdx, setStepIdx]         = useState(0);
-  const [progress, setProgress]       = useState("");
-  const [reportData, setReportData]   = useState(null);   // diagnóstico recém gerado
-  const [historicoItem, setHistoricoItem] = useState(null); // item do histórico selecionado
-  const [error, setError]             = useState("");
-  const [histCount, setHistCount]     = useState(0);
+  const [user, setUser]                   = useState(null);
+  const [authLoading, setAuthLoading]     = useState(true);
+  const [page, setPage]                   = useState("home");
+  const [empresa, setEmpresa]             = useState("");
+  const [contexto, setContexto]           = useState("");
+  const [reportData, setReportData]       = useState(null);
+  const [historicoItem, setHistoricoItem] = useState(null);
+  const [error, setError]                 = useState("");
+  const [histCount, setHistCount]         = useState(0);
+
+  // ── Stream state ──
+  const [streamText, setStreamText]       = useState("");
+  const [partialData, setPartialData]     = useState(null);
+  const [searchSteps, setSearchSteps]     = useState([]);
 
   useEffect(() => {
     const l = document.createElement("link");
@@ -695,9 +897,8 @@ export default function App() {
   }, [user]);
 
   function navigate(p) {
-    setPage(p);
-    setError("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setPage(p); setError("");
+    window.scrollTo({ top:0, behavior:"smooth" });
   }
 
   async function handleLogout() {
@@ -705,71 +906,60 @@ export default function App() {
     navigate("home"); setReportData(null); setEmpresa(""); setContexto("");
   }
 
-  function abrirRelatorioHistorico(item) {
-    setHistoricoItem(item);
-    navigate("relatorio");
-  }
-
   async function run() {
     if (!empresa.trim()) return;
-    navigate("loading"); setReportData(null); setError(""); setStepIdx(0);
+    navigate("streaming");
+    setStreamText(""); setPartialData(null); setSearchSteps([]); setError("");
 
-    for (let i = 0; i < STEPS.length; i++) {
-      setProgress(STEPS[i]); setStepIdx(i);
-      await new Promise(r => setTimeout(r, i === STEPS.length-1 ? 800 : 1500));
-    }
+    await runStream({
+      empresa,
+      contexto,
 
-    try {
-      const res = await fetch("/api/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 6000,
-          system: SYSTEM_PROMPT,
-          tools: [{ type:"web_search_20250305", name:"web_search" }],
-          messages: [{ role:"user", content:`Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ""}\nPesquise todas as fontes e gere o JSON completo.` }],
-        }),
-      });
+      onSearchStep: (count, query) => {
+        setSearchSteps(prev => {
+          const updated = [...prev];
+          updated[count-1] = query || `Busca ${count}`;
+          return updated;
+        });
+      },
 
-      const raw = await res.json();
-      if (raw.error) throw new Error(raw.error.message);
-      const block = raw.content?.find(b => b.type === "text");
-      if (!block) throw new Error("Sem resposta da API.");
+      onText: (fullText) => {
+        setStreamText(fullText);
+        // Tenta parsear parcialmente conforme chega
+        const partial = tryParseJSON(fullText);
+        if (partial) setPartialData(partial);
+      },
 
-      let txt = block.text.trim().replace(/^```[a-z]*\n?/i,"").replace(/\n?```$/i,"").trim();
-      const j0 = txt.indexOf("{"), j1 = txt.lastIndexOf("}");
-      if (j0 < 0 || j1 < 0) throw new Error("JSON não encontrado.");
-      const parsed = JSON.parse(txt.slice(j0, j1+1));
+      onDone: async (parsed) => {
+        // Salvar no Supabase
+        const { error: dbErr } = await supabase.from("diagnosticos").insert({
+          user_id:              user.id,
+          user_email:           user.email,
+          user_name:            user.user_metadata?.full_name || user.email.split("@")[0],
+          empresa:              parsed.empresa,
+          dominio:              parsed.dominio,
+          setor:                parsed.setor,
+          porte:                parsed.porte,
+          score_singularidade:  parsed.score_singularidade,
+          score_consistencia:   parsed.score_consistencia,
+          score_posicionamento: parsed.score_posicionamento,
+          frase_diagnostico:    parsed.frase_diagnostico,
+          data:                 parsed,
+        });
+        if (dbErr) console.error("Erro ao salvar no Supabase:", dbErr);
+        else setHistCount(c => c + 1);
 
-      // Salvar no Supabase
-      const { error: dbErr } = await supabase.from("diagnosticos").insert({
-        user_id:              user.id,
-        user_email:           user.email,
-        user_name:            user.user_metadata?.full_name || user.email.split("@")[0],
-        empresa:              parsed.empresa,
-        dominio:              parsed.dominio,
-        setor:                parsed.setor,
-        porte:                parsed.porte,
-        score_singularidade:  parsed.score_singularidade,
-        score_consistencia:   parsed.score_consistencia,
-        score_posicionamento: parsed.score_posicionamento,
-        frase_diagnostico:    parsed.frase_diagnostico,
-        data:                 parsed,
-      });
+        setReportData(parsed);
+        navigate("report");
+      },
 
-      if (dbErr) console.error("Erro ao salvar:", dbErr);
-      else setHistCount(c => c + 1);
-
-      setReportData(parsed);
-      navigate("report");
-    } catch (e) {
-      setError(e.message || "Erro desconhecido.");
-      navigate("home");
-    }
+      onError: (msg) => {
+        setError(msg);
+        navigate("home");
+      },
+    });
   }
 
-  // ── Telas de auth ──
   if (authLoading) return (
     <div style={{ minHeight:"100vh", background:DS.navy, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ width:40, height:40, border:`3px solid ${DS.navyMid}`, borderTopColor:DS.green, borderRadius:"50%", animation:"spin 0.75s linear infinite" }} />
@@ -782,8 +972,10 @@ export default function App() {
   return (
     <div style={{ fontFamily:F, color:DS.text, background:DS.offwhite, minHeight:"100vh" }}>
       <style>{`
+        *, *::before, *::after { box-sizing: border-box !important; margin:0; padding:0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fu { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
         .a0{animation:fu .38s ease both} .a1{animation:fu .38s .06s ease both} .a2{animation:fu .38s .12s ease both}
         .a3{animation:fu .38s .18s ease both} .a4{animation:fu .38s .24s ease both} .a5{animation:fu .38s .30s ease both}
         .a6{animation:fu .38s .36s ease both} .a7{animation:fu .38s .42s ease both} .a8{animation:fu .38s .48s ease both}
@@ -794,7 +986,6 @@ export default function App() {
 
       <div style={{ maxWidth:860, margin:"0 auto", padding:"28px 20px 72px" }}>
 
-        {/* Erro */}
         {error && (
           <div style={{ background:DS.pinkPale, border:`1px solid #F4C0D1`, borderRadius:10, padding:"14px 18px", marginBottom:14 }}>
             <div style={{ fontWeight:800, color:DS.pink, marginBottom:4, fontSize:14 }}>Erro ao gerar diagnóstico</div>
@@ -803,7 +994,7 @@ export default function App() {
           </div>
         )}
 
-        {/* HOME — formulário */}
+        {/* HOME */}
         {page === "home" && (
           <div>
             <div className="a0" style={{ background:DS.navy, borderRadius:16, padding:"40px 36px 34px", marginBottom:14, position:"relative", overflow:"hidden" }}>
@@ -815,7 +1006,7 @@ export default function App() {
                 Diagnóstico de<br /><span style={{ color:DS.green }}>Singularidade de Marca</span>
               </h1>
               <p style={{ fontSize:14, color:DS.gray, lineHeight:1.7, maxWidth:540, marginBottom:24 }}>
-                Análise baseada no framework Smart Branding da LOUDR — 4 práticas, múltiplas fontes de dados públicos, perguntas cirúrgicas.
+                Análise baseada no framework Smart Branding da LOUDR — 4 práticas, múltiplas fontes de dados públicos, resultados em tempo real.
               </p>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 {PRATICAS.map(p => (
@@ -833,7 +1024,7 @@ export default function App() {
                 <input type="text" value={empresa} onChange={e => setEmpresa(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && empresa.trim() && run()}
                   placeholder="ex: Nubank, farm.com.br, Magazine Luiza..."
-                  style={{ width:"100%", padding:"11px 14px", fontSize:15, fontWeight:500, fontFamily:F, border:`1.5px solid ${DS.border}`, borderRadius:8, background:DS.offwhite, color:DS.text }} />
+                  style={{ width:"100%", padding:"11px 14px", fontSize:15, fontWeight:500, fontFamily:F, border:`1.5px solid ${DS.border}`, borderRadius:8, background:DS.offwhite, color:DS.text, boxSizing:"border-box" }} />
               </div>
               <div style={{ marginBottom:24 }}>
                 <label style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, display:"block", marginBottom:7 }}>
@@ -841,7 +1032,7 @@ export default function App() {
                 </label>
                 <textarea value={contexto} onChange={e => setContexto(e.target.value)}
                   placeholder="ex: fintech B2B, lançou novo produto em 2024..." rows={3}
-                  style={{ width:"100%", padding:"11px 14px", fontSize:14, fontFamily:F, border:`1.5px solid ${DS.border}`, borderRadius:8, background:DS.offwhite, resize:"vertical", color:DS.text, lineHeight:1.55 }} />
+                  style={{ width:"100%", padding:"11px 14px", fontSize:14, fontFamily:F, border:`1.5px solid ${DS.border}`, borderRadius:8, background:DS.offwhite, resize:"vertical", color:DS.text, lineHeight:1.55, boxSizing:"border-box" }} />
               </div>
               <button onClick={run} disabled={!empresa.trim()}
                 style={{ background:empresa.trim()?DS.navy:"#9ca3af", color:DS.white, border:"none", padding:"13px 28px", borderRadius:8, fontSize:14, fontWeight:800, fontFamily:F, cursor:empresa.trim()?"pointer":"not-allowed" }}>
@@ -851,24 +1042,16 @@ export default function App() {
           </div>
         )}
 
-        {/* LOADING */}
-        {page === "loading" && (
-          <Card style={{ padding:"52px 32px", textAlign:"center" }}>
-            <div style={{ width:52, height:52, border:`3px solid ${DS.border}`, borderTopColor:DS.green, borderRadius:"50%", margin:"0 auto 22px", animation:"spin 0.75s linear infinite" }} />
-            <div style={{ fontSize:20, fontWeight:900, marginBottom:6, letterSpacing:"-0.02em" }}>Analisando marca</div>
-            <div style={{ fontSize:14, color:DS.textMid, marginBottom:28 }}>{progress}</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:9, alignItems:"center" }}>
-              {STEPS.map((s,i) => (
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, fontWeight:stepIdx===i?700:400, color:stepIdx>i?DS.green:stepIdx===i?DS.navy:DS.border, transition:"color 0.3s" }}>
-                  <span style={{ minWidth:14, textAlign:"center", fontSize:12 }}>{stepIdx>i?"✓":stepIdx===i?"▶":"○"}</span>
-                  {s}
-                </div>
-              ))}
-            </div>
-          </Card>
+        {/* STREAMING */}
+        {page === "streaming" && (
+          <StreamingView
+            searchSteps={searchSteps}
+            streamText={streamText}
+            partialData={partialData}
+          />
         )}
 
-        {/* REPORT — relatório recém gerado */}
+        {/* REPORT */}
         {page === "report" && reportData && (
           <RelatorioCompleto
             data={reportData}
@@ -877,12 +1060,12 @@ export default function App() {
           />
         )}
 
-        {/* HISTÓRICO — lista */}
+        {/* HISTÓRICO */}
         {page === "historico" && (
-          <PaginaHistorico onAbrirRelatorio={abrirRelatorioHistorico} />
+          <PaginaHistorico onAbrirRelatorio={item => { setHistoricoItem(item); navigate("relatorio"); }} />
         )}
 
-        {/* RELATORIO — relatório do histórico */}
+        {/* RELATÓRIO DO HISTÓRICO */}
         {page === "relatorio" && historicoItem && (
           <RelatorioCompleto
             data={historicoItem.data}
@@ -891,7 +1074,6 @@ export default function App() {
             backLabel="← Voltar ao histórico"
           />
         )}
-
       </div>
     </div>
   );
