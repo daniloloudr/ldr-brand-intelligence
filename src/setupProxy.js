@@ -12,6 +12,7 @@ module.exports = function (app) {
         proxyReq: (proxyReq, req) => {
           proxyReq.setHeader("x-api-key", process.env.REACT_APP_ANTHROPIC_KEY);
           proxyReq.setHeader("anthropic-version", "2023-06-01");
+          proxyReq.setHeader("anthropic-beta", "prompt-caching-2024-07-31");
           proxyReq.setHeader("content-type", "application/json");
           proxyReq.setHeader("anthropic-dangerous-direct-browser-access", "true");
         },
