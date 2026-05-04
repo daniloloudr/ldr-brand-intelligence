@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DS, F, PRATICAS } from "../lib/constants";
 import { fmtDate, sc } from "../lib/helpers";
-import { gerarPPT } from "../lib/pptx";
+import { gerarPDF } from "../lib/pdf";
 import { Bar } from "../components/Bar";
 import { Pill, ipill, apill, ppill } from "../components/Pill";
 import { Lbl } from "../components/Lbl";
@@ -9,8 +9,8 @@ import { Card } from "../components/Card";
 
 function SharePanel({ meta, data }) {
   const [copied, setCopied]     = useState(false);
-  const [pptLoading, setPptLoading] = useState(false);
-  const [pptError, setPptError] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const shareUrl = window.location.href.split("#")[0] + "#/relatorio/" + meta.id;
 
   function copyLink() {
@@ -20,15 +20,15 @@ function SharePanel({ meta, data }) {
     });
   }
 
-  async function downloadPPT() {
-    setPptLoading(true);
-    setPptError("");
+  async function downloadPDF() {
+    setPdfLoading(true);
+    setPdfError("");
     try {
-      await gerarPPT(data, meta);
+      await gerarPDF(data, meta);
     } catch (e) {
-      setPptError("Erro ao gerar apresentação. Tente novamente.");
+      setPdfError("Erro ao gerar PDF. Tente novamente.");
     } finally {
-      setPptLoading(false);
+      setPdfLoading(false);
     }
   }
 
@@ -83,27 +83,27 @@ function SharePanel({ meta, data }) {
           Enviar por e-mail →
         </button>
         <button
-          onClick={downloadPPT}
-          disabled={pptLoading}
+          onClick={downloadPDF}
+          disabled={pdfLoading}
           style={{
-            background: pptLoading ? DS.navyLight : DS.green,
+            background: pdfLoading ? DS.navyLight : DS.pink,
             border:"none", borderRadius:8, padding:"7px 16px",
             fontSize:12, fontWeight:700,
-            color: pptLoading ? DS.gray : DS.white,
-            cursor: pptLoading ? "not-allowed" : "pointer",
+            color: pdfLoading ? DS.gray : DS.white,
+            cursor: pdfLoading ? "not-allowed" : "pointer",
             fontFamily:F, display:"flex", alignItems:"center", gap:6,
             transition:"background 0.2s",
           }}
         >
-          {pptLoading ? (
+          {pdfLoading ? (
             <>
               <span style={{ width:10, height:10, border:`2px solid ${DS.gray}`, borderTopColor:"transparent", borderRadius:"50%", display:"inline-block", animation:"spin 0.7s linear infinite" }} />
-              Gerando PPT...
+              Gerando PDF...
             </>
-          ) : "↓ Baixar apresentação (.pptx)"}
+          ) : "↓ Baixar PDF (.pdf)"}
         </button>
       </div>
-      {pptError && <p style={{ fontSize:11, color:DS.pink, marginTop:8, marginBottom:0, fontFamily:F }}>{pptError}</p>}
+      {pdfError && <p style={{ fontSize:11, color:DS.pink, marginTop:8, marginBottom:0, fontFamily:F }}>{pdfError}</p>}
       <p style={{ fontSize:11, color:DS.textLight, marginTop:10, marginBottom:0, lineHeight:1.5, fontFamily:F }}>
         Qualquer pessoa com o link pode visualizar este relatório.
       </p>

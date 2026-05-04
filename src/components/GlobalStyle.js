@@ -8,6 +8,16 @@ export function GlobalStyle() {
       @keyframes fu { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
       @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+      @keyframes lightUp {
+        0%   { opacity:0; transform:translateY(6px); }
+        30%  { opacity:1; transform:translateY(0); box-shadow:inset 4px 0 0 ${DS.green}, 0 0 14px rgba(13,158,122,0.22); }
+        100% { box-shadow:inset 3px 0 0 rgba(13,158,122,0.3); }
+      }
+      @keyframes checkPop {
+        0%   { transform:scale(0); opacity:0; }
+        65%  { transform:scale(1.25); }
+        100% { transform:scale(1); opacity:1; }
+      }
       .a0{animation:fu .38s ease both} .a1{animation:fu .38s .06s ease both} .a2{animation:fu .38s .12s ease both}
       .a3{animation:fu .38s .18s ease both} .a4{animation:fu .38s .24s ease both} .a5{animation:fu .38s .30s ease both}
       .a6{animation:fu .38s .36s ease both} .a7{animation:fu .38s .42s ease both} .a8{animation:fu .38s .48s ease both}

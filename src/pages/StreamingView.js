@@ -320,21 +320,28 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
             const active   = i === searchCount - 1;
             const upcoming = i >= searchCount;
             const query    = searchSteps[i] || label;
+            // key change forces element remount on state transition → re-triggers CSS animations
+            const stateKey = done ? `d-${i}` : active ? `a-${i}` : `u-${i}`;
 
             return (
               <div
-                key={i}
+                key={stateKey}
                 style={{
                   display: "flex", alignItems: "flex-start", gap: 12,
                   padding: "10px 0",
                   borderBottom: i < SEARCH_LABELS.length - 1 ? `1px solid ${DS.border}` : "none",
-                  opacity: upcoming ? 0.32 : 1,
-                  transition: "opacity 0.5s ease",
-                  animation: active ? "fu 0.4s ease both" : "none",
-                  background: active ? `linear-gradient(90deg, ${DS.greenPale}44 0%, transparent 80%)` : "transparent",
-                  borderRadius: active ? 8 : 0,
-                  marginLeft: active ? -8 : 0,
-                  paddingLeft: active ? 8 : 0,
+                  opacity: upcoming ? 0.28 : 1,
+                  animation: active ? "lightUp 0.65s ease both"
+                            : done   ? "fu 0.3s ease both"
+                            : "none",
+                  background: active
+                    ? `linear-gradient(90deg, rgba(13,158,122,0.12) 0%, transparent 80%)`
+                    : done
+                    ? `linear-gradient(90deg, rgba(13,158,122,0.05) 0%, transparent 70%)`
+                    : "transparent",
+                  borderRadius: (active || done) ? 8 : 0,
+                  marginLeft: (active || done) ? -8 : 0,
+                  paddingLeft: (active || done) ? 8 : 0,
                 }}
               >
                 {/* Step indicator */}
@@ -345,7 +352,9 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                   background: done ? DS.green : active ? "transparent" : DS.grayLight,
                   border: active ? `2px solid ${DS.green}` : done ? "none" : `1px solid ${DS.border}`,
                   color: done ? DS.white : active ? DS.green : DS.textLight,
-                  animation: active ? "pulse 1.3s ease infinite" : "none",
+                  animation: done   ? "checkPop 0.4s ease both"
+                            : active ? "pulse 1.3s ease infinite"
+                            : "none",
                 }}>
                   {done ? "✓" : i + 1}
                 </div>
@@ -380,7 +389,10 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                 </div>
 
                 {done && (
-                  <span style={{ fontSize: 11, color: DS.green, fontWeight: 700, flexShrink: 0, fontFamily: F, paddingTop: 2 }}>
+                  <span style={{
+                    fontSize: 11, color: DS.green, fontWeight: 700, flexShrink: 0, fontFamily: F, paddingTop: 2,
+                    animation: "fu 0.35s 0.1s ease both",
+                  }}>
                     concluído
                   </span>
                 )}
