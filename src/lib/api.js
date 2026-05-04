@@ -20,16 +20,17 @@ export async function runStream({ empresa, contexto, onSearchStep, onText, onDon
         }),
       });
 
-      if (res.status === 429) {
+      if (res.status === 429 || res.status === 529) {
         if (attempt >= MAX_RETRIES) { onError("Limite de uso da API atingido. Aguarde alguns minutos e tente novamente."); return; }
+        const wait = res.status === 529 ? Math.min(RATE_LIMIT_WAIT * attempt, 120) : RATE_LIMIT_WAIT;
         if (onRateLimit) {
-          for (let s = RATE_LIMIT_WAIT; s > 0; s--) {
+          for (let s = wait; s > 0; s--) {
             onRateLimit(s, attempt);
             await new Promise(r => setTimeout(r, 1000));
           }
           onRateLimit(0, attempt);
         } else {
-          await new Promise(r => setTimeout(r, RATE_LIMIT_WAIT * 1000));
+          await new Promise(r => setTimeout(r, wait * 1000));
         }
         continue;
       }

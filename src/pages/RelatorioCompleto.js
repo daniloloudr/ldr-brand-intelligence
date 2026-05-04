@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { DS, F, PRATICAS } from "../lib/constants";
 import { fmtDate, sc } from "../lib/helpers";
+import { gerarPPT } from "../lib/pptx";
 import { Bar } from "../components/Bar";
 import { Pill, ipill, apill, ppill } from "../components/Pill";
 import { Lbl } from "../components/Lbl";
 import { Card } from "../components/Card";
 
 function SharePanel({ meta, data }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]     = useState(false);
+  const [pptLoading, setPptLoading] = useState(false);
+  const [pptError, setPptError] = useState("");
   const shareUrl = window.location.href.split("#")[0] + "#/relatorio/" + meta.id;
 
   function copyLink() {
@@ -15,6 +18,18 @@ function SharePanel({ meta, data }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     });
+  }
+
+  async function downloadPPT() {
+    setPptLoading(true);
+    setPptError("");
+    try {
+      await gerarPPT(data, meta);
+    } catch (e) {
+      setPptError("Erro ao gerar apresentação. Tente novamente.");
+    } finally {
+      setPptLoading(false);
+    }
   }
 
   function sendEmail() {
@@ -60,12 +75,35 @@ function SharePanel({ meta, data }) {
           {copied ? "Copiado ✓" : "Copiar link"}
         </button>
       </div>
-      <button
-        onClick={sendEmail}
-        style={{ background:"none", border:`1px solid ${DS.navyLight}`, borderRadius:8, padding:"7px 16px", fontSize:12, color:DS.gray, cursor:"pointer", fontFamily:F }}
-      >
-        Enviar por e-mail →
-      </button>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        <button
+          onClick={sendEmail}
+          style={{ background:"none", border:`1px solid ${DS.navyLight}`, borderRadius:8, padding:"7px 16px", fontSize:12, color:DS.gray, cursor:"pointer", fontFamily:F }}
+        >
+          Enviar por e-mail →
+        </button>
+        <button
+          onClick={downloadPPT}
+          disabled={pptLoading}
+          style={{
+            background: pptLoading ? DS.navyLight : DS.green,
+            border:"none", borderRadius:8, padding:"7px 16px",
+            fontSize:12, fontWeight:700,
+            color: pptLoading ? DS.gray : DS.white,
+            cursor: pptLoading ? "not-allowed" : "pointer",
+            fontFamily:F, display:"flex", alignItems:"center", gap:6,
+            transition:"background 0.2s",
+          }}
+        >
+          {pptLoading ? (
+            <>
+              <span style={{ width:10, height:10, border:`2px solid ${DS.gray}`, borderTopColor:"transparent", borderRadius:"50%", display:"inline-block", animation:"spin 0.7s linear infinite" }} />
+              Gerando PPT...
+            </>
+          ) : "↓ Baixar apresentação (.pptx)"}
+        </button>
+      </div>
+      {pptError && <p style={{ fontSize:11, color:DS.pink, marginTop:8, marginBottom:0, fontFamily:F }}>{pptError}</p>}
       <p style={{ fontSize:11, color:DS.textLight, marginTop:10, marginBottom:0, lineHeight:1.5, fontFamily:F }}>
         Qualquer pessoa com o link pode visualizar este relatório.
       </p>
@@ -181,13 +219,13 @@ export function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=n
           <Lbl color={DS.textLight}>Contexto competitivo</Lbl>
           {data.concorrentes.map((c,i) => (
             <div key={i}>
-              <div style={{ display:"flex", gap:12, padding:"8px 0", flexWrap:"wrap" }}>
-                <div style={{ minWidth:120, fontWeight:700, fontSize:13 }}>{c.nome}</div>
+              <div style={{ display:"flex", gap:12, padding:"8px 0", alignItems:"flex-start" }}>
+                <div style={{ minWidth:120, fontWeight:700, fontSize:13, flexShrink:0 }}>{c.nome}</div>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, color:DS.textMid }}>{c.diferencial}</div>
-                  {c.sinal && <div style={{ fontSize:11, color:DS.textLight, fontStyle:"italic" }}>↳ {c.sinal}</div>}
+                  {c.sinal && <div style={{ fontSize:11, color:DS.textLight, fontStyle:"italic", marginTop:4 }}>↳ {c.sinal}</div>}
                 </div>
-                {apill(c.ameaca)}
+                <div style={{ flexShrink:0 }}>{apill(c.ameaca)}</div>
               </div>
               {i < data.concorrentes.length-1 && <div style={{ height:1, background:DS.border }} />}
             </div>

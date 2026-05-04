@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DS, F, RATE_LIMIT_WAIT, MAX_RETRIES } from "../lib/constants";
 import { sc } from "../lib/helpers";
 import { Bar } from "../components/Bar";
@@ -83,21 +83,43 @@ function RateLimitView({ countdown, attempt }) {
   );
 }
 
-function SkeletonReport() {
+function SkeletonReport({ elapsed, tokenCount }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fu 0.5s ease both" }}>
-      {/* Company card skeleton */}
+      {/* Generating indicator */}
       <div style={{ background: DS.navy, borderRadius: 12, padding: "22px 26px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: DS.green, animation: "pulse 1.2s infinite" }} />
-          <span style={{ fontSize: 10, fontWeight: 700, color: DS.green, textTransform: "uppercase", letterSpacing: "0.18em", fontFamily: F }}>
-            Sintetizando diagnóstico
-          </span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: DS.green, animation: "pulse 1.2s infinite" }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: DS.green, textTransform: "uppercase", letterSpacing: "0.18em", fontFamily: F }}>
+              IA escrevendo diagnóstico
+            </span>
+          </div>
+          {tokenCount > 0 && (
+            <span style={{ fontSize: 11, color: DS.gray, fontFamily: F }}>
+              ~{tokenCount} tokens gerados
+            </span>
+          )}
         </div>
-        <SkeletonLine width="50%" height={22} bg="#1E3550" style={{ marginBottom: 10 }} />
-        <SkeletonLine width="38%" height={12} bg="#1E3550" style={{ marginBottom: 16 }} />
-        <SkeletonLine width="88%" height={10} bg="#162840" style={{ marginBottom: 6 }} />
-        <SkeletonLine width="72%" height={10} bg="#162840" />
+
+        {/* Animated writing cursor lines */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          {[
+            { w: "52%", h: 20, bg: "#1E3550", delay: 0 },
+            { w: "36%", h: 11, bg: "#1E3550", delay: 0.1 },
+            { w: "90%", h: 9,  bg: "#162840", delay: 0.2 },
+            { w: "76%", h: 9,  bg: "#162840", delay: 0.3 },
+            { w: "60%", h: 9,  bg: "#162840", delay: 0.4 },
+          ].map((l, i) => (
+            <SkeletonLine key={i} width={l.w} height={l.h} bg={l.bg} style={{ animationDelay: `${l.delay}s` }} />
+          ))}
+        </div>
+
+        {/* Writing cursor */}
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 2, height: 14, background: DS.green, animation: "blink 0.9s step-end infinite", borderRadius: 1 }} />
+          <span style={{ fontSize: 11, color: DS.gray, fontFamily: F }}>sintetizando dados...</span>
+        </div>
       </div>
 
       {/* Practices grid skeleton */}
@@ -165,27 +187,56 @@ function PartialDataPreview({ data }) {
   );
 }
 
-export function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimitAttempt }) {
-  const [msgIdx, setMsgIdx] = useState(0);
+function formatElapsed(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
 
-  const isRateLimit   = rateLimitCountdown > 0;
-  const searchCount   = searchSteps.length;
-  const allDone       = searchCount >= TOTAL_SEARCHES;
-  const isWaiting     = searchCount === 0;
-  const isGenerating  = allDone && !partialData?.empresa;
+// 98% in 120s = 0.817% per second; tick every 500ms = 0.408% per tick
+const DURATION = 120;
+const TICK_MS  = 500;
+const STEP     = (98 / DURATION) / (1000 / TICK_MS);
+
+export function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimitAttempt, streamText = "" }) {
+  const [msgIdx, setMsgIdx]     = useState(0);
+  const [elapsed, setElapsed]   = useState(0);
+  const [progress, setProgress] = useState(0);
+  const startRef = useRef(Date.now());
+
+  const isRateLimit  = rateLimitCountdown > 0;
+  const searchCount  = searchSteps.length;
+  const allDone      = searchCount >= TOTAL_SEARCHES;
+  const isWaiting    = searchCount === 0;
+  const isGenerating = allDone && !partialData?.empresa;
 
   const messages = isWaiting ? WAITING_MSGS : GENERATING_MSGS;
+  const msgSpeed = isGenerating ? 1800 : 2400;
 
-  useEffect(() => {
-    setMsgIdx(0);
-  }, [isWaiting, allDone]);
+  const tokenCount = Math.floor(streamText.length / 4);
 
+  // Elapsed clock
   useEffect(() => {
-    const t = setInterval(() => setMsgIdx(i => (i + 1) % messages.length), 2400);
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
     return () => clearInterval(t);
-  }, [messages.length]);
+  }, []);
 
-  const progressPct = isWaiting ? 5 : allDone ? 92 : 8 + (searchCount / TOTAL_SEARCHES) * 75;
+  // Continuous progress ticker: 0% → 98% over 120 seconds, never pauses
+  useEffect(() => {
+    const t = setInterval(() => setProgress(p => Math.min(p + STEP, 98)), TICK_MS);
+    return () => clearInterval(t);
+  }, []);
+
+  // Reset message index on phase change
+  useEffect(() => { setMsgIdx(0); }, [isWaiting, allDone]);
+
+  // Message rotation
+  useEffect(() => {
+    const t = setInterval(() => setMsgIdx(i => (i + 1) % messages.length), msgSpeed);
+    return () => clearInterval(t);
+  }, [messages.length, msgSpeed]);
+
+  const progressPct = progress;
 
   if (isRateLimit) {
     return <RateLimitView countdown={rateLimitCountdown} attempt={rateLimitAttempt} />;
@@ -196,18 +247,22 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
 
       {/* ── Status header ── */}
       <div style={{ background: DS.navy, borderRadius: 16, padding: "28px 32px", marginBottom: 14, position: "relative", overflow: "hidden" }}>
-        {/* bg glow */}
         <div style={{ position: "absolute", right: -40, top: -40, width: 200, height: 200, borderRadius: "50%", background: DS.green, opacity: 0.04 }} />
 
-        {/* Phase label */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: DS.green, animation: "pulse 1.1s infinite", flexShrink: 0 }} />
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: DS.green, textTransform: "uppercase", fontFamily: F }}>
-            {isWaiting
-              ? "Agent inicializando"
-              : allDone
-              ? "Gerando diagnóstico"
-              : `Pesquisando · ${searchCount} de ${TOTAL_SEARCHES}`}
+        {/* Phase label + elapsed */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: DS.green, animation: "pulse 1.1s infinite", flexShrink: 0 }} />
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: DS.green, textTransform: "uppercase", fontFamily: F }}>
+              {isWaiting
+                ? "Agent inicializando"
+                : allDone
+                ? "Gerando diagnóstico"
+                : `Pesquisando · ${searchCount} de ${TOTAL_SEARCHES}`}
+            </span>
+          </div>
+          <span style={{ fontSize: 12, color: DS.gray, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
+            {formatElapsed(elapsed)}
           </span>
         </div>
 
@@ -220,14 +275,18 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
         </div>
 
         <p style={{ fontSize: 13, color: DS.gray, marginBottom: 22, fontFamily: F }}>
-          Não feche esta página. O relatório será exibido ao final da análise.
+          {isGenerating
+            ? "A IA está sintetizando todos os dados coletados. Isso pode levar até 60 segundos."
+            : "Não feche esta página. O relatório será exibido ao final da análise."}
         </p>
 
         {/* Progress bar */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontSize: 11, color: DS.textLight, fontFamily: F }}>Progresso da análise</span>
-            <span style={{ fontSize: 11, color: DS.green, fontWeight: 700, fontFamily: F }}>{Math.round(progressPct)}%</span>
+            <span style={{ fontSize: 11, color: DS.green, fontWeight: 700, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
+              {Math.round(progressPct)}%
+            </span>
           </div>
           <div style={{ background: DS.navyLight, borderRadius: 99, height: 5, overflow: "hidden" }}>
             <div style={{
@@ -235,10 +294,21 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
               background: `linear-gradient(90deg, ${DS.green}, #0ecf9f)`,
               borderRadius: 99,
               width: `${progressPct}%`,
-              transition: "width 1.4s cubic-bezier(.22,1,.36,1)",
+              transition: "width 1.2s cubic-bezier(.22,1,.36,1)",
             }} />
           </div>
         </div>
+
+        {/* Token counter strip — visible only during generating */}
+        {isGenerating && tokenCount > 0 && (
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, animation: "fu 0.3s ease both" }}>
+            <div style={{ flex: 1, height: 1, background: DS.navyLight }} />
+            <span style={{ fontSize: 11, color: DS.gray, fontFamily: F, whiteSpace: "nowrap" }}>
+              {tokenCount.toLocaleString("pt-BR")} tokens gerados
+            </span>
+            <div style={{ flex: 1, height: 1, background: DS.navyLight }} />
+          </div>
+        )}
       </div>
 
       {/* ── Search timeline ── */}
@@ -261,6 +331,10 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                   opacity: upcoming ? 0.32 : 1,
                   transition: "opacity 0.5s ease",
                   animation: active ? "fu 0.4s ease both" : "none",
+                  background: active ? `linear-gradient(90deg, ${DS.greenPale}44 0%, transparent 80%)` : "transparent",
+                  borderRadius: active ? 8 : 0,
+                  marginLeft: active ? -8 : 0,
+                  paddingLeft: active ? 8 : 0,
                 }}
               >
                 {/* Step indicator */}
@@ -278,12 +352,20 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
 
                 <div style={{ flex: 1 }}>
                   <div style={{
-                    fontSize: 13, fontFamily: F, lineHeight: 1.5,
-                    color: done ? DS.textMid : active ? DS.text : DS.textLight,
-                    fontWeight: active ? 600 : 400,
+                    fontSize: 11, fontFamily: F, color: DS.textLight,
+                    marginBottom: upcoming ? 0 : 2,
                   }}>
-                    {upcoming ? label : query}
+                    {label}
                   </div>
+                  {!upcoming && (
+                    <div style={{
+                      fontSize: 13, fontFamily: F, lineHeight: 1.45,
+                      color: done ? DS.textMid : active ? DS.text : DS.textLight,
+                      fontWeight: active ? 600 : 400,
+                    }}>
+                      {query}
+                    </div>
+                  )}
                   {active && (
                     <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
                       {[0, 1, 2].map(d => (
@@ -309,7 +391,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
       </Card>
 
       {/* ── Skeleton or partial data ── */}
-      {isGenerating && <SkeletonReport />}
+      {isGenerating && <SkeletonReport elapsed={elapsed} tokenCount={tokenCount} />}
       {!isGenerating && partialData?.empresa && <PartialDataPreview data={partialData} />}
 
     </div>

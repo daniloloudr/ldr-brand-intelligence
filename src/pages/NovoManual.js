@@ -13,17 +13,18 @@ export function NovoManual({ user, onDone }) {
   const [streaming, setStreaming]     = useState(false);
   const [steps, setSteps]             = useState([]);
   const [partial, setPartial]         = useState(null);
+  const [streamText, setStreamText]   = useState("");
   const [error, setError]             = useState("");
   const [rlCountdown, setRlCountdown] = useState(0);
   const [rlAttempt, setRlAttempt]     = useState(0);
 
   async function run() {
     if (!empresa.trim()) return;
-    setStreaming(true); setSteps([]); setPartial(null); setError("");
+    setStreaming(true); setSteps([]); setPartial(null); setStreamText(""); setError("");
     await runStream({
       empresa, contexto,
       onSearchStep: (c, q) => setSteps(p => { const u=[...p]; u[c-1]=q||`Busca ${c}`; return u; }),
-      onText: (txt) => { const p=tryParseJSON(txt); if(p) setPartial(p); },
+      onText: (txt) => { setStreamText(txt); const p=tryParseJSON(txt); if(p) setPartial(p); },
       onRateLimit: (s, t) => { setRlCountdown(s); setRlAttempt(t); },
       onDone: async (parsed) => {
         const { data: diag } = await supabase.from("diagnosticos").insert({
@@ -44,7 +45,7 @@ export function NovoManual({ user, onDone }) {
     });
   }
 
-  if (streaming) return <StreamingView searchSteps={steps} partialData={partial} rateLimitCountdown={rlCountdown} rateLimitAttempt={rlAttempt} />;
+  if (streaming) return <StreamingView searchSteps={steps} partialData={partial} rateLimitCountdown={rlCountdown} rateLimitAttempt={rlAttempt} streamText={streamText} />;
 
   return (
     <div>
