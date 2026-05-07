@@ -1,5 +1,5 @@
 import { DS, F } from "../lib/constants";
-import { sc, scBg } from "../lib/helpers";
+import { sc, scBg, normalizeSector } from "../lib/helpers";
 import { Bar } from "../components/Bar";
 import { Card } from "../components/Card";
 import { Lbl } from "../components/Lbl";
@@ -26,7 +26,7 @@ const SCORE_TOOLTIPS = {
   },
 };
 
-export function DashboardHistorico({ historico, onVerRelatorio }) {
+export function DashboardHistorico({ historico, onVerRelatorio, onVerTodos, onSetorClick }) {
   if (!historico.length) return null;
 
   const avgOf = key => {
@@ -53,7 +53,8 @@ export function DashboardHistorico({ historico, onVerRelatorio }) {
 
   const setorMap = {};
   historico.forEach(d => {
-    if (d.setor) setorMap[d.setor] = (setorMap[d.setor] || 0) + 1;
+    const s = normalizeSector(d.setor);
+    if (s) setorMap[s] = (setorMap[s] || 0) + 1;
   });
   const setores = Object.entries(setorMap).sort((a, b) => b[1] - a[1]);
 
@@ -127,12 +128,14 @@ export function DashboardHistorico({ historico, onVerRelatorio }) {
 
         {/* Ranking */}
         <Card>
-          <Lbl color={DS.textLight}>Ranking das marcas · score médio</Lbl>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+            <Lbl color={DS.textLight}>Ranking das marcas · score médio</Lbl>
+          </div>
           <div>
-            {withAvg.map((d, i) => (
+            {withAvg.slice(0, 10).map((d, i) => (
               <div key={d.id}
                 onClick={() => onVerRelatorio && onVerRelatorio(d)}
-                style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom: i < withAvg.length-1 ? `1px solid ${DS.border}` : "none", cursor:"pointer", transition:"opacity 0.15s" }}
+                style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom: i < Math.min(withAvg.length, 10)-1 ? `1px solid ${DS.border}` : "none", cursor:"pointer", transition:"opacity 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.opacity = "0.65"}
                 onMouseLeave={e => e.currentTarget.style.opacity = "1"}
               >
@@ -143,7 +146,7 @@ export function DashboardHistorico({ historico, onVerRelatorio }) {
                   <div style={{ fontSize:13, fontWeight:800, color:DS.navy, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", fontFamily:F }}>{d.empresa}</div>
                   {(d.setor || d.porte) && (
                     <div style={{ fontSize:10, color:DS.textLight, fontFamily:F }}>
-                      {[d.setor, d.porte].filter(Boolean).join(" · ")}
+                      {[normalizeSector(d.setor), d.porte].filter(Boolean).join(" · ")}
                     </div>
                   )}
                 </div>
@@ -153,6 +156,11 @@ export function DashboardHistorico({ historico, onVerRelatorio }) {
               </div>
             ))}
           </div>
+          {withAvg.length > 10 && onVerTodos && (
+            <button onClick={onVerTodos} style={{ marginTop:14, width:"100%", padding:"9px", background:"none", border:`1px solid ${DS.border}`, borderRadius:8, fontSize:12, color:DS.green, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+              Ver todos os {withAvg.length} diagnósticos →
+            </button>
+          )}
         </Card>
 
         {/* Right column */}
@@ -182,10 +190,14 @@ export function DashboardHistorico({ historico, onVerRelatorio }) {
               <Lbl color={DS.textLight}>Setores analisados</Lbl>
               <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                 {setores.map(([setor, count]) => (
-                  <div key={setor} style={{ background:DS.navy, borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:6 }}>
+                  <button key={setor} onClick={() => onSetorClick && onSetorClick(setor)}
+                    style={{ background:DS.navy, borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:6, border:"none", cursor: onSetorClick ? "pointer" : "default", transition:"opacity 0.15s" }}
+                    onMouseEnter={e => { if (onSetorClick) e.currentTarget.style.opacity = "0.75"; }}
+                    onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+                  >
                     <span style={{ fontSize:12, color:"#d1e8e0", fontWeight:600, fontFamily:F }}>{setor}</span>
                     <span style={{ fontSize:11, background:DS.green+"44", color:DS.green, borderRadius:99, padding:"1px 6px", fontWeight:700, fontFamily:F }}>{count}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </Card>

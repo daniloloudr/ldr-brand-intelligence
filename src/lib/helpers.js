@@ -17,6 +17,34 @@ export const fmtDate = iso => new Date(iso).toLocaleDateString("pt-BR", {
   day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"
 });
 
+export const MACRO_SETORES = [
+  "Tecnologia","Saúde","Educação","Finanças","Varejo",
+  "Fashion","Indústria","Serviços","Alimentação","Imóveis",
+  "Logística","Mídia","Energia","Agronegócio","Outro",
+];
+
+export function normalizeSector(setor) {
+  if (!setor) return "Outro";
+  // if already a macro, return as-is
+  if (MACRO_SETORES.includes(setor)) return setor;
+  const s = setor.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (/tech|software|saas|\bti\b|t\.i|digital|dados|\bia\b|intelig|cyber|cloud|startup|\bapp\b|aplicat|sistema/.test(s)) return "Tecnologia";
+  if (/saude|medic|hospit|clinic|plano|farmac|biotech|dental|psicol|nutri|fisio|suplemento|laborat|odonto/.test(s)) return "Saúde";
+  if (/educa|ensino|escola|facul|universid|curso|treinam|capacit|elearning|aprendiz/.test(s)) return "Educação";
+  if (/banco|financ|credito|fintech|seguro|investi|capital|asset|bolsa|pagam|previdenc|corretora/.test(s)) return "Finanças";
+  if (/moda|fashion|roupa|vestuario|otica|acessorio|calcado|textil|luxo|joias|bijuteria/.test(s)) return "Fashion";
+  if (/varejo|loja|comercio|ecommerce|e-commerce|marketplace|distribui|atacado|supermercado|retai/.test(s)) return "Varejo";
+  if (/industria|manufatura|fabrica|producao|montagem|siderurgia|metalurgia|quimica|petrol|plastico/.test(s)) return "Indústria";
+  if (/aliment|bebida|restaur|\bfood\b|refeicao|cafe|padaria|laticinio|frigorif|snack/.test(s)) return "Alimentação";
+  if (/imobil|constru|incorpora|\bimovel\b|arquitet|engenharia civil/.test(s)) return "Imóveis";
+  if (/logistic|transport|entrega|frete|supply|cadeia|armazen|courier/.test(s)) return "Logística";
+  if (/midia|entretenimento|publicidade|agencia|comunicacao|propaganda|jornal|revista|streaming|content/.test(s)) return "Mídia";
+  if (/energia|eletric|solar|renov|gas|minera|petroleo/.test(s)) return "Energia";
+  if (/agro|agric|fazenda|rural|pecuaria|safra|fertilizante|hortifruti/.test(s)) return "Agronegócio";
+  if (/servico|consultoria|advocacia|contabil|\brh\b|recursos humanos|terceiriza|assessoria/.test(s)) return "Serviços";
+  return setor; // mantém original se não mapear
+}
+
 export function tryParseJSON(txt) {
   if (!txt) return null;
   let s = txt.replace(/^```[a-z]*\n?/im, "").replace(/\n?```$/im, "").trim();

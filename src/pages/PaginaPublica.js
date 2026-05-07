@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { GlobalStyle } from "../components/GlobalStyle";
 
-const SETORES = ["Tecnologia","Varejo","Saúde","Educação","Finanças","Indústria","Serviços","E-commerce","Outro"];
+const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"];
 const BOTICARIO_REPORT_URL = "/#/relatorio/81a4b269-0384-4fdb-b891-ea60637aa16f";
 
@@ -572,6 +572,105 @@ const CSS = `
     0%,100%{transform:translateY(0);opacity:0.4}
     50%{transform:translateY(6px);opacity:1}
   }
+
+  /* ─── SCROLL PROGRESS ─── */
+  .pp-progress {
+    position:fixed; top:0; left:0; right:0; height:2px;
+    z-index:9999; transform-origin:left; transform:scaleX(0);
+    background:linear-gradient(90deg,var(--pink),var(--teal));
+    pointer-events:none;
+  }
+
+  /* ─── CURSOR GLOW ─── */
+  .pp-cursor-glow {
+    position:fixed; pointer-events:none; z-index:0;
+    width:560px; height:560px; border-radius:50%;
+    background:radial-gradient(circle,rgba(232,24,90,0.048) 0%,transparent 65%);
+    transform:translate(-50%,-50%);
+    will-change:left,top;
+    transition:left 0.5s ease,top 0.5s ease;
+  }
+
+  /* ─── GRAIN ─── */
+  @keyframes grain {
+    0%,100%{transform:translate(0,0)}
+    20%{transform:translate(-2%,-3%)}
+    40%{transform:translate(3%,2%)}
+    60%{transform:translate(-1%,4%)}
+    80%{transform:translate(4%,-2%)}
+  }
+  .pp-grain {
+    position:fixed; inset:-50%; width:200%; height:200%;
+    pointer-events:none; z-index:9998; opacity:0.032;
+    animation:grain 8s steps(10) infinite;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ─── SCROLL REVEAL ─── */
+  .reveal {
+    opacity:0; will-change:opacity,transform;
+  }
+  .reveal.up    { transform:translateY(52px); }
+  .reveal.left  { transform:translateX(-52px); }
+  .reveal.right { transform:translateX(52px); }
+  .reveal.scale { transform:scale(0.88); }
+  .reveal.in {
+    opacity:1; transform:none;
+    transition:opacity 0.9s cubic-bezier(0.16,1,0.3,1),
+               transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  /* ─── HERO ENTRANCE ─── */
+  @keyframes hFadeUp {
+    from{opacity:0;transform:translateY(36px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .h-enter { animation:hFadeUp 0.9s cubic-bezier(0.16,1,0.3,1) both; }
+
+  /* ─── HERO CARD FLOAT ─── */
+  @keyframes floatY {
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-12px)}
+  }
+  .pp-hero-card-wrap { animation:floatY 5s ease-in-out infinite; }
+
+  /* ─── DECORATION ORBITS ─── */
+  @keyframes orbitA {
+    0%,100%{transform:translate(0,0) rotate(0deg)}
+    30%{transform:translate(6px,-10px) rotate(3deg)}
+    70%{transform:translate(-4px,-6px) rotate(-2deg)}
+  }
+  @keyframes orbitB {
+    0%,100%{transform:translate(0,0) rotate(0deg)}
+    40%{transform:translate(-7px,9px) rotate(-3deg)}
+    75%{transform:translate(5px,5px) rotate(2deg)}
+  }
+  .pp-hero-sq-pink { animation:orbitA 9s ease-in-out infinite; }
+  .pp-hero-sq-teal { animation:orbitB 11s ease-in-out infinite; }
+
+  /* ─── CTA GLOW ─── */
+  @keyframes ctaGlow {
+    0%,100%{box-shadow:0 0 0 0 rgba(232,24,90,0.4),0 6px 28px rgba(232,24,90,0.22)}
+    50%{box-shadow:0 0 0 10px rgba(232,24,90,0),0 6px 28px rgba(232,24,90,0.42)}
+  }
+  .pp-btn-primary { animation:ctaGlow 2.8s ease-in-out infinite; }
+
+  /* ─── ACCENT LINE ─── */
+  @keyframes lineGrow {
+    from{transform:scaleX(0);transform-origin:left}
+    to{transform:scaleX(1);transform-origin:left}
+  }
+  .pp-section-eyebrow.in::before,
+  .pp-eyebrow.in::before {
+    animation:lineGrow 0.6s 0.2s cubic-bezier(0.16,1,0.3,1) both;
+  }
+
+  /* ─── NAV SHRINK ON SCROLL ─── */
+  .pp-nav.scrolled {
+    height:56px;
+    background:rgba(8,17,31,0.97);
+    transition:height 0.3s ease,background 0.3s ease;
+  }
 `;
 
 // SVG icons for proof section
@@ -614,6 +713,12 @@ const IconUsers = () => (
   </svg>
 );
 
+const IconAction = () => (
+  <svg className="pp-proof-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square">
+    <path d="M9 11L12 14L22 4"/><path d="M20 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h10"/>
+  </svg>
+);
+
 const ArrowRight = () => (
   <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
     <path d="M9 1L13 5L9 9M13 5H1" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
@@ -625,8 +730,13 @@ export function PaginaPublica() {
   const [loading, setLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [error, setError]     = useState("");
-  const formRef = useRef(null);
-  const howRef  = useRef(null);
+  const formRef      = useRef(null);
+  const howRef       = useRef(null);
+  const progressRef  = useRef(null);
+  const cursorRef    = useRef(null);
+  const heroBgRef    = useRef(null);
+  const heroVisRef   = useRef(null);
+  const navRef       = useRef(null);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior:"smooth" });
@@ -647,22 +757,44 @@ export function PaginaPublica() {
   }
 
   useEffect(() => {
+    /* ── Scroll: progress bar + parallax + nav shrink ── */
+    const onScroll = () => {
+      const y   = window.scrollY;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (progressRef.current)
+        progressRef.current.style.transform = `scaleX(${y / max})`;
+      if (heroBgRef.current)
+        heroBgRef.current.style.transform = `translateY(${y * 0.22}px)`;
+      if (heroVisRef.current)
+        heroVisRef.current.style.transform = `translateY(${y * -0.07}px)`;
+      if (navRef.current)
+        navRef.current.classList.toggle("scrolled", y > 60);
+    };
+    window.addEventListener("scroll", onScroll, { passive:true });
+
+    /* ── Cursor glow ── */
+    const onMove = e => {
+      if (cursorRef.current) {
+        cursorRef.current.style.left = e.clientX + "px";
+        cursorRef.current.style.top  = e.clientY + "px";
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+
+    /* ── Scroll reveal ── */
     const observer = new IntersectionObserver(
-      entries => entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.style.opacity = "1";
-          e.target.style.transform = "translateY(0)";
-        }
+      entries => entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add("in");
       }),
-      { threshold: 0.1 }
+      { threshold:0.08, rootMargin:"0px 0px -36px 0px" }
     );
-    document.querySelectorAll(".pp-pain-card, .pp-proof-item, .pp-pratica-item, .pp-example-card").forEach(el => {
-      el.style.opacity = "0";
-      el.style.transform = "translateY(16px)";
-      el.style.transition = "opacity 0.6s ease, transform 0.6s ease";
-      observer.observe(el);
-    });
-    return () => observer.disconnect();
+    document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("mousemove", onMove);
+      observer.disconnect();
+    };
   }, []);
 
   const PROOF_ITEMS = [
@@ -673,15 +805,19 @@ export function PaginaPublica() {
     { Icon:IconBolt,   t:"Cada Análise é Única",            d:"O agente não usa template. Pesquisa, cruza fontes e gera um relatório específico para a sua empresa neste momento." },
     { Icon:IconUsers,  t:"Entregue por Quem Constrói",      d:"O diagnóstico é gerado por tecnologia, mas revisado por uma equipe que executa estratégia de marca. Ponto de partida de uma conversa real." },
     { Icon:IconBar,    t:"Pronto para o Board",             d:"Os scores e o relatório são estruturados para apresentação executiva. Você recebe o diagnóstico, não um dump de dados." },
+    { Icon:IconAction, t:"Resultado Pronto para Ação",      d:"Cada relatório termina com quick wins priorizados e uma porta de entrada recomendada. Você sai da leitura sabendo exatamente o que fazer primeiro." },
   ];
 
   return (
     <>
       <GlobalStyle />
       <style>{CSS}</style>
+      <div className="pp-grain" />
+      <div className="pp-progress" ref={progressRef} />
+      <div className="pp-cursor-glow" ref={cursorRef} />
 
       {/* ── NAV ── */}
-      <nav className="pp-nav">
+      <nav className="pp-nav" ref={navRef}>
         <div className="pp-logo">
           <span className="pp-logo-name">LOUDR<span>.</span></span>
           <span className="pp-logo-div" />
@@ -692,28 +828,28 @@ export function PaginaPublica() {
 
       {/* ── HERO ── */}
       <section className="pp-hero">
-        <div className="pp-hero-bg" />
+        <div className="pp-hero-bg" ref={heroBgRef} />
 
         {/* Left column */}
         <div style={{ position:"relative", zIndex:2 }}>
-          <div className="pp-eyebrow">Smart Branding · Framework Proprietário</div>
+          <div className="pp-eyebrow h-enter" style={{ animationDelay:"0.05s" }}>Smart Branding · Framework Proprietário</div>
           <h1 className="pp-h1">
-            Você aprova budget<br />
-            de marca todo ano.<br />
-            Mas consegue mostrar<br />
-            <span className="accent">o que está construindo?</span>
+            <span className="h-enter" style={{ display:"block", animationDelay:"0.18s" }}>Você aprova budget</span>
+            <span className="h-enter" style={{ display:"block", animationDelay:"0.28s" }}>de marca todo ano.</span>
+            <span className="h-enter" style={{ display:"block", animationDelay:"0.38s" }}>Mas consegue mostrar</span>
+            <span className="accent h-enter" style={{ display:"block", animationDelay:"0.48s" }}>o que está construindo?</span>
           </h1>
-          <p className="pp-sub">
+          <p className="pp-sub h-enter" style={{ animationDelay:"0.6s" }}>
             Na próxima reunião de planejamento, você vai defender brand com intuição ou com dado?{" "}
             <strong>O diagnóstico LOUDR transforma percepção em evidência — em 48 horas.</strong>
           </p>
-          <div className="pp-cta-group">
+          <div className="pp-cta-group h-enter" style={{ animationDelay:"0.72s" }}>
             <button className="pp-btn-primary" onClick={scrollToForm}>
               Quero meu diagnóstico <ArrowRight />
             </button>
             <button className="pp-btn-outline" onClick={scrollToHow}>Como funciona</button>
           </div>
-          <div className="pp-stats-bar">
+          <div className="pp-stats-bar h-enter" style={{ animationDelay:"0.86s" }}>
             {[
               { n:"04",    l:"Práticas analisadas" },
               { n:"48h",   l:"Tempo de entrega"    },
@@ -738,7 +874,7 @@ export function PaginaPublica() {
         </div>
 
         {/* Right column — Hero visual */}
-        <div className="pp-hero-visual">
+        <div className="pp-hero-visual" ref={heroVisRef}>
           <div className="pp-hero-card-wrap">
             <div className="pp-hero-sq-teal" />
             <div className="pp-hero-card">
@@ -787,15 +923,15 @@ export function PaginaPublica() {
       {/* ── PAIN ── */}
       <section className="pp-pain">
         <div className="pp-section-inner">
-          <div className="pp-section-eyebrow">O problema que ninguém fala em reunião</div>
+          <div className="pp-section-eyebrow reveal left">O problema que ninguém fala em reunião</div>
           <div className="pp-pain-head">
-            <h2 className="pp-pain-headline">
+            <h2 className="pp-pain-headline reveal left" style={{ transitionDelay:"0.1s" }}>
               Todo CMO sente que<br />
               tem problema de marca.<br />
               Quase nenhum tem<br />
               <span>dados para provar.</span>
             </h2>
-            <p className="pp-pain-sub">
+            <p className="pp-pain-sub reveal right" style={{ transitionDelay:"0.2s" }}>
               Reconhecer o problema é fácil. O difícil é chegar na reunião com evidência.
             </p>
           </div>
@@ -807,8 +943,8 @@ export function PaginaPublica() {
               { n:"Problema 04", t:"A marca não acompanha",           d:"O produto evoluiu, o time cresceu, o revenue subiu. Mas a identidade ficou no passado — e isso trava o próximo ciclo." },
               { n:"Problema 05", t:"Budget de marca sem ROI",         d:"Você investe em branding mas não consegue mostrar o retorno. Sem dados, cada planejamento é uma briga para manter o orçamento." },
               { n:"Problema 06", t:"Você opera no escuro",            d:"Enquanto você toma decisões sem dado, os concorrentes sinalizam movimentos em vagas, anúncios e tom de voz. Esses sinais são públicos." },
-            ].map(c => (
-              <div key={c.n} className="pp-pain-card">
+            ].map((c,i) => (
+              <div key={c.n} className="pp-pain-card reveal up" style={{ transitionDelay:`${i*0.07}s` }}>
                 <div className="pp-pain-num">{c.n}</div>
                 <div className="pp-pain-title">{c.t}</div>
                 <div className="pp-pain-text">{c.d}</div>
@@ -822,13 +958,13 @@ export function PaginaPublica() {
       <section className="pp-how" ref={howRef}>
         <div className="pp-how-grid">
           <div>
-            <div className="pp-section-eyebrow">Como funciona</div>
-            <h2 className="pp-how-headline">
+            <div className="pp-section-eyebrow reveal left" style={{ transitionDelay:"0.05s" }}>Como funciona</div>
+            <h2 className="pp-how-headline reveal left" style={{ transitionDelay:"0.15s" }}>
               Um raio-x completo<br />
               da sua marca<br />
               <span>em dados.</span>
             </h2>
-            <p className="pp-how-sub">
+            <p className="pp-how-sub reveal left" style={{ transitionDelay:"0.22s" }}>
               Nosso agente de inteligência pesquisa sua empresa em fontes públicas — site, LinkedIn, redes sociais, reviews, vagas, concorrentes — e analisa tudo pelo framework Smart Branding.
             </p>
             <div className="pp-pratica-list">
@@ -837,8 +973,8 @@ export function PaginaPublica() {
                 { n:"02", name:"Experiência & Expressão",      desc:"Sua identidade é consistente em todos os canais ou fragmentada?",      color:"#0D9E7A" },
                 { n:"03", name:"Plataformas & Ecossistemas",   desc:"Seu produto digital entrega a promessa que a marca faz?",              color:"#7F77DD" },
                 { n:"04", name:"Futuro & Escala",              desc:"Você está construindo uma marca que vai durar ou só gerando barulho?", color:"#EF9F27" },
-              ].map(p => (
-                <div key={p.n} className="pp-pratica-item">
+              ].map((p,i) => (
+                <div key={p.n} className="pp-pratica-item reveal up" style={{ transitionDelay:`${0.1+i*0.1}s` }}>
                   <div className="pp-pratica-num">{p.n}</div>
                   <div>
                     <div className="pp-pratica-name">{p.name}</div>
@@ -851,7 +987,7 @@ export function PaginaPublica() {
           </div>
 
           {/* Mock report */}
-          <div className="pp-report-mock">
+          <div className="pp-report-mock reveal right" style={{ transitionDelay:"0.2s" }}>
             <div className="pp-report-mock-inner">
               <div className="pp-mock-header">
                 <div className="pp-mock-header-left">
@@ -902,7 +1038,7 @@ export function PaginaPublica() {
 
       {/* ── PROOF ── */}
       <section className="pp-proof">
-        <div className="pp-proof-head">
+        <div className="pp-proof-head reveal up">
           <div className="pp-section-eyebrow center">Por que confiar no diagnóstico</div>
           <h2 className="pp-proof-headline">
             Não é opinião.<br />É <span>inteligência</span> em dados.
@@ -910,8 +1046,8 @@ export function PaginaPublica() {
           <p className="pp-proof-sub">Cada score, cada insight, cada oportunidade tem evidência concreta por trás.</p>
         </div>
         <div className="pp-proof-items">
-          {PROOF_ITEMS.map(p => (
-            <div key={p.t} className="pp-proof-item">
+          {PROOF_ITEMS.map((p,i) => (
+            <div key={p.t} className="pp-proof-item reveal up" style={{ transitionDelay:`${i*0.07}s` }}>
               <div className="pp-proof-icon-wrap"><p.Icon /></div>
               <div className="pp-proof-title">{p.t}</div>
               <div className="pp-proof-text">{p.d}</div>
@@ -928,7 +1064,7 @@ export function PaginaPublica() {
 
       {/* ── SOCIAL PROOF ── */}
       <section className="pp-social-proof">
-        <div className="pp-social-inner">
+        <div className="pp-social-inner reveal up">
           <div className="pp-social-label">Diagnósticos gerados</div>
           <div className="pp-social-stats">
             {[
@@ -952,7 +1088,7 @@ export function PaginaPublica() {
           <h2 className="pp-example-headline">Veja como funciona na prática</h2>
           <p className="pp-example-sub">Rodamos um diagnóstico completo d'O Boticário para mostrar a profundidade da análise. É exatamente isso que você vai receber.</p>
 
-          <div className="pp-example-card">
+          <div className="pp-example-card reveal scale" style={{ transitionDelay:"0.15s" }}>
             <div className="pp-example-label">Exemplo de Diagnóstico</div>
             <div className="pp-example-company">O Boticário</div>
             <div className="pp-example-meta">Cosméticos, Perfumaria e Beleza · Grande · boticario.com.br</div>
@@ -990,7 +1126,7 @@ export function PaginaPublica() {
             <p className="pp-form-sub">Preencha o formulário. Nossa equipe analisa e envia o relatório completo em até 48 horas. Sem custo, sem compromisso.</p>
           </div>
 
-          <div className="pp-form-box">
+          <div className="pp-form-box reveal up" style={{ transitionDelay:"0.15s" }}>
             {sucesso ? (
               <div className="pp-success">
                 <div className="pp-success-icon-wrap">
@@ -1062,14 +1198,14 @@ export function PaginaPublica() {
       {/* ── FAQ ── */}
       <section className="pp-faq">
         <div className="pp-faq-inner">
-          <div className="pp-section-eyebrow">Dúvidas comuns</div>
-          <h2 className="pp-faq-headline">Perguntas frequentes</h2>
+          <div className="pp-section-eyebrow reveal left">Dúvidas comuns</div>
+          <h2 className="pp-faq-headline reveal left" style={{ transitionDelay:"0.1s" }}>Perguntas frequentes</h2>
           {[
             { q:"Quanto tempo da minha equipe isso vai tomar?",   a:"Zero. Você preenche o formulário em 3 minutos. Nossa equipe faz o resto." },
             { q:"Meus dados internos estão seguros?",             a:"O diagnóstico usa exclusivamente dados públicos — nada que sua empresa não tenha publicado voluntariamente." },
             { q:"O que acontece depois do diagnóstico?",          a:"Você recebe o relatório completo por e-mail. Se fizer sentido conversar, oferecemos uma call de 15 minutos para apresentar os insights e discutir próximos passos. Sem pressão." },
-          ].map(f => (
-            <div key={f.q} className="pp-faq-item">
+          ].map((f,i) => (
+            <div key={f.q} className="pp-faq-item reveal up" style={{ transitionDelay:`${i*0.1}s` }}>
               <div className="pp-faq-q"><span className="pp-faq-q-arrow">→</span><span>{f.q}</span></div>
               <div className="pp-faq-a">{f.a}</div>
             </div>

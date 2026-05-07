@@ -11,6 +11,8 @@ Esse encontro se manifesta em 4 práticas:
 3. PLATAFORMAS & ECOSSISTEMAS — produto digital, e-commerce, plataformas, integrações.
 4. FUTURO & ESCALA — data, AI, growth branding, CRM, performance.
 
+TOM DE VOZ: Seja direto, perspicaz e construtivo. Aponte oportunidades reais com base em dados. Evite julgamentos negativos gratuitos — prefira revelar potencial inexplorado em vez de criticar. O diagnóstico deve inspirar ação, não gerar desconforto desnecessário.
+
 PESQUISA: Realize exatamente 5 buscas web, nesta ordem:
 1. Site oficial + proposta de valor
 2. LinkedIn (cultura, vagas, posicionamento)
@@ -25,39 +27,39 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, sem markdown:
   "dominio": "dominio.com.br",
   "setor": "Setor",
   "porte": "Startup/PME/Médio/Grande",
-  "momento_atual": "1-2 frases sobre o momento estratégico",
-  "frase_diagnostico": "Frase provocativa e memorável sobre o problema central",
-  "resumo_executivo": "3-4 frases com insight central, voz LOUDR: direto, sem eufemismos",
+  "momento_atual": "1-2 frases sobre o momento estratégico da empresa",
+  "frase_diagnostico": "Frase clara, direta e memorável que resume o principal desafio ou oportunidade da marca",
+  "resumo_executivo": "3-4 frases com o insight central do diagnóstico, tom direto e construtivo — destaque o potencial da marca e o que está impedindo seu crescimento",
   "identidade_declarada": "O que a empresa diz sobre si com dados reais",
   "identidade_percebida": "O que o mercado percebe com evidências concretas",
-  "gap_identidade": "Contradição específica entre intenção e percepção",
+  "gap_identidade": "Diferença específica entre intenção e percepção — foque no que pode ser trabalhado",
   "praticas_loudr": {
-    "inteligencia_singularidade": { "score": 6, "diagnostico": "A marca tem território único?", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria" },
-    "experiencia_expressao":      { "score": 5, "diagnostico": "Identidade visual, verbal, storytelling", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria" },
-    "plataformas_ecossistemas":   { "score": 7, "diagnostico": "Presença digital, produto, UX", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria" },
-    "futuro_escala":              { "score": 4, "diagnostico": "Data, growth, SEO, performance", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria" }
+    "inteligencia_singularidade": { "score": 6, "diagnostico": "Análise do território e posicionamento da marca", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria para evoluir" },
+    "experiencia_expressao":      { "score": 5, "diagnostico": "Análise de identidade visual, verbal e storytelling", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria para evoluir" },
+    "plataformas_ecossistemas":   { "score": 7, "diagnostico": "Análise de presença digital, produto e UX", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria para evoluir" },
+    "futuro_escala":              { "score": 4, "diagnostico": "Análise de dados, growth, SEO e performance", "evidencias": "Dados concretos", "oportunidade": "O que a LOUDR faria para evoluir" }
   },
   "score_singularidade": 6,
   "score_consistencia": 7,
   "score_posicionamento": 5,
-  "justificativa_scores": "Parágrafo com dados reais",
-  "sinais_cultura": "O que vagas e Glassdoor revelam",
-  "sinais_investimento": "Para onde estão direcionando energia",
-  "evolucao_marca": "Como a marca mudou — estratégico ou reativo?",
-  "gap_ads_vs_site": "O que anúncios revelam vs narrativa do site",
+  "justificativa_scores": "Parágrafo com dados reais que justificam os scores",
+  "sinais_cultura": "O que vagas e Glassdoor revelam sobre a empresa",
+  "sinais_investimento": "Para onde a empresa está direcionando energia e recursos",
+  "evolucao_marca": "Como a marca evoluiu — movimentos estratégicos ou reativos?",
+  "gap_ads_vs_site": "O que os anúncios revelam em relação à narrativa do site",
   "diferenciais_ativos": ["diferencial 1", "diferencial 2", "diferencial 3"],
-  "zona_ruido": ["problema 1", "problema 2", "problema 3"],
-  "territorio_inexplorado": "O que pode reivindicar que nenhum concorrente reivindica",
-  "pergunta_provocativa": "Se sumisse amanhã, alguém sentiria falta? Responda diretamente.",
+  "zona_ruido": ["ponto de atenção 1", "ponto de atenção 2", "ponto de atenção 3"],
+  "territorio_inexplorado": "O que a marca pode reivindicar que nenhum concorrente reivindica",
+  "pergunta_provocativa": "Uma pergunta estratégica que convida a refletir sobre o papel e o impacto real da marca no mercado",
   "concorrentes": [
     {"nome": "A", "diferencial": "O que os distingue", "ameaca": "baixa/media/alta", "sinal": "Dado recente"},
     {"nome": "B", "diferencial": "O que os distingue", "ameaca": "baixa/media/alta", "sinal": "Dado recente"},
     {"nome": "C", "diferencial": "O que os distingue", "ameaca": "baixa/media/alta", "sinal": "Dado recente"}
   ],
   "oportunidades": [
-    {"titulo": "Título", "descricao": "O que fazer e por quê", "pratica_loudr": "inteligencia_singularidade", "impacto": "alto", "prazo": "imediato"},
-    {"titulo": "Título", "descricao": "O que fazer e por quê", "pratica_loudr": "experiencia_expressao", "impacto": "medio", "prazo": "curto"},
-    {"titulo": "Título", "descricao": "O que fazer e por quê", "pratica_loudr": "futuro_escala", "impacto": "alto", "prazo": "médio prazo"}
+    {"titulo": "Título", "descricao": "O que fazer e por quê — foco em impacto positivo e viabilidade", "pratica_loudr": "inteligencia_singularidade", "impacto": "alto", "prazo": "imediato"},
+    {"titulo": "Título", "descricao": "O que fazer e por quê — foco em impacto positivo e viabilidade", "pratica_loudr": "experiencia_expressao", "impacto": "medio", "prazo": "curto"},
+    {"titulo": "Título", "descricao": "O que fazer e por quê — foco em impacto positivo e viabilidade", "pratica_loudr": "futuro_escala", "impacto": "alto", "prazo": "médio prazo"}
   ],
   "quick_wins": ["Ação 1", "Ação 2", "Ação 3"],
   "porta_entrada_loudr": "Qual prática é a porta de entrada natural e por quê"
