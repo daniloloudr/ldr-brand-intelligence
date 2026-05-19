@@ -3,7 +3,7 @@ import logoPositivo from "../assets/logo-positivo-200px.png";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
 import { runStream } from "../lib/api";
-import { fmtDate, scBg, scTxt, tryParseJSON, normalizeSector, MACRO_SETORES } from "../lib/helpers";
+import { fmtDate, scBg, scTxt, tryParseJSON, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../lib/helpers";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
 import { RelatorioCompleto } from "./RelatorioCompleto";
@@ -416,8 +416,13 @@ export function AppInterno({ user, onLogout }) {
                             <Pill bg={statusBg(sol.status)} color={statusColor(sol.status)}>{sol.status}</Pill>
                             {sol.setor && <span style={{ fontSize:12, color:DS.textLight }}>{normalizeSector(sol.setor)} · {sol.porte}</span>}
                           </div>
-                          <div style={{ fontSize:12, color:DS.textLight, marginBottom:6 }}>
+                          <div style={{ fontSize:12, color:DS.textLight, marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
                             {sol.nome} · {sol.email} · {fmtDate(sol.created_at)}
+                            {(() => { const s = calcularScoreLead(sol); return (
+                              <span style={{ background: s >= 60 ? DS.greenPale : s >= 30 ? DS.amberPale : DS.pinkPale, color: s >= 60 ? DS.green : s >= 30 ? DS.amber : DS.pink, fontSize:10, fontWeight:700, borderRadius:99, padding:"1px 8px" }}>
+                                Lead {s}%
+                              </span>
+                            )})()}
                           </div>
                           {sol.site && <div style={{ fontSize:12, color:DS.textMid }}>{sol.site}</div>}
                           {sol.contexto && (

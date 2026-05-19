@@ -5,13 +5,17 @@ import { getRoute } from "./lib/helpers";
 import { GlobalStyle } from "./components/GlobalStyle";
 import { PaginaPublica } from "./pages/PaginaPublica";
 import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/auth/RegisterPage";
+import { OnboardingPage } from "./pages/auth/OnboardingPage";
 import { AppInterno } from "./pages/AppInterno";
 import { PaginaMetodologia } from "./pages/PaginaMetodologia";
 import { RelatorioPublico } from "./pages/RelatorioPublico";
 
+const APP_ROUTES = ['app-home','diagnostico','evolucao','listening','concorrentes','workspace','admin','admin-historico'];
+
 export default function App() {
-  const [route, setRoute]             = useState(getRoute());
-  const [user, setUser]               = useState(null);
+  const [route, setRoute]           = useState(getRoute());
+  const [user, setUser]             = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
@@ -31,7 +35,11 @@ export default function App() {
     const onHash = () => setRoute(getRoute());
     window.addEventListener("hashchange", onHash);
 
-    return () => { subscription.unsubscribe(); window.removeEventListener("hashchange", onHash); document.head.removeChild(l); };
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("hashchange", onHash);
+      document.head.removeChild(l);
+    };
   }, []);
 
   if (authLoading) return (
@@ -41,21 +49,38 @@ export default function App() {
     </div>
   );
 
-  if (route === "public") return <PaginaPublica />;
+  if (route === "public")     return <PaginaPublica />;
+  if (route === "metodologia") return <PaginaMetodologia />;
+  if (route === "relatorio-publico") return <RelatorioPublico />;
 
   if (route === "login") {
     if (user) { window.location.hash = "#/app"; return null; }
     return <LoginPage onLogin={setUser} />;
   }
 
-  if (route === "app") {
-    if (!user) { window.location.hash = "#/login"; return null; }
-    return <AppInterno user={user} onLogout={async () => { await supabase.auth.signOut(); setUser(null); window.location.hash = ""; }} />;
+  if (route === "register") {
+    if (user) { window.location.hash = "#/onboarding"; return null; }
+    return <RegisterPage />;
   }
 
-  if (route === "relatorio-publico") return <RelatorioPublico />;
+  if (route === "onboarding") {
+    if (!user) { window.location.hash = "#/login"; return null; }
+    return <OnboardingPage user={user} />;
+  }
 
-  if (route === "metodologia") return <PaginaMetodologia />;
+  if (APP_ROUTES.includes(route)) {
+    if (!user) { window.location.hash = "#/login"; return null; }
+    return (
+      <AppInterno
+        user={user}
+        onLogout={async () => {
+          await supabase.auth.signOut();
+          setUser(null);
+          window.location.hash = "";
+        }}
+      />
+    );
+  }
 
   return <PaginaPublica />;
 }

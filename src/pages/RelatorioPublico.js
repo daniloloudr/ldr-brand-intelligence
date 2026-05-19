@@ -27,12 +27,24 @@ export function RelatorioPublico() {
         <span style={{ fontSize:16, fontWeight:900, color:DS.white, letterSpacing:"-0.02em", fontFamily:F }}>LOUDR</span>
         <span style={{ fontSize:12, color:DS.gray, fontFamily:F }}>Brand Intelligence</span>
       </div>
-      <button
-        onClick={() => { window.location.hash = ""; }}
-        style={{ background:"none", border:`1px solid ${DS.navyLight}`, borderRadius:8, padding:"5px 14px", fontSize:12, color:DS.gray, cursor:"pointer", fontFamily:F }}
-      >
-        Solicitar diagnóstico →
-      </button>
+      <div style={{ display:"flex", gap:8 }}>
+        {import.meta.env.VITE_CALENDLY_URL && (
+          <a
+            href={import.meta.env.VITE_CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background:DS.green, border:"none", borderRadius:8, padding:"6px 16px", fontSize:12, fontWeight:700, color:DS.white, cursor:"pointer", fontFamily:F, textDecoration:"none", display:"flex", alignItems:"center" }}
+          >
+            Agendar apresentação →
+          </a>
+        )}
+        <button
+          onClick={() => { window.location.hash = ""; }}
+          style={{ background:"none", border:`1px solid ${DS.navyLight}`, borderRadius:8, padding:"5px 14px", fontSize:12, color:DS.gray, cursor:"pointer", fontFamily:F }}
+        >
+          Solicitar diagnóstico →
+        </button>
+      </div>
     </div>
   );
 

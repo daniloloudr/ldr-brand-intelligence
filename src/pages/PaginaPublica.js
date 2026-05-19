@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { GlobalStyle } from "../components/GlobalStyle";
+import logoNegativa from "../assets/negativa.svg";
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"];
@@ -45,7 +46,7 @@ const CSS = `
     backdrop-filter:blur(14px);
     border-bottom:1px solid var(--border);
   }
-  .pp-logo { display:flex; align-items:baseline; gap:12px; }
+  .pp-logo { display:flex; align-items:center; gap:12px; }
   .pp-logo-name { font-size:20px; font-weight:900; color:#fff; letter-spacing:-0.03em; text-transform:uppercase; font-family:var(--F); }
   .pp-logo-name span { color:var(--pink); }
   .pp-logo-div { width:1px; height:18px; background:var(--border); flex-shrink:0; }
@@ -551,7 +552,7 @@ const CSS = `
     display:flex; align-items:center; justify-content:space-between;
     flex-wrap:wrap; gap:20px;
   }
-  .pp-footer-logo { display:flex; align-items:baseline; gap:12px; }
+  .pp-footer-logo { display:flex; align-items:center; gap:12px; }
   .pp-footer-logo-name { font-size:16px; font-weight:900; text-transform:uppercase; letter-spacing:-0.02em; color:#fff; font-family:var(--F); }
   .pp-footer-logo-name span { color:var(--pink); }
   .pp-footer-logo-sub { font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--gray-500); font-family:var(--F); }
@@ -819,7 +820,7 @@ export function PaginaPublica() {
       {/* ── NAV ── */}
       <nav className="pp-nav" ref={navRef}>
         <div className="pp-logo">
-          <span className="pp-logo-name">LOUDR<span>.</span></span>
+          <img src={logoNegativa} alt="LOUDR" style={{ height:46, display:"block" }} />
           <span className="pp-logo-div" />
           <span className="pp-logo-sub">Brand Intelligence</span>
         </div>
@@ -1219,7 +1220,7 @@ export function PaginaPublica() {
       {/* ── FOOTER ── */}
       <footer className="pp-footer">
         <div className="pp-footer-logo">
-          <span className="pp-footer-logo-name">LOUDR<span>.</span></span>
+          <img src={logoNegativa} alt="LOUDR" style={{ height:38, display:"block" }} />
           <span className="pp-footer-logo-sub">Smart Branding</span>
         </div>
         <span className="pp-footer-text">© 2026 LOUDR — Todos os direitos reservados</span>

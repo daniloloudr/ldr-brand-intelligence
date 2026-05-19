@@ -1,22 +1,31 @@
 import { SYSTEM_PROMPT, RATE_LIMIT_WAIT, MAX_RETRIES } from "./constants";
 import { tryParseJSON } from "./helpers";
 
+const API_URL = import.meta.env.DEV
+  ? '/api/v1/messages'
+  : '/.netlify/functions/anthropic';
+
 export async function runStream({ empresa, contexto, onSearchStep, onText, onDone, onError, onRateLimit }) {
   let attempt = 0;
 
   while (attempt < MAX_RETRIES) {
     attempt++;
     try {
-      const res = await fetch("/api/v1/messages", {
+      const headers = { "Content-Type": "application/json" };
+      if (import.meta.env.DEV) {
+        headers["x-api-key"] = import.meta.env.VITE_ANTHROPIC_KEY || "";
+      }
+
+      const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           model: "claude-sonnet-4-5",
           max_tokens: 5500,
           stream: true,
           system: SYSTEM_PROMPT,
-          tools: [{ type:"web_search_20250305", name:"web_search" }],
-          messages: [{ role:"user", content:`Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ""}\nGere o JSON completo.` }],
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{ role: "user", content: `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ""}\nGere o JSON completo.` }],
         }),
       });
 
@@ -35,10 +44,12 @@ export async function runStream({ empresa, contexto, onSearchStep, onText, onDon
         continue;
       }
 
-      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `Erro ${res.status}`); }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `Erro ${res.status}`); }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "", fullText = "", searchCount = 0;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -67,6 +78,6 @@ export async function runStream({ empresa, contexto, onSearchStep, onText, onDon
         }
       }
       return;
-    } catch(e) { onError(e.message || "Erro desconhecido."); return; }
+    } catch (e) { onError(e.message || "Erro desconhecido."); return; }
   }
 }

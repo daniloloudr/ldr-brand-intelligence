@@ -96,6 +96,13 @@ export const STEPS = [
   "Gerando diagnóstico das 4 práticas LOUDR",
 ];
 
+export const PLANOS = {
+  trial:      { nome:"Trial",      preco:0,    diagnosticos_mes:1, monitor:null,      concorrentes:0, membros:1,          social_listening:false },
+  starter:    { nome:"Starter",    preco:490,  diagnosticos_mes:1, monitor:"mensal",  concorrentes:0, membros:1,          social_listening:false },
+  pro:        { nome:"Pro",        preco:1490, diagnosticos_mes:3, monitor:"semanal", concorrentes:2, membros:3,          social_listening:true  },
+  enterprise: { nome:"Enterprise", preco:3990, diagnosticos_mes:Infinity, monitor:"diario", concorrentes:5, membros:Infinity, social_listening:true },
+};
+
 export const RATE_LIMIT_WAIT = 65;
 export const MAX_RETRIES = 3;
 export const COOLDOWN_ENTRE_APROVACOES = 120;
