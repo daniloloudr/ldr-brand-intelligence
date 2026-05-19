@@ -800,11 +800,11 @@ function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimit
 - [x] calcularScoreLead() na fila de solicitações — Mai/2026
 - [x] Botão Calendly no RelatorioPublico.jsx (via VITE_CALENDLY_URL) — Mai/2026
 - [x] Score de qualificação exibido em Solicitacoes — Mai/2026
-- [ ] Deploy em produção no Netlify (requer variáveis VITE_* no painel)
-- [ ] Tabelas workspaces + workspace_members + RLS (rodar migration SQL no Supabase)
-- [ ] Integração Stripe (checkout + stripe-webhook.js)
-- [ ] Supabase Edge Function: enviar-diagnostico
-- [ ] Supabase Edge Function: notificar-solicitacao
+- [ ] Deploy em produção no Netlify (requer variáveis VITE_* no painel) - solicitar a um humano
+- [x] Migration SQL completa (supabase/migrations/001_initial_schema.sql) — Mai/2026
+- [x] Integração Stripe: stripe-checkout.js + stripe-webhook.js + src/lib/stripe.js — Mai/2026
+- [x] Supabase Edge Function: enviar-diagnostico — Mai/2026
+- [x] Supabase Edge Function: notificar-solicitacao — Mai/2026
 
 ### Fase 3 — Workspace do Cliente (90–180 dias)
 **Critério de sucesso:** 10 clientes pagantes ativos

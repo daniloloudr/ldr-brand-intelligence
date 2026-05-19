@@ -6,6 +6,7 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { supabase } from '../../lib/supabase'
 import { PLANOS } from '../../lib/constants'
+import { redirectToCheckout } from '../../lib/stripe'
 import logoNegativa from '../../assets/negativa.svg'
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"]
@@ -55,6 +56,13 @@ export function OnboardingPage({ user }) {
       if (memberErr) throw memberErr
 
       setWsId(ws.id)
+
+      if (plano !== 'trial') {
+        // Redireciona para Stripe — o webhook atualiza workspace.plano após pagamento
+        await redirectToCheckout(ws.id, plano)
+        return
+      }
+
       setStep(2)
     } catch (err) {
       setError(err.message || 'Erro ao criar workspace.')
