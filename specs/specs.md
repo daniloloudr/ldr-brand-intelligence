@@ -809,16 +809,17 @@ function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimit
 ### Fase 3 — Workspace do Cliente (90–180 dias)
 **Critério de sucesso:** 10 clientes pagantes ativos
 
-- [ ] AppShell.jsx com nav lateral
-- [ ] Home.jsx com dashboard de scores e alertas
-- [ ] Diagnostico.jsx com histórico e geração
-- [ ] Evolucao.jsx com gráfico Recharts
-- [ ] Workspace.jsx (empresa + equipe + billing + alertas)
-- [ ] Netlify Scheduled Function: cron-monitor.js
-- [ ] Supabase Edge Function: gerar-alertas
-- [ ] Supabase Edge Function: relatorio-mensal
-- [ ] Supabase Edge Function: nurturing-sequence
-- [ ] Relatório mensal PDF automático
+- [x] AppShell.jsx com nav lateral (src/pages/app/AppShell.jsx) — Mai/2026
+- [x] Home.jsx com dashboard de scores e alertas (src/pages/app/Home.jsx) — Mai/2026
+- [x] Diagnostico.jsx com histórico e geração (src/pages/app/Diagnostico.jsx) — Mai/2026
+- [x] Evolucao.jsx com gráfico Recharts (src/pages/app/Evolucao.jsx) — Mai/2026
+- [x] Workspace.jsx — empresa, equipe, plano, alertas (src/pages/app/WorkspacePage.jsx) — Mai/2026
+- [x] Netlify Scheduled Function: cron-monitor.js — Mai/2026
+- [x] Supabase Edge Function: gerar-alertas — Mai/2026
+- [x] Supabase Edge Function: relatorio-mensal (e-mail HTML com scores + link workspace) — Mai/2026
+- [x] Supabase Edge Function: nurturing-sequence (D+2, D+5, D+10, D+15) — Mai/2026
+- [x] App.jsx: routing workspace → AppShell, admin → AppInterno — Mai/2026
+- [ ] Relatório mensal PDF automático (servidor) — requer headless browser no Edge
 
 ### Fase 4 — Inteligência Competitiva (180–365 dias)
 **Critério de sucesso:** 30 clientes, MRR R$50.000+
