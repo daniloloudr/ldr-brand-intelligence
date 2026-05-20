@@ -1,9 +1,10 @@
-import { DS } from "../lib/constants";
+import MuiCard from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
 
-export function Card({ children, style={} }) {
+export function Card({ children, style, sx: sxProp = {} }) {
   return (
-    <div style={{ background:DS.white, border:`1px solid ${DS.border}`, borderRadius:12, padding:"20px 24px", ...style }}>
-      {children}
-    </div>
-  );
+    <MuiCard variant="outlined" sx={{ ...(style || {}), ...sxProp }}>
+      <CardContent>{children}</CardContent>
+    </MuiCard>
+  )
 }

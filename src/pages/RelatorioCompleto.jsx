@@ -1,39 +1,46 @@
-import { useState } from "react";
-import { DS, F, PRATICAS } from "../lib/constants";
-import { fmtDate, sc } from "../lib/helpers";
-import { gerarPDF } from "../lib/pdf";
-import { Bar } from "../components/Bar";
-import { Pill, ipill, apill, ppill } from "../components/Pill";
-import { Lbl } from "../components/Lbl";
-import { Card } from "../components/Card";
+import { useState } from 'react'
+import Box             from '@mui/material/Box'
+import Typography      from '@mui/material/Typography'
+import Button          from '@mui/material/Button'
+import TextField       from '@mui/material/TextField'
+import Divider         from '@mui/material/Divider'
+import CircularProgress from '@mui/material/CircularProgress'
+
+import { PRATICAS }            from '../lib/constants'
+import { fmtDate, sc }         from '../lib/helpers'
+import { gerarPDF }            from '../lib/pdf'
+import { Bar }                 from '../components/Bar'
+import { Pill, ipill, apill, ppill } from '../components/Pill'
+import { Lbl }                 from '../components/Lbl'
+import { Card }                from '../components/Card'
 
 function SharePanel({ meta, data }) {
-  const [copied, setCopied]     = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfError, setPdfError] = useState("");
-  const shareUrl = window.location.href.split("#")[0] + "#/relatorio/" + meta.id;
+  const [copied, setCopied]         = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError]     = useState('')
+  const shareUrl = window.location.href.split('#')[0] + '#/relatorio/' + meta.id
 
   function copyLink() {
     navigator.clipboard.writeText(shareUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    })
   }
 
   async function downloadPDF() {
-    setPdfLoading(true);
-    setPdfError("");
+    setPdfLoading(true)
+    setPdfError('')
     try {
-      await gerarPDF(data, meta);
-    } catch (e) {
-      setPdfError("Erro ao gerar PDF. Tente novamente.");
+      await gerarPDF(data, meta)
+    } catch {
+      setPdfError('Erro ao gerar PDF. Tente novamente.')
     } finally {
-      setPdfLoading(false);
+      setPdfLoading(false)
     }
   }
 
   function sendEmail() {
-    const subject = `Diagnóstico de Marca: ${data.empresa}`;
+    const subject = `Diagnóstico de Marca: ${data.empresa}`
     const body = [
       `Diagnóstico Smart Branding — ${data.empresa}`,
       ``,
@@ -53,234 +60,316 @@ function SharePanel({ meta, data }) {
       ``,
       `Diagnóstico gerado por LOUDR Brand Intelligence`,
       `loudr.com.br`,
-    ].join("\n");
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    ].join('\n')
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
   }
 
   return (
-    <div style={{ background:DS.navy, borderRadius:12, padding:"16px 20px", marginBottom:16, border:`1px solid ${DS.navyLight}` }}>
-      <div style={{ fontSize:11, fontWeight:700, letterSpacing:"0.15em", textTransform:"uppercase", color:DS.green, marginBottom:12, fontFamily:F }}>Compartilhar relatório</div>
-      <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-        <input
-          type="text"
-          readOnly
+    <Box sx={{ bgcolor: 'background.default', p: '16px 20px', mb: 2, border: '1px solid', borderColor: 'divider' }}>
+      <Typography variant="overline" sx={{ color: 'primary.main', display: 'block', mb: 1.5 }}>
+        Compartilhar relatório
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.25 }}>
+        <TextField
+          fullWidth
+          size="small"
           value={shareUrl}
           onFocus={e => e.target.select()}
-          style={{ flex:1, padding:"8px 12px", fontSize:12, fontFamily:F, background:DS.navyMid, border:`1px solid ${DS.navyLight}`, borderRadius:8, color:DS.gray, outline:"none", minWidth:0 }}
+          inputProps={{ readOnly: true }}
+          sx={{ flex: 1, minWidth: 0 }}
         />
-        <button
+        <Button
+          variant="contained"
+          color={copied ? 'primary' : 'inherit'}
           onClick={copyLink}
-          style={{ background: copied ? DS.green : DS.navyLight, border:"none", borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:700, color: copied ? DS.white : DS.gray, cursor:"pointer", fontFamily:F, whiteSpace:"nowrap", flexShrink:0, transition:"background 0.2s" }}
+          sx={{ flexShrink: 0, borderRadius: 0, fontWeight: 700 }}
         >
-          {copied ? "Copiado ✓" : "Copiar link"}
-        </button>
-      </div>
-      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-        <button
-          onClick={sendEmail}
-          style={{ background:"none", border:`1px solid ${DS.navyLight}`, borderRadius:8, padding:"7px 16px", fontSize:12, color:DS.gray, cursor:"pointer", fontFamily:F }}
-        >
+          {copied ? 'Copiado ✓' : 'Copiar link'}
+        </Button>
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Button variant="outlined" size="small" onClick={sendEmail}>
           Enviar por e-mail →
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          size="small"
           onClick={downloadPDF}
           disabled={pdfLoading}
-          style={{
-            background: pdfLoading ? DS.navyLight : DS.pink,
-            border:"none", borderRadius:8, padding:"7px 16px",
-            fontSize:12, fontWeight:700,
-            color: pdfLoading ? DS.gray : DS.white,
-            cursor: pdfLoading ? "not-allowed" : "pointer",
-            fontFamily:F, display:"flex", alignItems:"center", gap:6,
-            transition:"background 0.2s",
-          }}
+          startIcon={pdfLoading ? <CircularProgress size={10} color="inherit" /> : null}
         >
-          {pdfLoading ? (
-            <>
-              <span style={{ width:10, height:10, border:`2px solid ${DS.gray}`, borderTopColor:"transparent", borderRadius:"50%", display:"inline-block", animation:"spin 0.7s linear infinite" }} />
-              Gerando PDF...
-            </>
-          ) : "↓ Baixar PDF (.pdf)"}
-        </button>
-      </div>
-      {pdfError && <p style={{ fontSize:11, color:DS.pink, marginTop:8, marginBottom:0, fontFamily:F }}>{pdfError}</p>}
-      <p style={{ fontSize:11, color:DS.textLight, marginTop:10, marginBottom:0, lineHeight:1.5, fontFamily:F }}>
+          {pdfLoading ? 'Gerando PDF...' : '↓ Baixar PDF (.pdf)'}
+        </Button>
+      </Box>
+      {pdfError && (
+        <Typography sx={{ fontSize: 11, color: 'error.main', mt: 1 }}>{pdfError}</Typography>
+      )}
+      <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 1.25, lineHeight: 1.5 }}>
         Qualquer pessoa com o link pode visualizar este relatório.
-      </p>
-    </div>
-  );
+      </Typography>
+    </Box>
+  )
 }
 
-export function RelatorioCompleto({ data, onBack, backLabel="← Voltar", meta=null }) {
-  const [shareOpen, setShareOpen] = useState(false);
+export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta = null, hideHero = false }) {
+  const [shareOpen, setShareOpen] = useState(false)
 
   return (
-    <div>
+    <Box>
       {meta && (
-        <div style={{ marginBottom:16 }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.25 }}>
             {onBack
-              ? <button onClick={onBack} style={{ background:"none", border:"none", color:DS.textLight, cursor:"pointer", fontSize:13, fontFamily:F, padding:0 }}>{backLabel}</button>
-              : <div />
+              ? <Button variant="text" onClick={onBack} sx={{ color: 'text.disabled', p: 0, fontWeight: 400, fontSize: 13, textTransform: 'none', minWidth: 0 }}>{backLabel}</Button>
+              : <Box />
             }
-            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-              <div style={{ fontSize:12, color:DS.textLight, fontFamily:F }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 {meta.created_at && fmtDate(meta.created_at)}{meta.user_name && ` · por ${meta.user_name}`}
-              </div>
+              </Typography>
               {meta.id && (
-                <button
-                  onClick={() => setShareOpen(o => !o)}
-                  style={{ background: shareOpen ? DS.navy : "none", border:`1px solid ${shareOpen ? DS.navy : DS.border}`, borderRadius:8, padding:"4px 12px", fontSize:12, fontWeight:600, color: shareOpen ? DS.white : DS.textMid, cursor:"pointer", fontFamily:F }}
-                >
-                  {shareOpen ? "✕ Fechar" : "Compartilhar →"}
-                </button>
+                <Button variant="outlined" size="small" onClick={() => setShareOpen(o => !o)} sx={{ fontSize: 12, fontWeight: 600 }}>
+                  {shareOpen ? '✕ Fechar' : 'Compartilhar →'}
+                </Button>
               )}
-            </div>
-          </div>
-          {shareOpen && meta.id && <div style={{ marginTop:12 }}><SharePanel meta={meta} data={data} /></div>}
-        </div>
+            </Box>
+          </Box>
+          {shareOpen && meta.id && (
+            <Box sx={{ mt: 1.5 }}>
+              <SharePanel meta={meta} data={data} />
+            </Box>
+          )}
+        </Box>
       )}
-      <div className="a0" style={{ background:DS.navy, borderRadius:16, padding:"30px 34px", marginBottom:14, position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", right:-24, top:-24, width:200, height:200, borderRadius:"50%", background:DS.green, opacity:0.05 }} />
-        <div style={{ width:14, height:14, background:DS.pink, marginBottom:16 }} />
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.2em", color:DS.green, marginBottom:8, textTransform:"uppercase" }}>Brand Intelligence Report · LOUDR</div>
-        <h2 style={{ fontSize:28, fontWeight:900, color:DS.white, letterSpacing:"-0.03em", marginBottom:4 }}>{data.empresa}</h2>
-        <div style={{ fontSize:13, color:DS.gray, marginBottom:8 }}>{data.setor} · {data.porte} · {data.dominio}</div>
-        {data.momento_atual && <div style={{ fontSize:13, color:"#a0b8c8", marginBottom:16, fontStyle:"italic" }}>{data.momento_atual}</div>}
-        <div style={{ borderLeft:`3px solid ${DS.green}`, paddingLeft:16, fontStyle:"italic", fontSize:14, color:"#c9d8e8", lineHeight:1.65 }}>"{data.frase_diagnostico}"</div>
-      </div>
-      <Card style={{ marginBottom:14 }}>
-        <Lbl color={DS.textLight}>Resumo executivo</Lbl>
-        <p style={{ fontSize:14, color:DS.textMid, lineHeight:1.8 }}>{data.resumo_executivo}</p>
+
+      {/* Hero */}
+      {!hideHero && <Box className="a0" sx={{ bgcolor: 'background.default', p: '30px 34px', mb: '14px', position: 'relative', overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ position: 'absolute', right: -24, top: -24, width: 200, height: 200, borderRadius: '50%', bgcolor: 'primary.main', opacity: 0.05 }} />
+        <Box sx={{ width: 14, height: 14, bgcolor: 'secondary.main', mb: 2 }} />
+        <Typography variant="overline" sx={{ color: 'primary.main', display: 'block', mb: 1 }}>
+          Brand Intelligence Report · LOUDR
+        </Typography>
+        <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: '-0.03em', color: 'text.primary', mb: 0.5 }}>
+          {data.empresa}
+        </Typography>
+        <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 1 }}>
+          {data.setor} · {data.porte} · {data.dominio}
+        </Typography>
+        {data.momento_atual && (
+          <Typography sx={{ fontSize: 13, color: 'text.disabled', mb: 2, fontStyle: 'italic' }}>
+            {data.momento_atual}
+          </Typography>
+        )}
+        <Box sx={{ borderLeft: '3px solid', borderLeftColor: 'primary.main', pl: 2 }}>
+          <Typography sx={{ fontStyle: 'italic', fontSize: 14, color: 'text.secondary', lineHeight: 1.65 }}>
+            "{data.frase_diagnostico}"
+          </Typography>
+        </Box>
+      </Box>}
+
+      {/* Resumo executivo */}
+      <Card sx={{ mb: '14px' }}>
+        <Lbl>Resumo executivo</Lbl>
+        <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.8 }}>
+          {data.resumo_executivo}
+        </Typography>
       </Card>
-      <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, marginBottom:12, fontFamily:F }}>Diagnóstico por prática Smart Branding</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:10 }}>
+
+      {/* Diagnóstico por prática */}
+      <Box sx={{ mb: '14px' }}>
+        <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1.5 }}>
+          Diagnóstico por prática Smart Branding
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '10px' }}>
           {PRATICAS.map(p => {
-            const pr = data.praticas_loudr?.[p.key];
-            if (!pr) return null;
+            const pr = data.praticas_loudr?.[p.key]
+            if (!pr) return null
             return (
-              <div key={p.key} style={{ background:DS.white, border:`1px solid ${DS.border}`, borderRadius:12, padding:"18px 20px", borderTop:`3px solid ${p.color}` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", gap:12, marginBottom:10 }}>
-                  <div><div style={{ fontSize:13, fontWeight:800, color:DS.text }}>{p.label}</div><div style={{ fontSize:11, color:DS.textLight }}>{p.sub}</div></div>
-                  <div style={{ minWidth:80 }}><Bar score={pr.score} color={p.color} /></div>
-                </div>
-                <p style={{ fontSize:13, color:DS.textMid, lineHeight:1.6, marginBottom:8 }}>{pr.diagnostico}</p>
+              <Box key={p.key} sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderTop: `3px solid ${p.color}`, p: '18px 20px' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 1.25 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 800, color: 'text.primary' }}>{p.label}</Typography>
+                    <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>{p.sub}</Typography>
+                  </Box>
+                  <Box sx={{ minWidth: 80 }}>
+                    <Bar score={pr.score} color={p.color} />
+                  </Box>
+                </Box>
+                <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.6, mb: 1 }}>
+                  {pr.diagnostico}
+                </Typography>
                 {pr.evidencias && (
-                  <div style={{ background:DS.grayLight, borderRadius:8, padding:"8px 12px", marginBottom:8 }}>
-                    <div style={{ fontSize:10, fontWeight:700, color:DS.textLight, textTransform:"uppercase", marginBottom:4 }}>Evidências</div>
-                    <p style={{ fontSize:12, color:DS.textMid, lineHeight:1.5 }}>{pr.evidencias}</p>
-                  </div>
+                  <Box sx={{ bgcolor: 'action.hover', p: '8px 12px', mb: 1 }}>
+                    <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>Evidências</Typography>
+                    <Typography sx={{ fontSize: 12, color: 'text.secondary', lineHeight: 1.5 }}>{pr.evidencias}</Typography>
+                  </Box>
                 )}
                 {pr.oportunidade && (
-                  <div style={{ borderLeft:`2px solid ${p.color}`, paddingLeft:10 }}>
-                    <div style={{ fontSize:10, fontWeight:700, color:p.color, textTransform:"uppercase", marginBottom:3 }}>O que a LOUDR faria</div>
-                    <p style={{ fontSize:12, color:DS.textMid, fontStyle:"italic" }}>{pr.oportunidade}</p>
-                  </div>
+                  <Box sx={{ borderLeft: `2px solid ${p.color}`, pl: 1.25 }}>
+                    <Typography sx={{ fontSize: 10, fontWeight: 700, color: p.color, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', mb: 0.375 }}>
+                      O que a LOUDR faria
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: 'text.secondary', fontStyle: 'italic' }}>{pr.oportunidade}</Typography>
+                  </Box>
                 )}
-              </div>
-            );
+              </Box>
+            )
           })}
-        </div>
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:10, marginBottom:14 }}>
-        {[{label:"Singularidade",key:"score_singularidade",desc:"Diferenciação"},{label:"Consistência",key:"score_consistencia",desc:"Coerência"},{label:"Posicionamento",key:"score_posicionamento",desc:"Clareza"}].map(s=>(
+        </Box>
+      </Box>
+
+      {/* Scores */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', mb: '14px' }}>
+        {[
+          { label: 'Singularidade',  key: 'score_singularidade',  desc: 'Diferenciação' },
+          { label: 'Consistência',   key: 'score_consistencia',   desc: 'Coerência'     },
+          { label: 'Posicionamento', key: 'score_posicionamento', desc: 'Clareza'       },
+        ].map(s => (
           <Card key={s.key}>
-            <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>{s.label}</div>
-            <div style={{ fontSize:11, color:DS.textLight, marginBottom:10 }}>{s.desc}</div>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary', mb: 0.25 }}>{s.label}</Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.disabled', mb: 1.25 }}>{s.desc}</Typography>
             <Bar score={data[s.key]} color={sc(data[s.key])} />
           </Card>
         ))}
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
-        {[{label:"Identidade declarada",key:"identidade_declarada",accent:DS.green},{label:"Identidade percebida",key:"identidade_percebida",accent:DS.pink}].map(b=>(
-          <Card key={b.key} style={{ borderTop:`3px solid ${b.accent}`, borderRadius:"0 0 12px 12px" }}>
+      </Box>
+
+      {/* Identidade declarada / percebida */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '10px', mb: '14px' }}>
+        {[
+          { label: 'Identidade declarada', key: 'identidade_declarada', accent: '#0D9E7A' },
+          { label: 'Identidade percebida', key: 'identidade_percebida', accent: '#E8185A' },
+        ].map(b => (
+          <Card key={b.key} sx={{ borderTop: `3px solid ${b.accent}` }}>
             <Lbl color={b.accent}>{b.label}</Lbl>
-            <p style={{ fontSize:13, color:DS.textMid, lineHeight:1.7 }}>{data[b.key]}</p>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.7 }}>{data[b.key]}</Typography>
           </Card>
         ))}
-      </div>
-      <div style={{ background:DS.amberPale, borderLeft:`4px solid ${DS.amber}`, borderRadius:"0 12px 12px 0", padding:"16px 20px", marginBottom:14 }}>
-        <Lbl color="#92400e">Gap de identidade</Lbl>
-        <p style={{ fontSize:14, color:"#78350f", lineHeight:1.7 }}>{data.gap_identidade}</p>
-      </div>
-      <div style={{ background:DS.navy, borderRadius:12, padding:"20px 24px", marginBottom:14 }}>
-        <Lbl color={DS.green}>Território inexplorado</Lbl>
-        <p style={{ fontSize:14, color:"#d1e8e0", fontStyle:"italic", lineHeight:1.7 }}>{data.territorio_inexplorado}</p>
-      </div>
+      </Box>
+
+      {/* Gap de identidade */}
+      <Box sx={{ bgcolor: 'rgba(239,159,39,0.08)', borderLeft: '4px solid #EF9F27', p: '16px 20px', mb: '14px' }}>
+        <Lbl color="#EF9F27">Gap de identidade</Lbl>
+        <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>{data.gap_identidade}</Typography>
+      </Box>
+
+      {/* Território inexplorado */}
+      <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '20px 24px', mb: '14px' }}>
+        <Lbl>Território inexplorado</Lbl>
+        <Typography sx={{ fontSize: 14, color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.7 }}>
+          {data.territorio_inexplorado}
+        </Typography>
+      </Box>
+
+      {/* Pergunta provocativa */}
       {data.pergunta_provocativa && (
-        <div style={{ background:DS.pinkPale, borderLeft:`4px solid ${DS.pink}`, borderRadius:"0 12px 12px 0", padding:"16px 20px", marginBottom:14 }}>
-          <Lbl color={DS.pink}>Se essa marca sumisse amanhã...</Lbl>
-          <p style={{ fontSize:14, color:"#4B1528", lineHeight:1.7 }}>{data.pergunta_provocativa}</p>
-        </div>
+        <Box sx={{ bgcolor: 'rgba(232,24,90,0.06)', borderLeft: '4px solid', borderLeftColor: 'secondary.main', p: '16px 20px', mb: '14px' }}>
+          <Lbl color="#E8185A">Se essa marca sumisse amanhã...</Lbl>
+          <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>{data.pergunta_provocativa}</Typography>
+        </Box>
       )}
+
+      {/* Concorrentes */}
       {data.concorrentes?.length > 0 && (
-        <Card style={{ marginBottom:14 }}>
-          <Lbl color={DS.textLight}>Contexto competitivo</Lbl>
-          {data.concorrentes.map((c,i) => (
-            <div key={i}>
-              <div style={{ display:"flex", gap:12, padding:"8px 0", alignItems:"flex-start" }}>
-                <div style={{ minWidth:120, fontWeight:700, fontSize:13, flexShrink:0 }}>{c.nome}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, color:DS.textMid }}>{c.diferencial}</div>
-                  {c.sinal && <div style={{ fontSize:11, color:DS.textLight, fontStyle:"italic", marginTop:4 }}>↳ {c.sinal}</div>}
-                </div>
-                <div style={{ flexShrink:0 }}>{apill(c.ameaca)}</div>
-              </div>
-              {i < data.concorrentes.length-1 && <div style={{ height:1, background:DS.border }} />}
-            </div>
+        <Card sx={{ mb: '14px' }}>
+          <Lbl color="text.disabled">Contexto competitivo</Lbl>
+          {data.concorrentes.map((c, i) => (
+            <Box key={i}>
+              <Box sx={{ display: 'flex', gap: 1.5, py: 1, alignItems: 'flex-start' }}>
+                <Box sx={{ width: 170, minWidth: 170, flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary' }}>{c.nome}</Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{c.diferencial}</Typography>
+                  {c.sinal && (
+                    <Typography sx={{ fontSize: 11, color: 'text.disabled', fontStyle: 'italic', mt: 0.5 }}>↳ {c.sinal}</Typography>
+                  )}
+                </Box>
+                <Box sx={{ flexShrink: 0 }}>{apill(c.ameaca)}</Box>
+              </Box>
+              {i < data.concorrentes.length - 1 && <Divider />}
+            </Box>
           ))}
         </Card>
       )}
+
+      {/* Oportunidades estratégicas */}
       {data.oportunidades?.length > 0 && (
-        <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:DS.textLight, marginBottom:12, fontFamily:F }}>Oportunidades estratégicas</div>
-          {data.oportunidades.map((op,i) => (
-            <Card key={i} style={{ marginBottom:10, display:"flex", gap:14 }}>
-              <div style={{ width:28, height:28, borderRadius:"50%", background:DS.navy, color:DS.green, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:900, flexShrink:0 }}>{i+1}</div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:6 }}>
-                  <span style={{ fontWeight:800, fontSize:13 }}>{op.titulo}</span>
-                  {op.pratica_loudr && ppill(op.pratica_loudr)}
-                  {ipill(op.impacto)}
-                  <Pill bg={DS.greenPale} color={DS.greenDim}>{op.prazo}</Pill>
-                </div>
-                <p style={{ fontSize:13, color:DS.textMid, lineHeight:1.6 }}>{op.descricao}</p>
-              </div>
+        <Box sx={{ mb: '14px' }}>
+          <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1.5 }}>
+            Oportunidades estratégicas
+          </Typography>
+          {data.oportunidades.map((op, i) => (
+            <Card key={i} sx={{ mb: '10px' }}>
+              <Box sx={{ display: 'flex', gap: '14px' }}>
+                <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: 'background.default', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>
+                  {i + 1}
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.75, alignItems: 'center' }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: 13 }}>{op.titulo}</Typography>
+                    {op.pratica_loudr && ppill(op.pratica_loudr)}
+                    {ipill(op.impacto)}
+                    <Pill bg="rgba(13,158,122,0.12)" color="#0D9E7A">{op.prazo}</Pill>
+                  </Box>
+                  <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.6 }}>{op.descricao}</Typography>
+                </Box>
+              </Box>
             </Card>
           ))}
-        </div>
+        </Box>
       )}
+
+      {/* Quick wins */}
       {data.quick_wins?.length > 0 && (
-        <div style={{ background:DS.greenPale, borderRadius:12, padding:"16px 20px", marginBottom:14 }}>
-          <Lbl color={DS.greenDim}>Quick wins</Lbl>
-          {data.quick_wins.map((qw,i) => (
-            <div key={i} style={{ display:"flex", gap:10, marginBottom:8 }}>
-              <span style={{ color:DS.green, fontWeight:900 }}>→</span>
-              <span style={{ fontSize:13, color:DS.greenDim, fontWeight:600 }}>{qw}</span>
-            </div>
+        <Box sx={{ bgcolor: 'rgba(13,158,122,0.08)', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '16px 20px', mb: '14px' }}>
+          <Lbl>Quick wins</Lbl>
+          {data.quick_wins.map((qw, i) => (
+            <Box key={i} sx={{ display: 'flex', gap: 1.25, mb: 1 }}>
+              <Typography sx={{ color: 'primary.main', fontWeight: 900, lineHeight: 1.5 }}>→</Typography>
+              <Typography sx={{ fontSize: 13, color: 'primary.main', fontWeight: 600, lineHeight: 1.5 }}>{qw}</Typography>
+            </Box>
           ))}
-        </div>
+        </Box>
       )}
+
+      {/* Porta de entrada */}
       {data.porta_entrada_loudr && (
-        <div style={{ background:DS.navyMid, borderLeft:`4px solid ${DS.green}`, borderRadius:"0 12px 12px 0", padding:"16px 20px", marginBottom:14 }}>
-          <Lbl color={DS.green}>Porta de entrada LOUDR</Lbl>
-          <p style={{ fontSize:14, color:"#d1e8e0", lineHeight:1.7 }}>{data.porta_entrada_loudr}</p>
-        </div>
+        <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '16px 20px', mb: '14px' }}>
+          <Lbl>Porta de entrada LOUDR</Lbl>
+          <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>
+            {data.porta_entrada_loudr}
+          </Typography>
+        </Box>
       )}
-      <div style={{ background:DS.navy, borderRadius:12, padding:"22px 26px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:20, flexWrap:"wrap", marginBottom:14 }}>
-        <div>
-          <Lbl color={DS.green}>Próximo passo</Lbl>
-          <div style={{ fontSize:16, fontWeight:900, color:DS.white, marginBottom:6 }}>Esse diagnóstico é só o começo.</div>
-          <p style={{ fontSize:13, color:DS.gray, lineHeight:1.6, maxWidth:400 }}>Um Brand Discovery Sprint aprofunda cada ponto e entrega um roadmap completo.</p>
-        </div>
-        <button onClick={() => window.open("https://loudr.com.br","_blank")} style={{ background:DS.green, color:DS.white, border:"none", borderRadius:8, padding:"12px 24px", fontSize:14, fontWeight:800, cursor:"pointer" }}>
+
+      {/* Próximo passo CTA */}
+      <Box sx={{ bgcolor: 'background.default', p: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2.5, flexWrap: 'wrap', mb: '14px', border: '1px solid', borderColor: 'divider' }}>
+        <Box>
+          <Lbl>Próximo passo</Lbl>
+          <Typography sx={{ fontSize: 16, fontWeight: 900, color: 'text.primary', mb: 0.75 }}>
+            Esse diagnóstico é só o começo.
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.6, maxWidth: 400 }}>
+            Um Brand Discovery Sprint aprofunda cada ponto e entrega um roadmap completo.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          size="large"
+          onClick={() => window.open('https://loudr.com.br', '_blank')}
+          sx={{ borderRadius: 0 }}
+        >
           Falar com a LOUDR →
-        </button>
-      </div>
-      <button onClick={onBack} style={{ background:"none", border:`1px solid ${DS.border}`, borderRadius:8, padding:"8px 20px", fontSize:13, color:DS.textMid, cursor:"pointer", fontFamily:F }}>
-        {backLabel}
-      </button>
-    </div>
-  );
+        </Button>
+      </Box>
+
+      {onBack && (
+        <Button variant="outlined" onClick={onBack} sx={{ borderRadius: 0 }}>
+          {backLabel}
+        </Button>
+      )}
+    </Box>
+  )
 }

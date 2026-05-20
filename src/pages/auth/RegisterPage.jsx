@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import logoNegativa from "../../assets/negativa.svg";
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import Alert from '@mui/material/Alert'
 
 export function RegisterPage() {
   const [nome, setNome]       = useState("");
@@ -437,57 +440,58 @@ export function RegisterPage() {
             <div className="auth-form-title">Criar sua conta</div>
 
             {error && (
-              <div className="auth-error">{error}</div>
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>{error}</Alert>
             )}
 
             <form onSubmit={handleSubmit}>
-              <div className="auth-field">
-                <label className="auth-label">Nome completo</label>
-                <input
-                  className="auth-input"
-                  type="text"
-                  value={nome}
-                  onChange={e => setNome(e.target.value)}
-                  required
-                  placeholder="Seu nome"
-                  autoComplete="name"
-                  autoFocus
-                />
-              </div>
+              <TextField
+                label="Nome completo"
+                type="text"
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                required
+                fullWidth
+                size="small"
+                autoComplete="name"
+                autoFocus
+                sx={{ mb: 2.5 }}
+              />
 
-              <div className="auth-field">
-                <label className="auth-label">E-mail</label>
-                <input
-                  className="auth-input"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  placeholder="seu@email.com.br"
-                  autoComplete="email"
-                />
-              </div>
+              <TextField
+                label="E-mail"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                fullWidth
+                size="small"
+                autoComplete="email"
+                sx={{ mb: 2.5 }}
+              />
 
-              <div className="auth-field">
-                <label className="auth-label">Senha</label>
-                <input
-                  className="auth-input"
-                  type="password"
-                  value={senha}
-                  onChange={e => setSenha(e.target.value)}
-                  required
-                  placeholder="Mínimo 6 caracteres"
-                  autoComplete="new-password"
-                />
-              </div>
+              <TextField
+                label="Senha"
+                type="password"
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                required
+                fullWidth
+                size="small"
+                autoComplete="new-password"
+                sx={{ mb: 1 }}
+              />
 
-              <button
+              <Button
                 type="submit"
-                className="auth-submit"
+                variant="contained"
+                color="secondary"
+                fullWidth
+                size="large"
                 disabled={loading}
+                sx={{ mt: 1 }}
               >
                 {loading ? "..." : "Criar conta →"}
-              </button>
+              </Button>
 
               <p className="auth-terms">
                 Ao criar sua conta você concorda com os Termos de Uso

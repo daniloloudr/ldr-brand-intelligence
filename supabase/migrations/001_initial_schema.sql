@@ -44,7 +44,7 @@ create table if not exists diagnosticos (
   score_consistencia    int,
   score_posicionamento  int,
   frase_diagnostico     text,
-  dados                 jsonb,
+  data                  jsonb,
   publico               boolean default true,
   tipo                  text default 'manual'
 );

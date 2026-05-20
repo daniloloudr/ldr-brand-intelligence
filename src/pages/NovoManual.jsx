@@ -37,6 +37,7 @@ export function NovoManual({ user, onDone }) {
           score_posicionamento: parsed.score_posicionamento,
           frase_diagnostico: parsed.frase_diagnostico,
           data: parsed,
+          publico: true,
         }).select().single();
         setStreaming(false);
         onDone(parsed, { id: diag?.id, created_at: new Date().toISOString(), user_name: user.user_metadata?.full_name || user.email.split("@")[0] });

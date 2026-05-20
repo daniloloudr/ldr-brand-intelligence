@@ -326,7 +326,7 @@ export function Diagnostico() {
             score_consistencia:    parsed.score_consistencia,
             score_posicionamento:  parsed.score_posicionamento,
             frase_diagnostico:     parsed.frase_diagnostico,
-            dados:                 parsed,
+            data:                  parsed,
             publico:               true,
             tipo:                  'manual',
           })
@@ -339,7 +339,7 @@ export function Diagnostico() {
           .eq('id', workspace.id)
 
         await fetchDiagnosticos()
-        setSelectedDiag({ dados: parsed, ...diag })
+        setSelectedDiag({ ...diag, data: parsed })
         setEstado('relatorio')
       },
       onError: (msg) => {
@@ -362,7 +362,7 @@ export function Diagnostico() {
     setPdfLoading(true)
     try {
       const { gerarPDF } = await import('../../lib/pdf')
-      await gerarPDF(diag.dados)
+      await gerarPDF(diag.data)
     } finally {
       setPdfLoading(false)
     }
@@ -373,7 +373,7 @@ export function Diagnostico() {
   if (estado === 'relatorio' && selectedDiag) {
     return (
       <RelatorioCompleto
-        data={selectedDiag.dados}
+        data={{ ...selectedDiag, ...(selectedDiag.data || {}) }}
         meta={selectedDiag}
         onBack={() => setEstado('lista')}
         backLabel="← Voltar aos diagnósticos"

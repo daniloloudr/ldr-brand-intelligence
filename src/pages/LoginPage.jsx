@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import logoNegativa from "../assets/negativa.svg";
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import Alert from '@mui/material/Alert'
 
 export function LoginPage({ onLogin }) {
   const [email, setEmail]       = useState("");
@@ -399,43 +402,45 @@ export function LoginPage({ onLogin }) {
             <div className="auth-form-title">Entrar na plataforma</div>
 
             {error && (
-              <div className="auth-error">{error}</div>
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>{error}</Alert>
             )}
 
             <form onSubmit={handleLogin}>
-              <div className="auth-field">
-                <label className="auth-label">E-mail</label>
-                <input
-                  className="auth-input"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  placeholder="seu@email.com.br"
-                  autoComplete="email"
-                />
-              </div>
+              <TextField
+                label="E-mail"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                fullWidth
+                size="small"
+                autoComplete="email"
+                sx={{ mb: 2.5 }}
+              />
 
-              <div className="auth-field">
-                <label className="auth-label">Senha</label>
-                <input
-                  className="auth-input"
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                />
-              </div>
+              <TextField
+                label="Senha"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                fullWidth
+                size="small"
+                autoComplete="current-password"
+                sx={{ mb: 1 }}
+              />
 
-              <button
+              <Button
                 type="submit"
-                className="auth-submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+                size="large"
                 disabled={loading}
+                sx={{ mt: 1 }}
               >
                 {loading ? "..." : "Entrar →"}
-              </button>
+              </Button>
             </form>
 
             <div className="auth-link-row">

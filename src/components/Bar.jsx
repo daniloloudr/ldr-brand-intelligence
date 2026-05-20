@@ -1,12 +1,26 @@
-import { DS, F } from "../lib/constants";
+import LinearProgress from '@mui/material/LinearProgress'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 
 export function Bar({ score, color }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-      <div style={{ flex:1, height:5, background:DS.border, borderRadius:3, overflow:"hidden" }}>
-        <div style={{ width:`${score*10}%`, height:"100%", background:color, borderRadius:3, transition:"width 1.4s cubic-bezier(.22,1,.36,1)" }} />
-      </div>
-      <span style={{ fontSize:15, fontWeight:900, color, minWidth:20, textAlign:"right", fontFamily:F }}>{score}</span>
-    </div>
-  );
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ flex: 1 }}>
+        <LinearProgress
+          variant="determinate"
+          value={score * 10}
+          sx={{
+            height: 5,
+            '& .MuiLinearProgress-bar': { backgroundColor: color },
+          }}
+        />
+      </Box>
+      <Typography
+        variant="caption"
+        sx={{ fontSize: 15, fontWeight: 900, color, minWidth: 20, textAlign: 'right' }}
+      >
+        {score}
+      </Typography>
+    </Box>
+  )
 }
