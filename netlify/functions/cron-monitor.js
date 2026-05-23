@@ -24,6 +24,7 @@ export async function handler(event) {
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) }
   }
 
+  const DELAY_ENTRE_WORKSPACES = 12000
   const rodados = []
 
   for (const ws of workspaces || []) {
@@ -67,6 +68,7 @@ export async function handler(event) {
     } catch (e) {
       console.error(`[cron-monitor] Erro no workspace ${ws.id}:`, e.message)
     }
+    await new Promise(r => setTimeout(r, DELAY_ENTRE_WORKSPACES))
   }
 
   console.log(`[cron-monitor] ${rodados.length} workspaces notificados`)

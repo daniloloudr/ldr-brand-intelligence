@@ -1010,7 +1010,7 @@ Análise via streaming SSE + Anthropic. Persiste em campaigns no Supabase.
 
 ---
 
-### F14 · Workspace — Configurações
+### F14 · Workspace — Configurações ✅
 
 **Arquivo:** `src/pages/workspace/Workspace.jsx` · **Rota:** `/app/workspace`
 
@@ -1045,7 +1045,7 @@ Lista com score de qualificação · Filtros · Aprovar/Rejeitar · Cooldown 120
 
 ---
 
-### F17 · Automações
+### F17 · Automações ✅
 
 | Gatilho | Ação | Runtime |
 |---------|------|---------|
