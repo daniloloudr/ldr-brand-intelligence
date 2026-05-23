@@ -13,6 +13,7 @@ import { useWorkspace }      from '../../lib/WorkspaceContext'
 import { supabase }          from '../../lib/supabase'
 import { PRATICAS, PLANOS }  from '../../lib/constants'
 import { fmtDate }           from '../../lib/helpers'
+import { IdentityGapCard }   from '../../components/intelligence/IdentityGapCard'
 
 /* ── helpers ─────────────────────────────────────────────────────── */
 
@@ -35,7 +36,7 @@ function alertColor(sev) {
   if (sev === 'critical' || sev === 'error') return '#E8185A'
   if (sev === 'warning') return '#EF9F27'
   if (sev === 'success') return '#0D9E7A'
-  return '#7A8899'
+  return '#96AABF'
 }
 
 /* ── ScoreCard ───────────────────────────────────────────────────── */
@@ -249,7 +250,7 @@ export function Home() {
                           {op.impacto && (
                             <Chip label={`Impacto ${op.impacto}`} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700,
                               bgcolor: op.impacto === 'alto' ? 'rgba(232,24,90,0.1)' : op.impacto === 'medio' ? 'rgba(239,159,39,0.1)' : 'rgba(122,136,153,0.1)',
-                              color:   op.impacto === 'alto' ? '#E8185A' : op.impacto === 'medio' ? '#EF9F27' : '#7A8899',
+                              color:   op.impacto === 'alto' ? '#E8185A' : op.impacto === 'medio' ? '#EF9F27' : '#96AABF',
                             }} />
                           )}
                           {op.prazo && (
@@ -266,6 +267,10 @@ export function Home() {
               </Box>
             </>
           )}
+
+          {/* ── Identity Gap ── */}
+          <SectionTitle>Identity Gap</SectionTitle>
+          <IdentityGapCard workspaceId={workspace?.id} compact />
 
           {/* ── Alertas ── */}
           <SectionTitle>Alertas recentes</SectionTitle>

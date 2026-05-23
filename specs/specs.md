@@ -1,264 +1,438 @@
-# LOUDR Brand Intelligence — SPECS
-**Versão:** 3.0  
+# LOUDR OS — Especificação Completa do Produto
+**Versão:** 4.3  
 **Data:** Maio 2026  
-**Para:** Agente de desenvolvimento  
-**Stack:** Vite + React · Netlify Functions · Supabase · Anthropic API · Resend · Stripe
+**Status:** Documento vivo — atualizar a cada entrega  
+**Owner:** Danilo Silva · LOUDR  
+**Changelog v4.3:** Arquitetura de informação adicionada — pergunta principal por módulo, hierarquia de leitura, estrutura de informação por tela, Identity Gap como componente transversal.
 
 ---
 
-## 1. Visão do Produto
+## Visão do Produto
 
-Plataforma SaaS B2B de inteligência de marca. Combina diagnóstico estratégico com IA, monitoramento contínuo de scores, social listening e inteligência competitiva num workspace por empresa.
+**LOUDR OS** é o sistema operacional de marca para empresas que levam identidade a sério.
 
-### Dois lados do produto
-- **Público:** landing page de captura + relatório compartilhável por link
-- **Cliente:** workspace completo com diagnósticos, evolução, listening, concorrentes
-- **Admin LOUDR:** fila de aprovações, gestão de solicitações, histórico geral
+Combina diagnóstico externo com dados públicos, governança interna do brand book, inteligência competitiva em tempo real e um assistente estratégico que conhece cada detalhe da marca — tudo em uma plataforma, uma conta, um workspace.
 
-### Funil de conversão
+**O diferencial único:** cruzamento automático entre identidade declarada (Brand OS) e identidade percebida (Intelligence) = Identity Gap Score. Nenhum produto no mundo faz isso de forma contínua e automatizada.
+
+---
+
+## Os Dois Módulos
+
 ```
-Lead preenche formulário público
-        ↓
-LOUDR aprova e gera diagnóstico
-        ↓
-Lead recebe relatório por e-mail + link público
-        ↓
-Call de apresentação de insights (20 min)
-        ↓
-Trial de 14 dias no workspace
-        ↓
-Conversão para plano pago (Starter / Pro / Enterprise)
+┌─────────────────────────────────────────────────────────┐
+│                      LOUDR OS                           │
+│                                                         │
+│  ┌─────────────────────┐   ┌─────────────────────────┐  │
+│  │  LOUDR INTELLIGENCE │   │      LOUDR BRAND OS     │  │
+│  │  O que o mercado    │◄──►  O que a marca declara  │  │
+│  │  percebe sobre você │   │  ser e as ferramentas   │  │
+│  │                     │   │  para executar isso     │  │
+│  │  Diagnóstico externo│   │  Brand Engine           │  │
+│  │  Monitor contínuo   │   │  Brand Assistant (RAG)  │  │
+│  │  Social Listening   │   │  Campaign Approval      │  │
+│  │  Inteligência comp. │   │  Design System vivo     │  │
+│  └─────────────────────┘   └─────────────────────────┘  │
+│                                                         │
+│         Um login · Um workspace · Um produto            │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Diretrizes de Produto
+## Stack Técnica
 
-O agente deve seguir sempre:
+| Camada | Tecnologia | Decisão |
+|--------|-----------|---------|
+| Frontend | Vite + React 18 | Bundler rápido, HMR nativo |
+| Roteamento | React Router v6 | Layouts aninhados para BrandOS |
+| UI | Material UI v6 (@mui/material) | Tema dinâmico por marca via createTheme |
+| Ícones | @mui/icons-material | Consistência com MUI |
+| State global | Zustand | Workspace ativo, marca ativa, tema, chat |
+| Data fetching | TanStack Query | Cache, sincronização, loading states |
+| Animações | Framer Motion | Transições entre telas |
+| Editor rich text | Lexical (Meta) | Seções editáveis do brand book |
+| Banco | Supabase (PostgreSQL) | Auth, RLS, Edge Functions, pg_vector |
+| Servidor | **Netlify Edge Functions** | Streaming SSE nativo — ver seção crítica abaixo |
+| ORM | Drizzle | Queries tipadas — ver regra de uso abaixo |
+| Validação | Zod | Schemas frontend e backend |
+| AI | Anthropic claude-sonnet-4-20250514 | Diagnósticos, assistant, aprovações |
+| Embeddings | Anthropic voyage-3 | RAG do Brand Assistant |
+| E-mail | Resend | Transacional + nurturing |
+| Pagamento | Stripe | Planos, billing, webhooks |
+| Assets | Supabase Storage | Logos, imagens, moodboard |
+| Auth | Supabase Auth | JWT, sessões, invite links |
 
-1. **Self-service primeiro** — cliente cria conta, configura workspace, gera diagnóstico e faz upgrade sem intervenção humana
-2. **Dado antes de opinião** — cada score e recomendação tem evidência pública rastreável
-3. **Expandir sem reescrever** — mesmo stack, mesmos tokens, mesma arquitetura
-4. **Isolamento por workspace** — RLS no Supabase desde o início, nenhum dado vaza entre clientes
-5. **Alertas são o produto de retenção** — qualidade dos alertas > quantidade de features
-6. **Desktop primeiro** — usuário primário é CMO em desktop, mobile é secundário
+### ⚠️ Decisão crítica — Netlify Edge Functions para streaming
 
----
+Netlify Functions (Node.js) têm timeout de 10s e **não suportam streaming SSE real** — `await response.text()` retorna tudo de uma vez, quebrando a experiência de geração em tempo real.
 
-## 3. Stack Técnica
+**Usar Netlify Edge Functions (Deno) para todas as rotas que fazem streaming:**
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Frontend | Vite + React |
-| Servidor | Netlify Functions |
-| Banco | Supabase (PostgreSQL + Auth + Edge Functions) |
-| AI | Anthropic claude-sonnet-4-5 com web_search_20250305 |
-| E-mail | Resend |
-| Pagamento | Stripe |
-| Font | Cairo via Google Fonts |
-| CSS | Inline styles com DS tokens — sem biblioteca de UI |
+```toml
+# netlify.toml
+[[edge_functions]]
+  path = "/api/anthropic"
+  function = "anthropic"
+
+[[edge_functions]]
+  path = "/api/assistant"
+  function = "assistant-chat"
+```
+
+```js
+// netlify/edge-functions/anthropic.js — Edge Function com streaming nativo
+export default async function handler(request, context) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      }
+    })
+  }
+
+  const body = await request.json()
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': Deno.env.get('ANTHROPIC_API_KEY'),
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify(body),
+  })
+
+  // Pass-through do stream — sem await, sem buffer
+  return new Response(response.body, {
+    status: response.status,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Access-Control-Allow-Origin': '*',
+    }
+  })
+}
+```
+
+**Netlify Functions (Node.js) continuam sendo usadas para:** webhooks Stripe, cron jobs, operações sem streaming (CRUD, auth, e-mails).
+
+### ⚠️ Regra de uso — Drizzle vs Supabase-js
+
+Os dois clientes se comportam de forma diferente com RLS. Misturá-los na mesma operação pode quebrar o isolamento multi-tenant.
+
+| Contexto | Cliente | Motivo |
+|----------|---------|--------|
+| Frontend (React) | `supabase-js` | Respeita RLS automaticamente com o JWT do usuário |
+| Edge Functions (usuário autenticado) | `supabase-js` com `Authorization: Bearer {jwt}` | Respeita RLS |
+| Netlify Functions (operações admin/LOUDR) | Drizzle com `SUPABASE_SERVICE_KEY` | Bypassa RLS — usar apenas quando necessário e com filtros explícitos de workspace_id |
+| Cron jobs e automações | Drizzle com service key | Sem usuário autenticado — sempre filtrar por workspace_id no código |
+
+**Regra:** nunca usar Drizzle com service key em código que processa dados de um único workspace sem filtro explícito `WHERE workspace_id = :id`.
 
 ### Variáveis de ambiente
-```
-# .env (desenvolvimento)
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_KEY=eyJ...
-VITE_STRIPE_PUBLIC_KEY=pk_live_...
-VITE_CALENDLY_URL=https://calendly.com/loudr/insights
 
-# Netlify (produção — server-side, nunca no frontend)
-ANTHROPIC_KEY=sk-ant-...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-RESEND_API_KEY=re_...
-SUPABASE_SERVICE_KEY=eyJ...  # para Edge Functions
+```
+# Client-side (VITE_ prefix — expostas no bundle)
+VITE_SUPABASE_URL=
+VITE_SUPABASE_KEY=          # anon key (RLS protege)
+VITE_STRIPE_PUBLIC_KEY=
+VITE_CALENDLY_URL=
+VITE_APP_URL=
+
+# Server-side (Netlify — nunca no frontend)
+ANTHROPIC_API_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+RESEND_API_KEY=
+SUPABASE_SERVICE_KEY=       # service role — só em Functions admin
+GOOGLE_FONTS_API_KEY=
 ```
 
 ---
 
-## 4. Design System
+## Design System da Plataforma
 
 ```js
-// src/lib/constants.js
-export const DS = {
-  navy:       "#0D1B2A",   // fundo principal
-  navyMid:    "#162840",   // cards escuros
-  navyLight:  "#1E3550",   // bordas escuras
-  green:      "#0D9E7A",   // cor primária / sucesso
-  greenDim:   "#0B8567",   // hover green
-  greenPale:  "#E1F5EE",   // bg sucesso
-  pink:       "#E8185A",   // destaque / Experiência
-  pinkPale:   "#FBEAF0",   // bg erro
-  white:      "#FFFFFF",
-  offwhite:   "#F7F9F8",   // bg claro
-  border:     "#E2EBE8",   // bordas claras
-  gray:       "#8A9AB0",   // texto terciário
-  grayLight:  "#F0F4F3",   // bg secundário
-  text:       "#0D1B2A",   // texto principal
-  textMid:    "#4A5A6A",   // texto secundário
-  textLight:  "#8A9AB0",   // texto desabilitado
-  amber:      "#EF9F27",   // aviso / Futuro & Escala
-  amberPale:  "#FEF3C7",   // bg aviso
-  purple:     "#7F77DD",   // Plataformas & Ecossistemas
-  purplePale: "#EEEDFE",
-};
+// src/theme/platformTheme.js
+export const platformTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary:    { main: '#0D9E7A', dark: '#0B8567', light: '#E1F5EE' },
+    secondary:  { main: '#E8185A', light: '#FBEAF0' },
+    warning:    { main: '#EF9F27', light: '#FEF3C7' },
+    info:       { main: '#7F77DD', light: '#EEEDFE' },
+    background: { default: '#0D1B2A', paper: '#162840' },
+    text:       { primary: '#FFFFFF', secondary: '#8A9AB0', disabled: '#4A5A6A' },
+    divider:    '#1E3550',
+    error:      { main: '#E8185A' },
+  },
+  typography: {
+    fontFamily: "'Cairo', sans-serif",
+    fontWeightLight: 400, fontWeightRegular: 500,
+    fontWeightMedium: 700, fontWeightBold: 900,
+  },
+  shape: { borderRadius: 10 },
+  components: {
+    MuiButton:    { styleOverrides: { root: { textTransform: 'none', fontWeight: 700 } } },
+    MuiCard:      { styleOverrides: { root: { backgroundImage: 'none' } } },
+    MuiTextField: { defaultProps: { variant: 'outlined', size: 'small' } },
+  }
+})
 
-export const F = "'Cairo', sans-serif";
-
-export const PRATICAS = [
-  { key:"inteligencia_singularidade", label:"Inteligência & Singularidade", sub:"Posicionamento · Arquitetura · Cultura", color:DS.green },
-  { key:"experiencia_expressao",      label:"Experiência & Expressão",      sub:"Identidade · Design · Storytelling",  color:DS.pink },
-  { key:"plataformas_ecossistemas",   label:"Plataformas & Ecossistemas",   sub:"Produto · Digital · Engenharia",      color:DS.purple },
-  { key:"futuro_escala",              label:"Futuro & Escala",              sub:"Data · AI · Growth · Performance",    color:DS.amber },
-];
-
-export const PLANOS = {
-  trial:      { nome:"Trial",      preco:0,    diagnosticos_mes:1, monitor:null,      concorrentes:0, membros:1,         social_listening:false },
-  starter:    { nome:"Starter",    preco:490,  diagnosticos_mes:1, monitor:"mensal",  concorrentes:0, membros:1,         social_listening:false },
-  pro:        { nome:"Pro",        preco:1490, diagnosticos_mes:3, monitor:"semanal", concorrentes:2, membros:3,         social_listening:true  },
-  enterprise: { nome:"Enterprise", preco:3990, diagnosticos_mes:Infinity, monitor:"diario", concorrentes:5, membros:Infinity, social_listening:true },
-};
-
-export const TOTAL_SEARCHES = 5;
-export const RATE_LIMIT_WAIT = 65;
-export const MAX_RETRIES = 3;
-export const COOLDOWN_ENTRE_APROVACOES = 120;
-```
-
-### Keyframes globais (GlobalStyle.jsx)
-```css
-*, *::before, *::after { box-sizing: border-box !important; }
-@keyframes spin      { to { transform: rotate(360deg); } }
-@keyframes fadeUp    { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-@keyframes pulse     { 0%,100%{opacity:1} 50%{opacity:0.35} }
-@keyframes bounceDown{ 0%,100%{transform:translateY(0);opacity:.5} 50%{transform:translateY(6px);opacity:1} }
-input:focus, textarea:focus, select:focus {
-  outline: none !important;
-  border-color: #0D9E7A !important;
-  box-shadow: 0 0 0 3px #E1F5EE !important;
+// src/theme/buildBrandTheme.js
+export function buildBrandTheme(designSystem) {
+  const { colors, typography, border_radius } = designSystem
+  return createTheme({
+    palette: {
+      mode: 'light',
+      primary:    { main: colors.primary.main, light: colors.primary.light, dark: colors.primary.dark, contrastText: colors.primary.on },
+      secondary:  { main: colors.secondary.main },
+      background: { default: colors.background, paper: colors.surface },
+    },
+    typography: { fontFamily: `"${typography.font_primary}", sans-serif` },
+    shape: { borderRadius: parseInt(border_radius.sm ?? '8') },
+  })
 }
 ```
 
+**Tokens de cor:**
+```
+navy #0D1B2A · navyMid #162840 · navyLight #1E3550
+green #0D9E7A · greenDim #0B8567 · greenPale #E1F5EE
+pink #E8185A · pinkPale #FBEAF0
+amber #EF9F27 · amberPale #FEF3C7
+purple #7F77DD · purplePale #EEEDFE
+gray #8A9AB0 · border #E2EBE8
+```
+
 ---
 
-## 5. Estrutura de Pastas
+## Estrutura de Pastas
 
 ```
-/
-├── netlify/
-│   └── functions/
-│       ├── anthropic.js          # Proxy SSE Anthropic — chave server-side
-│       ├── stripe-webhook.js     # Eventos Stripe → atualiza workspace.plano
-│       └── cron-monitor.js       # Diagnósticos automáticos agendados
-├── public/
-│   └── index.html                # Entry HTML com <script type="module" src="/src/main.jsx">
-├── src/
-│   ├── main.jsx                  # ReactDOM.createRoot
-│   ├── App.jsx                   # Router hash-based + auth guard + font loader
-│   ├── lib/
-│   │   ├── constants.js          # DS, F, PRATICAS, PLANOS, SYSTEM_PROMPT
-│   │   ├── helpers.js            # getRoute(), tryParseJSON(), sc(), fmtDate(), calcularScoreLead(), checkPlano()
-│   │   ├── api.js                # runStream() com retry de rate limit
-│   │   ├── supabase.js           # createClient inicializado
-│   │   └── stripe.js             # loadStripe(), getCheckoutUrl()
-│   ├── components/
-│   │   ├── GlobalStyle.jsx       # <style> global com keyframes
-│   │   ├── Bar.jsx               # Barra de score colorida
-│   │   ├── Card.jsx              # Card branco com borda
-│   │   ├── Lbl.jsx               # Label uppercase 10px
-│   │   ├── Pill.jsx              # Badge colorida inline
-│   │   ├── Spinner.jsx           # Loading circular animado
-│   │   ├── ScoreCard.jsx         # Card de score com barra + label + variação
-│   │   ├── EmptyState.jsx        # Estado vazio padronizado
-│   │   └── UpgradeGate.jsx       # Bloqueia feature + exibe CTA de upgrade
-│   └── pages/
-│       ├── public/
-│       │   ├── PaginaPublica.jsx          # Landing page de captura
-│       │   ├── RelatorioPublico.jsx       # Relatório por ID sem auth
-│       │   └── PaginaMetodologia.jsx      # Explicação do framework Smart Branding
-│       ├── auth/
-│       │   ├── LoginPage.jsx              # Login Supabase Auth
-│       │   ├── RegisterPage.jsx           # Cadastro self-service
-│       │   └── OnboardingPage.jsx         # Setup do workspace (3 passos)
-│       ├── app/                           # Workspace do cliente (auth + plano)
-│       │   ├── AppShell.jsx               # Nav lateral + layout
-│       │   ├── Home.jsx                   # Dashboard: scores, alertas, oportunidades
-│       │   ├── Diagnostico.jsx            # Diagnósticos + histórico + geração
-│       │   ├── NovoManual.jsx             # Formulário + streaming
-│       │   ├── Evolucao.jsx               # Gráfico de scores ao longo do tempo
-│       │   ├── SocialListening.jsx        # Feed de menções + sentiment (Pro+)
-│       │   ├── Concorrentes.jsx           # Inteligência competitiva (Pro+)
-│       │   └── Workspace.jsx              # Config + equipe + billing
-│       └── admin/                         # LOUDR internal (role: loudr_admin)
-│           ├── AdminShell.jsx             # Nav admin
-│           ├── Solicitacoes.jsx           # Fila de aprovação com score de qualificação
-│           └── AdminHistorico.jsx         # Todos os diagnósticos gerados
-├── supabase/
-│   └── functions/
-│       ├── enviar-diagnostico/    # Triggered: aprovação → e-mail para lead
-│       ├── notificar-solicitacao/ # Triggered: nova solicitação → e-mail para LOUDR
-│       ├── gerar-alertas/         # Scheduled: analisa dados, gera alertas
-│       ├── coletar-sinais/        # Scheduled: coleta listening por workspace Pro+
-│       ├── relatorio-mensal/      # Scheduled: dia 1 do mês → PDF + e-mail
-│       └── nurturing-sequence/    # Triggered: D+2, D+5, D+10, D+15 pós-diagnóstico
-├── .env
+loudr-os/
 ├── netlify.toml
 ├── vite.config.js
-└── package.json
+├── package.json
+│
+├── netlify/
+│   ├── edge-functions/              # Streaming SSE — Deno runtime
+│   │   ├── anthropic.js             # Proxy streaming diagnóstico
+│   │   └── assistant-chat.js        # Proxy streaming Brand Assistant
+│   └── functions/                   # Node.js 20 — sem streaming
+│       ├── _supabase.js             # Cliente supabase-js com service key
+│       ├── _drizzle.js              # Drizzle para operações admin
+│       ├── _middleware.js           # requireAuth, ok(), serverError()
+│       ├── _prompts.js              # System prompts
+│       ├── _rag.js                  # RAG: chunks, embeddings, retrieval
+│       ├── _rateLimit.js            # Rate limiting de login
+│       ├── stripe-webhook.js        # Eventos Stripe → atualiza plano
+│       ├── cron-monitor.js          # Diagnósticos automáticos
+│       ├── cron-monitor-daily.js    # Diagnósticos diários (Enterprise)
+│       ├── auth/
+│       │   ├── login.js
+│       │   ├── register.js
+│       │   ├── invite.js
+│       │   └── me.js
+│       ├── workspaces/
+│       ├── intelligence/
+│       │   ├── diagnose.js
+│       │   ├── listen.js
+│       │   └── alerts.js
+│       ├── brandos/
+│       │   ├── brands/
+│       │   ├── brand-book/
+│       │   │   ├── generate.js
+│       │   │   ├── update.js        # Atualiza seção + re-embed + recalc gap
+│       │   │   ├── tokens.js
+│       │   │   └── fonts.js         # Proxy Google Fonts API
+│       │   └── campaigns/
+│       │       ├── submit.js
+│       │       └── approve.js
+│       └── emails/
+│           ├── send-diagnostic.js
+│           ├── notify-request.js
+│           └── nurturing.js
+│
+├── src/
+│   ├── main.jsx                     # ThemeProvider + QueryClient + Router
+│   ├── App.jsx                      # Routes com React Router v6
+│   ├── theme/
+│   │   ├── platformTheme.js
+│   │   ├── buildBrandTheme.js
+│   │   └── tokens.js
+│   ├── stores/
+│   │   ├── authStore.js
+│   │   ├── workspaceStore.js
+│   │   └── brandStore.js            # marca ativa, brand book, tema MUI
+│   ├── hooks/
+│   │   ├── useWorkspace.js
+│   │   ├── useCurrentBrand.js
+│   │   ├── useBrandTheme.js
+│   │   ├── useChat.js
+│   │   └── useApiError.js
+│   ├── lib/
+│   │   ├── supabase.js              # createClient com VITE_ keys
+│   │   ├── api.js                   # Fetch wrapper
+│   │   ├── runStream.js             # SSE com retry de rate limit
+│   │   ├── schemas.js               # Zod schemas
+│   │   ├── stripe.js
+│   │   └── utils.js                 # fmtDate, calcularScoreLead, checkPlano, PLANOS, calcIdentityGap
+│   ├── components/
+│   │   ├── common/
+│   │   │   ├── GlobalStyle.jsx
+│   │   │   ├── ScoreBar.jsx
+│   │   │   ├── ScoreCard.jsx
+│   │   │   ├── StatusChip.jsx
+│   │   │   ├── EmptyState.jsx
+│   │   │   ├── UpgradeGate.jsx
+│   │   │   ├── StreamingView.jsx
+│   │   │   ├── PageLoader.jsx
+│   │   │   └── SessionExpiredModal.jsx
+│   │   ├── intelligence/
+│   │   │   ├── DiagnosticoCard.jsx
+│   │   │   ├── RelatorioCompleto.jsx
+│   │   │   ├── SentimentChart.jsx
+│   │   │   ├── TerritoryMap.jsx
+│   │   │   ├── CompetitorGrid.jsx
+│   │   │   └── IdentityGapCard.jsx  # Exibe gap score + narrativa
+│   │   └── brandos/
+│   │       ├── BrandBookSection.jsx
+│   │       ├── TokenSwatch.jsx
+│   │       ├── TypeScale.jsx
+│   │       ├── Moodboard.jsx
+│   │       ├── ChatBubble.jsx
+│   │       ├── ChatInput.jsx
+│   │       ├── ContextPanel.jsx
+│   │       ├── VerdictPanel.jsx
+│   │       └── ApprovalBadge.jsx
+│   ├── layouts/
+│   │   ├── AuthLayout.jsx
+│   │   ├── AppLayout.jsx
+│   │   ├── IntelligenceLayout.jsx
+│   │   └── BrandOSLayout.jsx        # ThemeProvider dinâmico
+│   └── pages/
+│       ├── public/
+│       │   ├── LandingPage.jsx
+│       │   ├── RelatorioPublico.jsx
+│       │   └── Metodologia.jsx
+│       ├── auth/
+│       │   ├── Login.jsx
+│       │   ├── Register.jsx
+│       │   ├── Invite.jsx
+│       │   └── Onboarding.jsx
+│       ├── dashboard/
+│       │   └── Dashboard.jsx
+│       ├── intelligence/
+│       │   ├── Diagnostico.jsx
+│       │   ├── Evolucao.jsx
+│       │   ├── SocialListening.jsx
+│       │   └── Concorrentes.jsx
+│       ├── brandos/
+│       │   ├── BrandList.jsx
+│       │   ├── BrandOnboarding.jsx
+│       │   ├── BrandBook.jsx
+│       │   ├── sections/
+│       │   │   ├── Identity.jsx
+│       │   │   ├── Positioning.jsx
+│       │   │   ├── DesignSystem.jsx
+│       │   │   ├── References.jsx
+│       │   │   └── History.jsx
+│       │   ├── Assistant.jsx
+│       │   ├── Campaigns.jsx
+│       │   ├── CampaignNew.jsx
+│       │   └── CampaignDetail.jsx
+│       ├── workspace/
+│       │   ├── Workspace.jsx
+│       │   └── Members.jsx
+│       └── admin/
+│           ├── AdminShell.jsx
+│           ├── Solicitacoes.jsx
+│           └── AdminHistorico.jsx
+│
+├── supabase/
+│   └── functions/
+│       ├── on-solicitacao-insert/
+│       ├── on-diagnostico-approved/
+│       └── monthly-report/
+│
+├── db/
+│   ├── schema.js                    # Drizzle schema
+│   ├── migrations/
+│   └── seed.js                      # Workspace LOUDR + platform_admin
+│
+└── public/
+    └── index.html
 ```
 
 ---
 
-## 6. Roteamento
+## Roteamento
 
-Hash-based, sem react-router. `getRoute()` em helpers.js lê `window.location.hash`.
+```jsx
+<Routes>
+  <Route path="/" element={<LandingPage />} />
+  <Route path="/metodologia" element={<Metodologia />} />
+  <Route path="/relatorio/:id" element={<RelatorioPublico />} />
 
-```js
-export function getRoute() {
-  const hash = window.location.hash;
-  if (!hash || hash === '#/') return 'public';
-  if (hash === '#/metodologia') return 'metodologia';
-  if (hash.startsWith('#/relatorio/')) return 'relatorio-publico';
-  if (hash === '#/login') return 'login';
-  if (hash === '#/register') return 'register';
-  if (hash === '#/onboarding') return 'onboarding';
-  if (hash === '#/app') return 'app-home';
-  if (hash === '#/app/diagnostico') return 'diagnostico';
-  if (hash === '#/app/evolucao') return 'evolucao';
-  if (hash === '#/app/listening') return 'listening';
-  if (hash === '#/app/concorrentes') return 'concorrentes';
-  if (hash === '#/app/workspace') return 'workspace';
-  if (hash === '#/admin') return 'admin';
-  if (hash === '#/admin/historico') return 'admin-historico';
-  return 'public';
-}
+  <Route element={<AuthLayout />}>
+    <Route path="/login" element={<Login />} />
+    <Route path="/register" element={<Register />} />
+    <Route path="/invite/:token" element={<Invite />} />
+    <Route path="/onboarding" element={<Onboarding />} />
+  </Route>
+
+  <Route element={<AppLayout />}>
+    <Route path="/app" element={<Dashboard />} />
+
+    <Route path="/app/intelligence" element={<IntelligenceLayout />}>
+      <Route index element={<Diagnostico />} />
+      <Route path="evolucao" element={<Evolucao />} />
+      <Route path="listening" element={<SocialListening />} />
+      <Route path="concorrentes" element={<Concorrentes />} />
+    </Route>
+
+    <Route path="/app/brands" element={<BrandList />} />
+    <Route path="/app/brands/new" element={<BrandOnboarding />} />
+    <Route path="/app/brands/:brandId" element={<BrandOSLayout />}>
+      <Route index element={<BrandBook />} />
+      <Route path="identity" element={<Identity />} />
+      <Route path="positioning" element={<Positioning />} />
+      <Route path="design-system" element={<DesignSystem />} />
+      <Route path="references" element={<References />} />
+      <Route path="history" element={<History />} />
+      <Route path="assistant" element={<Assistant />} />
+      <Route path="assistant/:convId" element={<Assistant />} />
+      <Route path="campaigns" element={<Campaigns />} />
+      <Route path="campaigns/new" element={<CampaignNew />} />
+      <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
+    </Route>
+
+    <Route path="/app/workspace" element={<Workspace />} />
+    <Route path="/app/workspace/members" element={<Members />} />
+
+    <Route path="/admin" element={<AdminShell />}>
+      <Route index element={<Solicitacoes />} />
+      <Route path="historico" element={<AdminHistorico />} />
+    </Route>
+  </Route>
+</Routes>
 ```
-
-| Hash | Componente | Requer |
-|------|-----------|--------|
-| `` ou `#/` | PaginaPublica | — |
-| `#/metodologia` | PaginaMetodologia | — |
-| `#/relatorio/:id` | RelatorioPublico | — |
-| `#/login` | LoginPage | — |
-| `#/register` | RegisterPage | — |
-| `#/onboarding` | OnboardingPage | auth |
-| `#/app` | Home | auth + plano ativo |
-| `#/app/diagnostico` | Diagnostico | auth + plano ativo |
-| `#/app/evolucao` | Evolucao | auth + starter+ |
-| `#/app/listening` | SocialListening | auth + pro+ |
-| `#/app/concorrentes` | Concorrentes | auth + pro+ |
-| `#/app/workspace` | Workspace | auth |
-| `#/admin` | Solicitacoes | auth + loudr_admin |
-| `#/admin/historico` | AdminHistorico | auth + loudr_admin |
 
 ---
 
-## 7. Banco de Dados
+## Banco de Dados
 
-### Migration SQL completa
+### Schema completo
 
 ```sql
--- 1. Workspaces
+-- ═══════════════════════════════════════════
+-- CORE
+-- ═══════════════════════════════════════════
+
 create table workspaces (
   id                      uuid default gen_random_uuid() primary key,
   created_at              timestamptz default now(),
@@ -275,17 +449,27 @@ create table workspaces (
   diagnosticos_reset_at   timestamptz default (date_trunc('month', now()) + interval '1 month')
 );
 
--- 2. Membros
 create table workspace_members (
   id            uuid default gen_random_uuid() primary key,
   workspace_id  uuid references workspaces(id) on delete cascade,
   user_id       uuid references auth.users(id) on delete cascade,
-  role          text default 'member',
+  role          text default 'member',  -- owner|admin|member|viewer
   created_at    timestamptz default now(),
   unique(workspace_id, user_id)
 );
 
--- 3. Diagnósticos
+-- ⚠️ Admins da plataforma LOUDR — separado do sistema de roles por workspace
+-- Identifica usuários LOUDR com acesso ao /admin sem workspace específico
+create table platform_admins (
+  id         uuid default gen_random_uuid() primary key,
+  user_id    uuid references auth.users(id) on delete cascade unique,
+  created_at timestamptz default now()
+);
+
+-- ═══════════════════════════════════════════
+-- INTELLIGENCE
+-- ═══════════════════════════════════════════
+
 create table diagnosticos (
   id                    uuid default gen_random_uuid() primary key,
   created_at            timestamptz default now(),
@@ -300,13 +484,14 @@ create table diagnosticos (
   score_singularidade   int,
   score_consistencia    int,
   score_posicionamento  int,
+  score_experiencia     int,
+  score_escala          int,
   frase_diagnostico     text,
   dados                 jsonb,
   publico               boolean default true,
   tipo                  text default 'manual'
 );
 
--- 4. Solicitações (leads públicos)
 create table solicitacoes (
   id                  uuid default gen_random_uuid() primary key,
   created_at          timestamptz default now(),
@@ -324,7 +509,6 @@ create table solicitacoes (
   workspace_id        uuid references workspaces(id)
 );
 
--- 5. Listening events
 create table listening_events (
   id            uuid default gen_random_uuid() primary key,
   created_at    timestamptz default now(),
@@ -339,7 +523,6 @@ create table listening_events (
   lido          boolean default false
 );
 
--- 6. Snapshots de sentiment
 create table sentiment_snapshots (
   id            uuid default gen_random_uuid() primary key,
   created_at    timestamptz default now(),
@@ -351,7 +534,6 @@ create table sentiment_snapshots (
   volume_total  int
 );
 
--- 7. Concorrentes
 create table concorrentes (
   id            uuid default gen_random_uuid() primary key,
   created_at    timestamptz default now(),
@@ -361,7 +543,6 @@ create table concorrentes (
   ativo         boolean default true
 );
 
--- 8. Diagnósticos de concorrentes
 create table diagnosticos_concorrentes (
   id                    uuid default gen_random_uuid() primary key,
   created_at            timestamptz default now(),
@@ -373,7 +554,6 @@ create table diagnosticos_concorrentes (
   dados                 jsonb
 );
 
--- 9. Alertas
 create table alertas (
   id            uuid default gen_random_uuid() primary key,
   created_at    timestamptz default now(),
@@ -386,168 +566,259 @@ create table alertas (
   dados         jsonb
 );
 
--- RLS
-alter table workspaces              enable row level security;
-alter table workspace_members       enable row level security;
-alter table diagnosticos            enable row level security;
-alter table solicitacoes            enable row level security;
-alter table listening_events        enable row level security;
-alter table sentiment_snapshots     enable row level security;
-alter table concorrentes            enable row level security;
-alter table diagnosticos_concorrentes enable row level security;
-alter table alertas                 enable row level security;
+-- ═══════════════════════════════════════════
+-- BRAND OS
+-- ═══════════════════════════════════════════
 
--- Políticas padrão por workspace
-create policy "membro acessa workspace" on workspaces
-  for all using (id in (
-    select workspace_id from workspace_members where user_id = auth.uid()
-  ));
+create table brands (
+  id            uuid default gen_random_uuid() primary key,
+  workspace_id  uuid references workspaces(id),
+  nome          text not null,
+  slug          text not null,
+  logo_url      text,
+  status        text default 'draft',
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now(),
+  unique(workspace_id, slug)
+);
 
-create policy "leitura publica diagnosticos" on diagnosticos
-  for select using (publico = true);
+create table brand_books (
+  id              uuid default gen_random_uuid() primary key,
+  brand_id        uuid unique references brands(id),
+  identity        jsonb,
+  positioning     jsonb,
+  design_system   jsonb,
+  references      jsonb,
+  version         int default 1,
+  updated_at      timestamptz default now()
+);
 
-create policy "workspace acessa diagnosticos" on diagnosticos
-  for all using (workspace_id in (
-    select workspace_id from workspace_members where user_id = auth.uid()
-  ));
+create table brand_book_history (
+  id              uuid default gen_random_uuid() primary key,
+  brand_book_id   uuid references brand_books(id),
+  section         text,
+  snapshot        jsonb,
+  changed_by      uuid references auth.users(id),
+  changed_at      timestamptz default now(),
+  note            text
+);
 
-create policy "publico pode solicitar" on solicitacoes
-  for insert to anon, authenticated with check (true);
+-- pg_vector: habilitar com: supabase db execute "create extension if not exists vector"
+create table brand_book_chunks (
+  id            uuid default gen_random_uuid() primary key,
+  created_at    timestamptz default now(),
+  brand_id      uuid references brands(id) on delete cascade,
+  section       text not null,
+  content       text not null,
+  embedding     vector(1536),
+  updated_at    timestamptz default now()
+);
 
--- Repetir padrão "workspace acessa X" para:
--- listening_events, sentiment_snapshots, concorrentes,
--- diagnosticos_concorrentes, alertas
+create index on brand_book_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+create index on brand_book_chunks (brand_id);
+
+create table conversations (
+  id          uuid default gen_random_uuid() primary key,
+  brand_id    uuid references brands(id),
+  user_id     uuid references auth.users(id),
+  title       text,
+  created_at  timestamptz default now()
+);
+
+create table messages (
+  id              uuid default gen_random_uuid() primary key,
+  conversation_id uuid references conversations(id),
+  role            text,
+  content         text,
+  metadata        jsonb,
+  created_at      timestamptz default now()
+);
+
+create table campaigns (
+  id            uuid default gen_random_uuid() primary key,
+  brand_id      uuid references brands(id),
+  submitted_by  uuid references auth.users(id),
+  title         text not null,
+  content       jsonb,
+  status        text default 'pending',
+  verdict       jsonb,
+  reviewed_at   timestamptz,
+  created_at    timestamptz default now()
+);
+
+-- Controle de idempotência do nurturing de e-mails
+-- Garante que cada e-mail da sequência seja enviado exatamente uma vez
+create table nurturing_emails (
+  id              uuid default gen_random_uuid() primary key,
+  solicitacao_id  uuid references solicitacoes(id) on delete cascade,
+  dia             int not null,          -- 2 | 5 | 10 | 15
+  enviado_at      timestamptz default now(),
+  status          text default 'enviado', -- enviado | falhou
+  unique(solicitacao_id, dia)             -- impede duplicatas
+);
+
+alter table nurturing_emails enable row level security;
+
+-- ═══════════════════════════════════════════
+-- INTEGRAÇÃO Intelligence ↔ Brand OS
+-- ═══════════════════════════════════════════
+
+create table identity_gap_snapshots (
+  id                    uuid default gen_random_uuid() primary key,
+  created_at            timestamptz default now(),
+  brand_id              uuid references brands(id),
+  workspace_id          uuid references workspaces(id),
+  diagnostico_id        uuid references diagnosticos(id),
+  gap_score             numeric,   -- 0-10, onde 0 = alinhamento perfeito
+  gap_narrativa         text,      -- descrição gerada por IA do gap
+  dimensoes             jsonb,     -- gap por dimensão (ver algoritmo abaixo)
+  declarado_scores      jsonb,     -- scores do brand_book no momento
+  percebido_scores      jsonb      -- scores do diagnóstico externo
+);
 ```
 
----
+### ⚠️ Algoritmo do Identity Gap Score
 
-## 8. Netlify Functions
+O gap é calculado por `calcIdentityGap()` em `src/lib/utils.js` e também no backend em `netlify/functions/brandos/brand-book/update.js`.
 
-### `netlify/functions/anthropic.js`
+**Mapeamento de dimensões** (declarado → percebido):
+
+| Dimensão | Campo brand_book | Campo diagnóstico |
+|----------|-----------------|------------------|
+| Singularidade | `identity.positioning_clarity` (0-10) | `score_singularidade` |
+| Consistência | `design_system completude` (% campos preenchidos × 10) | `score_consistencia` |
+| Posicionamento | `positioning.differentiation_score` (0-10) | `score_posicionamento` |
+| Experiência | `identity.tone_clarity` (0-10) | `score_experiencia` |
+| Escala | `references.completude` (% campos × 10) | `score_escala` |
+
 ```js
-export async function handler(event) {
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      },
-      body: '',
-    }
-  }
+// src/lib/utils.js
+export function calcIdentityGap(brandBook, diagnostico) {
+  const dims = [
+    { nome: 'singularidade', declarado: brandBook.identity?.positioning_clarity ?? 5, percebido: diagnostico.score_singularidade ?? 5 },
+    { nome: 'consistencia',  declarado: calcConsistenciaScore(brandBook.design_system), percebido: diagnostico.score_consistencia ?? 5 },
+    { nome: 'posicionamento',declarado: brandBook.positioning?.differentiation_score ?? 5, percebido: diagnostico.score_posicionamento ?? 5 },
+    { nome: 'experiencia',   declarado: brandBook.identity?.tone_clarity ?? 5, percebido: diagnostico.score_experiencia ?? 5 },
+    { nome: 'escala',        declarado: calcReferencesScore(brandBook.references), percebido: diagnostico.score_escala ?? 5 },
+  ]
 
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' }
-  }
+  const gaps = dims.map(d => ({
+    ...d,
+    gap: Math.abs(d.declarado - d.percebido),
+    direcao: d.percebido > d.declarado ? 'mercado_supera' : 'marca_supera',
+  }))
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: event.body,
-  })
+  const gap_score = gaps.reduce((sum, d) => sum + d.gap, 0) / gaps.length
 
-  const data = await response.text()
-  return {
-    statusCode: response.status,
-    headers: {
-      'Content-Type': response.headers.get('content-type') || 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-    body: data,
-  }
+  return { gap_score: parseFloat(gap_score.toFixed(1)), dimensoes: gaps }
+}
+
+function calcConsistenciaScore(designSystem) {
+  if (!designSystem) return 0
+  const campos = ['colors', 'typography', 'spacing', 'border_radius']
+  const preenchidos = campos.filter(c => designSystem[c]).length
+  return (preenchidos / campos.length) * 10
+}
+
+function calcReferencesScore(references) {
+  if (!references) return 0
+  const campos = ['moodboard', 'brands', 'differentiation']
+  const preenchidos = campos.filter(c => references[c] && references[c].length > 0).length
+  return (preenchidos / campos.length) * 10
 }
 ```
 
-### `netlify.toml`
-```toml
-[build]
-  command   = "npm run build"
-  publish   = "dist"
-  functions = "netlify/functions"
+**Trigger de cálculo:**
+1. Novo diagnóstico gerado → `calcIdentityGap()` se workspace tem brand_book ativo
+2. Brand book atualizado → `calcIdentityGap()` com último diagnóstico
+3. Cron diário (Enterprise) → recalcula para todos os workspaces ativos
 
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
+### RLS
 
-[functions."cron-monitor"]
-  schedule = "0 8 * * 1"
-```
+```sql
+alter table workspaces               enable row level security;
+alter table workspace_members        enable row level security;
+alter table platform_admins          enable row level security;
+alter table diagnosticos             enable row level security;
+alter table solicitacoes             enable row level security;
+alter table listening_events         enable row level security;
+alter table sentiment_snapshots      enable row level security;
+alter table concorrentes             enable row level security;
+alter table diagnosticos_concorrentes enable row level security;
+alter table alertas                  enable row level security;
+alter table brands                   enable row level security;
+alter table brand_books              enable row level security;
+alter table brand_book_history       enable row level security;
+alter table brand_book_chunks        enable row level security;
+alter table conversations            enable row level security;
+alter table messages                 enable row level security;
+alter table campaigns                enable row level security;
+alter table identity_gap_snapshots   enable row level security;
 
-### `vite.config.js`
-```js
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+-- Workspace: membro acessa o seu
+create policy "membro acessa workspace" on workspaces
+  for all using (id in (select workspace_id from workspace_members where user_id = auth.uid()));
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'https://api.anthropic.com',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/api/, ''),
-      }
-    }
-  }
-})
+-- Diagnóstico: leitura pública para relatório compartilhável
+create policy "leitura publica diagnosticos" on diagnosticos
+  for select using (publico = true);
+create policy "workspace acessa diagnosticos" on diagnosticos
+  for all using (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()));
+
+-- Solicitações: insert público
+create policy "publico pode solicitar" on solicitacoes
+  for insert to anon, authenticated with check (true);
+
+-- platform_admins: só o próprio usuário vê seu registro
+create policy "admin ve proprio registro" on platform_admins
+  for select using (user_id = auth.uid());
+
+-- Padrão para demais tabelas: workspace_id via workspace_members
+-- (repetir para: listening_events, sentiment_snapshots, concorrentes,
+-- diagnosticos_concorrentes, alertas, brands, brand_books, brand_book_history,
+-- brand_book_chunks, conversations, messages, campaigns, identity_gap_snapshots)
 ```
 
 ---
 
-## 9. API do Produto
+## Planos e Limites
 
-### URL base
 ```js
-// src/lib/api.js
-const API_URL = import.meta.env.DEV
-  ? '/api/v1/messages'
-  : '/.netlify/functions/anthropic'
+export const PLANOS = {
+  trial:      { nome:'Trial',      preco:0,    duracao_dias:14,  diagnosticos_mes:1, monitor:null,      concorrentes:0, social_listening:false, marcas:1, assistant_msgs:10,        campanhas:false, membros:1         },
+  starter:    { nome:'Starter',    preco:490,                    diagnosticos_mes:1, monitor:'mensal',  concorrentes:0, social_listening:false, marcas:1, assistant_msgs:Infinity,  campanhas:false, membros:1,        stripe_price_id:'price_starter_xxx' },
+  pro:        { nome:'Pro',        preco:1490,                   diagnosticos_mes:3, monitor:'semanal', concorrentes:2, social_listening:true,  marcas:3, assistant_msgs:Infinity,  campanhas:true,  membros:3,        stripe_price_id:'price_pro_xxx'     },
+  enterprise: { nome:'Enterprise', preco:3990,                   diagnosticos_mes:Infinity, monitor:'diario', concorrentes:5, social_listening:true,  marcas:Infinity, assistant_msgs:Infinity, campanhas:true, membros:Infinity, stripe_price_id:'price_enterprise_xxx' },
+}
 ```
-
-### runStream()
-Função principal de geração de diagnóstico via SSE.
-
-**Parâmetros:**
-- `empresa` (string) — nome ou domínio
-- `contexto` (string) — contexto adicional opcional
-- `onSearchStep(count, query)` — callback a cada busca web
-- `onText(fullText)` — callback a cada chunk de texto
-- `onDone(parsed)` — callback com JSON completo parseado
-- `onError(message)` — callback de erro
-- `onRateLimit(segundos, tentativa)` — callback de countdown
-
-**Comportamento:**
-- Retry automático em 429 com countdown visual
-- Máximo MAX_RETRIES tentativas
-- Salva progresso em localStorage durante o stream
-- Remove do localStorage ao concluir
 
 ---
 
-## 10. SYSTEM_PROMPT
+## SYSTEM_PROMPT — Diagnóstico Intelligence
 
-```
-Você é o Brand Intelligence Agent da LOUDR — agência de Smart Branding.
+```js
+// netlify/functions/_prompts.js
+export const SYSTEM_PROMPT_DIAGNOSTICO = `
+Você é o Brand Intelligence Agent da LOUDR — agência de Smart Branding que conecta estratégia, design e tecnologia.
 
-[...manter o prompt atual completo...]
+A LOUDR opera pelo framework Smart Branding com 4 práticas:
+1. INTELIGÊNCIA & SINGULARIDADE — posicionamento, arquitetura de marca, cultura e essência
+2. EXPERIÊNCIA & EXPRESSÃO — identidade visual e verbal, storytelling, design system
+3. PLATAFORMAS & ECOSSISTEMAS — produto digital, e-commerce, plataformas, integrações
+4. FUTURO & ESCALA — data, AI, growth branding, CRM, performance
 
 IMPORTANTE: Faça EXATAMENTE 5 buscas web. Nem mais, nem menos.
+Pesquise: (1) site oficial e LinkedIn, (2) redes sociais e posicionamento, (3) Reclame Aqui e Google Reviews, (4) Glassdoor e cultura interna, (5) notícias recentes e concorrentes.
 
-Responda SOMENTE com JSON válido:
+Responda SOMENTE com JSON válido, sem markdown, sem explicações fora do JSON:
+
 {
-  "empresa": "...",
-  "dominio": "...",
-  "setor": "...",
+  "empresa": "Nome",
+  "dominio": "dominio.com.br",
+  "setor": "Setor",
   "porte": "Startup|PME|Médio|Grande",
   "momento_atual": "...",
-  "frase_diagnostico": "...",
+  "frase_diagnostico": "Uma frase cirúrgica e provocativa sobre a marca",
   "resumo_executivo": "...",
   "identidade_declarada": "...",
   "identidade_percebida": "...",
@@ -561,291 +832,479 @@ Responda SOMENTE com JSON válido:
   "score_singularidade": 0,
   "score_consistencia": 0,
   "score_posicionamento": 0,
+  "score_experiencia": 0,
+  "score_escala": 0,
   "justificativa_scores": "...",
   "sinais_cultura": "...",
   "sinais_investimento": "...",
   "evolucao_marca": "...",
   "gap_ads_vs_site": "...",
-  "diferenciais_ativos": [],
-  "zona_ruido": [],
+  "diferenciais_ativos": ["...", "..."],
+  "zona_ruido": ["...", "..."],
   "territorio_inexplorado": "...",
   "pergunta_provocativa": "...",
-  "concorrentes": [{ "nome": "...", "diferencial": "...", "ameaca": "baixa|media|alta", "sinal": "..." }],
-  "oportunidades": [{ "titulo": "...", "descricao": "...", "pratica_loudr": "...", "impacto": "alto|medio|baixo", "prazo": "imediato|curto|médio prazo" }],
-  "quick_wins": [],
+  "concorrentes": [
+    { "nome": "...", "diferencial": "...", "ameaca": "baixa|media|alta", "sinal": "..." }
+  ],
+  "oportunidades": [
+    { "titulo": "...", "descricao": "...", "pratica_loudr": "...", "impacto": "alto|medio|baixo", "prazo": "imediato|curto|médio prazo" }
+  ],
+  "quick_wins": ["...", "..."],
   "porta_entrada_loudr": "..."
 }
 
-Scores: 1-3 crítico · 4-6 em desenvolvimento · 7-8 sólido · 9-10 referência
+Scores: 1-3 crítico · 4-6 em desenvolvimento · 7-8 sólido · 9-10 referência de mercado
+Tom: direto, estratégico, sem eufemismo. A frase_diagnostico deve ser memorável e incômoda.
+`
 ```
 
 ---
 
-## 11. Especificação das Páginas
+## Especificação de Funcionalidades
 
-### PaginaPublica.jsx
-Landing page de alta conversão para CMOs.
+### F01 · Landing Page
 
-**Seções:**
-1. Nav fixo com blur — só CTA "Solicitar diagnóstico", "Área interna" no footer
-2. Hero — headline, subheadline com dor de accountability, CTA primário + secundário, stats bar, âncora de scroll animada
-3. Pain — 6 cards em grid 3x2 com dores do CMO
-4. How it works — 4 práticas + mock report lado a lado
-5. Proof — 6 cards com diferenciais + tags de metodologia
-6. Stats bar — +200 diagnósticos · 8 setores · 48h (fundo navyMid)
-7. Exemplo real — card O Boticário: frase, 4 scores com mini barras, botão link público
-8. Formulário — nome*, email*, empresa*, cargo (select), contexto (textarea)
-9. FAQ — 3 perguntas + CTA final
-10. Footer
+**Arquivo:** `src/pages/public/LandingPage.jsx` · **Rota:** `/` · **Auth:** não requer
 
-**Formulário:**
-- Campos obrigatórios: nome, email, empresa
-- Score de qualificação calculado antes do insert via `calcularScoreLead()`
-- Insert em `solicitacoes` com status `pendente`
-- Estado de sucesso com próximos passos
+Seções: Nav fixo blur · Hero CMO · Pain 6 cards · How it works + mock report · Proof 6 cards · Stats bar · Exemplo O Boticário · Formulário (nome*, email*, empresa*, cargo, contexto) · FAQ + CTA · Footer
 
-### RelatorioPublico.jsx
-- Busca diagnóstico por ID em `diagnosticos` (leitura pública)
-- Renderiza relatório completo com todas as seções
-- Botão "Agendar apresentação de insights" → abre VITE_CALENDLY_URL
-- Não requer autenticação
+Formulário: `calcularScoreLead()` → insert em `solicitacoes` status `pendente`
 
-### LoginPage.jsx
-- Email + senha
-- `supabase.auth.signInWithPassword()`
-- Redirect: se tem workspace → `#/app`, senão → `#/onboarding`
-
-### RegisterPage.jsx
-- Nome + email + senha
-- `supabase.auth.signUp()` com `data: { full_name }`
-- Redirect para `#/onboarding`
-
-### OnboardingPage.jsx
-3 passos com indicador de progresso:
-
-**Passo 1 — Empresa**
-- Nome da empresa (obrigatório)
-- Domínio, setor (select), porte (select)
-
-**Passo 2 — Plano**
-- Cards dos 3 planos: Starter R$490, Pro R$1.490, Enterprise R$3.990
-- Badge "mais popular" no Pro
-- Botão "Começar trial grátis" → cria workspace com plano trial
-- Botão "Assinar agora" → redirect para Stripe Checkout
-
-**Passo 3 — Confirmação**
-- Workspace criado
-- Criado `workspace_members` com role `admin`
-- Redirect para `#/app`
-
-### AppShell.jsx
-Layout do workspace. Presente em todas as rotas `#/app/*`.
-
-**Nav lateral:**
-- Logo LOUDR
-- Home
-- Diagnóstico
-- Evolução (Starter+)
-- Social Listening (Pro+ — com badge "Pro")
-- Concorrentes (Pro+ — com badge "Pro")
-- Workspace
-- Indicador de plano + uso do mês (X/Y diagnósticos)
-- Avatar do usuário + logout
-
-### Home.jsx
-Dashboard principal do workspace.
-
-**Blocos:**
-- Score atual — 3 scores em cards com variação desde último diagnóstico
-- Frase diagnóstico do período — blockquote verde
-- Top 3 oportunidades com prazo e impacto
-- Feed de alertas recentes (últimos 5)
-- Botão CTA "Gerar novo diagnóstico"
-
-### Diagnostico.jsx
-**Estrutura:**
-- Último diagnóstico em destaque (relatório completo)
-- Botão "Gerar novo" — verifica limite do plano, abre NovoManual
-- Histórico em lista: empresa, data, scores, link para ver completo
-- Cada item: download PDF + compartilhar link
-
-### NovoManual.jsx
-Formulário de nova solicitação + streaming.
-
-**Estados:**
-1. `form` — input de empresa + contexto
-2. `streaming` — StreamingView com buscas + dados parciais + countdown de rate limit
-3. `done` — redirect para diagnóstico gerado
-
-**Ao concluir:**
-- Salva em `diagnosticos` com `workspace_id`
-- Incrementa `workspace.diagnosticos_mes`
-- Redirect para `Diagnostico.jsx`
-
-### Evolucao.jsx
-- Gráfico de linha com Recharts: singularidade, consistência, posicionamento
-- Seletor de período: 3m / 6m / 1a / tudo
-- Tooltip ao hover com data e valores
-- Insight automático: maior variação no período
-- Painel de comparativo entre dois diagnósticos selecionados
-
-### SocialListening.jsx (Pro+)
-- Guard: se plano < pro → UpgradeGate
-- Score de sentiment atual: % positivo / neutro / negativo
-- Gráfico de área com evolução do sentiment (7d / 30d / 90d)
-- Feed de eventos com filtro por fonte e sentiment
-- Alertas de pico (volume anormal de menções negativas)
-- Tópicos em alta
-
-### Concorrentes.jsx (Pro+)
-- Guard: se plano < pro → UpgradeGate
-- Adicionar concorrente: nome + domínio (até limite do plano)
-- Dashboard comparativo: seus scores vs. concorrentes (bar chart lado a lado)
-- Histórico de scores por concorrente
-- Feed de movimentos detectados
-- Mapa de territórios (scatter plot: singularidade x consistência)
-
-### Workspace.jsx
-**Abas:**
-1. **Empresa** — editar nome, domínio, setor, porte
-2. **Equipe** — convidar por email, listar membros, definir role, remover
-3. **Plano** — plano atual, uso do mês, data de renovação, botão upgrade/downgrade, histórico de faturas
-4. **Alertas** — configurar: canais (email, slack webhook), frequência, tipos de alerta
-
-### AdminShell.jsx + Solicitacoes.jsx
-- Requer `role = 'loudr_admin'` no workspace_members
-- Lista todas as solicitações com score de qualificação
-- Botões: Aprovar e rodar / Rejeitar
-- Cooldown de 120s entre aprovações (COOLDOWN_ENTRE_APROVACOES)
-- Streaming em tempo real ao aprovar
-- Stats: total, pendentes, concluídos, rejeitados
+**Git:** `feat: F01 landing page` → push
 
 ---
 
-## 12. Componentes Compartilhados
+### F02 · Relatório Público
 
-### UpgradeGate.jsx
-```jsx
-// Exibido quando feature requer plano superior
-function UpgradeGate({ planoNecessario, children }) {
-  const { workspace } = useWorkspace()
-  if (planoAtivo(workspace.plano) >= planoNecessario) return children
-  return (
-    <div style={{ /* estilo de gate */ }}>
-      <div>Esta feature requer o plano {planoNecessario}</div>
-      <button onClick={() => abrirStripeCheckout(planoNecessario)}>
-        Fazer upgrade →
-      </button>
-    </div>
-  )
+**Arquivo:** `src/pages/public/RelatorioPublico.jsx` · **Rota:** `/relatorio/:id` · **Auth:** não requer
+
+Leitura pública via RLS · Relatório completo · Botão Calendly · Gate de e-mail antes das oportunidades
+
+**Git:** `feat: F02 relatorio publico` → push
+
+---
+
+### F03 · Autenticação
+
+**Arquivos:** `src/pages/auth/` · **Rotas:** `/login` `/register` `/invite/:token` `/onboarding`
+
+Login: `supabase.auth.signInWithPassword()` · Rate limiting 10/15min · Redirect inteligente
+Register: `supabase.auth.signUp()` → `/onboarding`
+Onboarding 3 passos: empresa → plano → confirmação (cria workspace + owner)
+Convite: token 48h → nova senha → entra como member
+
+**Git:** `feat: F03 auth login register onboarding` → push
+
+---
+
+### F04 · Dashboard — Central de Comando
+
+**Arquivo:** `src/pages/dashboard/Dashboard.jsx` · **Rota:** `/app` · **Auth:** requer
+
+Header: LOUDR Score Global + variação 24h + frase narrativa + Quick Actions
+Grid: donut sentiment · consistência brand book · share of voice · radar pilares
+Insights: sugestões proativas do assistant + botão Deep Strategy
+Operacional: timeline de atividade + Quick Wins do dia
+
+**Git:** `feat: F04 dashboard cmo` → push
+
+---
+
+### F05 · Intelligence — Diagnóstico
+
+**Arquivo:** `src/pages/intelligence/Diagnostico.jsx` · **Rota:** `/app/intelligence` · **Auth:** requer + plano ativo
+
+Último diagnóstico em destaque · Botão "Gerar novo" com verificação de limite · Histórico com filtros · Download PDF · Compartilhar link
+Streaming via Edge Function com buscas visíveis · Countdown circular em 429 · Retry 3x
+
+**Git:** `feat: F05 intelligence diagnostico streaming` → push
+
+---
+
+### F06 · Intelligence — Evolução de Scores ✅
+
+**Arquivo:** `src/pages/app/Evolucao.jsx` · **Rota:** `#/app/evolucao` · **Auth:** requer + starter+
+
+Gráfico Recharts — 3 scores ao longo do tempo · Seletor período · Insight automático de maior variação
+
+**Git:** `feat: F06 intelligence evolucao scores` → push
+
+---
+
+### F07 · Intelligence — Social Listening ✅
+
+**Arquivo:** `src/pages/app/SocialListening.jsx` · **Rota:** `#/app/listening` · **Auth:** requer + pro+ · **Guard:** UpgradeGate
+
+Score de sentiment · Gráfico área 7d/30d/90d · Feed filtrado por fonte · Tópicos em alta (Trend Discovery)
+
+**Git:** `feat: F07 social listening sentiment` → push
+
+---
+
+### F08 · Intelligence — Inteligência Competitiva ✅
+
+**Arquivo:** `src/pages/app/Concorrentes.jsx` · **Rota:** `#/app/concorrentes` · **Auth:** requer + pro+ · **Guard:** UpgradeGate
+
+Adicionar concorrentes (limite plano) · Territory Map scatter plot · Gap Analysis por dimensão · Scores lado a lado
+
+**Git:** `feat: F08 inteligencia competitiva concorrentes` → push
+
+---
+
+### F09 · Brand OS — Lista de Marcas
+
+**Arquivo:** `src/pages/brandos/BrandList.jsx` · **Rota:** `/app/brands` · **Auth:** requer + starter+
+
+Grid de cards · Botão "Nova marca" · Limite por plano (1/3/∞)
+
+**Git:** `feat: F09 brandos lista marcas` → push
+
+---
+
+### F10 · Brand OS — Onboarding de Marca (Wizard)
+
+**Arquivo:** `src/pages/brandos/BrandOnboarding.jsx` · **Rota:** `/app/brands/new` · **Auth:** requer
+
+MUI Stepper — 5 passos:
+1. Informações básicas + logo (Supabase Storage)
+2. Identidade verbal: missão, visão, valores (chips), arquétipo (12 opções), sliders personalidade
+3. Design System: color picker MUI X + Google Fonts picker + espaçamento
+4. Referências: moodboard + links + marcas de referência
+5. Geração: IA preenche brand book → preview → confirmação
+
+**Git:** `feat: F10 brandos onboarding wizard` → push
+
+---
+
+### F11 · Brand OS — Brand Book
+
+**Arquivo:** `src/pages/brandos/BrandBook.jsx` · **Rota:** `/app/brands/:brandId` · **Auth:** requer
+
+Sidebar: Identity · Positioning · Design System · References · History
+Cada seção editável inline com Lexical · Toda edição → `brand_book_history` · Re-embed automático da seção alterada · Recalcula Identity Gap
+
+Design System: color picker por token · Preview MUI Theme em tempo real · Escala tipográfica · Botão "Copiar CSS tokens"
+
+**Git:** `feat: F11 brandos brand book editor` → push
+
+---
+
+### F12 · Brand OS — Brand Assistant
+
+**Arquivo:** `src/pages/brandos/Assistant.jsx` · **Rota:** `/app/brands/:brandId/assistant` · **Auth:** requer + starter+
+
+Layout 3 colunas: histórico conversas · chat streaming · painel contexto RAG
+RAG: embedding (voyage-3) → 5 chunks relevantes por brand_id → system prompt contextual
+Tipos: estratégia · briefing estruturado · conteúdo 6 formatos · image prompts
+Comportamento proativo: verifica gaps no brand book ao iniciar sessão
+Contextual Side-Bar: disponível em todas as telas do BrandOS
+Zen Mode (Enterprise): full-screen imersivo
+
+**Git:** `feat: F12 brandos brand assistant rag` → push
+
+---
+
+### F13 · Brand OS — Aprovação de Campanhas
+
+**Arquivos:** `Campaigns.jsx` `CampaignNew.jsx` `CampaignDetail.jsx` · **Auth:** requer + pro+
+
+Fluxo: submissão → IA avalia contra brand book via RAG → veredicto JSON → exibição
+Dimensões: tom de voz · consistência de valores · vocabulário proibido · posicionamento · guidelines visuais
+Interface: conteúdo + veredicto lado a lado · score + badge · sugestões de correção · histórico
+
+**Git:** `feat: F13 brandos campaign approval` → push
+
+---
+
+### F14 · Workspace — Configurações
+
+**Arquivo:** `src/pages/workspace/Workspace.jsx` · **Rota:** `/app/workspace`
+
+Abas: Empresa · Equipe (convite por e-mail, roles) · Plano (uso, faturas, upgrade) · Alertas (canais, frequência)
+
+**Git:** `feat: F14 workspace configuracoes` → push
+
+---
+
+### F15 · Integração — Identity Gap ✅
+
+**Arquivo:** `src/components/intelligence/IdentityGapCard.jsx` · **Disponível em:** Dashboard + Intelligence
+
+Cruzamento declarado (brand_books) vs percebido (diagnosticos)
+Exibe: gap_score · narrativa por dimensão · evolução ao longo do tempo · alerta quando gap aumenta
+Algoritmo: `calcIdentityGap()` — ver seção de banco de dados acima
+Integrado em: Home (compact) + Diagnostico (full)
+
+**Git:** `feat: F15 identity gap integration` → push
+
+---
+
+### F16 · Admin LOUDR — Fila de Solicitações
+
+**Arquivo:** `src/pages/admin/Solicitacoes.jsx` · **Rota:** `/admin` · **Auth:** requer + `platform_admins`
+
+⚠️ Acesso via tabela `platform_admins` — não via role de workspace
+
+Lista com score de qualificação · Filtros · Aprovar/Rejeitar · Cooldown 120s · Streaming ao aprovar · E-mail automático (Resend) · Stats
+
+**Git:** `feat: F16 admin solicitacoes fila` → push
+
+---
+
+### F17 · Automações
+
+| Gatilho | Ação | Runtime |
+|---------|------|---------|
+| INSERT solicitacoes | E-mail equipe LOUDR com score do lead | Supabase Edge Function |
+| UPDATE status='aprovado' | E-mail relatório + Calendly para lead | Supabase Edge Function |
+| Diagnóstico gerado | Nurturing D+2, D+5, D+10, D+15 (com idempotência) | Netlify Function |
+| Diagnóstico gerado | Recalcular Identity Gap se brand book ativo | Netlify Function |
+| Brand book atualizado | Re-embed seção (com debounce 2s) + recalcular Identity Gap | Netlify Function |
+| Cron semanal (Pro) | Diagnóstico automático com throttling sequencial | Netlify Function cron |
+| Cron diário (Enterprise) | Diagnóstico automático com throttling sequencial + alertas + gap | Netlify Function cron |
+| Dia 1 do mês | Relatório PDF mensal para todos os membros | Supabase Edge Function |
+
+#### ⚠️ Throttling no cron de diagnósticos automáticos
+
+O cron **nunca** processa workspaces em paralelo. Com 20 clientes Pro, disparar 20 chamadas simultâneas à Anthropic esgota o rate limit imediatamente.
+
+```js
+// netlify/functions/cron-monitor.js
+export async function handler() {
+  const DELAY_ENTRE_WORKSPACES = 12000 // 12s — espaço suficiente entre chamadas
+
+  const workspaces = await getWorkspacesElegiveis() // Pro + Enterprise ativos
+
+  for (const ws of workspaces) {
+    try {
+      await gerarDiagnosticoAutomatico(ws)
+    } catch (err) {
+      // log e continua — não interrompe os demais workspaces
+      console.error(`Erro workspace ${ws.id}:`, err.message)
+    }
+    // aguarda entre cada workspace, mesmo em caso de erro
+    await new Promise(r => setTimeout(r, DELAY_ENTRE_WORKSPACES))
+  }
 }
 ```
 
-### ScoreCard.jsx
-```jsx
-function ScoreCard({ label, score, variacao, desc }) {
-  // Exibe score com barra colorida, label, variação (↑ ↓ →) e descrição
+**Capacidade:** com 12s de delay, o cron processa ~70 workspaces dentro do timeout de 15min do Netlify. Acima disso, dividir em batches por horário.
+
+#### ⚠️ Debounce no re-embed do brand book
+
+Sem debounce, editar um parágrafo longo dispara múltiplas chamadas ao voyage-3 desnecessariamente. Usar o hook abaixo em todos os editores do brand book.
+
+```js
+// src/hooks/useReembed.js
+import { useRef } from 'react'
+
+export function useReembed() {
+  const timerRef = useRef(null)
+
+  function scheduleReembed(brandId, section, data) {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      await fetch('/.netlify/functions/brandos/brand-book/update', {
+        method: 'POST',
+        body: JSON.stringify({ brandId, section, data }),
+      })
+    }, 2000) // aguarda 2s após a última edição antes de chamar a API
+  }
+
+  return { scheduleReembed }
 }
 ```
 
-### StreamingView.jsx
-```jsx
-function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimitAttempt }) {
-  // Exibe buscas em tempo real, dados parciais conforme chegam,
-  // e countdown circular quando rate limit é atingido
+Usar `scheduleReembed()` nos componentes Identity, Positioning, DesignSystem e References — nunca chamar o endpoint de update diretamente no onChange.
+
+#### ⚠️ Idempotência no nurturing de e-mails
+
+Antes de enviar cada e-mail da sequência, verificar na tabela `nurturing_emails` se já foi enviado. A unique constraint `(solicitacao_id, dia)` garante que re-execuções da função não duplicam envios.
+
+```ts
+// supabase/functions/nurturing/index.ts
+async function enviarNurturing(solicitacaoId: string, dia: number) {
+  // Tenta inserir o registro — falha silenciosamente se já existir
+  const { error } = await supabase
+    .from('nurturing_emails')
+    .insert({ solicitacao_id: solicitacaoId, dia, status: 'enviado' })
+
+  if (error?.code === '23505') {
+    // unique_violation — e-mail já foi enviado, ignorar
+    console.log(`Nurturing dia ${dia} para ${solicitacaoId} já enviado. Pulando.`)
+    return
+  }
+
+  if (error) throw error
+
+  // Só chega aqui no primeiro envio — registrou com sucesso
+  await resend.emails.send({ ... })
 }
+```
+
+**Git:** `feat: F17 automacoes throttling debounce nurturing` → push
+
+---
+
+## Git Workflow
+
+**Regra:** commit + push após **cada funcionalidade entregue e testada**. Não acumular.
+
+```bash
+# Após concluir cada funcionalidade (F01, F02, etc.)
+git add .
+git commit -m "feat: F01 landing page captura de leads"
+git push origin dev
+
+# Nunca commitar na main diretamente
+# Merge para main só após validação completa da fase
+```
+
+**Convenção de mensagens:**
+```
+feat: F01 landing page
+feat: F05 intelligence diagnostico streaming
+fix: F05 countdown rate limit nao resetava
+chore: atualizar SPECS.md fase 1 concluida
+refactor: F12 extrair RAG para hook useRag
 ```
 
 ---
 
-## 13. Supabase Edge Functions
+## Regras de Desenvolvimento
 
-### `enviar-diagnostico`
-**Trigger:** UPDATE em `solicitacoes` WHERE status = 'aprovado'  
-**Ação:** enviar e-mail para `solicitacoes.email` via Resend  
-**Template:** scores em destaque + frase diagnóstico + link público + botão Calendly
-
-### `notificar-solicitacao`
-**Trigger:** INSERT em `solicitacoes`  
-**Ação:** enviar e-mail para equipe LOUDR com dados do lead e score de qualificação
-
-### `gerar-alertas`
-**Schedule:** diário às 7h  
-**Ação:** para cada workspace ativo, comparar último snapshot com anterior e gerar alertas
-
-### `coletar-sinais`
-**Schedule:** diário às 6h  
-**Ação:** para cada workspace Pro+, rodar análise de listening via Anthropic API e salvar em `listening_events` e `sentiment_snapshots`
-
-### `relatorio-mensal`
-**Schedule:** dia 1 de cada mês às 9h  
-**Ação:** gerar PDF de evolução + enviar por e-mail para todos os membros do workspace
-
-### `nurturing-sequence`
-**Trigger:** INSERT em `diagnosticos` WHERE tipo = 'aprovado_lead'  
-**Ação:** agendar 4 e-mails: D+2, D+5, D+10, D+15  
-**Cancelar se:** lead cria conta e assina plano
+1. **MUI sempre** — `sx prop` + `styled()`. Nunca inline style
+2. **Tema via ThemeProvider** — `platformTheme` para a plataforma, `buildBrandTheme()` no BrandOSLayout
+3. **Zustand para estado global** — workspace, marca ativa, tema MUI, chat lateral
+4. **React Query para dados** — cache, invalidação. Nunca fetch direto em useEffect
+5. **supabase-js no frontend** — respeita RLS com JWT do usuário
+6. **Drizzle apenas em Functions admin** — sempre com filtro workspace_id explícito
+7. **Edge Functions para streaming** — diagnóstico e assistant chat
+8. **RLS em toda tabela nova** — isolamento por workspace_id sem exceção
+9. **Anthropic key nunca no frontend** — sempre via Edge Function
+10. **Rate limit 429** — retry com countdown circular (3x, 65s)
+11. **RAG por brand_id** — brand book nunca enviado integralmente para a API
+12. **Zod em toda validação** — frontend e backend
+13. **Git: commit + push por funcionalidade** — nunca na main
+14. **SPECS.md é documento vivo** — marcar como concluído após cada entrega
+15. **Cron sequencial** — nunca processar workspaces em paralelo no cron. Usar loop com `await` e delay de 12s entre cada workspace
+16. **Debounce em re-embeds** — usar `useReembed()` em todos os editores do brand book. Nunca chamar o endpoint de update diretamente no onChange
+17. **Nurturing idempotente** — sempre checar `nurturing_emails` antes de enviar. A unique constraint `(solicitacao_id, dia)` é a garantia — nunca enviar sem tentar o insert primeiro
 
 ---
 
-## 14. Plano de Execução por Fase
+## Checklist de QA por Funcionalidade
 
-### Fase 2 — Fundação (0–90 dias)
-**Critério de sucesso:** produto em produção, 10 diagnósticos entregues para leads reais, 1 contrato fechado
+Executar antes de cada commit:
 
-- [x] Migrar para Vite (vite.config.js, package.json, main.jsx, import.meta.env) — Mai/2026
-- [x] Netlify Function anthropic.js + netlify.toml — Mai/2026
-- [x] RegisterPage.jsx + OnboardingPage.jsx (MUI, 3 passos) — Mai/2026
-- [x] UpgradeGate.jsx + guard de plano nas rotas — Mai/2026
-- [x] calcularScoreLead() na fila de solicitações — Mai/2026
-- [x] Botão Calendly no RelatorioPublico.jsx (via VITE_CALENDLY_URL) — Mai/2026
-- [x] Score de qualificação exibido em Solicitacoes — Mai/2026
-- [ ] Deploy em produção no Netlify (requer variáveis VITE_* no painel) - solicitar a um humano
-- [x] Migration SQL completa (supabase/migrations/001_initial_schema.sql) — Mai/2026
-- [x] Integração Stripe: stripe-checkout.js + stripe-webhook.js + src/lib/stripe.js — Mai/2026
-- [x] Supabase Edge Function: enviar-diagnostico — Mai/2026
-- [x] Supabase Edge Function: notificar-solicitacao — Mai/2026
-
-### Fase 3 — Workspace do Cliente (90–180 dias)
-**Critério de sucesso:** 10 clientes pagantes ativos
-
-- [x] AppShell.jsx com nav lateral (src/pages/app/AppShell.jsx) — Mai/2026
-- [x] Home.jsx com dashboard de scores e alertas (src/pages/app/Home.jsx) — Mai/2026
-- [x] Diagnostico.jsx com histórico e geração (src/pages/app/Diagnostico.jsx) — Mai/2026
-- [x] Evolucao.jsx com gráfico Recharts (src/pages/app/Evolucao.jsx) — Mai/2026
-- [x] Workspace.jsx — empresa, equipe, plano, alertas (src/pages/app/WorkspacePage.jsx) — Mai/2026
-- [x] Netlify Scheduled Function: cron-monitor.js — Mai/2026
-- [x] Supabase Edge Function: gerar-alertas — Mai/2026
-- [x] Supabase Edge Function: relatorio-mensal (e-mail HTML com scores + link workspace) — Mai/2026
-- [x] Supabase Edge Function: nurturing-sequence (D+2, D+5, D+10, D+15) — Mai/2026
-- [x] App.jsx: routing workspace → AppShell, admin → AppInterno — Mai/2026
-- [ ] Relatório mensal PDF automático (servidor) — requer headless browser no Edge
-
-### Fase 4 — Inteligência Competitiva (180–365 dias)
-**Critério de sucesso:** 30 clientes, MRR R$50.000+
-
-- [ ] Tabelas concorrentes + diagnosticos_concorrentes + listening_events + sentiment_snapshots
-- [ ] SocialListening.jsx com feed e gráfico de sentiment
-- [ ] Supabase Edge Function: coletar-sinais
-- [ ] Concorrentes.jsx com dashboard comparativo
-- [ ] Mapa de territórios (scatter plot D3/Recharts)
-- [ ] Benchmarks por setor (Supabase view)
-- [ ] BenchmarkSetor.jsx
+- [ ] Funcionalidade funciona do início ao fim sem erro no console
+- [ ] Dados salvos com workspace_id correto no Supabase
+- [ ] RLS: workspace A não vê dados do workspace B
+- [ ] UpgradeGate bloqueia feature se plano insuficiente
+- [ ] Viewer não consegue editar (retorna 403)
+- [ ] Platform admin acessa /admin (via platform_admins, não workspace role)
+- [ ] Streaming SSE visível em tempo real (não espera resposta completa)
+- [ ] Cron processa workspaces sequencialmente com delay (não em paralelo)
+- [ ] Re-embed usa debounce de 2s (não dispara no onChange direto)
+- [ ] Nurturing verifica nurturing_emails antes de enviar (sem duplicatas)
+- [ ] SPECS.md atualizado com funcionalidade marcada como concluída
 
 ---
 
-## 15. Checklist de QA — Rodar Antes de Todo Deploy
+## Arquitetura de Informação
 
-- [ ] Gerar diagnóstico completo do início ao fim
-- [ ] Verificar salvamento no Supabase (tabela diagnosticos)
-- [ ] Verificar envio de e-mail automático (Resend)
-- [ ] Testar link público do relatório sem autenticação
-- [ ] Testar login, register e onboarding
-- [ ] Verificar guard de plano em feature Pro
-- [ ] Testar countdown de rate limit (simular 429)
-- [ ] Verificar cooldown entre aprovações no admin
+### Pergunta principal de cada módulo
+
+| Módulo | Pergunta que responde |
+|--------|----------------------|
+| Dashboard | O que eu preciso fazer hoje? |
+| Intelligence | Como o mercado me vê? |
+| Brand OS — Brand Book | Quem eu disse que sou? |
+| Brand OS — Assistant | Como executo isso on-brand? |
+| Brand OS — Campanhas | Essa peça está alinhada com a marca? |
+| Identity Gap | Quanto minha percepção difere da minha identidade? |
+
+### Hierarquia de leitura em cada tela
+
+1. **Score antes de detalhe** — o usuário vê o número primeiro, a narrativa e evidências ficam abaixo ou em tela de detalhe
+2. **Alertas no topo, tendências no meio, histórico no fundo** — informação urgente sobe para o header, histórico fica nas telas secundárias
+3. **Dados com fonte visível** — cada insight tem origem rastreável (Reclame Aqui, LinkedIn, diagnóstico de dd/mm). Nunca um número sem procedência
+4. **O assistant nunca interrompe** — Contextual Side-Bar sempre disponível mas nunca abre sozinho. Sugestões proativas aparecem como cards discretos
+5. **UpgradeGate mostra o valor antes de bloquear** — features de plano superior aparecem com preview desfocado + CTA. O usuário entende o que perde antes de decidir
+
+### Hierarquia de informação por tela
+
+**Dashboard `/app`**
+```
+Header: LOUDR Score Global → variação 24h → frase narrativa → Quick Actions
+Grid:   Donut sentiment | Consistência brand book | Share of Voice | Radar pilares
+Body:   Cards de sugestões proativas → botão Deep Strategy
+Footer: Timeline de atividade → Quick Wins do dia
+```
+
+**Diagnóstico `/app/intelligence`**
+```
+Hero:    Frase diagnóstica → scores das 4 práticas
+Detalhe: Identidade declarada vs percebida → gap narrativo
+Ação:    Oportunidades priorizadas → quick wins acionáveis
+Nav:     Histórico de diagnósticos anteriores
+```
+
+**Social Listening `/app/intelligence/listening`**
+```
+Header: Score de sentiment atual (pos/neu/neg %) → variação
+Gráfico: Evolução do sentiment 7d/30d/90d
+Feed:    Eventos filtráveis por fonte e sentiment
+Alertas: Picos de menção negativa → Trend Discovery
+```
+
+**Brand Book `/app/brands/:id`**
+```
+Sidebar: Identity → Positioning → Design System → References → History
+Content: Seção ativa editável inline com Lexical
+Preview: MUI Theme da marca ativo na interface enquanto edita
+Banner:  Identity Gap alert se gap > 3 pontos
+```
+
+**Brand Assistant `/app/brands/:id/assistant`**
+```
+Esquerda (240px): Histórico de conversas por data
+Centro (flex):    Chat com streaming + sugestões proativas ao abrir
+Direita (320px):  Painel RAG — chunks referenciados + link para editar seção
+```
+
+**Campaign Detail `/app/brands/:id/campaigns/:id`**
+```
+Esquerda: Conteúdo submetido (copy, canais, assets)
+Direita:  Veredicto IA — score geral → dimensões → palavras proibidas destacadas → sugestões inline
+Ações:    Aprovar manualmente | Solicitar revisão | Arquivar
+```
+
+**Identity Gap** *(componente transversal)*
+```
+Score:     Gap 0-10 (0 = alinhamento perfeito) → direção por dimensão
+Narrativa: Texto gerado por IA explicando o gap
+Evolução:  Gráfico de linha do gap ao longo do tempo
+Ação:      "Qual edição no brand book fecha esse gap?"
+Aparece:   Dashboard (card grid) | Intelligence (abaixo dos scores) | Brand Book (banner se gap > 3)
+```
 
 ---
 
-*LOUDR Brand Intelligence · SPECS v3.0 · Maio 2026*  
-*Atualizar este documento a cada entrega de feature.*
+## Roadmap de Execução
+
+| Fase | Funcionalidades | Critério de aceite |
+|------|----------------|-------------------|
+| **1 — Infra + Auth** | Deploy Netlify + Edge Functions, Supabase schema, auth, workspace, onboarding | Login funcionando em produção, workspace criado |
+| **2 — Billing** | Stripe checkout, webhook, planos, UpgradeGate, trial | Upgrade de trial para Starter processa sem erro |
+| **3 — Intelligence MVP** | F01 F02 F05 F16 F17 (parcial) | 10 diagnósticos entregues para leads reais |
+| **4 — Intelligence Pro** | F06 F07 F08 F15 (parcial) | 10 clientes pagantes ativos |
+| **5 — Brand Engine** | F09 F10 F11 | Brand book de 2 marcas reais montado em < 30min |
+| **6 — Brand Assistant** | F12 (RAG completo + Zen Mode) | Time LOUDR usa em 3 campanhas reais sem re-briefing |
+| **7 — Campanhas + Multi** | F13 F14 | Cliente externo onboarda e aprova campanha sozinho |
+| **8 — Integração** | F15 completo, F04 completo, F17 completo | Identity Gap calculado em tempo real |
+
+---
+
+*LOUDR OS · SPECS v4.3 · Maio 2026*  
+*Atualizar este documento após cada entrega. Em caso de conflito com PROMPT-AGENTE.md, este prevalece.*

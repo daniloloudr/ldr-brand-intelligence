@@ -19,6 +19,7 @@ import { fmtDate, sc, tryParseJSON } from '../../lib/helpers'
 import { runStream }        from '../../lib/api'
 import { RelatorioCompleto } from '../RelatorioCompleto'
 import { StreamingView }    from '../StreamingView'
+import { IdentityGapCard }  from '../../components/intelligence/IdentityGapCard'
 
 // ── Score chip ────────────────────────────────────────────────────────────────
 
@@ -623,6 +624,16 @@ export function Diagnostico() {
                 </Tooltip>
               </Box>
             </Paper>
+          )}
+
+          {/* Identity Gap */}
+          {ultimo && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'text.secondary', display: 'block', mb: 1.5 }}>
+                Identity Gap
+              </Typography>
+              <IdentityGapCard workspaceId={workspace?.id} compact={false} />
+            </Box>
           )}
 
           {/* Histórico */}
