@@ -11,8 +11,12 @@ import { Diagnostico }      from './Diagnostico'
 import { Evolucao }         from './Evolucao'
 import { SocialListening }  from './SocialListening'
 import { Concorrentes }     from './Concorrentes'
+import { BrandList }        from './BrandList'
+import { BrandOnboarding }  from './BrandOnboarding'
+import { BrandBook }        from './BrandBook'
 import { WorkspacePage }    from './WorkspacePage'
 import { UpgradeGate }      from '../../components/UpgradeGate'
+import { getBrandId }       from '../../lib/helpers'
 import logoNegativa      from '../../assets/negativa.svg'
 import logoPositivo      from '../../assets/logo-positivo-200px.png'
 
@@ -61,12 +65,13 @@ const NavItem = styled('button')(({ active, theme }) => ({
 /* ─── nav config ─────────────────────────────────────────────────── */
 
 const NAV = [
-  { route: 'app-home',     hash: '#/app',              label: 'Home',             icon: IcoHome   },
-  { route: 'diagnostico',  hash: '#/app/diagnostico',  label: 'Diagnóstico',      icon: IcoDiag   },
-  { route: 'evolucao',     hash: '#/app/evolucao',     label: 'Evolução',         icon: IcoEvo    },
-  { route: 'listening',    hash: '#/app/listening',    label: 'Social Listening', icon: IcoSocial, pro: true },
-  { route: 'concorrentes', hash: '#/app/concorrentes', label: 'Concorrentes',     icon: IcoComp,   pro: true },
-  { route: 'workspace',    hash: '#/app/workspace',    label: 'Workspace',        icon: IcoSet    },
+  { route: 'app-home',      hash: '#/app',              label: 'Home',             icon: IcoHome,   group: 'intelligence' },
+  { route: 'diagnostico',   hash: '#/app/diagnostico',  label: 'Diagnóstico',      icon: IcoDiag,   group: 'intelligence' },
+  { route: 'evolucao',      hash: '#/app/evolucao',     label: 'Evolução',         icon: IcoEvo,    group: 'intelligence' },
+  { route: 'listening',     hash: '#/app/listening',    label: 'Social Listening', icon: IcoSocial, group: 'intelligence', pro: true },
+  { route: 'concorrentes',  hash: '#/app/concorrentes', label: 'Concorrentes',     icon: IcoComp,   group: 'intelligence', pro: true },
+  { route: 'brands-list',   hash: '#/app/brands',       label: 'Brand OS',         icon: IcoBrand,  group: 'brandos' },
+  { route: 'workspace',     hash: '#/app/workspace',    label: 'Workspace',        icon: IcoSet,    group: 'settings' },
 ]
 
 /* ─── svg icons ──────────────────────────────────────────────────── */
@@ -77,6 +82,7 @@ function IcoEvo()    { return <svg width="15" height="15" viewBox="0 0 24 24" fi
 function IcoSocial() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> }
 function IcoComp()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg> }
 function IcoSet()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg> }
+function IcoBrand()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> }
 function IcoLogout() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> }
 function IcoSun()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> }
 function IcoMoon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg> }
@@ -121,6 +127,9 @@ function Shell({ isDark, onToggleTheme }) {
     if (route === 'workspace')   return <WorkspacePage />
     if (route === 'listening')    return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
     if (route === 'concorrentes') return <UpgradeGate planoNecessario="pro" workspace={workspace}><Concorrentes /></UpgradeGate>
+    if (route === 'brands-list')  return <BrandList />
+    if (route === 'brands-new')   return <BrandOnboarding />
+    if (route === 'brands-detail') return <BrandBook brandId={getBrandId()} />
     return <Home />
   }
 
@@ -149,7 +158,7 @@ function Shell({ isDark, onToggleTheme }) {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '8px 0' }}>
           {NAV.map(({ route: r, hash, label, icon: Icon, pro }) => {
-            const active = route === r
+            const active = route === r || (r === 'brands-list' && ['brands-list','brands-new','brands-detail'].includes(route))
             const locked = pro && !['pro', 'enterprise'].includes(workspace.plano)
             return (
               <NavItem key={r} active={active ? 1 : 0} onClick={() => { window.location.hash = hash }} style={{ opacity: locked ? 0.5 : 1 }}>

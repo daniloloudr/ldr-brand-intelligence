@@ -14,9 +14,24 @@ export function getRoute() {
   if (h === '#/app/listening')       return 'listening';
   if (h === '#/app/concorrentes')    return 'concorrentes';
   if (h === '#/app/workspace')       return 'workspace';
+  if (h === '#/app/brands')          return 'brands-list';
+  if (h === '#/app/brands/new')      return 'brands-new';
+  if (h.startsWith('#/app/brands/')) return 'brands-detail';
   if (h === '#/admin')               return 'admin';
   if (h === '#/admin/historico')     return 'admin-historico';
   return 'public';
+}
+
+export function getBrandId() {
+  const h = window.location.hash;
+  const m = h.match(/^#\/app\/brands\/([^/]+)/)
+  return m ? m[1] : null
+}
+
+export function getBrandSection() {
+  const h = window.location.hash;
+  const m = h.match(/^#\/app\/brands\/[^/]+\/([^/]+)/)
+  return m ? m[1] : null
 }
 
 export const sc    = s => s >= 7 ? DS.green    : s >= 5 ? DS.amber    : DS.pink;

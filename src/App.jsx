@@ -12,7 +12,7 @@ import { AppShell } from "./pages/app/AppShell";
 import { PaginaMetodologia } from "./pages/PaginaMetodologia";
 import { RelatorioPublico } from "./pages/RelatorioPublico";
 
-const WORKSPACE_ROUTES = ['app-home', 'diagnostico', 'evolucao', 'listening', 'concorrentes', 'workspace'];
+const WORKSPACE_ROUTES = ['app-home', 'diagnostico', 'evolucao', 'listening', 'concorrentes', 'workspace', 'brands-list', 'brands-new', 'brands-detail'];
 const ADMIN_ROUTES     = ['admin', 'admin-historico'];
 
 export default function App() {

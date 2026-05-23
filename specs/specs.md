@@ -951,39 +951,34 @@ Adicionar concorrentes (limite plano) · Territory Map scatter plot · Gap Analy
 
 ---
 
-### F09 · Brand OS — Lista de Marcas
+### F09 · Brand OS — Lista de Marcas ✅
 
-**Arquivo:** `src/pages/brandos/BrandList.jsx` · **Rota:** `/app/brands` · **Auth:** requer + starter+
+**Arquivo:** `src/pages/app/BrandList.jsx` · **Rota:** `#/app/brands` · **Auth:** requer + starter+
 
-Grid de cards · Botão "Nova marca" · Limite por plano (1/3/∞)
+Grid de cards · Botão "Nova marca" · Limite por plano (1/3/∞) · Empty state com CTA
 
 **Git:** `feat: F09 brandos lista marcas` → push
 
 ---
 
-### F10 · Brand OS — Onboarding de Marca (Wizard)
+### F10 · Brand OS — Onboarding de Marca (Wizard) ✅
 
-**Arquivo:** `src/pages/brandos/BrandOnboarding.jsx` · **Rota:** `/app/brands/new` · **Auth:** requer
+**Arquivo:** `src/pages/app/BrandOnboarding.jsx` · **Rota:** `#/app/brands/new` · **Auth:** requer
 
-MUI Stepper — 5 passos:
-1. Informações básicas + logo (Supabase Storage)
-2. Identidade verbal: missão, visão, valores (chips), arquétipo (12 opções), sliders personalidade
-3. Design System: color picker MUI X + Google Fonts picker + espaçamento
-4. Referências: moodboard + links + marcas de referência
-5. Geração: IA preenche brand book → preview → confirmação
+MUI Stepper — 3 passos: Identidade básica · Missão & valores (arquétipos, chips) · Design System inicial
+Cria brand + brand_book no Supabase ao concluir.
 
 **Git:** `feat: F10 brandos onboarding wizard` → push
 
 ---
 
-### F11 · Brand OS — Brand Book
+### F11 · Brand OS — Brand Book ✅
 
-**Arquivo:** `src/pages/brandos/BrandBook.jsx` · **Rota:** `/app/brands/:brandId` · **Auth:** requer
+**Arquivo:** `src/pages/app/BrandBook.jsx` · **Rota:** `#/app/brands/:brandId` · **Auth:** requer
 
 Sidebar: Identity · Positioning · Design System · References · History
-Cada seção editável inline com Lexical · Toda edição → `brand_book_history` · Re-embed automático da seção alterada · Recalcula Identity Gap
-
-Design System: color picker por token · Preview MUI Theme em tempo real · Escala tipográfica · Botão "Copiar CSS tokens"
+Editor inline com MUI TextField · Toda edição salva em `brand_book_history` · Color picker nativo
+Suporte a valores, arquétipos, vocabulário proibido, moodboard, paleta de cores e tipografia.
 
 **Git:** `feat: F11 brandos brand book editor` → push
 
