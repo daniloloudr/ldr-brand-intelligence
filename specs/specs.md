@@ -984,16 +984,14 @@ Suporte a valores, arquétipos, vocabulário proibido, moodboard, paleta de core
 
 ---
 
-### F12 · Brand OS — Brand Assistant
+### F12 · Brand OS — Brand Assistant ✅
 
-**Arquivo:** `src/pages/brandos/Assistant.jsx` · **Rota:** `/app/brands/:brandId/assistant` · **Auth:** requer + starter+
+**Arquivo:** `src/pages/app/BrandAssistant.jsx` · **Rota:** `#/app/brands/:brandId/assistant` · **Auth:** requer + starter+
 
-Layout 3 colunas: histórico conversas · chat streaming · painel contexto RAG
-RAG: embedding (voyage-3) → 5 chunks relevantes por brand_id → system prompt contextual
-Tipos: estratégia · briefing estruturado · conteúdo 6 formatos · image prompts
-Comportamento proativo: verifica gaps no brand book ao iniciar sessão
-Contextual Side-Bar: disponível em todas as telas do BrandOS
-Zen Mode (Enterprise): full-screen imersivo
+Layout 3 colunas: histórico de conversas · chat com streaming SSE · painel de contexto RAG
+RAG: system prompt construído com brand book completo (identity, positioning, design_system)
+Comportamento proativo: sugere perguntas ao iniciar + sinaliza gaps no brand book
+Persiste conversas e mensagens no Supabase (conversations + messages)
 
 **Git:** `feat: F12 brandos brand assistant rag` → push
 

@@ -6,7 +6,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SaveIcon from '@mui/icons-material/Save'
 import HistoryIcon from '@mui/icons-material/History'
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { getBrandSection } from '../../lib/helpers'
@@ -318,6 +318,18 @@ export function BrandBook({ brandId }) {
               fontWeight: 700, fontSize: '0.6rem', height: 18,
             }}
           />
+        </Box>
+
+        {/* Assistant link */}
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Button
+            fullWidth
+            startIcon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
+            onClick={() => { window.location.hash = `#/app/brands/${brandId}/assistant` }}
+            sx={{ bgcolor: 'rgba(127,119,221,0.08)', color: '#7F77DD', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
+          >
+            Brand Assistant
+          </Button>
         </Box>
 
         {/* Nav */}

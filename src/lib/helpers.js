@@ -14,9 +14,10 @@ export function getRoute() {
   if (h === '#/app/listening')       return 'listening';
   if (h === '#/app/concorrentes')    return 'concorrentes';
   if (h === '#/app/workspace')       return 'workspace';
-  if (h === '#/app/brands')          return 'brands-list';
-  if (h === '#/app/brands/new')      return 'brands-new';
-  if (h.startsWith('#/app/brands/')) return 'brands-detail';
+  if (h === '#/app/brands')                           return 'brands-list';
+  if (h === '#/app/brands/new')                       return 'brands-new';
+  if (h.match(/^#\/app\/brands\/[^/]+\/assistant/))   return 'brands-assistant';
+  if (h.startsWith('#/app/brands/'))                  return 'brands-detail';
   if (h === '#/admin')               return 'admin';
   if (h === '#/admin/historico')     return 'admin-historico';
   return 'public';

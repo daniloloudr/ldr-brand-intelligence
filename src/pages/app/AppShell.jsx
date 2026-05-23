@@ -14,6 +14,7 @@ import { Concorrentes }     from './Concorrentes'
 import { BrandList }        from './BrandList'
 import { BrandOnboarding }  from './BrandOnboarding'
 import { BrandBook }        from './BrandBook'
+import { BrandAssistant }   from './BrandAssistant'
 import { WorkspacePage }    from './WorkspacePage'
 import { UpgradeGate }      from '../../components/UpgradeGate'
 import { getBrandId }       from '../../lib/helpers'
@@ -127,9 +128,10 @@ function Shell({ isDark, onToggleTheme }) {
     if (route === 'workspace')   return <WorkspacePage />
     if (route === 'listening')    return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
     if (route === 'concorrentes') return <UpgradeGate planoNecessario="pro" workspace={workspace}><Concorrentes /></UpgradeGate>
-    if (route === 'brands-list')  return <BrandList />
-    if (route === 'brands-new')   return <BrandOnboarding />
-    if (route === 'brands-detail') return <BrandBook brandId={getBrandId()} />
+    if (route === 'brands-list')      return <BrandList />
+    if (route === 'brands-new')       return <BrandOnboarding />
+    if (route === 'brands-assistant') return <BrandAssistant brandId={getBrandId()} />
+    if (route === 'brands-detail')    return <BrandBook brandId={getBrandId()} />
     return <Home />
   }
 
