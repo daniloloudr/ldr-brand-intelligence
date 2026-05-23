@@ -320,8 +320,8 @@ export function BrandBook({ brandId }) {
           />
         </Box>
 
-        {/* Assistant link */}
-        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+        {/* Assistant + Campaigns links */}
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
           <Button
             fullWidth
             startIcon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
@@ -329,6 +329,13 @@ export function BrandBook({ brandId }) {
             sx={{ bgcolor: 'rgba(127,119,221,0.08)', color: '#7F77DD', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
           >
             Brand Assistant
+          </Button>
+          <Button
+            fullWidth
+            onClick={() => { window.location.hash = `#/app/brands/${brandId}/campaigns` }}
+            sx={{ bgcolor: 'rgba(232,24,90,0.06)', color: '#E8185A', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
+          >
+            Campanhas
           </Button>
         </Box>
 

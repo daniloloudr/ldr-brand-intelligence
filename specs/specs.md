@@ -997,13 +997,14 @@ Persiste conversas e mensagens no Supabase (conversations + messages)
 
 ---
 
-### F13 · Brand OS — Aprovação de Campanhas
+### F13 · Brand OS — Aprovação de Campanhas ✅
 
-**Arquivos:** `Campaigns.jsx` `CampaignNew.jsx` `CampaignDetail.jsx` · **Auth:** requer + pro+
+**Arquivos:** `src/pages/app/Campaigns.jsx` `CampaignNew.jsx` `CampaignDetail.jsx` · **Auth:** requer + pro+
 
-Fluxo: submissão → IA avalia contra brand book via RAG → veredicto JSON → exibição
-Dimensões: tom de voz · consistência de valores · vocabulário proibido · posicionamento · guidelines visuais
-Interface: conteúdo + veredicto lado a lado · score + badge · sugestões de correção · histórico
+Fluxo: submissão → IA avalia contra brand book → veredicto JSON → exibição
+Dimensões: tom de voz · consistência de valores · vocabulário · posicionamento
+Interface: conteúdo + veredicto lado a lado · score + badge · sugestões + palavras problemáticas
+Análise via streaming SSE + Anthropic. Persiste em campaigns no Supabase.
 
 **Git:** `feat: F13 brandos campaign approval` → push
 

@@ -15,9 +15,12 @@ import { BrandList }        from './BrandList'
 import { BrandOnboarding }  from './BrandOnboarding'
 import { BrandBook }        from './BrandBook'
 import { BrandAssistant }   from './BrandAssistant'
+import { Campaigns }        from './Campaigns'
+import { CampaignNew }      from './CampaignNew'
+import { CampaignDetail }   from './CampaignDetail'
 import { WorkspacePage }    from './WorkspacePage'
 import { UpgradeGate }      from '../../components/UpgradeGate'
-import { getBrandId }       from '../../lib/helpers'
+import { getBrandId, getCampaignId } from '../../lib/helpers'
 import logoNegativa      from '../../assets/negativa.svg'
 import logoPositivo      from '../../assets/logo-positivo-200px.png'
 
@@ -128,10 +131,13 @@ function Shell({ isDark, onToggleTheme }) {
     if (route === 'workspace')   return <WorkspacePage />
     if (route === 'listening')    return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
     if (route === 'concorrentes') return <UpgradeGate planoNecessario="pro" workspace={workspace}><Concorrentes /></UpgradeGate>
-    if (route === 'brands-list')      return <BrandList />
-    if (route === 'brands-new')       return <BrandOnboarding />
-    if (route === 'brands-assistant') return <BrandAssistant brandId={getBrandId()} />
-    if (route === 'brands-detail')    return <BrandBook brandId={getBrandId()} />
+    if (route === 'brands-list')           return <BrandList />
+    if (route === 'brands-new')            return <BrandOnboarding />
+    if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />
+    if (route === 'brands-campaigns')      return <UpgradeGate planoNecessario="pro" workspace={workspace}><Campaigns brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
+    if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
   }
 

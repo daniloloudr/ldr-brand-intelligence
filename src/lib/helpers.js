@@ -14,10 +14,13 @@ export function getRoute() {
   if (h === '#/app/listening')       return 'listening';
   if (h === '#/app/concorrentes')    return 'concorrentes';
   if (h === '#/app/workspace')       return 'workspace';
-  if (h === '#/app/brands')                           return 'brands-list';
-  if (h === '#/app/brands/new')                       return 'brands-new';
-  if (h.match(/^#\/app\/brands\/[^/]+\/assistant/))   return 'brands-assistant';
-  if (h.startsWith('#/app/brands/'))                  return 'brands-detail';
+  if (h === '#/app/brands')                                        return 'brands-list';
+  if (h === '#/app/brands/new')                                    return 'brands-new';
+  if (h.match(/^#\/app\/brands\/[^/]+\/assistant/))               return 'brands-assistant';
+  if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/new/))          return 'brands-campaign-new';
+  if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
+  if (h.match(/^#\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
+  if (h.startsWith('#/app/brands/'))                               return 'brands-detail';
   if (h === '#/admin')               return 'admin';
   if (h === '#/admin/historico')     return 'admin-historico';
   return 'public';
@@ -26,6 +29,12 @@ export function getRoute() {
 export function getBrandId() {
   const h = window.location.hash;
   const m = h.match(/^#\/app\/brands\/([^/]+)/)
+  return m ? m[1] : null
+}
+
+export function getCampaignId() {
+  const h = window.location.hash;
+  const m = h.match(/^#\/app\/brands\/[^/]+\/campaigns\/([^/]+)/)
   return m ? m[1] : null
 }
 
