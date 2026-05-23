@@ -897,7 +897,7 @@ Convite: token 48h → nova senha → entra como member
 
 ---
 
-### F04 · Dashboard — Central de Comando
+### F04 · Dashboard — Central de Comando ✅
 
 **Arquivo:** `src/pages/dashboard/Dashboard.jsx` · **Rota:** `/app` · **Auth:** requer
 

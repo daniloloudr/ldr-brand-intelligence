@@ -8,6 +8,10 @@ import Chip           from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import LinearProgress from '@mui/material/LinearProgress'
 import Divider        from '@mui/material/Divider'
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+} from 'recharts'
 
 import { useWorkspace }      from '../../lib/WorkspaceContext'
 import { supabase }          from '../../lib/supabase'
@@ -37,6 +41,90 @@ function alertColor(sev) {
   if (sev === 'warning') return '#EF9F27'
   if (sev === 'success') return '#0D9E7A'
   return '#96AABF'
+}
+
+/* ── RadarPilares ────────────────────────────────────────────────── */
+
+function RadarPilares({ singularidade, consistencia, posicionamento }) {
+  const data = [
+    { subject: 'Singularidade',  value: singularidade  ?? 0 },
+    { subject: 'Consistência',   value: consistencia   ?? 0 },
+    { subject: 'Posicionamento', value: posicionamento ?? 0 },
+  ]
+  return (
+    <Card variant="outlined" sx={{ flex: 1, minWidth: 0 }}>
+      <CardContent>
+        <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
+          Radar de pilares
+        </Typography>
+        <ResponsiveContainer width="100%" height={180}>
+          <RadarChart data={data} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+            <PolarGrid stroke="rgba(255,255,255,0.08)" />
+            <PolarAngleAxis dataKey="subject" tick={{ fill: '#8A9AB0', fontSize: 11, fontWeight: 700 }} />
+            <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
+            <Radar dataKey="value" stroke="#7F77DD" fill="#7F77DD" fillOpacity={0.18} dot={{ fill: '#7F77DD', r: 3 }} />
+          </RadarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  )
+}
+
+/* ── SentimentDonut ──────────────────────────────────────────────── */
+
+const DONUT_COLORS = { positivo: '#0D9E7A', neutro: '#EF9F27', negativo: '#E8185A' }
+
+function SentimentDonut({ sentimento }) {
+  if (!sentimento) return null
+  const slices = [
+    { name: 'Positivo', value: sentimento.positivo ?? 0, color: DONUT_COLORS.positivo },
+    { name: 'Neutro',   value: sentimento.neutro   ?? 0, color: DONUT_COLORS.neutro   },
+    { name: 'Negativo', value: sentimento.negativo ?? 0, color: DONUT_COLORS.negativo  },
+  ].filter(s => s.value > 0)
+
+  if (slices.length === 0) return null
+
+  const dominant = slices.reduce((a, b) => a.value > b.value ? a : b)
+
+  return (
+    <Card variant="outlined" sx={{ flex: 1, minWidth: 0 }}>
+      <CardContent>
+        <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
+          Sentimento público
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
+            <ResponsiveContainer width={120} height={120}>
+              <PieChart>
+                <Pie data={slices} cx={55} cy={55} innerRadius={36} outerRadius={54} dataKey="value" stroke="none">
+                  {slices.map((s, i) => <Cell key={i} fill={s.color} />)}
+                </Pie>
+                <Tooltip formatter={(v) => `${v}%`} contentStyle={{ background: '#1A2436', border: 'none', fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <Typography sx={{ fontSize: 18, fontWeight: 900, color: dominant.color, lineHeight: 1 }}>
+                {dominant.value}%
+              </Typography>
+              <Typography sx={{ fontSize: 9, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {dominant.name}
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            {slices.map(s => (
+              <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: s.color, flexShrink: 0 }} />
+                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>
+                  {s.name} <span style={{ color: s.color, fontWeight: 900 }}>{s.value}%</span>
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  )
 }
 
 /* ── ScoreCard ───────────────────────────────────────────────────── */
@@ -122,19 +210,22 @@ function SectionTitle({ children }) {
 
 export function Home() {
   const { workspace }         = useWorkspace()
-  const [loading, setLoading] = useState(true)
-  const [diag, setDiag]       = useState(null)
-  const [alertas, setAlertas] = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [diag, setDiag]             = useState(null)
+  const [alertas, setAlertas]       = useState([])
+  const [sentimento, setSentimento] = useState(null)
 
   const load = useCallback(async () => {
     if (!workspace?.id) return
     setLoading(true)
-    const [{ data: d }, { data: a }] = await Promise.all([
+    const [{ data: d }, { data: a }, { data: s }] = await Promise.all([
       supabase.from('diagnosticos').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
       supabase.from('alertas').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('sentiment_snapshots').select('avg_positivo,avg_neutro,avg_negativo').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
     ])
     setDiag(d ?? null)
     setAlertas(a ?? [])
+    if (s) setSentimento({ positivo: Math.round((s.avg_positivo ?? 0) * 100), neutro: Math.round((s.avg_neutro ?? 0) * 100), negativo: Math.round((s.avg_negativo ?? 0) * 100) })
     setLoading(false)
   }, [workspace?.id])
 
@@ -192,6 +283,16 @@ export function Home() {
             <ScoreCard label="Singularidade"  value={diag.score_singularidade} />
             <ScoreCard label="Consistência"   value={diag.score_consistencia} />
             <ScoreCard label="Posicionamento" value={diag.score_posicionamento} />
+          </Box>
+
+          {/* ── Charts row ── */}
+          <Box sx={{ display: 'flex', gap: '2px', mt: '2px', mb: '2px', flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+            <RadarPilares
+              singularidade={diag.score_singularidade}
+              consistencia={diag.score_consistencia}
+              posicionamento={diag.score_posicionamento}
+            />
+            {sentimento && <SentimentDonut sentimento={sentimento} />}
           </Box>
 
           {/* ── Frase diagnóstico ── */}
