@@ -862,7 +862,7 @@ Tom: direto, estratégico, sem eufemismo. A frase_diagnostico deve ser memoráve
 
 ## Especificação de Funcionalidades
 
-### F01 · Landing Page
+### F01 · Landing Page ✅
 
 **Arquivo:** `src/pages/public/LandingPage.jsx` · **Rota:** `/` · **Auth:** não requer
 
@@ -874,7 +874,7 @@ Formulário: `calcularScoreLead()` → insert em `solicitacoes` status `pendente
 
 ---
 
-### F02 · Relatório Público
+### F02 · Relatório Público ✅
 
 **Arquivo:** `src/pages/public/RelatorioPublico.jsx` · **Rota:** `/relatorio/:id` · **Auth:** não requer
 
@@ -884,7 +884,7 @@ Leitura pública via RLS · Relatório completo · Botão Calendly · Gate de e-
 
 ---
 
-### F03 · Autenticação
+### F03 · Autenticação ✅
 
 **Arquivos:** `src/pages/auth/` · **Rotas:** `/login` `/register` `/invite/:token` `/onboarding`
 
@@ -910,7 +910,7 @@ Operacional: timeline de atividade + Quick Wins do dia
 
 ---
 
-### F05 · Intelligence — Diagnóstico
+### F05 · Intelligence — Diagnóstico ✅
 
 **Arquivo:** `src/pages/intelligence/Diagnostico.jsx` · **Rota:** `/app/intelligence` · **Auth:** requer + plano ativo
 
@@ -1033,7 +1033,7 @@ Integrado em: Home (compact) + Diagnostico (full)
 
 ---
 
-### F16 · Admin LOUDR — Fila de Solicitações
+### F16 · Admin LOUDR — Fila de Solicitações ✅
 
 **Arquivo:** `src/pages/admin/Solicitacoes.jsx` · **Rota:** `/admin` · **Auth:** requer + `platform_admins`
 
