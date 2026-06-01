@@ -2,12 +2,10 @@ import { DS } from "./constants";
 
 export function getRoute() {
   const h = window.location.hash;
-  if (!h || h === '#/')              return 'public';
+  if (!h || h === '#/')              return 'login';
   if (h === '#/metodologia')         return 'metodologia';
   if (h.startsWith('#/relatorio/'))  return 'relatorio-publico';
   if (h === '#/login')               return 'login';
-  if (h === '#/register')            return 'register';
-  if (h === '#/onboarding')          return 'onboarding';
   if (h === '#/app')                 return 'app-home';
   if (h === '#/app/diagnostico')     return 'diagnostico';
   if (h === '#/app/evolucao')        return 'evolucao';

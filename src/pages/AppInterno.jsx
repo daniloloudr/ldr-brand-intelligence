@@ -134,7 +134,7 @@ function TodosPage({ historico, loadingHist, onOpen, initialSetor = "", isDark }
 }
 
 /* ─── AppInterno ─────────────────────────────────────────────────── */
-export function AppInterno({ user, onLogout }) {
+export function AppInterno({ user, onLogout, onImpersonate }) {
   const [isDark, setIsDark]                           = useState(() => {
     const saved = localStorage.getItem("loudr-admin-theme");
     return saved !== null ? saved === "dark" : true;
@@ -294,6 +294,7 @@ export function AppInterno({ user, onLogout }) {
   const userInitial = userName.charAt(0).toUpperCase();
 
   const navItems = [
+    { id: "workspaces",   label: "Workspaces",       Icon: IcoList,  badge: null },
     { id: "historico",    label: "Dashboard",        Icon: IcoChart, badge: null },
     { id: "solicitacoes", label: "Solicitações",     Icon: IcoInbox, badge: pendentes > 0 ? pendentes : null },
     { id: "novo",         label: "Novo diagnóstico", Icon: IcoPlus,  badge: null },
@@ -301,6 +302,7 @@ export function AppInterno({ user, onLogout }) {
   ];
 
   const pageHeaders = {
+    workspaces:   { title: "Workspaces",              sub: "Gerencie os workspaces dos clientes, convide membros e entre como cliente." },
     solicitacoes: { title: "Fila de solicitações",    sub: "Aprove para gerar o diagnóstico ou rejeite a solicitação." },
     novo:         { title: "Novo diagnóstico",        sub: "Gere um diagnóstico manualmente para qualquer empresa." },
     historico:    { title: "Dashboard",               sub: `${histCount} relatório${histCount !== 1 ? "s" : ""} gerado${histCount !== 1 ? "s" : ""} pela equipe LOUDR.` },
@@ -643,9 +645,170 @@ export function AppInterno({ user, onLogout }) {
                 onOpen={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
               />
             )}
+
+            {page === "workspaces" && (
+              <WorkspacesAdmin
+                user={user}
+                C={C}
+                isDark={isDark}
+                onImpersonate={onImpersonate}
+              />
+            )}
           </div>
         </main>
       </div>
     </ThemeProvider>
+  );
+}
+
+/* ─── WorkspacesAdmin ────────────────────────────────────────────── */
+const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
+const PORTES  = ["Startup","PME","Médio","Grande"];
+
+function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
+  const [workspaces, setWorkspaces]     = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [showCreate, setShowCreate]     = useState(false);
+  const [showInvite, setShowInvite]     = useState(null); // workspace selecionado
+  const [creating, setCreating]         = useState(false);
+  const [inviting, setInviting]         = useState(false);
+  const [error, setError]              = useState('');
+  const [form, setForm]                 = useState({ nome: '', dominio: '', setor: '', porte: '' });
+  const [inviteEmail, setInviteEmail]   = useState('');
+
+  useEffect(() => { fetchWorkspaces(); }, []);
+
+  async function fetchWorkspaces() {
+    setLoading(true);
+    const { data } = await supabase.from('workspaces').select('*').order('created_at', { ascending: false });
+    setWorkspaces(data || []);
+    setLoading(false);
+  }
+
+  async function getToken() {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token;
+  }
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setError('');
+    if (!form.nome.trim()) { setError('Nome obrigatório'); return; }
+    setCreating(true);
+    const token = await getToken();
+    const res = await fetch('/.netlify/functions/admin-create-workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(form),
+    });
+    const json = await res.json();
+    setCreating(false);
+    if (!res.ok) { setError(json.error || 'Erro ao criar workspace'); return; }
+    setShowCreate(false);
+    setForm({ nome: '', dominio: '', setor: '', porte: '' });
+    fetchWorkspaces();
+  }
+
+  async function handleInvite(e) {
+    e.preventDefault();
+    setError('');
+    if (!inviteEmail.trim()) { setError('E-mail obrigatório'); return; }
+    setInviting(true);
+    const token = await getToken();
+    const res = await fetch('/.netlify/functions/admin-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ email: inviteEmail, workspace_id: showInvite.id, workspace_name: showInvite.nome }),
+    });
+    const json = await res.json();
+    setInviting(false);
+    if (!res.ok) { setError(json.error || 'Erro ao enviar convite'); return; }
+    setShowInvite(null);
+    setInviteEmail('');
+    alert(`Convite enviado para ${inviteEmail}`);
+  }
+
+  const inp = { fontSize: 13, fontFamily: F, color: C.text, background: C.paper, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
+  const btn = (color = DS.green) => ({ background: color, border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: F });
+  const btnGhost = { background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, color: C.textSec, cursor: 'pointer', fontFamily: F };
+
+  if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: C.textDis, fontFamily: F }}>Carregando...</div>;
+
+  return (
+    <div>
+      {error && <div style={{ marginBottom: 16, padding: '10px 14px', background: DS.pinkPale, color: DS.pink, borderRadius: 8, fontSize: 13, fontFamily: F }}>{error}</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <span style={{ fontSize: 13, color: C.textDis, fontFamily: F }}>{workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''}</span>
+        <button style={btn()} onClick={() => { setShowCreate(true); setError(''); }}>+ Criar workspace</button>
+      </div>
+
+      {workspaces.map(ws => (
+        <div key={ws.id} style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 20px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: F }}>{ws.nome}</div>
+              <div style={{ fontSize: 12, color: C.textDis, fontFamily: F, marginTop: 2 }}>
+                {ws.dominio && `${ws.dominio} · `}
+                {ws.setor && `${ws.setor} · `}
+                <span style={{ color: ws.plano === 'enterprise' ? DS.green : ws.plano === 'pro' ? DS.purple : C.textDis, fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{ws.plano}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={btnGhost} onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>Convidar cliente</button>
+              <button style={btn(DS.purple)} onClick={() => onImpersonate?.({ workspaceId: ws.id, workspaceName: ws.nome })}>Entrar como cliente →</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {workspaces.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '4rem', color: C.textDis, fontFamily: F }}>Nenhum workspace criado ainda.</div>
+      )}
+
+      {/* Modal criar workspace */}
+      {showCreate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 20 }}>Criar workspace</div>
+            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input style={inp} placeholder="Nome da empresa *" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required />
+              <input style={inp} placeholder="Domínio (ex: empresa.com.br)" value={form.dominio} onChange={e => setForm(f => ({ ...f, dominio: e.target.value }))} />
+              <select style={inp} value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
+                <option value="">Setor</option>
+                {SETORES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select style={inp} value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))}>
+                <option value="">Porte</option>
+                {PORTES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button type="button" style={btnGhost} onClick={() => { setShowCreate(false); setError(''); }}>Cancelar</button>
+                <button type="submit" style={btn()} disabled={creating}>{creating ? 'Criando...' : 'Criar workspace'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal convidar cliente */}
+      {showInvite && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 400 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 6 }}>Convidar para {showInvite.nome}</div>
+            <div style={{ fontSize: 13, color: C.textDis, fontFamily: F, marginBottom: 20 }}>O cliente receberá um e-mail com link para definir senha e acessar o workspace.</div>
+            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
+            <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input style={inp} type="email" placeholder="E-mail do cliente *" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button type="button" style={btnGhost} onClick={() => { setShowInvite(null); setError(''); }}>Cancelar</button>
+                <button type="submit" style={btn()} disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -93,7 +93,7 @@ function IcoMoon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fi
 
 /* ─── shell inner ─────────────────────────────────────────────────── */
 
-function Shell({ isDark, onToggleTheme }) {
+function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const { workspace, loading, user, onLogout } = useWorkspace()
   const muiTheme = useTheme()
   const route = getRoute()
@@ -105,7 +105,7 @@ function Shell({ isDark, onToggleTheme }) {
   )
 
   if (!workspace) {
-    window.location.hash = '#/onboarding'
+    window.location.hash = '#/login'
     return null
   }
 
@@ -144,8 +144,18 @@ function Shell({ isDark, onToggleTheme }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: bgDef, fontFamily: "'Cairo', sans-serif" }}>
 
+      {/* ── Banner de impersonation ── */}
+      {impersonating && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#EF9F27', color: '#0D1B2A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '8px 16px', fontSize: 13, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span>Você está no ambiente de <strong>{impersonating.workspaceName}</strong></span>
+          <button onClick={onStopImpersonating} style={{ background: '#0D1B2A', color: '#EF9F27', border: 'none', borderRadius: 4, padding: '4px 12px', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Cairo', sans-serif" }}>
+            Sair
+          </button>
+        </div>
+      )}
+
       {/* ── Sidebar ── */}
-      <SidebarRoot>
+      <SidebarRoot style={impersonating ? { top: 37 } : {}}>
 
         {/* Logo */}
         <div style={{ padding: '22px 20px 16px', borderBottom: `1px solid ${divider}` }}>
@@ -232,14 +242,14 @@ function Shell({ isDark, onToggleTheme }) {
       </SidebarRoot>
 
       {/* ── Main content ── */}
-      <main style={{ flex: 1, marginLeft: NAV_W, minWidth: 0, overflowY: 'auto', minHeight: '100vh' }}>
+      <main style={{ flex: 1, marginLeft: NAV_W, minWidth: 0, overflowY: 'auto', minHeight: '100vh', marginTop: impersonating ? 37 : 0 }}>
         {renderPage()}
       </main>
     </div>
   )
 }
 
-export function AppShell({ user, onLogout }) {
+export function AppShell({ user, onLogout, impersonating, onStopImpersonating }) {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('loudr-workspace-theme')
     return saved !== null ? saved === 'dark' : true
@@ -256,8 +266,8 @@ export function AppShell({ user, onLogout }) {
   return (
     <ThemeProvider theme={isDark ? themeDark : themeLight}>
       <CssBaseline />
-      <WorkspaceProvider user={user} onLogout={onLogout}>
-        <Shell isDark={isDark} onToggleTheme={handleToggle} />
+      <WorkspaceProvider user={user} onLogout={onLogout} overrideWorkspaceId={impersonating?.workspaceId}>
+        <Shell isDark={isDark} onToggleTheme={handleToggle} impersonating={impersonating} onStopImpersonating={onStopImpersonating} />
       </WorkspaceProvider>
     </ThemeProvider>
   )
