@@ -662,8 +662,8 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 }
 
 /* ─── WorkspacesAdmin ────────────────────────────────────────────── */
-const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
-const PORTES  = ["Startup","PME","Médio","Grande"];
+const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
+const WS_PORTES  = ["Startup","PME","Médio","Grande"];
 
 function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
   const [workspaces, setWorkspaces]     = useState([]);
@@ -777,11 +777,11 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
               <input style={inp} placeholder="Domínio (ex: empresa.com.br)" value={form.dominio} onChange={e => setForm(f => ({ ...f, dominio: e.target.value }))} />
               <select style={inp} value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
                 <option value="">Setor</option>
-                {SETORES.map(s => <option key={s} value={s}>{s}</option>)}
+                {WS_SETORES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <select style={inp} value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))}>
                 <option value="">Porte</option>
-                {PORTES.map(p => <option key={p} value={p}>{p}</option>)}
+                {WS_PORTES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                 <button type="button" style={btnGhost} onClick={() => { setShowCreate(false); setError(''); }}>Cancelar</button>

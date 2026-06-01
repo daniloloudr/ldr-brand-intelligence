@@ -5,7 +5,7 @@ import { theme } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import logoNegativa from '../../assets/negativa.svg'
 
-export function InvitePage() {
+export function InvitePage({ onDone }) {
   const [password, setPassword]     = useState('')
   const [confirm, setConfirm]       = useState('')
   const [loading, setLoading]       = useState(false)
@@ -51,6 +51,7 @@ export function InvitePage() {
         }
       }
 
+      onDone?.()
       window.location.hash = '#/app'
     } catch (err) {
       setError(err.message || 'Erro ao definir senha.')

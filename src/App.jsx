@@ -17,7 +17,13 @@ const WORKSPACE_ROUTES = [
 ];
 const ADMIN_ROUTES = ['admin', 'admin-historico'];
 
+// Captura o hash de forma síncrona antes do Supabase processar e limpar a URL
+const _INITIAL_HASH = window.location.hash
+
 export default function App() {
+  const [isInviteFlow, setInviteFlow] = useState(
+    _INITIAL_HASH.includes('type=invite') || _INITIAL_HASH.includes('type=recovery')
+  );
   const [route, setRoute]             = useState(getRoute());
   const [user, setUser]               = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -47,18 +53,16 @@ export default function App() {
     };
   }, []);
 
+  // Mostra antes do authLoading — o Supabase limpa o hash de forma assíncrona
+  // então precisamos capturar o tipo antes que o hash suma
+  if (isInviteFlow) return <InvitePage onDone={() => setInviteFlow(false)} />;
+
   if (authLoading) return (
     <div style={{ minHeight: "100vh", background: DS.navy, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <GlobalStyle />
       <div style={{ width: 40, height: 40, border: `3px solid ${DS.navyMid}`, borderTopColor: DS.green, borderRadius: "50%", animation: "spin 0.75s linear infinite" }} />
     </div>
   );
-
-  // Supabase auth callback (convite ou recuperação de senha)
-  const rawHash = window.location.hash;
-  if (rawHash.includes('type=invite') || rawHash.includes('type=recovery')) {
-    return <InvitePage />;
-  }
 
   if (route === "metodologia")       return <PaginaMetodologia />;
   if (route === "relatorio-publico") return <RelatorioPublico />;
