@@ -1,9 +1,7 @@
 import { SYSTEM_PROMPT, RATE_LIMIT_WAIT, MAX_RETRIES } from "./constants";
 import { tryParseJSON } from "./helpers";
 
-const API_URL = import.meta.env.DEV
-  ? '/api/v1/messages'
-  : '/.netlify/functions/anthropic';
+const API_URL = '/.netlify/functions/anthropic';
 
 export async function runStream({ empresa, contexto, onSearchStep, onText, onDone, onError, onRateLimit }) {
   let attempt = 0;
@@ -12,9 +10,6 @@ export async function runStream({ empresa, contexto, onSearchStep, onText, onDon
     attempt++;
     try {
       const headers = { "Content-Type": "application/json" };
-      if (import.meta.env.DEV) {
-        headers["x-api-key"] = import.meta.env.VITE_ANTHROPIC_KEY || "";
-      }
 
       const res = await fetch(API_URL, {
         method: "POST",

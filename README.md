@@ -1,36 +1,119 @@
 # LOUDR Brand Intelligence
 
-Plataforma SaaS B2B de inteligência de marca. Combina diagnóstico estratégico com IA, monitoramento contínuo de scores e inteligência competitiva num workspace por empresa.
+Plataforma SaaS B2B que transforma a gestão de marca de uma atividade subjetiva em inteligência mensurável. Usa IA para gerar diagnósticos estratégicos, monitorar scores ao longo do tempo e avaliar campanhas com base no brand book de cada cliente.
 
-## Stack
+---
+
+## Visão de negócio
+
+### O problema
+
+CMOs e líderes de marketing gastam budget de marca sem conseguir mostrar o que estão construindo. Não existe visibilidade objetiva sobre se a marca está evoluindo, se a identidade declarada corresponde à percebida pelo mercado, e como a empresa se posiciona em relação aos concorrentes.
+
+### A solução
+
+A LOUDR Brand Intelligence aplica o framework proprietário **Smart Branding** — 4 práticas que cobrem desde a singularidade da marca até sua capacidade de escala — e usa IA para analisar sinais públicos da empresa (site, redes, anúncios, cobertura de imprensa) e devolver um diagnóstico quantificado com scores, gaps e oportunidades priorizadas.
+
+O produto tem duas frentes:
+
+**Para a equipe LOUDR (admin):** fila de aprovação de diagnósticos gratuitos captados pela landing page. A equipe revisa o lead, aprova, e a IA gera o relatório em tempo real com streaming.
+
+**Para o cliente (workspace):** ambiente self-service onde a empresa acompanha a evolução dos scores da sua marca ao longo do tempo, gerencia o brand book, submete campanhas para aprovação por IA e monitora concorrentes.
+
+### Framework Smart Branding
+
+| Prática | O que avalia |
+|---|---|
+| Inteligência & Singularidade | Diferenciação real, proposta de valor, posicionamento vs. mercado |
+| Experiência & Expressão | Consistência visual e verbal, coerência entre canais |
+| Plataformas & Ecossistemas | Presença digital, distribuição, SEO, redes sociais |
+| Futuro & Escala | Capacidade de crescimento, inovação, sustentabilidade da marca |
+
+Cada prática recebe um score de 1 a 10. A partir deles são calculados três indicadores consolidados: **Singularidade**, **Consistência** e **Posicionamento**.
+
+| Score | Nível |
+|---|---|
+| 1–3 | Crítico |
+| 4–6 | Em desenvolvimento |
+| 7–8 | Sólido |
+| 9–10 | Referência |
+
+### Planos
+
+| Plano | Preço | Diagnósticos/mês | Monitor | Concorrentes | Membros | Social Listening |
+|---|---|---|---|---|---|---|
+| Trial | grátis | 1 | — | 0 | 1 | não |
+| Starter | R$ 490 | 1 | mensal | 0 | 1 | não |
+| Pro | R$ 1.490 | 3 | semanal | 2 | 3 | sim |
+| Enterprise | R$ 3.990 | ilimitado | diário | 5 | ilimitado | sim |
+
+### Custo por diagnóstico
+
+| Configuração | Custo estimado |
+|---|---|
+| claude-sonnet-4-5 · 5 buscas web · max_tokens 5500 | ~$0.45–0.60 |
+
+A principal alavanca de custo é o número de buscas web. Prompt caching (`anthropic-beta: prompt-caching-2024-07-31`) reduz o custo de input em chamadas repetidas.
+
+---
+
+## Visão técnica
+
+### Stack
 
 | Camada | Tecnologia |
 |---|---|
-| Frontend | Vite + React 19 |
-| Estilo | Material UI v6 — `sx prop` / `styled()` / `ThemeProvider` |
+| Frontend | Vite 6 + React 19 |
+| UI | Material UI v6 — `sx prop` / `styled()` / `ThemeProvider` |
 | Auth + DB | Supabase (PostgreSQL + Auth + RLS + Edge Functions) |
-| Servidor | Netlify Functions |
-| AI | Anthropic API — `claude-sonnet-4-5` com `web_search_20250305` |
+| Servidor | Netlify Functions (serverless) |
+| IA | Anthropic API — `claude-sonnet-4-5` com `web_search_20250305` |
+| Pagamento | Stripe (Checkout + Webhooks) |
 | E-mail | Resend |
-| Pagamento | Stripe |
 | Gráficos | Recharts |
 | Exportação | jsPDF + PptxGenJS |
-| Font | Cairo via Google Fonts |
+| Fonte | Cairo via Google Fonts |
 
-## Configuração
-
-### Variáveis de ambiente
-
-Crie `.env` na raiz (client-side, prefixo `VITE_`):
+### Arquitetura geral
 
 ```
+Browser (Vite SPA)
+  │
+  ├── Hash router manual (sem react-router)
+  │     getRoute() lê window.location.hash → monta o componente correto
+  │
+  ├── Supabase JS Client
+  │     Auth, leitura/escrita de dados, RLS automático por workspace
+  │
+  └── runStream() → /.netlify/functions/anthropic
+        Proxy SSE server-side que injeta ANTHROPIC_KEY
+        Nunca expõe a chave no frontend
+```
+
+O deploy roda no Netlify. O build (`vite build`) gera `dist/` com a SPA. O redirect `/* → /index.html` garante que o hash routing funcione em qualquer URL.
+
+### Configuração local
+
+```bash
+npm install
+netlify dev   # Sobe Vite + Netlify Functions juntos (recomendado)
+# ou
+npm run dev   # Só o Vite (sem as functions)
+```
+
+#### Variáveis de ambiente
+
+Crie `.env` na raiz:
+
+```
+# Client-side (prefixo VITE_ obrigatório)
 VITE_SUPABASE_URL=https://<projeto>.supabase.co
 VITE_SUPABASE_KEY=eyJ...
 VITE_STRIPE_PUBLIC_KEY=pk_live_...
 VITE_CALENDLY_URL=https://calendly.com/loudr/insights
 ```
 
-Variáveis server-side (configurar no painel Netlify — nunca expor no frontend):
+Configure no painel Netlify (nunca no `.env` nem no frontend):
 
 ```
 ANTHROPIC_KEY=sk-ant-...
@@ -40,14 +123,7 @@ RESEND_API_KEY=re_...
 SUPABASE_SERVICE_KEY=eyJ...
 ```
 
-### Instalação e execução
-
-```bash
-npm install
-npm run dev   # http://localhost:5173
-```
-
-## Estrutura de pastas
+### Estrutura de pastas
 
 ```
 /
@@ -56,73 +132,82 @@ npm run dev   # http://localhost:5173
 │       ├── anthropic.js          # Proxy SSE Anthropic — chave server-side
 │       ├── stripe-checkout.js    # Cria sessão de checkout
 │       ├── stripe-webhook.js     # Eventos Stripe → atualiza workspace.plano
-│       └── cron-monitor.js       # Diagnósticos automáticos agendados (toda segunda, 8h)
+│       └── cron-monitor.js       # Diagnósticos automáticos (toda segunda, 8h)
 ├── src/
-│   ├── main.jsx                  # ReactDOM.createRoot + ThemeProvider + CssBaseline
-│   ├── App.jsx                   # Router hash-based + auth guard + font loader
+│   ├── main.jsx
+│   ├── App.jsx                   # Router hash-based + auth guard
 │   ├── lib/
-│   │   ├── constants.js          # DS, F, PRATICAS, PLANOS, SYSTEM_PROMPT, STEPS
-│   │   ├── theme.js              # MUI ThemeProvider com tokens DS mapeados
-│   │   ├── helpers.js            # getRoute(), tryParseJSON(), sc(), fmtDate(), calcularScoreLead(), checkPlano()
+│   │   ├── constants.js          # DS, PLANOS, PRATICAS, SYSTEM_PROMPT
+│   │   ├── theme.js              # Temas MUI dark e light
+│   │   ├── helpers.js            # getRoute(), tryParseJSON(), fmtDate(), etc.
 │   │   ├── api.js                # runStream() com retry de rate limit
-│   │   ├── supabase.js           # Cliente Supabase inicializado
-│   │   ├── stripe.js             # loadStripe(), getCheckoutUrl()
-│   │   ├── pdf.js                # Exportação de relatório para PDF
-│   │   ├── pptx.js               # Exportação de relatório para PPTX
-│   │   └── WorkspaceContext.jsx  # Context + hook useWorkspace()
+│   │   ├── supabase.js           # Cliente Supabase
+│   │   ├── stripe.js             # getCheckoutUrl()
+│   │   ├── pdf.js                # Exportação para PDF
+│   │   ├── pptx.js               # Exportação para PPTX
+│   │   └── WorkspaceContext.jsx  # Context + useWorkspace()
 │   ├── components/
-│   │   ├── GlobalStyle.jsx       # <style> global: keyframes, scrollbar, box-sizing
+│   │   ├── GlobalStyle.jsx       # Keyframes, scrollbar, box-sizing globais
 │   │   ├── Bar.jsx               # Barra de score colorida
 │   │   ├── Card.jsx              # Card com borda
 │   │   ├── Lbl.jsx               # Label uppercase 10px
 │   │   ├── Pill.jsx              # Badge colorida inline
-│   │   ├── Input.jsx             # Input estilizado
-│   │   ├── Select.jsx            # Select estilizado
-│   │   ├── Tooltip.jsx           # Tooltip hover com delay
+│   │   ├── Input.jsx / Select.jsx
+│   │   ├── Tooltip.jsx
 │   │   ├── UpgradeGate.jsx       # Bloqueia feature + CTA de upgrade
-│   │   ├── PublicHeader.jsx      # Header das páginas públicas
-│   │   └── PublicFooter.jsx      # Footer das páginas públicas
+│   │   ├── PublicHeader.jsx
+│   │   └── PublicFooter.jsx
 │   └── pages/
-│       ├── PaginaPublica.jsx     # Landing page de captura (rota padrão e #/)
-│       ├── PaginaMetodologia.jsx # Explicação do framework Smart Branding (#/metodologia)
-│       ├── RelatorioPublico.jsx  # Relatório por ID sem auth (#/relatorio/:id)
-│       ├── LoginPage.jsx         # Login via Supabase Auth (#/login)
-│       ├── AppInterno.jsx        # Shell admin: nav + fila de aprovações
-│       ├── DashboardHistorico.jsx# Histórico de diagnósticos (admin)
-│       ├── NovoManual.jsx        # Formulário + streaming (contexto admin)
-│       ├── RelatorioCompleto.jsx # Relatório completo com share panel
-│       ├── StreamingView.jsx     # Tela de loading durante geração (5 fases)
+│       ├── PaginaPublica.jsx     # Landing page (#/)
+│       ├── PaginaMetodologia.jsx # Framework Smart Branding (#/metodologia)
+│       ├── RelatorioPublico.jsx  # Relatório por UUID sem auth (#/relatorio/:id)
+│       ├── StreamingView.jsx     # Loading durante geração (5 fases)
+│       ├── LoginPage.jsx
+│       ├── AppInterno.jsx        # Admin LOUDR: fila, aprovações, histórico
+│       ├── DashboardHistorico.jsx
+│       ├── NovoManual.jsx        # Formulário de diagnóstico manual (admin)
+│       ├── RelatorioCompleto.jsx # Relatório completo + share panel
 │       ├── auth/
-│       │   ├── RegisterPage.jsx  # Cadastro self-service (#/register)
-│       │   └── OnboardingPage.jsx# Setup do workspace — 3 passos (#/onboarding)
+│       │   ├── RegisterPage.jsx
+│       │   └── OnboardingPage.jsx  # Setup do workspace — 3 passos
 │       └── app/
-│           ├── AppShell.jsx      # Nav lateral + layout do workspace (#/app/*)
-│           ├── Home.jsx          # Dashboard: scores, alertas, oportunidades (#/app)
-│           ├── Diagnostico.jsx   # Diagnósticos + histórico + geração (#/app/diagnostico)
-│           ├── Evolucao.jsx      # Gráfico de scores ao longo do tempo (#/app/evolucao)
-│           └── WorkspacePage.jsx # Config + equipe + billing (#/app/workspace)
+│           ├── AppShell.jsx        # Sidebar + layout do workspace
+│           ├── Home.jsx            # Dashboard: scores, alertas, oportunidades
+│           ├── Diagnostico.jsx     # Gerar + histórico de diagnósticos
+│           ├── Evolucao.jsx        # Gráfico de evolução dos scores
+│           ├── BrandList.jsx       # Grid de marcas do workspace
+│           ├── BrandOnboarding.jsx # Wizard criação de marca (3 passos)
+│           ├── BrandBook.jsx       # Editor do brand book (5 seções)
+│           ├── BrandAssistant.jsx  # Chat IA com contexto do brand book (RAG)
+│           ├── Campaigns.jsx       # Lista de campanhas
+│           ├── CampaignNew.jsx     # Submissão de campanha para aprovação IA
+│           ├── CampaignDetail.jsx  # Veredicto detalhado da campanha
+│           ├── SocialListening.jsx # Monitoramento de sentimento (Pro+)
+│           ├── Concorrentes.jsx    # Inteligência competitiva (Pro+)
+│           └── WorkspacePage.jsx   # Config, equipe e billing
 ├── supabase/
 │   ├── migrations/
-│   │   └── 001_initial_schema.sql
-│   └── functions/
-│       ├── enviar-diagnostico/   # Triggered: aprovação → e-mail para lead (Resend)
-│       ├── notificar-solicitacao/# Triggered: nova solicitação → e-mail para equipe LOUDR
-│       ├── gerar-alertas/        # Scheduled: analisa dados e gera alertas diários
-│       ├── relatorio-mensal/     # Scheduled: dia 1 do mês → e-mail com evolução
-│       └── nurturing-sequence/   # Triggered: D+2, D+5, D+10, D+15 pós-diagnóstico
+│   │   ├── 005_setup_completo.sql    # Schema completo atual
+│   │   └── 006_fix_rls_recursion.sql # Correção de políticas RLS
+│   ├── functions/                    # Edge Functions (Supabase)
+│   │   ├── enviar-diagnostico/       # E-mail para lead após aprovação
+│   │   ├── notificar-solicitacao/    # Alerta para equipe LOUDR
+│   │   ├── gerar-alertas/            # Alertas automáticos diários
+│   │   ├── relatorio-mensal/         # Relatório mensal por e-mail
+│   │   └── nurturing-sequence/       # Sequência D+2, D+5, D+10, D+15
+│   └── seed_danilo.sql
 ├── .env
 ├── netlify.toml
-├── vite.config.js
-└── SPECS.md
+└── vite.config.js
 ```
 
-## Roteamento
+### Roteamento
 
-Sem react-router. `getRoute()` em `helpers.js` lê `window.location.hash`:
+Sem react-router. `getRoute()` em `helpers.js` lê `window.location.hash`.
 
 | Hash | Componente | Acesso |
 |---|---|---|
-| `` (vazio) ou `#/` | `PaginaPublica` | público |
+| `` / `#/` | `PaginaPublica` | público |
 | `#/metodologia` | `PaginaMetodologia` | público |
 | `#/relatorio/:id` | `RelatorioPublico` | público |
 | `#/login` | `LoginPage` | público |
@@ -130,62 +215,59 @@ Sem react-router. `getRoute()` em `helpers.js` lê `window.location.hash`:
 | `#/onboarding` | `OnboardingPage` | auth |
 | `#/app` | `Home` | auth + plano ativo |
 | `#/app/diagnostico` | `Diagnostico` | auth + plano ativo |
-| `#/app/evolucao` | `Evolucao` | auth + starter+ |
-| `#/app/listening` | `SocialListening` | auth + pro+ |
-| `#/app/concorrentes` | `Concorrentes` | auth + pro+ |
+| `#/app/evolucao` | `Evolucao` | auth + Starter+ |
+| `#/app/brands-list` | `BrandList` | auth |
+| `#/app/brand-book` | `BrandBook` | auth |
+| `#/app/assistant` | `BrandAssistant` | auth |
+| `#/app/campaigns` | `Campaigns` | auth |
+| `#/app/listening` | `SocialListening` | auth + Pro+ |
+| `#/app/concorrentes` | `Concorrentes` | auth + Pro+ |
 | `#/app/workspace` | `WorkspacePage` | auth |
-| `#/admin` | `AppInterno` (Solicitações) | auth + loudr_admin |
-| `#/admin/historico` | `DashboardHistorico` | auth + loudr_admin |
+| `#/admin` | `AppInterno` | auth + loudr_admin |
+| `#/admin-historico` | `DashboardHistorico` | auth + loudr_admin |
 
-Navegação via `window.location.hash = "#/destino"`.
+### Como a geração de diagnóstico funciona
 
-## Banco de dados (Supabase)
+```
+1. Formulário (empresa + contexto)
+2. runStream() → POST /.netlify/functions/anthropic
+3. Netlify Function injeta ANTHROPIC_KEY e faz proxy para api.anthropic.com
+4. SSE stream chega em chunks:
+   - content_block_start (tool_use)  → busca web iniciada → atualiza contador
+   - content_block_delta (text_delta) → acumula texto → onText()
+   - message_stop                    → tryParseJSON() extrai JSON → onDone()
+5. StreamingView exibe: inicializando → buscando (1–5) → gerando → dados
+6. onDone() salva em diagnosticos e redireciona para o relatório
+```
 
-### Tabelas principais
+**Retry de rate limit:** HTTP 429 → aguarda 65s com countdown visual → até 3 tentativas.
+**Cooldown entre aprovações no admin:** 120s para evitar rajadas na API.
+
+### Banco de dados (Supabase)
 
 | Tabela | Descrição |
 |---|---|
-| `workspaces` | Workspace por empresa — plano, Stripe, limites de uso |
-| `workspace_members` | Membros do workspace com role (`admin` / `member`) |
-| `diagnosticos` | Relatório gerado em JSONB + scores individuais |
-| `solicitacoes` | Leads captados pela landing page (status: pendente/aprovado/rejeitado) |
-| `listening_events` | Feed de menções e eventos de social listening (Pro+) |
-| `sentiment_snapshots` | Snapshots diários de sentiment por workspace |
-| `concorrentes` | Concorrentes monitorados por workspace (Pro+) |
+| `workspaces` | Workspace por empresa — plano, Stripe, contador de uso |
+| `workspace_members` | Membros e roles (`admin` / `member`) |
+| `diagnosticos` | Diagnósticos gerados — scores + JSON completo |
+| `solicitacoes` | Leads captados pela landing page |
+| `brands` | Marcas gerenciadas no Brand OS |
+| `brand_books` | Brand book por marca (identidade, posicionamento, design system, referências) em JSONB |
+| `brand_book_history` | Log de alterações por seção |
+| `conversations` | Conversas do Brand Assistant |
+| `messages` | Mensagens individuais |
+| `campaigns` | Campanhas submetidas + veredicto IA |
+| `concorrentes` | Concorrentes monitorados por workspace |
 | `diagnosticos_concorrentes` | Scores de concorrentes ao longo do tempo |
-| `alertas` | Alertas gerados automaticamente por workspace |
+| `listening_events` | Menções e eventos de social listening |
+| `sentiment_snapshots` | Snapshots diários de sentimento agregado |
+| `alertas` | Alertas automáticos por workspace |
+| `identity_gap_snapshots` | Gap entre identidade declarada e percebida |
+| `platform_admins` | Controle de acesso à área admin LOUDR |
 
-Migration completa em `supabase/migrations/001_initial_schema.sql`.
+RLS ativo em todas as tabelas — acesso mediado pela membership do workspace. Diagnósticos com `publico = true` são legíveis sem autenticação (relatórios compartilháveis por link).
 
-## Planos
-
-| Plano | Preço | Diagnósticos/mês | Monitor | Concorrentes | Membros | Social Listening |
-|---|---|---|---|---|---|---|
-| Trial | grátis | 1 | — | 0 | 1 | não |
-| Starter | R$ 490 | 1 | mensal | 0 | 1 | não |
-| Pro | R$ 1.490 | 3 | semanal | 2 | 3 | sim |
-| Enterprise | R$ 3.990 | ilimitado | diário | 5 | ilimitado | sim |
-
-## Como a geração funciona
-
-1. **Formulário** — usuário preenche empresa + contexto opcional, clica em "Gerar"
-2. **Salva solicitação** no Supabase com `status: "processando"`
-3. **`runStream()`** (`api.js`) envia request para `/.netlify/functions/anthropic` (produção) ou `/api/v1/messages` (dev via Vite proxy)
-4. **Netlify Function** (`anthropic.js`) injeta `ANTHROPIC_KEY` server-side e faz proxy para a API Anthropic
-5. **SSE stream** chega em chunks; parser lê eventos:
-   - `content_block_start` com `tool_use` → busca web iniciada → incrementa contador
-   - `content_block_delta` com `text_delta` → acumula texto → chama `onText()`
-   - `message_stop` → `tryParseJSON()` extrai JSON → chama `onDone()`
-6. **`StreamingView`** exibe progresso em 5 fases: inicializando → buscando (1–5) → gerando → skeleton → dados parciais
-7. **`onDone`** salva diagnóstico no Supabase e redireciona para o relatório
-
-### Fluxo de retry (rate limit)
-
-- HTTP 429 → aguarda `RATE_LIMIT_WAIT` = 65s com countdown visual
-- Máximo `MAX_RETRIES` = 3 tentativas
-- Cooldown entre aprovações no admin: `COOLDOWN_ENTRE_APROVACOES` = 120s
-
-## Estrutura do JSON gerado
+### Estrutura do JSON gerado pela IA
 
 ```json
 {
@@ -193,83 +275,54 @@ Migration completa em `supabase/migrations/001_initial_schema.sql`.
   "dominio": "dominio.com.br",
   "setor": "Setor",
   "porte": "Startup|PME|Médio|Grande",
-  "momento_atual": "...",
   "frase_diagnostico": "...",
   "resumo_executivo": "...",
   "identidade_declarada": "...",
   "identidade_percebida": "...",
   "gap_identidade": "...",
   "praticas_loudr": {
-    "inteligencia_singularidade": { "score": 6, "diagnostico": "...", "evidencias": "...", "oportunidade": "..." },
-    "experiencia_expressao":      { "score": 5, "diagnostico": "...", "evidencias": "...", "oportunidade": "..." },
-    "plataformas_ecossistemas":   { "score": 7, "diagnostico": "...", "evidencias": "...", "oportunidade": "..." },
-    "futuro_escala":              { "score": 4, "diagnostico": "...", "evidencias": "...", "oportunidade": "..." }
+    "inteligencia_singularidade": { "score": 6, "diagnostico": "...", "oportunidade": "..." },
+    "experiencia_expressao":      { "score": 5, "diagnostico": "...", "oportunidade": "..." },
+    "plataformas_ecossistemas":   { "score": 7, "diagnostico": "...", "oportunidade": "..." },
+    "futuro_escala":              { "score": 4, "diagnostico": "...", "oportunidade": "..." }
   },
   "score_singularidade": 6,
   "score_consistencia": 7,
   "score_posicionamento": 5,
-  "justificativa_scores": "...",
-  "sinais_cultura": "...",
-  "sinais_investimento": "...",
-  "evolucao_marca": "...",
-  "gap_ads_vs_site": "...",
-  "diferenciais_ativos": ["..."],
-  "zona_ruido": ["..."],
-  "territorio_inexplorado": "...",
-  "pergunta_provocativa": "...",
   "concorrentes": [
-    { "nome": "...", "diferencial": "...", "ameaca": "baixa|media|alta", "sinal": "..." }
+    { "nome": "...", "diferencial": "...", "ameaca": "baixa|media|alta" }
   ],
   "oportunidades": [
-    { "titulo": "...", "descricao": "...", "pratica_loudr": "...", "impacto": "alto|medio|baixo", "prazo": "imediato|curto|médio prazo" }
+    { "titulo": "...", "pratica_loudr": "...", "impacto": "alto|medio|baixo", "prazo": "imediato|curto|médio prazo" }
   ],
-  "quick_wins": ["..."],
-  "porta_entrada_loudr": "..."
+  "quick_wins": ["..."]
 }
 ```
 
-Scores das práticas: 1–3 crítico · 4–6 em desenvolvimento · 7–8 sólido · 9–10 referência.
+### Design system
 
-## Design system
-
-Tokens em `DS` em `src/lib/constants.js`, mapeados no tema MUI em `src/lib/theme.js`. Todo estilo via `sx prop`, `styled()` ou `theme` — nunca inline style.
+Tokens em `DS` (`src/lib/constants.js`), mapeados no tema MUI (`src/lib/theme.js`). Todo estilo via `sx prop`, `styled()` ou `theme` — nunca inline style.
 
 ```js
 DS.navy       // #0D1B2A — fundo principal
-DS.navyMid    // #162840 — cards escuros (paper)
-DS.navyLight  // #1E3550 — bordas escuras / divider
+DS.navyMid    // #162840 — cards (paper)
+DS.navyLight  // #1E3550 — bordas / divider
 DS.green      // #0D9E7A — cor primária / sucesso
-DS.pink       // #E8185A — prática Experiência & Expressão
-DS.purple     // #7F77DD — prática Plataformas & Ecossistemas
-DS.amber      // #EF9F27 — prática Futuro & Escala / avisos
-DS.text       // #0D1B2A — texto principal
-DS.textMid    // #4A5A6A — texto secundário
+DS.pink       // #E8185A — Experiência & Expressão
+DS.purple     // #7F77DD — Plataformas & Ecossistemas
+DS.amber      // #EF9F27 — Futuro & Escala / avisos
 DS.gray       // #8A9AB0 — texto terciário
 DS.border     // #E2EBE8 — bordas claras
 ```
 
-Font: `Cairo` — pesos 400–900. Constante `F = "'Cairo', sans-serif"`.
+Fonte: `Cairo` — pesos 400–900. Constante `F = "'Cairo', sans-serif"`.
 
-## Custo por diagnóstico
+### Regras de desenvolvimento
 
-| Configuração | Custo estimado |
-|---|---|
-| claude-sonnet-4-5, 5 buscas web, max_tokens 5500 | ~$0.45–0.60 |
-
-Principal alavanca de custo: número de buscas web. Prompt caching (`anthropic-beta: prompt-caching-2024-07-31`) reduz custo de input em chamadas repetidas.
-
-## Compartilhamento de relatórios
-
-Cada diagnóstico tem um UUID do Supabase. O `SharePanel` em `RelatorioCompleto.jsx` oferece:
-- **Copiar link:** `#/relatorio/:id` — carregado por `RelatorioPublico.jsx` com leitura anônima (RLS pública)
-- **Enviar por email:** abre `mailto:` com assunto e corpo formatado
-
-## Notas para desenvolvimento
-
-- **MUI obrigatório** — nunca instalar outra biblioteca de componentes nem usar inline style.
-- **Sem react-router** — não instalar. Navegação é `window.location.hash`.
-- **`tryParseJSON`** em `helpers.js` é tolerante: remove fences de markdown e busca o JSON dentro da resposta. Não substituir por `JSON.parse` direto.
-- **Vite proxy** só funciona em dev (`npm run dev`). Em produção, o proxy é a Netlify Function `anthropic.js`.
+- **MUI obrigatório** — nunca instalar outra biblioteca de componentes nem usar `style={{}}`.
+- **Sem react-router** — navegação é `window.location.hash = "#/destino"`.
+- **ANTHROPIC_KEY nunca no frontend** — sempre via Netlify Function.
+- **Variáveis client-side** precisam do prefixo `VITE_`.
+- **`tryParseJSON`** em `helpers.js` remove fences de markdown e é tolerante com JSON mal-formado — não substituir por `JSON.parse` direto.
 - **`TOTAL_SEARCHES = 5`** em `constants.js` deve bater com o número de buscas no `SYSTEM_PROMPT`.
-- **`system` deve ser string simples** (não array com `cache_control`) ao usar `web_search_20250305` — formato array conflita com a beta de web search.
-- **Git:** commitar sempre na branch `dev`. Merge para `main` só após validação completa. Nunca commitar direto na `main`.
+- **Git:** commitar sempre na branch `dev`. Merge para `main` só após validação. Nunca commitar direto na `main`.
