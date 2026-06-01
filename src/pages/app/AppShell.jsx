@@ -7,10 +7,8 @@ import { getRoute }                    from '../../lib/helpers'
 import { PLANOS }                      from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
 import { Home }             from './Home'
-import { Diagnostico }      from './Diagnostico'
-import { Evolucao }         from './Evolucao'
+import { Posicionamento }   from './Posicionamento'
 import { SocialListening }  from './SocialListening'
-import { Concorrentes }     from './Concorrentes'
 import { BrandList }        from './BrandList'
 import { BrandOnboarding }  from './BrandOnboarding'
 import { BrandBook }        from './BrandBook'
@@ -69,11 +67,9 @@ const NavItem = styled('button')(({ active, theme }) => ({
 /* ─── nav config ─────────────────────────────────────────────────── */
 
 const NAV = [
-  { route: 'app-home',      hash: '#/app',              label: 'Home',             icon: IcoHome,   group: 'intelligence' },
-  { route: 'diagnostico',   hash: '#/app/diagnostico',  label: 'Diagnóstico',      icon: IcoDiag,   group: 'intelligence' },
-  { route: 'evolucao',      hash: '#/app/evolucao',     label: 'Evolução',         icon: IcoEvo,    group: 'intelligence' },
-  { route: 'listening',     hash: '#/app/listening',    label: 'Social Listening', icon: IcoSocial, group: 'intelligence', pro: true },
-  { route: 'concorrentes',  hash: '#/app/concorrentes', label: 'Concorrentes',     icon: IcoComp,   group: 'intelligence', pro: true },
+  { route: 'app-home',       hash: '#/app',                   label: 'Home',             icon: IcoHome,   group: 'intelligence' },
+  { route: 'posicionamento', hash: '#/app/posicionamento',    label: 'Posicionamento',   icon: IcoDiag,   group: 'intelligence' },
+  { route: 'listening',      hash: '#/app/listening',         label: 'Social Listening', icon: IcoSocial, group: 'intelligence', pro: true },
   { route: 'brands-list',   hash: '#/app/brands',       label: 'Brand OS',         icon: IcoBrand,  group: 'brandos' },
   { route: 'workspace',     hash: '#/app/workspace',    label: 'Workspace',        icon: IcoSet,    group: 'settings' },
 ]
@@ -125,12 +121,10 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const pink     = '#E8185A'
 
   function renderPage() {
-    if (route === 'app-home')    return <Home />
-    if (route === 'diagnostico') return <Diagnostico />
-    if (route === 'evolucao')    return <Evolucao />
-    if (route === 'workspace')   return <WorkspacePage />
-    if (route === 'listening')    return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
-    if (route === 'concorrentes') return <UpgradeGate planoNecessario="pro" workspace={workspace}><Concorrentes /></UpgradeGate>
+    if (route === 'app-home')      return <Home />
+    if (route === 'posicionamento') return <Posicionamento />
+    if (route === 'workspace')     return <WorkspacePage />
+    if (route === 'listening')     return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
     if (route === 'brands-list')           return <BrandList />
     if (route === 'brands-new')            return <BrandOnboarding />
     if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />

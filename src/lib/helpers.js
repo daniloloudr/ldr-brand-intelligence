@@ -7,10 +7,12 @@ export function getRoute() {
   if (h.startsWith('#/relatorio/'))  return 'relatorio-publico';
   if (h === '#/login')               return 'login';
   if (h === '#/app')                 return 'app-home';
-  if (h === '#/app/diagnostico')     return 'diagnostico';
-  if (h === '#/app/evolucao')        return 'evolucao';
+  if (h === '#/app/posicionamento')  return 'posicionamento';
+  // legacy redirects mantidos temporariamente
+  if (h === '#/app/diagnostico')     return 'posicionamento';
+  if (h === '#/app/evolucao')        return 'posicionamento';
+  if (h === '#/app/concorrentes')    return 'posicionamento';
   if (h === '#/app/listening')       return 'listening';
-  if (h === '#/app/concorrentes')    return 'concorrentes';
   if (h === '#/app/workspace')       return 'workspace';
   if (h === '#/app/brands')                                        return 'brands-list';
   if (h === '#/app/brands/new')                                    return 'brands-new';
