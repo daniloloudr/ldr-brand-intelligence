@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { ThemeProvider }      from '@mui/material/styles'
 import Box                    from '@mui/material/Box'
 import Typography             from '@mui/material/Typography'
-import Button                 from '@mui/material/Button'
 import Chip                   from '@mui/material/Chip'
 import LinearProgress         from '@mui/material/LinearProgress'
 import CircularProgress       from '@mui/material/CircularProgress'
@@ -11,12 +10,12 @@ import { supabase }          from '../lib/supabase'
 import { themeLight }        from '../lib/theme'
 import { RelatorioCompleto } from './RelatorioCompleto'
 import { GlobalStyle }       from '../components/GlobalStyle'
-import logoNegativa          from '../assets/negativa.svg'
+import { PublicHeader }      from '../components/PublicHeader'
+import { PublicFooter }      from '../components/PublicFooter'
 
 const CALENDLY = import.meta.env.VITE_CALENDLY_URL
 const NAV_BG   = '#08111F'
 const NAV_DIV  = '#1E3348'
-const NAV_CTA  = '#2E4058'
 
 function scoreHex(s) {
   if (s >= 7) return '#0D9E7A'
@@ -29,60 +28,6 @@ function scoreLabel(s) {
   return 'Crítico'
 }
 
-/* Sticky nav permanece dark independente do tema da página */
-function Nav() {
-  return (
-    <Box component="header" sx={{
-      position: 'sticky', top: 0, zIndex: 200,
-      background: NAV_BG,
-      borderBottom: `1px solid ${NAV_DIV}`,
-    }}>
-      <Box sx={{ height: 2, bgcolor: '#E8185A' }} />
-      <Box sx={{
-        height: 56, display: 'flex', alignItems: 'center',
-        px: '32px', gap: 2,
-        maxWidth: 1280, mx: 'auto',
-      }}>
-        <img src={logoNegativa} alt="LOUDR" style={{ height: 26, display: 'block', flexShrink: 0 }} />
-        <Box sx={{ width: 1, height: 18, background: NAV_DIV, flexShrink: 0 }} />
-        <Typography sx={{
-          fontSize: 9, fontWeight: 800, letterSpacing: '0.28em',
-          textTransform: 'uppercase', color: NAV_CTA, flex: 1,
-          fontFamily: "'Cairo', sans-serif",
-        }}>
-          Relatório compartilhado
-        </Typography>
-        <Box sx={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
-          {CALENDLY && (
-            <a
-              href={CALENDLY} target="_blank" rel="noopener noreferrer"
-              style={{
-                background: '#0D9E7A', border: 'none', borderRadius: 0,
-                padding: '8px 18px', fontSize: 10, fontWeight: 800,
-                letterSpacing: '0.14em', textTransform: 'uppercase',
-                color: '#fff', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
-                textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
-              }}
-            >
-              Agendar apresentação →
-            </a>
-          )}
-          <button
-            style={{
-              background: 'none', border: `1px solid ${NAV_DIV}`, borderRadius: 0,
-              padding: '8px 18px', fontSize: 10, fontWeight: 800,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: '#7A8899', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
-            }}
-            onClick={() => { window.location.hash = '#/register' }}
-          >
-            Criar conta →
-          </button>
-        </Box>
-      </Box>
-    </Box>
-  )
-}
 
 export function RelatorioPublico() {
   const id = window.location.hash.replace(/^#\/relatorio\//, '')
@@ -103,7 +48,7 @@ export function RelatorioPublico() {
   if (loading) return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#F5F7F6', display: 'flex', flexDirection: 'column' }}>
       <GlobalStyle />
-      <Nav />
+      <PublicHeader sticky />
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress sx={{ color: '#0D9E7A' }} size={32} />
       </Box>
@@ -113,7 +58,7 @@ export function RelatorioPublico() {
   if (error) return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#F5F7F6', display: 'flex', flexDirection: 'column' }}>
       <GlobalStyle />
-      <Nav />
+      <PublicHeader sticky />
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
         <Box sx={{ textAlign: 'center', maxWidth: 360 }}>
           <Box sx={{ width: 52, height: 52, borderRadius: '50%', background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 20, color: '#E8185A' }}>
@@ -140,11 +85,37 @@ export function RelatorioPublico() {
     <ThemeProvider theme={themeLight}>
       <GlobalStyle />
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <Nav />
+        <PublicHeader sticky>
+          {CALENDLY && (
+            <a
+              href={CALENDLY} target="_blank" rel="noopener noreferrer"
+              style={{
+                background: '#0D9E7A', border: 'none',
+                padding: '10px 20px', fontSize: 10, fontWeight: 800,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: '#fff', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+              }}
+            >
+              Agendar apresentação →
+            </a>
+          )}
+          <button
+            style={{
+              background: 'none', border: `1px solid ${NAV_DIV}`,
+              padding: '10px 20px', fontSize: 10, fontWeight: 800,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: '#7A8899', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+            }}
+            onClick={() => { window.location.hash = '#/register' }}
+          >
+            Criar conta →
+          </button>
+        </PublicHeader>
 
         {/* ── Hero band ─────────────────────────────────────── */}
         <Box sx={{ bgcolor: NAV_BG, px: { xs: '24px', md: '52px' }, py: { xs: '48px', md: '60px' } }}>
-          <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
+          <Box>
             <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#0D9E7A', mb: 1.5, fontFamily: "'Cairo', sans-serif" }}>
               — Diagnóstico de Marca · LOUDR
             </Typography>
@@ -198,53 +169,11 @@ export function RelatorioPublico() {
         </Box>
 
         {/* ── Report body ───────────────────────────────────── */}
-        <Box sx={{ maxWidth: 1280, mx: 'auto', px: { xs: '24px', md: '52px' }, py: { xs: '48px', md: '64px' } }}>
+        <Box sx={{ px: { xs: '24px', md: '52px' }, py: { xs: '48px', md: '64px' } }}>
           <RelatorioCompleto data={data} meta={diag} onBack={null} hideHero />
         </Box>
 
-        {/* ── Footer CTA ────────────────────────────────────── */}
-        <Box sx={{ background: NAV_BG, borderTop: `1px solid ${NAV_DIV}`, px: { xs: '24px', md: '52px' }, py: '40px' }}>
-          <Box sx={{ maxWidth: 1280, mx: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3, flexWrap: 'wrap' }}>
-            <Box>
-              <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#0D9E7A', mb: 1, fontFamily: "'Cairo', sans-serif" }}>
-                — LOUDR Brand Intelligence
-              </Typography>
-              <Typography sx={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', mb: 0.5, fontFamily: "'Cairo', sans-serif" }}>
-                Pronto para evoluir sua marca?
-              </Typography>
-              <Typography sx={{ fontSize: 13, color: '#7A8899', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif" }}>
-                14 dias de trial gratuito, sem cartão de crédito.
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flexShrink: 0 }}>
-              {CALENDLY && (
-                <a
-                  href={CALENDLY} target="_blank" rel="noopener noreferrer"
-                  style={{
-                    background: '#0D9E7A', border: 'none', borderRadius: 0,
-                    padding: '12px 24px', fontSize: 11, fontWeight: 800,
-                    letterSpacing: '0.12em', textTransform: 'uppercase',
-                    color: '#fff', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
-                    textDecoration: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap',
-                  }}
-                >
-                  Agendar apresentação →
-                </a>
-              )}
-              <button
-                style={{
-                  background: 'none', border: `1px solid ${NAV_DIV}`, borderRadius: 0,
-                  padding: '12px 24px', fontSize: 11, fontWeight: 800,
-                  letterSpacing: '0.12em', textTransform: 'uppercase',
-                  color: '#7A8899', cursor: 'pointer', fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap',
-                }}
-                onClick={() => { window.location.hash = '#/register' }}
-              >
-                Criar conta grátis →
-              </button>
-            </Box>
-          </Box>
-        </Box>
+        <PublicFooter />
       </Box>
     </ThemeProvider>
   )

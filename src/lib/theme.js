@@ -1,11 +1,11 @@
 import { createTheme, alpha } from '@mui/material/styles'
 
 const C = {
-  navy:       '#08111F',
-  navyMid:    '#0E1E30',
-  navySurf:   '#122033',
-  navyElev:   '#1B2F45',
-  border:     '#1E3348',
+  navy:       '#0D1B2A',
+  navyMid:    '#162840',
+  navySurf:   '#1B3050',
+  navyElev:   '#24405E',
+  border:     '#2A4A68',
   teal:       '#0D9E7A',
   tealDim:    '#0B8567',
   tealPale:   '#E1F5EE',
@@ -15,9 +15,9 @@ const C = {
   amber:      '#EF9F27',
   amberPale:  '#FEF3C7',
   purple:     '#7F77DD',
-  textPri:    '#B0BACB',
-  textSec:    '#7A8899',
-  textDis:    '#3D4E60',
+  textPri:    '#D8E4F0',
+  textSec:    '#96AABF',
+  textDis:    '#4D6070',
 }
 
 export const theme = createTheme({

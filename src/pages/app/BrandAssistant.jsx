@@ -209,7 +209,7 @@ export function BrandAssistant({ brandId }) {
     const { data } = await supabase.from('conversations').insert({
       brand_id: brandId,
       user_id: user?.id,
-      title: `Conversa ${new Date().toLocaleDateString('pt-BR')}`,
+      titulo: `Conversa ${new Date().toLocaleDateString('pt-BR')}`,
     }).select().single()
     if (data) {
       setConvs(prev => [data, ...prev])
@@ -223,11 +223,16 @@ export function BrandAssistant({ brandId }) {
 
     let conv = activeConv
     if (!conv) {
-      const { data } = await supabase.from('conversations').insert({
+      const { data, error: convErr } = await supabase.from('conversations').insert({
         brand_id: brandId,
         user_id: user?.id,
-        title: input.slice(0, 60),
+        titulo: input.slice(0, 60),
       }).select().single()
+      if (convErr || !data) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `Erro ao criar conversa: ${convErr?.message || 'tente novamente'}` }])
+        setStreaming(false)
+        return
+      }
       conv = data
       setActiveConv(data)
       setConvs(prev => [data, ...prev])
@@ -266,11 +271,9 @@ export function BrandAssistant({ brandId }) {
           content: fullText,
         })
 
-        if (!activeConv || conv.title === activeConv?.title) {
-          await supabase.from('conversations')
-            .update({ title: userMsg.content.slice(0, 60) })
-            .eq('id', conv.id)
-        }
+        await supabase.from('conversations')
+          .update({ titulo: userMsg.content.slice(0, 60) })
+          .eq('id', conv.id)
       },
       onError: (err) => {
         setMessages(prev => [...prev, { role: 'assistant', content: `Erro: ${err}`, conversation_id: conv.id }])
@@ -335,7 +338,7 @@ export function BrandAssistant({ brandId }) {
                 }}
               >
                 <Typography sx={{ fontSize: 12, fontWeight: activeConv?.id === conv.id ? 800 : 500, lineHeight: 1.4 }} noWrap>
-                  {conv.title}
+                  {conv.titulo}
                 </Typography>
                 <Typography variant="caption" color="text.disabled">
                   {fmtDate(conv.created_at)}

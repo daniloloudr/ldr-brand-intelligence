@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { GlobalStyle } from "../components/GlobalStyle";
-import logoNegativa from "../assets/negativa.svg";
+import { PublicHeader } from "../components/PublicHeader";
+import { PublicFooter } from "../components/PublicFooter";
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"];
@@ -37,20 +38,7 @@ const CSS = `
   body { font-family:var(--F); color:#fff; background:var(--navy); overflow-x:hidden; }
   ::selection { background:var(--pink); color:#fff; }
 
-  /* ─── NAV ─── */
-  .pp-nav {
-    position:fixed; top:0; left:0; right:0; z-index:100;
-    height:72px; padding:0 64px;
-    display:flex; align-items:center; justify-content:space-between;
-    background:rgba(8,17,31,0.92);
-    backdrop-filter:blur(14px);
-    border-bottom:1px solid var(--border);
-  }
-  .pp-logo { display:flex; align-items:center; gap:12px; }
-  .pp-logo-name { font-size:20px; font-weight:900; color:#fff; letter-spacing:-0.03em; text-transform:uppercase; font-family:var(--F); }
-  .pp-logo-name span { color:var(--pink); }
-  .pp-logo-div { width:1px; height:18px; background:var(--border); flex-shrink:0; }
-  .pp-logo-sub { font-size:10px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--gray-500); font-family:var(--F); }
+  /* ─── NAV CTA ─── */
   .pp-nav-cta {
     background:var(--pink); color:#fff; border:none;
     padding:12px 24px; font-size:11px; font-weight:700;
@@ -545,28 +533,8 @@ const CSS = `
 
   @media (max-width:768px) { .pp-faq { padding:60px 24px; } }
 
-  /* ─── FOOTER ─── */
-  .pp-footer {
-    background:#060D17; padding:40px 64px;
-    border-top:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    flex-wrap:wrap; gap:20px;
-  }
-  .pp-footer-logo { display:flex; align-items:center; gap:12px; }
-  .pp-footer-logo-name { font-size:16px; font-weight:900; text-transform:uppercase; letter-spacing:-0.02em; color:#fff; font-family:var(--F); }
-  .pp-footer-logo-name span { color:var(--pink); }
-  .pp-footer-logo-sub { font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--gray-500); font-family:var(--F); }
-  .pp-footer-text { font-size:11px; color:var(--gray-700); letter-spacing:0.04em; font-family:var(--F); }
-  .pp-footer-link {
-    font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase;
-    color:var(--gray-500); background:none; border:none; cursor:pointer;
-    font-family:var(--F); transition:color 0.2s;
-  }
-  .pp-footer-link:hover { color:var(--pink); }
-
   @media (max-width:768px) {
-    .pp-nav { padding:0 24px; height:64px; }
-    .pp-footer { padding:28px 24px; flex-direction:column; text-align:center; }
+    .pp-nav-cta { padding:10px 16px; font-size:10px; }
   }
 
   @keyframes bounceDown {
@@ -666,12 +634,6 @@ const CSS = `
     animation:lineGrow 0.6s 0.2s cubic-bezier(0.16,1,0.3,1) both;
   }
 
-  /* ─── NAV SHRINK ON SCROLL ─── */
-  .pp-nav.scrolled {
-    height:56px;
-    background:rgba(8,17,31,0.97);
-    transition:height 0.3s ease,background 0.3s ease;
-  }
 `;
 
 // SVG icons for proof section
@@ -737,8 +699,6 @@ export function PaginaPublica() {
   const cursorRef    = useRef(null);
   const heroBgRef    = useRef(null);
   const heroVisRef   = useRef(null);
-  const navRef       = useRef(null);
-
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior:"smooth" });
   const scrollToHow  = () => howRef.current?.scrollIntoView({ behavior:"smooth" });
@@ -768,8 +728,6 @@ export function PaginaPublica() {
         heroBgRef.current.style.transform = `translateY(${y * 0.22}px)`;
       if (heroVisRef.current)
         heroVisRef.current.style.transform = `translateY(${y * -0.07}px)`;
-      if (navRef.current)
-        navRef.current.classList.toggle("scrolled", y > 60);
     };
     window.addEventListener("scroll", onScroll, { passive:true });
 
@@ -818,14 +776,9 @@ export function PaginaPublica() {
       <div className="pp-cursor-glow" ref={cursorRef} />
 
       {/* ── NAV ── */}
-      <nav className="pp-nav" ref={navRef}>
-        <div className="pp-logo">
-          <img src={logoNegativa} alt="LOUDR" style={{ height:46, display:"block" }} />
-          <span className="pp-logo-div" />
-          <span className="pp-logo-sub">Brand Intelligence</span>
-        </div>
+      <PublicHeader>
         <button className="pp-nav-cta" onClick={scrollToForm}>Solicitar Diagnóstico</button>
-      </nav>
+      </PublicHeader>
 
       {/* ── HERO ── */}
       <section className="pp-hero">
@@ -1218,14 +1171,7 @@ export function PaginaPublica() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="pp-footer">
-        <div className="pp-footer-logo">
-          <img src={logoNegativa} alt="LOUDR" style={{ height:38, display:"block" }} />
-          <span className="pp-footer-logo-sub">Smart Branding</span>
-        </div>
-        <span className="pp-footer-text">© 2026 LOUDR — Todos os direitos reservados</span>
-        <button className="pp-footer-link" onClick={() => window.location.hash = "#/login"}>Área interna →</button>
-      </footer>
+      <PublicFooter />
     </>
   );
 }

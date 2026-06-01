@@ -3,6 +3,8 @@ import { GlobalStyle } from "../components/GlobalStyle";
 import { Card } from "../components/Card";
 import { Lbl } from "../components/Lbl";
 import { Bar } from "../components/Bar";
+import { PublicHeader } from "../components/PublicHeader";
+import { PublicFooter } from "../components/PublicFooter";
 
 const SCORES = [
   {
@@ -54,22 +56,14 @@ export function PaginaMetodologia() {
     <div style={{ minHeight:"100vh", background:DS.offwhite, fontFamily:F }}>
       <GlobalStyle />
 
-      {/* Header */}
-      <div style={{ background:DS.navy, padding:"0 28px", height:60, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:10, height:10, background:DS.pink }} />
-          <span style={{ fontSize:16, fontWeight:900, color:DS.white, letterSpacing:"-0.02em" }}>LOUDR</span>
-          <span style={{ fontSize:12, color:DS.gray }}>Brand Intelligence</span>
-          <span style={{ fontSize:12, color:DS.navyLight, margin:"0 4px" }}>·</span>
-          <span style={{ fontSize:12, color:DS.green, fontWeight:700 }}>Metodologia</span>
-        </div>
+      <PublicHeader sticky>
         <button
           onClick={() => window.history.back()}
-          style={{ background:"none", border:`1px solid ${DS.navyLight}`, borderRadius:8, padding:"5px 14px", fontSize:12, color:DS.gray, cursor:"pointer" }}
+          style={{ background:"none", border:"1px solid #1E3348", padding:"8px 18px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#7A8899", cursor:"pointer", fontFamily:"'Cairo', sans-serif" }}
         >
           ← Voltar
         </button>
-      </div>
+      </PublicHeader>
 
       <div style={{ maxWidth:800, margin:"0 auto", padding:"48px 20px 80px" }}>
 
@@ -179,6 +173,7 @@ export function PaginaMetodologia() {
         </Card>
 
       </div>
+      <PublicFooter />
     </div>
   );
 }

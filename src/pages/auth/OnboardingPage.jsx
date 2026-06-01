@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box, Button, TextField, Typography, MenuItem, Stepper, Step, StepLabel,
   Card, CardContent, Chip, CircularProgress, Alert,
@@ -19,13 +19,23 @@ const planoCards = [
   { key: 'enterprise', destaque: false },
 ]
 
-export function OnboardingPage({ user }) {
+export function OnboardingPage({ user, onHasWorkspace }) {
   const [step, setStep]     = useState(0)
   const [empresa, setEmpresa] = useState({ nome: '', dominio: '', setor: '', porte: '' })
   const [planoSel, setPlano]  = useState('trial')
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [wsId, setWsId]       = useState(null)
+
+  useEffect(() => {
+    supabase
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
+      .then(({ data }) => { if (data) onHasWorkspace?.() })
+  }, [user.id])
 
   const setE = k => e => setEmpresa(f => ({ ...f, [k]: e.target.value }))
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "@mui/material/styles";
 import { DS, F, RATE_LIMIT_WAIT, MAX_RETRIES } from "../lib/constants";
 import { sc } from "../lib/helpers";
 import { Bar } from "../components/Bar";
@@ -32,11 +33,38 @@ const GENERATING_MSGS = [
 
 const PRACTICE_COLORS = ["#0D9E7A", "#E8185A", "#7F77DD", "#EF9F27"];
 
-function SkeletonLine({ width = "100%", height = 12, bg = DS.border, style = {} }) {
+function useC() {
+  const muiTheme = useTheme();
+  const dark = muiTheme.palette.mode === "dark";
+  return dark ? {
+    bg:      "#0D1B2A",
+    panel:   "#162840",
+    panelMid:"#1E3550",
+    border:  "#2A4A68",
+    text:    "#D8E4F0",
+    textSec: "#96AABF",
+    textDis: "#4D6070",
+    stepBg:  "#2A4A68",
+    italic:  "#96AABF",
+  } : {
+    bg:      "#FFFFFF",
+    panel:   "#F5F7F6",
+    panelMid:"#E2EBE8",
+    border:  "#E2EBE8",
+    text:    "#0D1B2A",
+    textSec: "#4A5A6A",
+    textDis: "#8A9AB0",
+    stepBg:  "#F0F4F3",
+    italic:  "#4A5A6A",
+  };
+}
+
+function SkeletonLine({ width = "100%", height = 12, bg, style = {} }) {
+  const C = useC();
   return (
     <div style={{
       width, height, borderRadius: 4,
-      background: bg,
+      background: bg || C.panelMid,
       animation: "pulse 1.6s ease-in-out infinite",
       ...style,
     }} />
@@ -44,37 +72,38 @@ function SkeletonLine({ width = "100%", height = 12, bg = DS.border, style = {} 
 }
 
 function RateLimitView({ countdown, attempt }) {
+  const C = useC();
   return (
-    <div style={{ background: DS.navyMid, borderRadius: 16, padding: "28px 32px", border: `1px solid ${DS.amber}` }}>
+    <div style={{ background: C.panel, borderRadius: 16, padding: "28px 32px", border: `1px solid ${DS.amber}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: DS.amber, animation: "pulse 1s infinite" }} />
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: DS.amber, textTransform: "uppercase", fontFamily: F }}>
           Aguardando limite da API — tentativa {attempt}/{MAX_RETRIES}
         </div>
       </div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: DS.white, marginBottom: 8, fontFamily: F }}>
+      <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 8, fontFamily: F }}>
         Limite de requisições atingido
       </div>
-      <p style={{ fontSize: 13, color: DS.gray, marginBottom: 20, fontFamily: F, lineHeight: 1.7 }}>
+      <p style={{ fontSize: 13, color: C.textSec, marginBottom: 20, fontFamily: F, lineHeight: 1.7 }}>
         A API tem um limite de tokens por minuto. O agent retomará automaticamente — não feche a página.
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         <div style={{ position: "relative", width: 68, height: 68, flexShrink: 0 }}>
           <svg viewBox="0 0 64 64" style={{ transform: "rotate(-90deg)", width: 68, height: 68 }}>
-            <circle cx="32" cy="32" r="28" fill="none" stroke={DS.navyLight} strokeWidth="5" />
+            <circle cx="32" cy="32" r="28" fill="none" stroke={C.panelMid} strokeWidth="5" />
             <circle cx="32" cy="32" r="28" fill="none" stroke={DS.amber} strokeWidth="5"
               strokeDasharray={`${(countdown / RATE_LIMIT_WAIT) * 175.9} 175.9`}
               style={{ transition: "stroke-dasharray 1s linear" }} />
           </svg>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 900, color: DS.white, fontFamily: F }}>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 900, color: C.text, fontFamily: F }}>
             {countdown}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: DS.white, marginBottom: 4, fontFamily: F }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4, fontFamily: F }}>
             Retomando em {countdown}s
           </div>
-          <div style={{ fontSize: 12, color: DS.gray, fontFamily: F }}>
+          <div style={{ fontSize: 12, color: C.textSec, fontFamily: F }}>
             O diagnóstico continuará do ponto onde parou.
           </div>
         </div>
@@ -84,10 +113,11 @@ function RateLimitView({ countdown, attempt }) {
 }
 
 function SkeletonReport({ elapsed, tokenCount }) {
+  const C = useC();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fu 0.5s ease both" }}>
       {/* Generating indicator */}
-      <div style={{ background: DS.navy, borderRadius: 12, padding: "22px 26px" }}>
+      <div style={{ background: C.bg, borderRadius: 12, padding: "22px 26px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: DS.green, animation: "pulse 1.2s infinite" }} />
@@ -96,7 +126,7 @@ function SkeletonReport({ elapsed, tokenCount }) {
             </span>
           </div>
           {tokenCount > 0 && (
-            <span style={{ fontSize: 11, color: DS.gray, fontFamily: F }}>
+            <span style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>
               ~{tokenCount} tokens gerados
             </span>
           )}
@@ -105,27 +135,27 @@ function SkeletonReport({ elapsed, tokenCount }) {
         {/* Animated writing cursor lines */}
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {[
-            { w: "52%", h: 20, bg: "#1E3550", delay: 0 },
-            { w: "36%", h: 11, bg: "#1E3550", delay: 0.1 },
-            { w: "90%", h: 9,  bg: "#162840", delay: 0.2 },
-            { w: "76%", h: 9,  bg: "#162840", delay: 0.3 },
-            { w: "60%", h: 9,  bg: "#162840", delay: 0.4 },
+            { w: "52%", h: 20, delay: 0 },
+            { w: "36%", h: 11, delay: 0.1 },
+            { w: "90%", h: 9,  delay: 0.2 },
+            { w: "76%", h: 9,  delay: 0.3 },
+            { w: "60%", h: 9,  delay: 0.4 },
           ].map((l, i) => (
-            <SkeletonLine key={i} width={l.w} height={l.h} bg={l.bg} style={{ animationDelay: `${l.delay}s` }} />
+            <SkeletonLine key={i} width={l.w} height={l.h} style={{ animationDelay: `${l.delay}s` }} />
           ))}
         </div>
 
         {/* Writing cursor */}
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{ width: 2, height: 14, background: DS.green, animation: "blink 0.9s step-end infinite", borderRadius: 1 }} />
-          <span style={{ fontSize: 11, color: DS.gray, fontFamily: F }}>sintetizando dados...</span>
+          <span style={{ fontSize: 11, color: C.textSec, fontFamily: F }}>sintetizando dados...</span>
         </div>
       </div>
 
       {/* Practices grid skeleton */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {PRACTICE_COLORS.map((color, i) => (
-          <div key={i} style={{ background: DS.white, border: `1px solid ${DS.border}`, borderRadius: 12, padding: "16px 18px", borderTop: `3px solid ${color}`, animation: `fu 0.4s ${i * 0.07}s ease both` }}>
+          <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", borderTop: `3px solid ${color}`, animation: `fu 0.4s ${i * 0.07}s ease both` }}>
             <SkeletonLine width="65%" height={13} style={{ marginBottom: 10 }} />
             <SkeletonLine width="100%" height={9} style={{ marginBottom: 5 }} />
             <SkeletonLine width="80%" height={9} style={{ marginBottom: 14 }} />
@@ -137,7 +167,7 @@ function SkeletonReport({ elapsed, tokenCount }) {
       {/* Scores skeleton */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ background: DS.white, border: `1px solid ${DS.border}`, borderRadius: 12, padding: "16px 18px", animation: `fu 0.4s ${0.28 + i * 0.07}s ease both` }}>
+          <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", animation: `fu 0.4s ${0.28 + i * 0.07}s ease both` }}>
             <SkeletonLine width="55%" height={11} style={{ marginBottom: 10 }} />
             <SkeletonLine width="100%" height={5} />
           </div>
@@ -148,25 +178,26 @@ function SkeletonReport({ elapsed, tokenCount }) {
 }
 
 function PartialDataPreview({ data }) {
+  const C = useC();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fu 0.5s ease both" }}>
-      <div style={{ background: DS.navy, borderRadius: 12, padding: "22px 26px" }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: DS.white, marginBottom: 4, fontFamily: F }}>
+      <div style={{ background: C.bg, borderRadius: 12, padding: "22px 26px" }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 4, fontFamily: F }}>
           {data.empresa}
         </div>
-        <div style={{ fontSize: 13, color: DS.gray, fontFamily: F }}>
+        <div style={{ fontSize: 13, color: C.textSec, fontFamily: F }}>
           {[data.setor, data.porte, data.dominio].filter(Boolean).join(" · ")}
         </div>
         {data.frase_diagnostico && (
-          <div style={{ marginTop: 14, borderLeft: `3px solid ${DS.green}`, paddingLeft: 14, fontSize: 13, color: "#c9d8e8", fontStyle: "italic", fontFamily: F, lineHeight: 1.65 }}>
+          <div style={{ marginTop: 14, borderLeft: `3px solid ${DS.green}`, paddingLeft: 14, fontSize: 13, color: C.italic, fontStyle: "italic", fontFamily: F, lineHeight: 1.65 }}>
             "{data.frase_diagnostico}"
           </div>
         )}
       </div>
       {data.resumo_executivo && (
         <Card>
-          <Lbl color={DS.textLight}>Resumo executivo</Lbl>
-          <p style={{ fontSize: 13, color: DS.textMid, lineHeight: 1.7, fontFamily: F }}>{data.resumo_executivo}</p>
+          <Lbl color={DS.green}>Resumo executivo</Lbl>
+          <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.7, fontFamily: F }}>{data.resumo_executivo}</p>
         </Card>
       )}
       {(data.score_singularidade || data.score_consistencia) && (
@@ -177,7 +208,7 @@ function PartialDataPreview({ data }) {
             { l: "Posicionamento", k: "score_posicionamento" },
           ].filter(s => data[s.k]).map(s => (
             <Card key={s.k}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, fontFamily: F }}>{s.l}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, fontFamily: F, color: C.text }}>{s.l}</div>
               <Bar score={data[s.k]} color={sc(data[s.k])} />
             </Card>
           ))}
@@ -199,6 +230,7 @@ const TICK_MS  = 500;
 const STEP     = (98 / DURATION) / (1000 / TICK_MS);
 
 export function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimitAttempt, streamText = "" }) {
+  const C = useC();
   const [msgIdx, setMsgIdx]     = useState(0);
   const [elapsed, setElapsed]   = useState(0);
   const [progress, setProgress] = useState(0);
@@ -246,7 +278,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
     <div>
 
       {/* ── Status header ── */}
-      <div style={{ background: DS.navy, borderRadius: 16, padding: "28px 32px", marginBottom: 14, position: "relative", overflow: "hidden" }}>
+      <div style={{ background: C.bg, borderRadius: 16, padding: "28px 32px", marginBottom: 14, position: "relative", overflow: "hidden", border: `1px solid ${C.border}` }}>
         <div style={{ position: "absolute", right: -40, top: -40, width: 200, height: 200, borderRadius: "50%", background: DS.green, opacity: 0.04 }} />
 
         {/* Phase label + elapsed */}
@@ -261,7 +293,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                 : `Pesquisando · ${searchCount} de ${TOTAL_SEARCHES}`}
             </span>
           </div>
-          <span style={{ fontSize: 12, color: DS.gray, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ fontSize: 12, color: C.textSec, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
             {formatElapsed(elapsed)}
           </span>
         </div>
@@ -269,12 +301,12 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
         {/* Rotating message */}
         <div
           key={`${msgIdx}-${isWaiting}-${allDone}`}
-          style={{ fontSize: 22, fontWeight: 900, color: DS.white, marginBottom: 8, fontFamily: F, animation: "fu 0.35s ease both" }}
+          style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 8, fontFamily: F, animation: "fu 0.35s ease both" }}
         >
           {messages[msgIdx % messages.length]}
         </div>
 
-        <p style={{ fontSize: 13, color: DS.gray, marginBottom: 22, fontFamily: F }}>
+        <p style={{ fontSize: 13, color: C.textSec, marginBottom: 22, fontFamily: F }}>
           {isGenerating
             ? "A IA está sintetizando todos os dados coletados. Isso pode levar até 60 segundos."
             : "Não feche esta página. O relatório será exibido ao final da análise."}
@@ -283,12 +315,12 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
         {/* Progress bar */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: DS.textLight, fontFamily: F }}>Progresso da análise</span>
+            <span style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>Progresso da análise</span>
             <span style={{ fontSize: 11, color: DS.green, fontWeight: 700, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
               {Math.round(progressPct)}%
             </span>
           </div>
-          <div style={{ background: DS.navyLight, borderRadius: 99, height: 5, overflow: "hidden" }}>
+          <div style={{ background: C.panelMid, borderRadius: 99, height: 5, overflow: "hidden" }}>
             <div style={{
               height: "100%",
               background: `linear-gradient(90deg, ${DS.green}, #0ecf9f)`,
@@ -302,25 +334,24 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
         {/* Token counter strip — visible only during generating */}
         {isGenerating && tokenCount > 0 && (
           <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, animation: "fu 0.3s ease both" }}>
-            <div style={{ flex: 1, height: 1, background: DS.navyLight }} />
-            <span style={{ fontSize: 11, color: DS.gray, fontFamily: F, whiteSpace: "nowrap" }}>
+            <div style={{ flex: 1, height: 1, background: C.panelMid }} />
+            <span style={{ fontSize: 11, color: C.textSec, fontFamily: F, whiteSpace: "nowrap" }}>
               {tokenCount.toLocaleString("pt-BR")} tokens gerados
             </span>
-            <div style={{ flex: 1, height: 1, background: DS.navyLight }} />
+            <div style={{ flex: 1, height: 1, background: C.panelMid }} />
           </div>
         )}
       </div>
 
       {/* ── Search timeline ── */}
       <Card style={{ marginBottom: 14 }}>
-        <Lbl color={DS.textLight}>Fontes pesquisadas</Lbl>
+        <Lbl color={DS.green}>Fontes pesquisadas</Lbl>
         <div>
           {SEARCH_LABELS.map((label, i) => {
             const done     = i < searchCount - 1;
             const active   = i === searchCount - 1;
             const upcoming = i >= searchCount;
             const query    = searchSteps[i] || label;
-            // key change forces element remount on state transition → re-triggers CSS animations
             const stateKey = done ? `d-${i}` : active ? `a-${i}` : `u-${i}`;
 
             return (
@@ -329,7 +360,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                 style={{
                   display: "flex", alignItems: "flex-start", gap: 12,
                   padding: "10px 0",
-                  borderBottom: i < SEARCH_LABELS.length - 1 ? `1px solid ${DS.border}` : "none",
+                  borderBottom: i < SEARCH_LABELS.length - 1 ? `1px solid ${C.border}` : "none",
                   opacity: upcoming ? 0.28 : 1,
                   animation: active ? "lightUp 0.65s ease both"
                             : done   ? "fu 0.3s ease both"
@@ -349,9 +380,9 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                   width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: 1,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 10, fontWeight: 800, fontFamily: F,
-                  background: done ? DS.green : active ? "transparent" : DS.grayLight,
-                  border: active ? `2px solid ${DS.green}` : done ? "none" : `1px solid ${DS.border}`,
-                  color: done ? DS.white : active ? DS.green : DS.textLight,
+                  background: done ? DS.green : active ? "transparent" : C.stepBg,
+                  border: active ? `2px solid ${DS.green}` : done ? "none" : `1px solid ${C.border}`,
+                  color: done ? "#fff" : active ? DS.green : C.textDis,
                   animation: done   ? "checkPop 0.4s ease both"
                             : active ? "pulse 1.3s ease infinite"
                             : "none",
@@ -361,7 +392,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
 
                 <div style={{ flex: 1 }}>
                   <div style={{
-                    fontSize: 11, fontFamily: F, color: DS.textLight,
+                    fontSize: 11, fontFamily: F, color: C.textSec,
                     marginBottom: upcoming ? 0 : 2,
                   }}>
                     {label}
@@ -369,7 +400,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                   {!upcoming && (
                     <div style={{
                       fontSize: 13, fontFamily: F, lineHeight: 1.45,
-                      color: done ? DS.textMid : active ? DS.text : DS.textLight,
+                      color: done ? C.textSec : active ? C.text : C.textSec,
                       fontWeight: active ? 600 : 400,
                     }}>
                       {query}

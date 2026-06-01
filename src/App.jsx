@@ -67,7 +67,7 @@ export default function App() {
 
   if (route === "onboarding") {
     if (!user) { window.location.hash = "#/login"; return null; }
-    return <OnboardingPage user={user} />;
+    return <OnboardingPage user={user} onHasWorkspace={() => { window.location.hash = "#/app"; }} />;
   }
 
   if (WORKSPACE_ROUTES.includes(route)) {
