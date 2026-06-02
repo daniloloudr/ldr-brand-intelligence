@@ -65,7 +65,8 @@ Combina diagnóstico externo com dados públicos, governança interna do brand b
 | Streaming | **Netlify Functions (Node.js 20)** | Já funciona em produção — migrar para Edge Functions Deno só se houver timeout real |
 | Servidor | Netlify Functions (Node.js 20) | CRUD, webhooks, cron, streaming |
 | Variável AI | `ANTHROPIC_KEY` | Nome em produção — não renomear |
-| AI principal | Anthropic claude-sonnet-4-5 | Diagnósticos, extração de manual, aprovações |
+| AI principal (produção) | Anthropic claude-sonnet-4-5 + web_search | Diagnósticos, listening, cron, aprovações |
+| AI principal (dev local) | claude-haiku-4-5-20251001 sem web_search | Via `NETLIFY_DEV` — rápido, sem timeout |
 | AI chat | Futuro: GPT-4o mini ou Gemini Flash | Brand Assistant conversacional — mais barato por token |
 | AI social X | Futuro: Grok API | Busca de dados públicos no X/Twitter |
 | AI social Meta | Futuro: Meta AI | Dados públicos de Facebook e Instagram |
@@ -768,31 +769,27 @@ create policy "publico pode solicitar" on solicitacoes
 ## Planos e Limites
 
 ```js
-// src/lib/utils.js
+// src/lib/constants.js
 export const PLANOS = {
   trial: {
-    nome: 'Trial', preco: 0, duracao_dias: 14,
+    nome: 'Trial', preco: 0,
     diagnosticos_mes: 1, monitor: null, concorrentes: 0,
-    social_listening: false, marcas: 1, assistant_msgs: 10,
-    campanhas: false, membros: 1,
+    social_listening: false, membros: 1,
   },
   starter: {
     nome: 'Starter', preco: 490,
-    diagnosticos_mes: 1, monitor: 'mensal', concorrentes: 0,
-    social_listening: false, marcas: 1, assistant_msgs: Infinity,
-    campanhas: false, membros: 1,
+    diagnosticos_mes: 1, monitor: 'mensal', concorrentes: 5,
+    social_listening: false, membros: 1,
   },
   pro: {
     nome: 'Pro', preco: 1490,
-    diagnosticos_mes: 3, monitor: 'semanal', concorrentes: 2,
-    social_listening: true, marcas: 3, assistant_msgs: Infinity,
-    campanhas: true, membros: 3,
+    diagnosticos_mes: 3, monitor: 'semanal', concorrentes: 5,
+    social_listening: true, membros: 3,
   },
   enterprise: {
     nome: 'Enterprise', preco: 3990,
-    diagnosticos_mes: Infinity, monitor: 'diario', concorrentes: 5,
-    social_listening: true, marcas: Infinity, assistant_msgs: Infinity,
-    campanhas: true, membros: Infinity,
+    diagnosticos_mes: Infinity, monitor: 'diario', concorrentes: 15,
+    social_listening: true, membros: Infinity,
   },
 }
 
@@ -1018,7 +1015,7 @@ O admin master pode acessar qualquer workspace como se fosse o próprio cliente,
 
 ---
 
-### F06 · Posicionamento (Inteligência unificada)
+### F06 · Posicionamento (Inteligência unificada) ✅
 **Arquivo:** `src/pages/app/Posicionamento.jsx` · **Rota:** `#/app/posicionamento`
 **Substitui:** Diagnostico.jsx + Evolucao.jsx + Concorrentes.jsx
 
@@ -1026,45 +1023,47 @@ O admin master pode acessar qualquer workspace como se fosse o próprio cliente,
 Topo:     3 scores + variação + frase diagnóstica + Identity Gap + botão "Gerar novo"
 Seção 1:  Tabela de diagnósticos — empresa, data, scores, download PDF, compartilhar
 Seção 2:  Gráfico de linha Recharts — 5 scores no tempo, seletor período, marcadores
-Seção 3:  Concorrentes (Pro+) — scores lado a lado, Territory Map, feed de movimentos
+Seção 3:  Concorrentes (Starter+) — slot cards visuais + sugestões do diagnóstico
 ```
 
-Reaproveita componentes existentes. UpgradeGate na seção Concorrentes se plano < Pro.
+**Geração server-side:** `gerarDiagnosticoServidor()` → `diagnostico-gerar.js`
+- Empresa preenchida automaticamente do `workspace.dominio` (sem campo manual)
+- FormDialog lista as 5 fontes pesquisadas
+- Loading screen com steps animados + tela de erro com botão Voltar
+- Salva em `diagnosticos` (tipo: 'manual') mesmo se o browser fechar durante a geração
+
+**Concorrentes:** slots visuais fixos por plano (starter: 5, pro: 5, enterprise: 15)
+Sugestões automáticas dos concorrentes detectados no último diagnóstico.
 
 **Git:** `feat: F06 posicionamento merge inteligencia` → push
 
 ---
 
 ### F07 · Listening — Social + Search
-**Arquivos:** `src/pages/app/ListeningSocial.jsx` + `ListeningSearch.jsx`
-**Rotas:** `#/app/listening/social` · `#/app/listening/search` · **Auth:** Pro+
+**Arquivos:** `src/pages/app/SocialListening.jsx` + (Search: pendente)
+**Rotas:** `#/app/listening` · **Auth:** Pro+
 
-O módulo Listening tem um hub em `#/app/listening` com duas sub-áreas navegáveis.
-
-#### F07a · Social — O que falam sobre mim
+#### F07a · Social — O que falam sobre mim ✅
 
 ```
-Topo:   Grid de redes — Instagram, LinkedIn, Google Reviews, Reclame Aqui, Glassdoor
-        Cada card: TemperaturaBar (frio→morno→quente), sentiment %, variação, volume
-Corpo:  Score de sentiment global + gráfico de área 7d/30d/90d
+Topo:   3 score cards (positivo/neutro/negativo %) + botão "Coletar menções"
+Corpo:  Gráfico de área Recharts — evolução do sentimento 7d/30d/90d
+Tópicos: Trend Discovery — palavras mais frequentes nos eventos
 Feed:   Eventos filtráveis por fonte e sentiment
-Alertas: Picos de menção negativa + Trend Discovery
 ```
 
-```js
-// src/lib/utils.js
-export function calcTemperatura(snapshot) {
-  const volumeScore = Math.min(snapshot.volume_total / 100, 1) * 50
-  const sentimentScore = snapshot.negativo_pct * 0.5
-  return Math.round(Math.min(volumeScore + sentimentScore, 100))
-  // 0–30 frio (azul) · 31–60 morno (amber) · 61–100 quente (vermelho)
-}
-```
+**Coleta server-side:** `coletarListening()` → `listening-coletar.js`
+- **8 chamadas paralelas** ao Anthropic, uma por plataforma:
+  Twitter/X · Instagram · Facebook · TikTok · LinkedIn · Reclame Aqui · Google Reviews · News
+- Cada chamada: 1 busca focada, max_tokens 1024, retorna JSON de eventos
+- **Deduplicação por URL** — eventos com URL já existente no workspace são ignorados
+- Salva em `listening_events` + snapshot em `sentiment_snapshots`
+- Tempo total: ~15-20s em produção (paralelo) · Timeout: 60s
 
-Fontes de dados MVP: web_search pública (Reclame Aqui, Google Reviews, LinkedIn, mídia)
+Fontes atuais: web_search pública via Anthropic
 Fontes futuras: Grok API (X/Twitter), Meta AI API (Facebook, Instagram)
 
-#### F07b · Search — Como me encontram
+#### F07b · Search — Como me encontram ❌ (pendente)
 
 ```
 Topo:   Volume de buscas orgânicas estimado + variação vs mês anterior
@@ -1372,17 +1371,20 @@ export function calcIdentityGap(brandBook, diagnostico) {
 | Diagnóstico gerado | Recalcular Identity Gap se brand book ativo | Netlify Function |
 | Brand book atualizado | Re-embed seção (debounce 2s) + recalcular gap | Netlify Function |
 | Manual extraído | Preencher brand_book + tokens + re-embed completo | Netlify Function |
-| Cron semanal Pro | Diagnóstico automático sequencial (12s entre workspaces) | Netlify cron |
-| Cron diário Enterprise | Diagnóstico automático + alertas + gap | Netlify cron |
+| Cron semanal Pro + mensal Starter | Diagnóstico automático real via Anthropic (15s delay entre workspaces) | Netlify cron — toda segunda 8h |
+| Cron diário Enterprise | Diagnóstico automático real (todo dia) | Netlify cron — toda segunda 8h (enterprise: `diaDaSemana` ignorado) |
 | Dia 1 do mês | Relatório mensal PDF por e-mail | Supabase Edge Function |
 
 **Throttling:**
 ```js
 // netlify/functions/cron-monitor.js
+// Chama Anthropic API diretamente (não-streaming), salva diagnóstico com tipo='cron'
+// Modelo: Haiku local / Sonnet produção · Delay: 15s entre workspaces
 for (const ws of workspaces) {
-  try { await gerarDiagnosticoAutomatico(ws) }
+  if (!verificarFrequencia(ws.plano, diaDaSemana, hoje)) continue
+  try { await gerarDiagnostico(empresa, null) }
   catch (err) { console.error(`Erro ${ws.id}:`, err.message) }
-  await new Promise(r => setTimeout(r, 12000)) // nunca em paralelo
+  await new Promise(r => setTimeout(r, 15000)) // nunca em paralelo
 }
 ```
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import {
-  Box, Typography, Card, CircularProgress, Chip, Paper,
+  Box, Typography, Card, CircularProgress, Chip, Paper, Button, Alert,
   ToggleButtonGroup, ToggleButton, MenuItem, Select, FormControl, InputLabel,
 } from '@mui/material'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt'
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral'
@@ -13,6 +14,7 @@ import {
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
+import { coletarListening } from '../../lib/api'
 
 const PERIODOS = [
   { label: '7 dias',  value: '7d',  days: 7  },
@@ -110,6 +112,9 @@ export function SocialListening() {
   const [periodo, setPeriodo]         = useState('30d')
   const [filtroFonte, setFiltroFonte] = useState('todas')
   const [filtroSent, setFiltroSent]   = useState('todos')
+  const [collecting, setCollecting]   = useState(false)
+  const [collectStep, setCollectStep] = useState('')
+  const [collectError, setCollectError] = useState('')
 
   useEffect(() => {
     if (!workspace?.id) return
@@ -142,6 +147,23 @@ export function SocialListening() {
     setSnapshots(snaps || [])
     setEvents(evs || [])
     setLoading(false)
+  }
+
+  async function handleCollect() {
+    setCollecting(true)
+    setCollectError('')
+    setCollectStep('Coletando menções...')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada.')
+      await coletarListening({ workspaceId: workspace.id, token: session.access_token })
+      load()
+    } catch (e) {
+      setCollectError(e.message)
+    } finally {
+      setCollecting(false)
+      setCollectStep('')
+    }
   }
 
   const total = snapshots.length
@@ -183,12 +205,31 @@ export function SocialListening() {
     <Box sx={{ p: 4 }}>
 
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Social Listening</Typography>
-        <Typography variant="body2" color="text.secondary" mt={0.5}>
-          Monitoramento de sentimento e menções da sua marca no mercado.
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box>
+          <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Social Listening</Typography>
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
+            Monitoramento de sentimento e menções da sua marca no mercado.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          color="primary"
+          size="small"
+          startIcon={collecting ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
+          onClick={handleCollect}
+          disabled={collecting}
+          sx={{ fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          {collecting ? (collectStep || 'Coletando...') : 'Coletar menções'}
+        </Button>
       </Box>
+
+      {collectError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCollectError('')}>
+          {collectError}
+        </Alert>
+      )}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>

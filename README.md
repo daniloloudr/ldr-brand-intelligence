@@ -43,17 +43,18 @@ Cada prática recebe um score de 1 a 10. A partir deles são calculados três in
 | Plano | Preço | Diagnósticos/mês | Monitor | Concorrentes | Membros | Social Listening |
 |---|---|---|---|---|---|---|
 | Trial | grátis | 1 | — | 0 | 1 | não |
-| Starter | R$ 490 | 1 | mensal | 0 | 1 | não |
-| Pro | R$ 1.490 | 3 | semanal | 2 | 3 | sim |
-| Enterprise | R$ 3.990 | ilimitado | diário | 5 | ilimitado | sim |
+| Starter | R$ 490 | 1 | mensal | 5 | 1 | não |
+| Pro | R$ 1.490 | 3 | semanal | 5 | 3 | sim |
+| Enterprise | R$ 3.990 | ilimitado | diário | 15 | ilimitado | sim |
 
 ### Custo por diagnóstico
 
 | Configuração | Custo estimado |
 |---|---|
-| claude-sonnet-4-5 · 5 buscas web · max_tokens 5500 | ~$0.45–0.60 |
+| claude-sonnet-4-5 · 5 buscas web · max_tokens 4000 (produção) | ~$0.35–0.50 |
+| claude-haiku-4-5 · sem buscas web · max_tokens 2048 (local dev) | ~$0.01 |
 
-A principal alavanca de custo é o número de buscas web. Prompt caching (`anthropic-beta: prompt-caching-2024-07-31`) reduz o custo de input em chamadas repetidas.
+A principal alavanca de custo é o número de buscas web. Em dev local, `NETLIFY_DEV=true` faz as functions usarem Haiku sem web_search — respostas instantâneas para testar o fluxo.
 
 ---
 
@@ -67,7 +68,8 @@ A principal alavanca de custo é o número de buscas web. Prompt caching (`anthr
 | UI | Material UI v6 — `sx prop` / `styled()` / `ThemeProvider` |
 | Auth + DB | Supabase (PostgreSQL + Auth + RLS + Edge Functions) |
 | Servidor | Netlify Functions (serverless) |
-| IA | Anthropic API — `claude-sonnet-4-5` com `web_search_20250305` |
+| IA (produção) | Anthropic API — `claude-sonnet-4-5` com `web_search_20250305` |
+| IA (local dev) | `claude-haiku-4-5-20251001` sem web_search (via `NETLIFY_DEV`) |
 | Pagamento | Stripe (Checkout + Webhooks) |
 | E-mail | Resend |
 | Gráficos | Recharts |
@@ -129,10 +131,15 @@ SUPABASE_SERVICE_KEY=eyJ...
 /
 ├── netlify/
 │   └── functions/
-│       ├── anthropic.js          # Proxy SSE Anthropic — chave server-side
+│       ├── anthropic.js          # Proxy SSE Anthropic — Brand Assistant streaming
+│       ├── _prompt.js            # SYSTEM_PROMPT compartilhado (diagnóstico + cron)
+│       ├── diagnostico-gerar.js  # Geração de diagnóstico server-side (timeout 120s)
+│       ├── listening-coletar.js  # Social listening — 8 chamadas paralelas por plataforma
+│       ├── cron-monitor.js       # Diagnósticos automáticos reais (toda segunda, 8h)
+│       ├── admin-create-workspace.js
+│       ├── admin-invite.js
 │       ├── stripe-checkout.js    # Cria sessão de checkout
-│       ├── stripe-webhook.js     # Eventos Stripe → atualiza workspace.plano
-│       └── cron-monitor.js       # Diagnósticos automáticos (toda segunda, 8h)
+│       └── stripe-webhook.js     # Eventos Stripe → atualiza workspace.plano
 ├── src/
 │   ├── main.jsx
 │   ├── App.jsx                   # Router hash-based + auth guard
@@ -229,15 +236,35 @@ Sem react-router. `getRoute()` em `helpers.js` lê `window.location.hash`.
 ### Como a geração de diagnóstico funciona
 
 ```
-1. Formulário (empresa + contexto)
-2. runStream() → POST /.netlify/functions/anthropic
-3. Netlify Function injeta ANTHROPIC_KEY e faz proxy para api.anthropic.com
-4. SSE stream chega em chunks:
-   - content_block_start (tool_use)  → busca web iniciada → atualiza contador
-   - content_block_delta (text_delta) → acumula texto → onText()
-   - message_stop                    → tryParseJSON() extrai JSON → onDone()
-5. StreamingView exibe: inicializando → buscando (1–5) → gerando → dados
-6. onDone() salva em diagnosticos e redireciona para o relatório
+1. Posicionamento.jsx — botão "Gerar diagnóstico" abre FormDialog
+2. FormDialog coleta apenas contexto (empresa vem do workspace.dominio automaticamente)
+3. iniciar(contexto) → gerarDiagnosticoServidor() → POST /.netlify/functions/diagnostico-gerar
+4. Netlify Function (server-side):
+   a. Valida JWT do usuário
+   b. Chama Anthropic API com streaming SSE (coleta text_delta server-side)
+   c. Extrai JSON da resposta
+   d. Salva em diagnosticos (tipo: 'manual') + incrementa diagnosticos_mes
+   e. Retorna { diagnostico } ao frontend
+5. Frontend exibe loading com steps animados durante a chamada (~30-60s em produção)
+6. Ao receber resposta, navega para o relatório
+
+Modelos: claude-haiku-4-5-20251001 local (NETLIFY_DEV) · claude-sonnet-4-5 produção
+Timeout: 30s local (limitação netlify-cli) · 120s produção
+```
+
+### Como o Social Listening funciona
+
+```
+1. SocialListening.jsx — botão "Coletar menções"
+2. coletarListening() → POST /.netlify/functions/listening-coletar
+3. Netlify Function faz 8 chamadas PARALELAS ao Anthropic, uma por plataforma:
+   Twitter/X · Instagram · Facebook · TikTok · LinkedIn · Reclame Aqui · Google Reviews · News
+4. Cada chamada: 1 busca focada na plataforma, max_tokens 1024, retorna JSON de eventos
+5. Deduplicação por URL — eventos com URL já existente no workspace são descartados
+6. Eventos novos salvos em listening_events + snapshot em sentiment_snapshots
+7. Frontend recarrega o feed automaticamente
+
+Tempo total em produção: ~15-20s (paralelo) · Timeout: 60s
 ```
 
 **Retry de rate limit:** HTTP 429 → aguarda 65s com countdown visual → até 3 tentativas.

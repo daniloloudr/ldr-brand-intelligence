@@ -104,6 +104,6 @@ export function checkPlano(workspace, feature) {
   const plano = workspace?.plano || 'trial';
   const ordem = ['trial', 'starter', 'pro', 'enterprise'];
   const idx = ordem.indexOf(plano);
-  const req = { 'evolucao': 1, 'listening': 2, 'concorrentes': 2, 'relatorio-mensal': 1 };
+  const req = { 'evolucao': 1, 'listening': 2, 'concorrentes': 1, 'relatorio-mensal': 1 };
   return idx >= (req[feature] ?? 0);
 }

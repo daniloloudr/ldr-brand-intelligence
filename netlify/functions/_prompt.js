@@ -65,44 +65,4 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, sem markdown:
   "porta_entrada_loudr": "Qual prática é a porta de entrada natural e por quê"
 }
 
-REGRAS: scores 1-3 crítico, 4-6 em desenvolvimento, 7-8 sólido, 9-10 referência. Use apenas dados reais.`;
-
-export const DS = {
-  navy:"#0D1B2A", navyMid:"#162840", navyLight:"#1E3550",
-  green:"#0D9E7A", greenDim:"#0B8567", greenPale:"#E1F5EE",
-  pink:"#E8185A", pinkPale:"#FBEAF0",
-  white:"#FFFFFF", offwhite:"#F7F9F8",
-  border:"#E2EBE8", gray:"#8A9AB0", grayLight:"#F0F4F3",
-  text:"#0D1B2A", textMid:"#4A5A6A", textLight:"#8A9AB0",
-  amber:"#EF9F27", amberPale:"#FEF3C7", purple:"#7F77DD",
-};
-
-export const F = "'Cairo', sans-serif";
-
-export const PRATICAS = [
-  { key:"inteligencia_singularidade", label:"Inteligência & Singularidade", sub:"Posicionamento · Arquitetura · Cultura", color:DS.green },
-  { key:"experiencia_expressao",      label:"Experiência & Expressão",      sub:"Identidade · Design · Storytelling",  color:DS.pink },
-  { key:"plataformas_ecossistemas",   label:"Plataformas & Ecossistemas",   sub:"Produto · Digital · Engenharia",      color:DS.purple },
-  { key:"futuro_escala",              label:"Futuro & Escala",              sub:"Data · AI · Growth · Performance",    color:DS.amber },
-];
-
-export const STEPS = [
-  "Buscando site e presença digital",
-  "Analisando LinkedIn, redes e tone of voice",
-  "Pesquisando vagas, Glassdoor e cultura",
-  "Verificando reviews e reputação pública",
-  "Mapeando concorrentes e anúncios ativos",
-  "Aplicando framework Smart Branding",
-  "Gerando diagnóstico das 4 práticas LOUDR",
-];
-
-export const PLANOS = {
-  trial:      { nome:"Trial",      preco:0,    diagnosticos_mes:1, monitor:null,      concorrentes:0,  membros:1,          social_listening:false },
-  starter:    { nome:"Starter",    preco:490,  diagnosticos_mes:1, monitor:"mensal",  concorrentes:5,  membros:1,          social_listening:false },
-  pro:        { nome:"Pro",        preco:1490, diagnosticos_mes:3, monitor:"semanal", concorrentes:5,  membros:3,          social_listening:true  },
-  enterprise: { nome:"Enterprise", preco:3990, diagnosticos_mes:Infinity, monitor:"diario", concorrentes:15, membros:Infinity, social_listening:true },
-};
-
-export const RATE_LIMIT_WAIT = 65;
-export const MAX_RETRIES = 3;
-export const COOLDOWN_ENTRE_APROVACOES = 120;
+REGRAS: scores 1-3 crítico, 4-6 em desenvolvimento, 7-8 sólido, 9-10 referência. Use apenas dados reais.`

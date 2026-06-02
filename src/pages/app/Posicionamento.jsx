@@ -27,11 +27,10 @@ import {
 import { useWorkspace }      from '../../lib/WorkspaceContext'
 import { supabase }          from '../../lib/supabase'
 import { PLANOS }            from '../../lib/constants'
-import { fmtDate, sc, tryParseJSON, checkPlano } from '../../lib/helpers'
-import { runStream }         from '../../lib/api'
-import { RelatorioCompleto } from '../RelatorioCompleto'
-import { StreamingView }     from '../StreamingView'
-import { IdentityGapCard }   from '../../components/intelligence/IdentityGapCard'
+import { fmtDate, sc, checkPlano } from '../../lib/helpers'
+import { gerarDiagnosticoServidor } from '../../lib/api'
+import { RelatorioCompleto }  from '../RelatorioCompleto'
+import { IdentityGapCard }    from '../../components/intelligence/IdentityGapCard'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -119,18 +118,15 @@ function EmptyState({ onGerar }) {
 
 /* ─── form dialog ─────────────────────────────────────────────────────────── */
 
-function FormDialog({ open, onClose, onStart }) {
-  const [empresa, setEmpresa]   = useState('')
+function FormDialog({ open, onClose, onStart, workspace }) {
   const [contexto, setContexto] = useState('')
-  const [err, setErr]           = useState('')
+
+  const empresa = workspace?.dominio || workspace?.nome || ''
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!empresa.trim()) { setErr('Informe a empresa ou domínio.'); return }
-    onStart(empresa.trim(), contexto.trim())
-    setEmpresa('')
+    onStart(contexto.trim())
     setContexto('')
-    setErr('')
   }
 
   return (
@@ -138,24 +134,22 @@ function FormDialog({ open, onClose, onStart }) {
       <DialogTitle sx={{ fontWeight: 900, pb: 0 }}>Novo diagnóstico</DialogTitle>
       <Box component="form" onSubmit={handleSubmit}>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Informe a empresa que deseja analisar. O agent pesquisará até 5 fontes e aplicará
-            o framework Smart Branding da LOUDR.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Diagnóstico para <Box component="strong" sx={{ color: 'text.primary' }}>{workspace?.nome}</Box>
+            {workspace?.dominio ? ` (${workspace.dominio})` : ''}. O agent pesquisará:
           </Typography>
-          {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
-          <TextField
-            label="Empresa ou domínio"
-            placeholder="Ex: nubank.com ou Magazine Luiza"
-            fullWidth required value={empresa}
-            onChange={e => { setEmpresa(e.target.value); setErr('') }}
-            sx={{ mb: 2 }}
-          />
+          <Box component="ul" sx={{ m: 0, mb: 2.5, pl: 2.5, color: 'text.secondary' }}>
+            {['Site oficial e proposta de valor', 'LinkedIn — cultura, vagas e posicionamento', 'Reputação pública — Reviews, Reclame Aqui, Glassdoor', 'Redes sociais e tom de voz', 'Concorrentes diretos e diferenciação'].map(f => (
+              <Box component="li" key={f} sx={{ fontSize: 13, mb: 0.25 }}>{f}</Box>
+            ))}
+          </Box>
           <TextField
             label="Contexto adicional (opcional)"
             placeholder="Ex: startup B2B de logística, principal concorrente é a Loggi"
             fullWidth multiline rows={3}
             value={contexto}
             onChange={e => setContexto(e.target.value)}
+            autoFocus
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
@@ -346,12 +340,22 @@ function SecaoConcorrentes({ workspace }) {
     load()
   }
 
+  async function addSugestao(sugestao) {
+    if (concorrentes.length >= limite) return
+    await supabase.from('concorrentes').insert({ workspace_id: workspace.id, nome: sugestao.nome, dominio: null, ativo: true })
+    load()
+  }
+
   async function removeConcorrente(id) {
     await supabase.from('concorrentes').update({ ativo: false }).eq('id', id)
     setConcorrentes(prev => prev.filter(c => c.id !== id))
   }
 
   function getLastDiag(concId) { return diags.find(d => d.concorrente_id === concId) || null }
+
+  const sugeridos = (workspaceDiag?.data?.concorrentes || []).filter(s =>
+    !concorrentes.some(c => c.nome.toLowerCase() === s.nome.toLowerCase())
+  )
 
   const scatterData = [
     ...(workspaceDiag ? [{ nome: workspace?.nome || 'Minha marca', x: workspaceDiag.score_singularidade || 5, y: workspaceDiag.score_posicionamento || 5, z: 200, cor: '#0D9E7A', isSelf: true }] : []),
@@ -380,17 +384,59 @@ function SecaoConcorrentes({ workspace }) {
         </Button>
       </Box>
 
-      {concorrentes.length === 0 ? (
-        <Card sx={{ p: 5, textAlign: 'center', border: '1px dashed', borderColor: 'divider' }}>
-          <Typography fontWeight={800} mb={1}>Nenhum concorrente adicionado</Typography>
-          <Typography variant="body2" color="text.secondary" mb={3}>
-            Adicione até {limite} concorrentes para comparar scores e mapear o território de mercado.
+      {/* Sugestões do diagnóstico */}
+      {sugeridos.length > 0 && concorrentes.length < limite && (
+        <Paper sx={{ p: 2, mb: 2.5, border: '1px solid', borderColor: 'primary.main', borderRadius: 2, bgcolor: 'rgba(13,158,122,0.04)' }}>
+          <Typography variant="caption" fontWeight={800} color="primary.main" sx={{ display: 'block', mb: 1 }}>
+            Detectados no último diagnóstico — clique para adicionar
           </Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-            Adicionar concorrente
-          </Button>
-        </Card>
-      ) : (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {sugeridos.slice(0, limite - concorrentes.length).map(s => (
+              <Chip
+                key={s.nome}
+                label={s.nome}
+                size="small"
+                variant="outlined"
+                color="primary"
+                icon={<AddIcon />}
+                onClick={() => addSugestao(s)}
+                sx={{ cursor: 'pointer', fontWeight: 700, '& .MuiChip-icon': { fontSize: 14 } }}
+              />
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Slots visuais */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1.5, mb: 3 }}>
+        {concorrentes.map(c => (
+          <Card key={c.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', position: 'relative', minHeight: 64 }}>
+            <IconButton
+              size="small"
+              onClick={() => removeConcorrente(c.id)}
+              sx={{ position: 'absolute', top: 2, right: 2, p: 0.25, color: 'text.disabled', '&:hover': { color: 'error.main' } }}
+            >
+              <DeleteIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+            <Typography fontWeight={800} fontSize={13} noWrap sx={{ pr: 2.5, mt: 0.25 }}>{c.nome}</Typography>
+            {c.dominio && (
+              <Typography variant="caption" color="text.secondary" noWrap display="block">{c.dominio}</Typography>
+            )}
+          </Card>
+        ))}
+        {concorrentes.length < limite && Array.from({ length: limite - concorrentes.length }).map((_, i) => (
+          <Card key={`slot-${i}`} onClick={() => setDialogOpen(true)} sx={{
+            minHeight: 64, border: '1px dashed', borderColor: 'divider',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s',
+            '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(13,158,122,0.04)' },
+          }}>
+            <AddIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+          </Card>
+        ))}
+      </Box>
+
+      {concorrentes.length > 0 && (
         <>
           {/* Territory Map */}
           <Card sx={{ p: 3, border: '1px solid', borderColor: 'divider', mb: 3 }}>
@@ -461,19 +507,6 @@ function SecaoConcorrentes({ workspace }) {
               </Box>
             ))}
           </Card>
-
-          {/* Lista de concorrentes */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {concorrentes.map(c => (
-              <Chip
-                key={c.id}
-                label={c.nome}
-                onDelete={() => removeConcorrente(c.id)}
-                deleteIcon={<DeleteIcon />}
-                sx={{ fontWeight: 700 }}
-              />
-            ))}
-          </Box>
         </>
       )}
 
@@ -497,22 +530,21 @@ function SecaoConcorrentes({ workspace }) {
 /* ─── página principal ────────────────────────────────────────────────────── */
 
 export function Posicionamento() {
-  const { workspace, user } = useWorkspace()
+  const { workspace } = useWorkspace()
 
-  const [estado, setEstado]                 = useState('lista')
-  const [diagnosticos, setDiagnosticos]     = useState([])
-  const [loadingList, setLoadingList]       = useState(true)
-  const [selectedDiag, setSelectedDiag]     = useState(null)
-  const [error, setError]                   = useState('')
-  const [copied, setCopied]                 = useState(false)
-  const [pdfLoading, setPdfLoading]         = useState(false)
-  const [formOpen, setFormOpen]             = useState(false)
+  const [estado, setEstado]         = useState('lista')
+  const [diagnosticos, setDiagnosticos] = useState([])
+  const [loadingList, setLoadingList]   = useState(true)
+  const [selectedDiag, setSelectedDiag] = useState(null)
+  const [error, setError]           = useState('')
+  const [copied, setCopied]         = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [formOpen, setFormOpen]     = useState(false)
 
-  // streaming
-  const [searchSteps, setSearchSteps]                   = useState([])
-  const [partialData, setPartialData]                   = useState(null)
-  const [rateLimitCountdown, setRateLimitCountdown]     = useState(0)
-  const [rateLimitAttempt, setRateLimitAttempt]         = useState(0)
+  // server-side generation state
+  const [gerando, setGerando]         = useState(false)
+  const [gerandoStep, setGerandoStep] = useState(0)
+  const [gerandoErro, setGerandoErro] = useState('')
 
   const fetchDiagnosticos = useCallback(async () => {
     if (!workspace?.id) return
@@ -527,8 +559,15 @@ export function Posicionamento() {
 
   useEffect(() => { fetchDiagnosticos() }, [fetchDiagnosticos])
 
-  const plano           = workspace ? (PLANOS[workspace.plano] || PLANOS.trial) : PLANOS.trial
-  const limiteAtingido  = workspace ? workspace.diagnosticos_mes >= plano.diagnosticos_mes : false
+  // Cycle through search steps while generating
+  useEffect(() => {
+    if (!gerando) return
+    const id = setInterval(() => setGerandoStep(s => s + 1), 8000)
+    return () => clearInterval(id)
+  }, [gerando])
+
+  const plano          = workspace ? (PLANOS[workspace.plano] || PLANOS.trial) : PLANOS.trial
+  const limiteAtingido = workspace ? workspace.diagnosticos_mes >= plano.diagnosticos_mes : false
 
   function abrirForm() {
     if (limiteAtingido) { setError('Limite do plano atingido. Faça upgrade para continuar gerando diagnósticos.'); return }
@@ -536,40 +575,22 @@ export function Posicionamento() {
     setFormOpen(true)
   }
 
-  function iniciarStream(empresa, contexto) {
+  async function iniciar(contexto) {
     setFormOpen(false)
-    setSearchSteps([])
-    setPartialData(null)
-    setRateLimitCountdown(0)
-    setRateLimitAttempt(0)
-    setEstado('streaming')
-
-    runStream({
-      empresa, contexto,
-      onSearchStep: (_count, query) => setSearchSteps(prev => [...prev, query]),
-      onText: (txt) => { const p = tryParseJSON(txt); if (p) setPartialData(p) },
-      onRateLimit: (s, t) => { setRateLimitCountdown(s); setRateLimitAttempt(t) },
-      onDone: async (parsed) => {
-        const { data: diag } = await supabase.from('diagnosticos').insert({
-          workspace_id: workspace.id, user_id: user.id,
-          user_email: user.email,
-          user_name: user.user_metadata?.full_name || user.email.split('@')[0],
-          empresa: parsed.empresa, dominio: parsed.dominio,
-          setor: parsed.setor, porte: parsed.porte,
-          score_singularidade: parsed.score_singularidade,
-          score_consistencia: parsed.score_consistencia,
-          score_posicionamento: parsed.score_posicionamento,
-          frase_diagnostico: parsed.frase_diagnostico,
-          data: parsed, publico: true, tipo: 'manual',
-        }).select().single()
-
-        await supabase.from('workspaces').update({ diagnosticos_mes: workspace.diagnosticos_mes + 1 }).eq('id', workspace.id)
-        await fetchDiagnosticos()
-        setSelectedDiag({ ...diag, data: parsed })
-        setEstado('relatorio')
-      },
-      onError: (msg) => { setError(msg); setEstado('lista') },
-    })
+    setGerandoErro('')
+    setGerandoStep(0)
+    setGerando(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada. Faça login novamente.')
+      const diag = await gerarDiagnosticoServidor({ workspaceId: workspace.id, contexto, token: session.access_token })
+      await fetchDiagnosticos()
+      setSelectedDiag({ ...diag, data: diag.data })
+      setEstado('relatorio')
+      setGerando(false)
+    } catch (e) {
+      setGerandoErro(e.message)
+    }
   }
 
   async function handleShare(diag) {
@@ -598,15 +619,39 @@ export function Posicionamento() {
     )
   }
 
-  if (estado === 'streaming') {
+  if (gerando) {
     return (
-      <Box sx={{ maxWidth: 760, mx: 'auto', px: { xs: 2, md: 4 }, py: 4 }}>
-        <StreamingView
-          searchSteps={searchSteps}
-          partialData={partialData}
-          rateLimitCountdown={rateLimitCountdown}
-          rateLimitAttempt={rateLimitAttempt}
-        />
+      <Box sx={{ maxWidth: 760, mx: 'auto', px: { xs: 2, md: 4 }, py: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textAlign: 'center' }}>
+        {gerandoErro ? (
+          <>
+            <WarningAmberOutlinedIcon sx={{ fontSize: 48, color: 'warning.main' }} />
+            <Box>
+              <Typography variant="h6" fontWeight={900} mb={1}>Erro ao gerar diagnóstico</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400 }}>{gerandoErro}</Typography>
+            </Box>
+            <Button variant="contained" onClick={() => { setGerando(false); setGerandoErro('') }}>
+              Voltar
+            </Button>
+          </>
+        ) : (
+          <>
+            <Box sx={{ position: 'relative', width: 80, height: 80 }}>
+              <CircularProgress size={80} thickness={1.5} color="primary" sx={{ position: 'absolute', top: 0, left: 0 }} />
+              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AssessmentOutlinedIcon sx={{ fontSize: 32, color: 'primary.main', opacity: 0.7 }} />
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h6" fontWeight={900} mb={0.75}>Gerando diagnóstico</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ minHeight: 22 }}>
+                {STEPS[gerandoStep % STEPS.length]}
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.disabled">
+              Pode fechar esta aba com segurança — o diagnóstico continuará no servidor
+            </Typography>
+          </>
+        )}
       </Box>
     )
   }
@@ -745,14 +790,14 @@ export function Posicionamento() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
               <Typography variant="overline" color="text.disabled">Inteligência Competitiva</Typography>
               {!checkPlano(workspace, 'concorrentes') && (
-                <Chip label="Pro+" size="small" sx={{ bgcolor: 'rgba(232,24,90,0.1)', color: '#E8185A', fontWeight: 800, fontSize: '0.6rem', height: 18 }} />
+                <Chip label="Starter+" size="small" sx={{ bgcolor: 'rgba(232,24,90,0.1)', color: '#E8185A', fontWeight: 800, fontSize: '0.6rem', height: 18 }} />
               )}
             </Box>
             {checkPlano(workspace, 'concorrentes') ? (
               <SecaoConcorrentes workspace={workspace} />
             ) : (
               <Paper sx={{ p: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
-                <Typography fontWeight={800} mb={1}>Disponível no plano Pro+</Typography>
+                <Typography fontWeight={800} mb={1}>Disponível no plano Starter+</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Compare sua marca com os principais concorrentes do setor e visualize o território de mercado.
                 </Typography>
@@ -763,7 +808,7 @@ export function Posicionamento() {
       )}
 
       {/* ── Form dialog ── */}
-      <FormDialog open={formOpen} onClose={() => setFormOpen(false)} onStart={iniciarStream} />
+      <FormDialog open={formOpen} onClose={() => setFormOpen(false)} onStart={iniciar} workspace={workspace} />
 
     </Box>
   )

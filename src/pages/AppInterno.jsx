@@ -664,17 +664,22 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 /* ─── WorkspacesAdmin ────────────────────────────────────────────── */
 const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const WS_PORTES  = ["Startup","PME","Médio","Grande"];
+const WS_PLANOS  = ["trial","starter","pro","enterprise"];
+const PLANO_COR  = { enterprise: DS.green, pro: '#9B6DFF', starter: '#EF9F27', trial: null };
 
 function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
-  const [workspaces, setWorkspaces]     = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [showCreate, setShowCreate]     = useState(false);
-  const [showInvite, setShowInvite]     = useState(null); // workspace selecionado
-  const [creating, setCreating]         = useState(false);
-  const [inviting, setInviting]         = useState(false);
-  const [error, setError]              = useState('');
-  const [form, setForm]                 = useState({ nome: '', dominio: '', setor: '', porte: '' });
-  const [inviteEmail, setInviteEmail]   = useState('');
+  const [workspaces, setWorkspaces]       = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [showCreate, setShowCreate]       = useState(false);
+  const [showInvite, setShowInvite]       = useState(null);
+  const [creating, setCreating]           = useState(false);
+  const [inviting, setInviting]           = useState(false);
+  const [error, setError]                 = useState('');
+  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '' });
+  const [inviteEmail, setInviteEmail]     = useState('');
+  const [expandedId, setExpandedId]       = useState(null);
+  const [membersMap, setMembersMap]       = useState({});
+  const [loadingMembers, setLoadingMembers] = useState({});
 
   useEffect(() => { fetchWorkspaces(); }, []);
 
@@ -688,6 +693,42 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
   async function getToken() {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
+  }
+
+  async function changePlano(wsId, plano) {
+    await supabase.from('workspaces').update({ plano }).eq('id', wsId);
+    setWorkspaces(ws => ws.map(w => w.id === wsId ? { ...w, plano } : w));
+  }
+
+  async function toggleAtivo(ws) {
+    const novoAtivo = ws.ativo === false ? true : false;
+    await supabase.from('workspaces').update({ ativo: novoAtivo }).eq('id', ws.id);
+    setWorkspaces(list => list.map(w => w.id === ws.id ? { ...w, ativo: novoAtivo } : w));
+  }
+
+  async function toggleExpanded(wsId) {
+    if (expandedId === wsId) { setExpandedId(null); return; }
+    setExpandedId(wsId);
+    if (membersMap[wsId]) return;
+    setLoadingMembers(l => ({ ...l, [wsId]: true }));
+    const token = await getToken();
+    const res = await fetch(`/.netlify/functions/admin-list-members?workspace_id=${wsId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const json = await res.json();
+    setMembersMap(m => ({ ...m, [wsId]: json.members || [] }));
+    setLoadingMembers(l => ({ ...l, [wsId]: false }));
+  }
+
+  async function removeMember(wsId, memberId) {
+    if (!window.confirm('Remover este membro do workspace?')) return;
+    await supabase.from('workspace_members').delete().eq('id', memberId);
+    setMembersMap(m => ({ ...m, [wsId]: m[wsId].filter(x => x.id !== memberId) }));
+  }
+
+  async function changeMemberRole(wsId, memberId, role) {
+    await supabase.from('workspace_members').update({ role }).eq('id', memberId);
+    setMembersMap(m => ({ ...m, [wsId]: m[wsId].map(x => x.id === memberId ? { ...x, role } : x) }));
   }
 
   async function handleCreate(e) {
@@ -728,9 +769,11 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
     alert(`Convite enviado para ${inviteEmail}`);
   }
 
-  const inp = { fontSize: 13, fontFamily: F, color: C.text, background: C.paper, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
-  const btn = (color = DS.green) => ({ background: color, border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: F });
-  const btnGhost = { background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, color: C.textSec, cursor: 'pointer', fontFamily: F };
+  const inp      = { fontSize: 13, fontFamily: F, color: C.text, background: C.paper, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
+  const inpSm    = { ...inp, padding: '4px 8px', width: 'auto', fontSize: 11 };
+  const btn      = (color = DS.green) => ({ background: color, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: F });
+  const btnGhost = { background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, color: C.textSec, cursor: 'pointer', fontFamily: F };
+  const btnDanger = { background: 'none', border: `1px solid ${DS.pink}44`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: DS.pink, cursor: 'pointer', fontFamily: F };
 
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: C.textDis, fontFamily: F }}>Carregando...</div>;
 
@@ -743,24 +786,108 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
         <button style={btn()} onClick={() => { setShowCreate(true); setError(''); }}>+ Criar workspace</button>
       </div>
 
-      {workspaces.map(ws => (
-        <div key={ws.id} style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 20px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: F }}>{ws.nome}</div>
-              <div style={{ fontSize: 12, color: C.textDis, fontFamily: F, marginTop: 2 }}>
-                {ws.dominio && `${ws.dominio} · `}
-                {ws.setor && `${ws.setor} · `}
-                <span style={{ color: ws.plano === 'enterprise' ? DS.green : ws.plano === 'pro' ? DS.purple : C.textDis, fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{ws.plano}</span>
+      {workspaces.map(ws => {
+        const inativo   = ws.ativo === false;
+        const expanded  = expandedId === ws.id;
+        const members   = membersMap[ws.id] || [];
+        const loadingM  = loadingMembers[ws.id];
+        const planoCor  = PLANO_COR[ws.plano] || C.textDis;
+
+        return (
+          <div key={ws.id} style={{
+            background: C.paper, border: `1px solid ${inativo ? C.border : C.border}`,
+            borderRadius: 10, marginBottom: 10, opacity: inativo ? 0.6 : 1,
+            overflow: 'hidden',
+          }}>
+            {/* ── Linha principal ── */}
+            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: F }}>{ws.nome}</span>
+                  {inativo && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: DS.pink, border: `1px solid ${DS.pink}55`, borderRadius: 4, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      inativo
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: C.textDis, fontFamily: F, marginTop: 2 }}>
+                  {ws.dominio && `${ws.dominio} · `}{ws.setor && `${ws.setor} · `}
+                  criado {new Date(ws.created_at).toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+
+              {/* Plano selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.textDis, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: F }}>Plano</span>
+                <select
+                  value={ws.plano || 'trial'}
+                  onChange={e => changePlano(ws.id, e.target.value)}
+                  style={{ ...inpSm, color: planoCor, fontWeight: 700, borderColor: planoCor + '66' }}
+                >
+                  {WS_PLANOS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              {/* Ações */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button style={btnGhost} onClick={() => toggleExpanded(ws.id)}>
+                  {expanded ? '▲' : '▼'} Membros {expanded && members.length ? `(${members.length})` : ''}
+                </button>
+                <button style={btnGhost} onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>
+                  Convidar
+                </button>
+                <button
+                  style={{ ...btnGhost, color: inativo ? DS.green : DS.amber, borderColor: (inativo ? DS.green : DS.amber) + '55' }}
+                  onClick={() => toggleAtivo(ws)}
+                >
+                  {inativo ? 'Reativar' : 'Inativar'}
+                </button>
+                <button style={btn('#9B6DFF')} onClick={() => onImpersonate?.({ workspaceId: ws.id, workspaceName: ws.nome })}>
+                  Entrar →
+                </button>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button style={btnGhost} onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>Convidar cliente</button>
-              <button style={btn(DS.purple)} onClick={() => onImpersonate?.({ workspaceId: ws.id, workspaceName: ws.nome })}>Entrar como cliente →</button>
-            </div>
+
+            {/* ── Painel de membros ── */}
+            {expanded && (
+              <div style={{ borderTop: `1px solid ${C.border}`, background: isDark ? '#0A1525' : '#F7F9FB', padding: '12px 20px' }}>
+                {loadingM ? (
+                  <div style={{ fontSize: 12, color: C.textDis, fontFamily: F }}>Carregando membros...</div>
+                ) : members.length === 0 ? (
+                  <div style={{ fontSize: 12, color: C.textDis, fontFamily: F }}>Nenhum membro ainda.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {members.map(m => (
+                      <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: C.paper, borderRadius: 8, border: `1px solid ${C.border}` }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: DS.green + '33', color: DS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, fontFamily: F, flexShrink: 0 }}>
+                          {(m.nome || m.email || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {m.nome && <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: F }}>{m.nome}</div>}
+                          <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m.email || `ID: ${m.user_id?.slice(0, 12)}…`}
+                          </div>
+                        </div>
+                        <select
+                          value={m.role}
+                          onChange={e => changeMemberRole(ws.id, m.id, e.target.value)}
+                          style={{ ...inpSm, width: 90 }}
+                        >
+                          <option value="member">member</option>
+                          <option value="admin">admin</option>
+                        </select>
+                        <button style={btnDanger} onClick={() => removeMember(ws.id, m.id)}>Remover</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {workspaces.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem', color: C.textDis, fontFamily: F }}>Nenhum workspace criado ainda.</div>

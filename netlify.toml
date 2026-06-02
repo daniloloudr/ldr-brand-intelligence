@@ -19,3 +19,9 @@
 
 [functions."cron-monitor"]
   schedule = "0 8 * * 1"
+
+[functions."diagnostico-gerar"]
+  timeout = 120
+
+[functions."listening-coletar"]
+  timeout = 60
