@@ -57,8 +57,7 @@ function parseEvents(txt, fonteNome) {
     .filter(e => !isModelDisclaimer(e))
 }
 
-async function coletarFonte(marca, fonte, apiKey, isLocalDev, termos = []) {
-  if (isLocalDev) return []   // sem web_search, Haiku só gera disclaimers — pula em dev local
+async function coletarFonte(marca, fonte, apiKey, termos = []) {
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -117,12 +116,7 @@ export const handler = async (event) => {
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Workspace não encontrado' }) }
 
   const marca = ws.dominio || ws.nome
-  const isLocalDev = !!process.env.NETLIFY_DEV
   const apiKey = process.env.ANTHROPIC_KEY
-
-  if (isLocalDev) {
-    return { statusCode: 200, headers, body: JSON.stringify({ events: [], summary: { positivo_pct: 0, neutro_pct: 0, negativo_pct: 0, total: 0 }, falhas: [], dev: true, message: 'Social Listening requer ambiente de produção (usa web_search).' }) }
-  }
 
   // Termos customizados de busca do workspace
   const { data: termsData } = await supabase.from('listening_terms').select('termo').eq('workspace_id', workspace_id)
@@ -130,7 +124,7 @@ export const handler = async (event) => {
 
   // 8 chamadas paralelas, uma por plataforma
   const resultados = await Promise.allSettled(
-    FONTES.map(f => coletarFonte(marca, f, apiKey, isLocalDev, termos))
+    FONTES.map(f => coletarFonte(marca, f, apiKey, termos))
   )
 
   const fontesFalhas = []

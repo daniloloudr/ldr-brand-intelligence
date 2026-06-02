@@ -200,9 +200,7 @@ export function SocialListening() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Sessão expirada.')
       const result = await coletarListening({ workspaceId: workspace.id, token: session.access_token })
-      if (result?.dev) {
-        setCollectWarn(result.message)
-      } else if (result?.falhas?.length) {
+      if (result?.falhas?.length) {
         setCollectWarn(`Falha ao buscar em ${result.falhas.length} fonte(s): ${result.falhas.join(', ')}. Os demais dados foram coletados normalmente.`)
       }
       load()
