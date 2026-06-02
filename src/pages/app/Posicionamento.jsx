@@ -18,6 +18,8 @@ import DeleteIcon                from '@mui/icons-material/Delete'
 import TrendingUpIcon            from '@mui/icons-material/TrendingUp'
 import TrendingDownIcon          from '@mui/icons-material/TrendingDown'
 import CheckIcon                 from '@mui/icons-material/Check'
+import ErrorOutlineIcon          from '@mui/icons-material/ErrorOutline'
+import LightbulbOutlinedIcon     from '@mui/icons-material/LightbulbOutlined'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartTooltip, Legend, ResponsiveContainer,
@@ -353,9 +355,23 @@ function SecaoConcorrentes({ workspace }) {
 
   function getLastDiag(concId) { return diags.find(d => d.concorrente_id === concId) || null }
 
+  function getIntel(nome) {
+    const lista = workspaceDiag?.data?.concorrentes || []
+    return lista.find(c =>
+      c.nome?.toLowerCase().includes(nome.toLowerCase()) ||
+      nome.toLowerCase().includes(c.nome?.toLowerCase())
+    ) || null
+  }
+
   const sugeridos = (workspaceDiag?.data?.concorrentes || []).filter(s =>
     !concorrentes.some(c => c.nome.toLowerCase() === s.nome.toLowerCase())
   )
+
+  const AMEACA_CFG = {
+    alta:   { label: 'Alta',   color: '#E8185A', bg: 'rgba(232,24,90,0.1)'   },
+    media:  { label: 'Média',  color: '#EF9F27', bg: 'rgba(239,159,39,0.1)'  },
+    baixa:  { label: 'Baixa',  color: '#0D9E7A', bg: 'rgba(13,158,122,0.1)'  },
+  }
 
   const scatterData = [
     ...(workspaceDiag ? [{ nome: workspace?.nome || 'Minha marca', x: workspaceDiag.score_singularidade || 5, y: workspaceDiag.score_posicionamento || 5, z: 200, cor: '#0D9E7A', isSelf: true }] : []),
@@ -408,22 +424,36 @@ function SecaoConcorrentes({ workspace }) {
       )}
 
       {/* Slots visuais */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1.5, mb: 3 }}>
-        {concorrentes.map(c => (
-          <Card key={c.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', position: 'relative', minHeight: 64 }}>
-            <IconButton
-              size="small"
-              onClick={() => removeConcorrente(c.id)}
-              sx={{ position: 'absolute', top: 2, right: 2, p: 0.25, color: 'text.disabled', '&:hover': { color: 'error.main' } }}
-            >
-              <DeleteIcon sx={{ fontSize: 14 }} />
-            </IconButton>
-            <Typography fontWeight={800} fontSize={13} noWrap sx={{ pr: 2.5, mt: 0.25 }}>{c.nome}</Typography>
-            {c.dominio && (
-              <Typography variant="caption" color="text.secondary" noWrap display="block">{c.dominio}</Typography>
-            )}
-          </Card>
-        ))}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1.5, mb: 3 }}>
+        {concorrentes.map(c => {
+          const intel = getIntel(c.nome)
+          const ameacaCfg = intel?.ameaca ? AMEACA_CFG[intel.ameaca] : null
+          return (
+            <Card key={c.id} sx={{ p: 1.5, border: '1px solid', borderColor: ameacaCfg ? ameacaCfg.color + '55' : 'divider', position: 'relative', minHeight: 80 }}>
+              <IconButton
+                size="small"
+                onClick={() => removeConcorrente(c.id)}
+                sx={{ position: 'absolute', top: 2, right: 2, p: 0.25, color: 'text.disabled', '&:hover': { color: 'error.main' } }}
+              >
+                <DeleteIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+              <Typography fontWeight={800} fontSize={13} noWrap sx={{ pr: 2.5, mt: 0.25 }}>{c.nome}</Typography>
+              {c.dominio && (
+                <Typography variant="caption" color="text.secondary" noWrap display="block">{c.dominio}</Typography>
+              )}
+              {ameacaCfg && (
+                <Chip label={`Ameaça ${ameacaCfg.label}`} size="small"
+                  sx={{ mt: 0.75, height: 16, fontSize: '0.58rem', fontWeight: 800, bgcolor: ameacaCfg.bg, color: ameacaCfg.color }} />
+              )}
+              {intel?.diferencial && (
+                <Typography variant="caption" color="text.secondary" display="block" mt={0.5}
+                  sx={{ fontSize: '0.65rem', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                  {intel.diferencial}
+                </Typography>
+              )}
+            </Card>
+          )
+        })}
         {concorrentes.length < limite && Array.from({ length: limite - concorrentes.length }).map((_, i) => (
           <Card key={`slot-${i}`} onClick={() => setDialogOpen(true)} sx={{
             minHeight: 64, border: '1px dashed', borderColor: 'divider',
@@ -507,6 +537,78 @@ function SecaoConcorrentes({ workspace }) {
               </Box>
             ))}
           </Card>
+
+          {/* Inteligência Competitiva — dados do último diagnóstico */}
+          {(() => {
+            const matched   = concorrentes.map(c => ({ concorrente: c, intel: getIntel(c.nome) })).filter(x => x.intel)
+            const opsConcorrentes = (workspaceDiag?.data?.oportunidades || []).filter(o =>
+              o.impacto === 'alto' || o.pratica_loudr === 'inteligencia_singularidade'
+            ).slice(0, 3)
+            if (!matched.length && !opsConcorrentes.length) return null
+            return (
+              <>
+                {matched.length > 0 && (
+                  <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+                    <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ErrorOutlineIcon sx={{ fontSize: 18, color: 'warning.main' }} />
+                      <Typography variant="overline" color="text.disabled">Ameaças & Movimentos Recentes</Typography>
+                    </Box>
+                    {[...matched].sort((a, b) => {
+                      const ord = { alta: 0, media: 1, baixa: 2 }
+                      return (ord[a.intel?.ameaca] ?? 3) - (ord[b.intel?.ameaca] ?? 3)
+                    }).map(({ concorrente: c, intel }) => {
+                      const cfg = AMEACA_CFG[intel.ameaca] || AMEACA_CFG.baixa
+                      return (
+                        <Box key={c.id} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography fontWeight={800} fontSize={13}>{c.nome}</Typography>
+                            <Chip label={`Ameaça ${cfg.label}`} size="small"
+                              sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: cfg.bg, color: cfg.color }} />
+                          </Box>
+                          {intel.diferencial && (
+                            <Typography variant="caption" color="text.secondary" display="block" mb={0.4}>
+                              <strong>Diferencial:</strong> {intel.diferencial}
+                            </Typography>
+                          )}
+                          {intel.sinal && (
+                            <Typography variant="caption" sx={{ color: cfg.color, fontWeight: 600 }}>
+                              ↗ {intel.sinal}
+                            </Typography>
+                          )}
+                        </Box>
+                      )
+                    })}
+                  </Card>
+                )}
+
+                {opsConcorrentes.length > 0 && (
+                  <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+                    <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LightbulbOutlinedIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                      <Typography variant="overline" color="text.disabled">Oportunidades Competitivas</Typography>
+                    </Box>
+                    {opsConcorrentes.map((op, i) => (
+                      <Box key={i} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <Typography fontWeight={800} fontSize={13}>{op.titulo}</Typography>
+                          {op.impacto && (
+                            <Chip label={op.impacto} size="small"
+                              sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800,
+                                bgcolor: op.impacto === 'alto' ? 'rgba(13,158,122,0.1)' : 'rgba(239,159,39,0.1)',
+                                color:   op.impacto === 'alto' ? '#0D9E7A' : '#EF9F27' }} />
+                          )}
+                          {op.prazo && (
+                            <Typography variant="caption" color="text.disabled">{op.prazo}</Typography>
+                          )}
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">{op.descricao}</Typography>
+                      </Box>
+                    ))}
+                  </Card>
+                )}
+              </>
+            )
+          })()}
         </>
       )}
 

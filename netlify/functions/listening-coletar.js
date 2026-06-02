@@ -17,8 +17,9 @@ const FONTES = [
   { nome: 'News',           hint: 'notícias artigos recentes' },
 ]
 
-function buildPrompt(marca, fonte) {
-  return `Pesquise menções recentes de "${marca}" em ${fonte.nome} (${fonte.hint}).
+function buildPrompt(marca, fonte, termos) {
+  const extra = termos.length ? ` e dos termos: ${termos.map(t => `"${t}"`).join(', ')}` : ''
+  return `Pesquise menções recentes de "${marca}"${extra} em ${fonte.nome} (${fonte.hint}).
 Retorne APENAS JSON, sem markdown:
 {"events":[{"titulo":"<80chars>","conteudo":"<300chars>","fonte":"${fonte.nome}","sentiment":"positivo|neutro|negativo","score_impacto":<1-10>,"url":"https://...ou null"}]}`
 }
@@ -39,7 +40,7 @@ function parseEvents(txt, fonteNome) {
   return (events || []).map(e => ({ ...e, fonte: e.fonte || fonteNome }))
 }
 
-async function coletarFonte(marca, fonte, apiKey, isLocalDev) {
+async function coletarFonte(marca, fonte, apiKey, isLocalDev, termos = []) {
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -52,7 +53,7 @@ async function coletarFonte(marca, fonte, apiKey, isLocalDev) {
         model:      isLocalDev ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-5',
         max_tokens: 1024,
         ...(isLocalDev ? {} : { tools: [{ type: 'web_search_20250305', name: 'web_search' }] }),
-        messages: [{ role: 'user', content: buildPrompt(marca, fonte) }],
+        messages: [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
       }),
     })
     if (!resp.ok) return []
@@ -101,9 +102,13 @@ export const handler = async (event) => {
   const isLocalDev = !!process.env.NETLIFY_DEV
   const apiKey = process.env.ANTHROPIC_KEY
 
+  // Termos customizados de busca do workspace
+  const { data: termsData } = await supabase.from('listening_terms').select('termo').eq('workspace_id', workspace_id)
+  const termos = (termsData || []).map(t => t.termo).filter(Boolean)
+
   // 8 chamadas paralelas, uma por plataforma
   const resultados = await Promise.allSettled(
-    FONTES.map(f => coletarFonte(marca, f, apiKey, isLocalDev))
+    FONTES.map(f => coletarFonte(marca, f, apiKey, isLocalDev, termos))
   )
   const todosEvents = resultados
     .filter(r => r.status === 'fulfilled')

@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box, Typography, Card, CircularProgress, Chip, Paper, Button, Alert,
   ToggleButtonGroup, ToggleButton, MenuItem, Select, FormControl, InputLabel,
+  TextField, IconButton,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import AddIcon from '@mui/icons-material/Add'
+import CloseIcon from '@mui/icons-material/Close'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt'
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral'
@@ -15,6 +18,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
 import { coletarListening } from '../../lib/api'
+import { PLANOS } from '../../lib/constants'
 
 const PERIODOS = [
   { label: '7 dias',  value: '7d',  days: 7  },
@@ -106,20 +110,49 @@ function EventRow({ ev }) {
 
 export function SocialListening() {
   const { workspace } = useWorkspace()
-  const [loading, setLoading]         = useState(true)
-  const [snapshots, setSnapshots]     = useState([])
-  const [events, setEvents]           = useState([])
-  const [periodo, setPeriodo]         = useState('30d')
-  const [filtroFonte, setFiltroFonte] = useState('todas')
-  const [filtroSent, setFiltroSent]   = useState('todos')
-  const [collecting, setCollecting]   = useState(false)
-  const [collectStep, setCollectStep] = useState('')
-  const [collectError, setCollectError] = useState('')
+  const [loading, setLoading]             = useState(true)
+  const [snapshots, setSnapshots]         = useState([])
+  const [events, setEvents]               = useState([])
+  const [periodo, setPeriodo]             = useState('30d')
+  const [filtroFonte, setFiltroFonte]     = useState('todas')
+  const [filtroSent, setFiltroSent]       = useState('todos')
+  const [collecting, setCollecting]       = useState(false)
+  const [collectStep, setCollectStep]     = useState('')
+  const [collectError, setCollectError]   = useState('')
+  const [termos, setTermos]               = useState([])
+  const [novoTermo, setNovoTermo]         = useState('')
+  const [savingTermo, setSavingTermo]     = useState(false)
+  const inputRef                          = useRef(null)
+
+  const plano          = PLANOS[workspace?.plano] || PLANOS.trial
+  const limiteTermos   = plano.termos_listening || 0
+  const temListening   = plano.social_listening || false
 
   useEffect(() => {
     if (!workspace?.id) return
     load()
+    loadTermos()
   }, [workspace?.id, periodo])
+
+  async function loadTermos() {
+    const { data } = await supabase.from('listening_terms').select('*').eq('workspace_id', workspace.id).order('created_at')
+    setTermos(data || [])
+  }
+
+  async function addTermo() {
+    const t = novoTermo.trim()
+    if (!t || termos.length >= limiteTermos) return
+    setSavingTermo(true)
+    await supabase.from('listening_terms').insert({ workspace_id: workspace.id, termo: t })
+    setNovoTermo('')
+    setSavingTermo(false)
+    loadTermos()
+  }
+
+  async function removeTermo(id) {
+    await supabase.from('listening_terms').delete().eq('id', id)
+    setTermos(prev => prev.filter(t => t.id !== id))
+  }
 
   async function load() {
     setLoading(true)
@@ -224,6 +257,52 @@ export function SocialListening() {
           {collecting ? (collectStep || 'Coletando...') : 'Coletar menções'}
         </Button>
       </Box>
+
+      {/* Termos monitorados */}
+      {temListening && (
+        <Card sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Box>
+              <Typography variant="overline" color="text.disabled" display="block" lineHeight={1.2}>
+                Termos monitorados
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Incluídos em todas as buscas junto com a sua marca · {termos.length}/{limiteTermos} termos
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: termos.length ? 1.5 : 0 }}>
+            {termos.map(t => (
+              <Chip
+                key={t.id}
+                label={t.termo}
+                size="small"
+                onDelete={() => removeTermo(t.id)}
+                deleteIcon={<CloseIcon />}
+                sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+              />
+            ))}
+          </Box>
+          {termos.length < limiteTermos && (
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField
+                inputRef={inputRef}
+                size="small"
+                placeholder='Ex: "produto X", "CEO nome", "#hashtag"'
+                value={novoTermo}
+                onChange={e => setNovoTermo(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTermo() } }}
+                sx={{ flex: 1, maxWidth: 360, '& .MuiInputBase-input': { fontSize: 13 } }}
+                disabled={savingTermo}
+              />
+              <IconButton size="small" onClick={addTermo} disabled={!novoTermo.trim() || savingTermo} color="primary"
+                sx={{ border: '1px solid', borderColor: 'primary.main', borderRadius: 1.5 }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+        </Card>
+      )}
 
       {collectError && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCollectError('')}>

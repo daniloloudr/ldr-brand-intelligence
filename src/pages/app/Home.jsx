@@ -225,7 +225,7 @@ export function Home() {
     ])
     setDiag(d ?? null)
     setAlertas(a ?? [])
-    if (s) setSentimento({ positivo: Math.round((s.avg_positivo ?? 0) * 100), neutro: Math.round((s.avg_neutro ?? 0) * 100), negativo: Math.round((s.avg_negativo ?? 0) * 100) })
+    if (s) setSentimento({ positivo: Math.round(s.avg_positivo ?? 0), neutro: Math.round(s.avg_neutro ?? 0), negativo: Math.round(s.avg_negativo ?? 0) })
     setLoading(false)
   }, [workspace?.id])
 
