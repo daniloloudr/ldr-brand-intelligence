@@ -7,6 +7,7 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt'
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral'
@@ -84,7 +85,23 @@ function EventRow({ ev }) {
       <Icon sx={{ color: cfg.color, fontSize: 20, mt: 0.25, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4, flexWrap: 'wrap' }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{ev.titulo}</Typography>
+          {ev.url ? (
+            <Typography
+              component="a"
+              href={ev.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                fontSize: 13, fontWeight: 700, color: 'text.primary',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+              }}
+            >
+              {ev.titulo}
+            </Typography>
+          ) : (
+            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{ev.titulo}</Typography>
+          )}
           {ev.fonte && (
             <Chip label={ev.fonte} size="small"
               sx={{ height: 16, fontSize: '0.6rem', fontWeight: 700 }} />
@@ -95,11 +112,28 @@ function EventRow({ ev }) {
             {ev.conteudo.length > 200 ? ev.conteudo.slice(0, 200) + '…' : ev.conteudo}
           </Typography>
         )}
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="caption" color="text.disabled">{fmtDate(ev.created_at)}</Typography>
           {ev.score_impacto != null && (
             <Typography variant="caption" sx={{ color: cfg.color, fontWeight: 700 }}>
               Impacto {ev.score_impacto}/10
+            </Typography>
+          )}
+          {ev.url && (
+            <Typography
+              component="a"
+              href={ev.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="caption"
+              sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.3,
+                color: 'text.disabled', textDecoration: 'none', ml: 'auto',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              <OpenInNewIcon sx={{ fontSize: 11 }} />
+              Ver fonte
             </Typography>
           )}
         </Box>
