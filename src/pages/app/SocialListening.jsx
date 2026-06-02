@@ -116,9 +116,11 @@ export function SocialListening() {
   const [periodo, setPeriodo]             = useState('30d')
   const [filtroFonte, setFiltroFonte]     = useState('todas')
   const [filtroSent, setFiltroSent]       = useState('todos')
+  const [loadError, setLoadError]         = useState('')
   const [collecting, setCollecting]       = useState(false)
   const [collectStep, setCollectStep]     = useState('')
   const [collectError, setCollectError]   = useState('')
+  const [collectWarn, setCollectWarn]     = useState('')
   const [termos, setTermos]               = useState([])
   const [novoTermo, setNovoTermo]         = useState('')
   const [savingTermo, setSavingTermo]     = useState(false)
@@ -156,40 +158,51 @@ export function SocialListening() {
 
   async function load() {
     setLoading(true)
-    const days  = PERIODOS.find(p => p.value === periodo)?.days || 30
-    const since = new Date()
-    since.setDate(since.getDate() - days)
-    const sinceISO  = since.toISOString()
-    const sinceDate = sinceISO.split('T')[0]
+    setLoadError('')
+    try {
+      const days  = PERIODOS.find(p => p.value === periodo)?.days || 30
+      const since = new Date()
+      since.setDate(since.getDate() - days)
+      const sinceISO  = since.toISOString()
+      const sinceDate = sinceISO.split('T')[0]
 
-    const [{ data: snaps }, { data: evs }] = await Promise.all([
-      supabase
-        .from('sentiment_snapshots')
-        .select('*')
-        .eq('workspace_id', workspace.id)
-        .gte('data', sinceDate)
-        .order('data', { ascending: true }),
-      supabase
-        .from('listening_events')
-        .select('*')
-        .eq('workspace_id', workspace.id)
-        .gte('created_at', sinceISO)
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ])
-    setSnapshots(snaps || [])
-    setEvents(evs || [])
-    setLoading(false)
+      const [{ data: snaps, error: e1 }, { data: evs, error: e2 }] = await Promise.all([
+        supabase
+          .from('sentiment_snapshots')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .gte('data', sinceDate)
+          .order('data', { ascending: true }),
+        supabase
+          .from('listening_events')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .gte('created_at', sinceISO)
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ])
+      if (e1 || e2) throw new Error((e1 || e2).message)
+      setSnapshots(snaps || [])
+      setEvents(evs || [])
+    } catch (e) {
+      setLoadError('Erro ao carregar os dados. Verifique sua conexão e tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleCollect() {
     setCollecting(true)
     setCollectError('')
+    setCollectWarn('')
     setCollectStep('Coletando menções...')
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Sessão expirada.')
-      await coletarListening({ workspaceId: workspace.id, token: session.access_token })
+      const result = await coletarListening({ workspaceId: workspace.id, token: session.access_token })
+      if (result?.falhas?.length) {
+        setCollectWarn(`Falha ao buscar em ${result.falhas.length} fonte(s): ${result.falhas.join(', ')}. Os demais dados foram coletados normalmente.`)
+      }
       load()
     } catch (e) {
       setCollectError(e.message)
@@ -304,9 +317,21 @@ export function SocialListening() {
         </Card>
       )}
 
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setLoadError('')}>
+          {loadError}
+        </Alert>
+      )}
+
       {collectError && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCollectError('')}>
           {collectError}
+        </Alert>
+      )}
+
+      {collectWarn && (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCollectWarn('')}>
+          {collectWarn}
         </Alert>
       )}
 

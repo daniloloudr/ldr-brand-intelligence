@@ -8,6 +8,7 @@ import Chip           from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import LinearProgress from '@mui/material/LinearProgress'
 import Divider        from '@mui/material/Divider'
+import Alert          from '@mui/material/Alert'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -211,6 +212,7 @@ function SectionTitle({ children }) {
 export function Home() {
   const { workspace }         = useWorkspace()
   const [loading, setLoading]       = useState(true)
+  const [loadError, setLoadError]   = useState('')
   const [diag, setDiag]             = useState(null)
   const [alertas, setAlertas]       = useState([])
   const [sentimento, setSentimento] = useState(null)
@@ -218,15 +220,24 @@ export function Home() {
   const load = useCallback(async () => {
     if (!workspace?.id) return
     setLoading(true)
-    const [{ data: d }, { data: a }, { data: s }] = await Promise.all([
-      supabase.from('diagnosticos').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
-      supabase.from('alertas').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(5),
-      supabase.from('sentiment_snapshots').select('avg_positivo,avg_neutro,avg_negativo').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
-    ])
-    setDiag(d ?? null)
-    setAlertas(a ?? [])
-    if (s) setSentimento({ positivo: Math.round(s.avg_positivo ?? 0), neutro: Math.round(s.avg_neutro ?? 0), negativo: Math.round(s.avg_negativo ?? 0) })
-    setLoading(false)
+    setLoadError('')
+    try {
+      const [{ data: d, error: e1 }, { data: a, error: e2 }, { data: s, error: e3 }] = await Promise.all([
+        supabase.from('diagnosticos').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
+        supabase.from('alertas').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(5),
+        supabase.from('sentiment_snapshots').select('avg_positivo,avg_neutro,avg_negativo').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
+      ])
+      // PGRST116 = no rows found from .single() — expected when no data exists yet
+      const realErr = [e1, e2, e3].find(e => e && e.code !== 'PGRST116')
+      if (realErr) throw new Error(realErr.message)
+      setDiag(d ?? null)
+      setAlertas(a ?? [])
+      if (s) setSentimento({ positivo: Math.round(s.avg_positivo ?? 0), neutro: Math.round(s.avg_neutro ?? 0), negativo: Math.round(s.avg_negativo ?? 0) })
+    } catch (e) {
+      setLoadError('Erro ao carregar o dashboard. Verifique sua conexão e tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }, [workspace?.id])
 
   useEffect(() => { load() }, [load])
@@ -253,6 +264,12 @@ export function Home() {
         Plano {planoNome}
         {diag ? ` · último diagnóstico ${fmtDate(diag.created_at)}` : ' · nenhum diagnóstico gerado'}
       </Typography>
+
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setLoadError('')}>
+          {loadError}
+        </Alert>
+      )}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>

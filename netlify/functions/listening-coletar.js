@@ -58,12 +58,12 @@ async function coletarFonte(marca, fonte, apiKey, isLocalDev, termos = []) {
         messages: [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
       }),
     })
-    if (!resp.ok) return []
+    if (!resp.ok) return null
     const data = await resp.json()
     const text = data.content?.find(b => b.type === 'text')?.text || ''
     return parseEvents(text, fonte.nome)
   } catch {
-    return []
+    return null
   }
 }
 
@@ -112,12 +112,19 @@ export const handler = async (event) => {
   const resultados = await Promise.allSettled(
     FONTES.map(f => coletarFonte(marca, f, apiKey, isLocalDev, termos))
   )
-  const todosEvents = resultados
-    .filter(r => r.status === 'fulfilled')
-    .flatMap(r => r.value)
 
-  if (!todosEvents.length) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Nenhuma menção coletada.' }) }
+  const fontesFalhas = []
+  const todosEvents = []
+  resultados.forEach((r, i) => {
+    if (r.status === 'rejected' || r.value === null) {
+      fontesFalhas.push(FONTES[i].nome)
+    } else {
+      todosEvents.push(...r.value)
+    }
+  })
+
+  if (!todosEvents.length && fontesFalhas.length === FONTES.length) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Falha ao acessar a API de busca. Tente novamente.' }) }
   }
 
   // Deduplicação por URL
@@ -183,6 +190,7 @@ export const handler = async (event) => {
       events:     eventsToInsert,
       summary,
       duplicatas: todosEvents.length - eventsToInsert.length,
+      falhas:     fontesFalhas,
     }),
   }
 }
