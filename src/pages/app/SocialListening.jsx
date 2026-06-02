@@ -34,7 +34,8 @@ const SENT_CFG = {
 }
 
 function fmtCurta(iso) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  // Append T12:00:00 to avoid UTC midnight being shifted to previous day in UTC-3
+  return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
 function CustomTooltip({ active, payload, label }) {
