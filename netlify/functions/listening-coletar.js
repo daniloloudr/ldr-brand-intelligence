@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { callAI, MODELS, TOOLS, extractJSON } from './_ai.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -57,36 +58,19 @@ function parseEvents(txt, fonteNome) {
     .filter(e => !isModelDisclaimer(e))
 }
 
-async function coletarFonte(marca, fonte, apiKey, termos = [], attempt = 0) {
+async function coletarFonte(marca, fonte, termos = []) {
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-5',
-        max_tokens: 1024,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
-      }),
+    const { text } = await callAI({
+      model:     MODELS.smart,
+      maxTokens: 1024,
+      tools:     [TOOLS.webSearch],
+      messages:  [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
+      retries:   1,
+      retryDelay: 3000,
     })
-    if (resp.status === 429 && attempt === 0) {
-      await new Promise(r => setTimeout(r, 3000))
-      return coletarFonte(marca, fonte, apiKey, termos, 1)
-    }
-    if (!resp.ok) {
-      const errBody = await resp.json().catch(() => ({}))
-      console.error(`[listening] ${fonte.nome} HTTP ${resp.status}:`, JSON.stringify(errBody))
-      return null
-    }
-    const data = await resp.json()
-    const text = data.content?.find(b => b.type === 'text')?.text || ''
     return parseEvents(text, fonte.nome)
   } catch (e) {
-    console.error(`[listening] ${fonte.nome} exception:`, e.message)
+    console.error(`[listening] ${fonte.nome}:`, e.message)
     return null
   }
 }
@@ -125,7 +109,6 @@ export const handler = async (event) => {
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Workspace não encontrado' }) }
 
   const marca = ws.dominio || ws.nome
-  const apiKey = process.env.ANTHROPIC_KEY
 
   // Termos customizados de busca do workspace
   const { data: termsData } = await supabase.from('listening_terms').select('termo').eq('workspace_id', workspace_id)
@@ -141,7 +124,7 @@ export const handler = async (event) => {
   const resultados = await Promise.allSettled(
     FONTES.map((f, i) =>
       new Promise(r => setTimeout(r, i * staggerMs))
-        .then(() => withDeadline(coletarFonte(marca, f, apiKey, termos), callTimeoutMs - i * staggerMs))
+        .then(() => withDeadline(coletarFonte(marca, f, termos), callTimeoutMs - i * staggerMs))
     )
   )
 

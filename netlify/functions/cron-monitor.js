@@ -1,41 +1,27 @@
 import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
+import { callAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
 
 // Scheduled: toda segunda-feira às 8h (configurado em netlify.toml)
 // Gera diagnóstico automático para workspaces com monitor ativo
 
 async function gerarDiagnostico(empresa, contexto) {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: process.env.NETLIFY_DEV ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-5',
-      max_tokens: process.env.NETLIFY_DEV ? 3000 : 5500,
-      system: SYSTEM_PROMPT,
-      ...(process.env.NETLIFY_DEV ? {} : { tools: [{ type: 'web_search_20250305', name: 'web_search' }] }),
-      messages: [{
-        role: 'user',
-        content: `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`,
-      }],
-    }),
+  const dev = isDev()
+  const { text } = await callAI({
+    model:     dev ? MODELS.fast : MODELS.smart,
+    maxTokens: dev ? 3000 : 5500,
+    system:    SYSTEM_PROMPT,
+    tools:     dev ? [] : [TOOLS.webSearch],
+    messages:  [{
+      role:    'user',
+      content: `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`,
+    }],
   })
 
-  if (!resp.ok) throw new Error(`Anthropic API error: ${resp.status}`)
-
-  const result = await resp.json()
-  const textBlock = result.content?.find(b => b.type === 'text')
-  if (!textBlock?.text) throw new Error('Sem resposta de texto da Anthropic')
-
-  const txt = textBlock.text.trim()
-  const j0 = txt.indexOf('{')
-  const j1 = txt.lastIndexOf('}')
-  if (j0 < 0 || j1 <= j0) throw new Error('JSON não encontrado na resposta')
-
-  return JSON.parse(txt.slice(j0, j1 + 1))
+  if (!text) throw new Error('Sem resposta de texto da API')
+  const parsed = extractJSON(text)
+  if (!parsed) throw new Error('JSON não encontrado na resposta')
+  return parsed
 }
 
 export async function handler(event) {

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
+import { streamAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -40,65 +41,27 @@ export const handler = async (event) => {
     .single()
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Workspace não encontrado' }) }
 
-  const empresa = ws.dominio || ws.nome
-  const msg = JSON.stringify(contexto ? { empresa, contexto } : { empresa })
+  const empresa  = ws.dominio || ws.nome
+  const dev      = isDev()
+  const msgText  = `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`
 
-  // Streaming para caber no timeout local (30s netlify dev) — coleta SSE server-side
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: process.env.NETLIFY_DEV ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-5',
-      max_tokens: process.env.NETLIFY_DEV ? 2048 : 4000,
-      stream: true,
-      system: SYSTEM_PROMPT,
-      ...(process.env.NETLIFY_DEV ? {} : { tools: [{ type: 'web_search_20250305', name: 'web_search' }] }),
-      messages: [{ role: 'user', content: msg }],
-    }),
-  })
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}))
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err?.error?.message || `Anthropic ${resp.status}` }) }
-  }
-
-  // Coleta os text_delta do stream
-  const reader  = resp.body.getReader()
-  const decoder = new TextDecoder()
-  let buf = '', fullText = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
-    const lines = buf.split('\n')
-    buf = lines.pop()
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const raw = line.slice(6).trim()
-      if (raw === '[DONE]') continue
-      let evt
-      try { evt = JSON.parse(raw) } catch { continue }
-      if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-        fullText += evt.delta.text || ''
-      }
-    }
+  let fullText
+  try {
+    fullText = await streamAI({
+      model:     dev ? MODELS.fast : MODELS.smart,
+      maxTokens: dev ? 2048 : 4000,
+      system:    SYSTEM_PROMPT,
+      tools:     dev ? [] : [TOOLS.webSearch],
+      messages:  [{ role: 'user', content: msgText }],
+    })
+  } catch (e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) }
   }
 
   if (!fullText) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Sem resposta do agente' }) }
 
-  const j0 = fullText.indexOf('{')
-  const j1 = fullText.lastIndexOf('}')
-  if (j0 < 0 || j1 <= j0) return { statusCode: 500, headers, body: JSON.stringify({ error: 'JSON não encontrado na resposta' }) }
-
-  let parsed
-  try { parsed = JSON.parse(fullText.slice(j0, j1 + 1)) } catch {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erro ao parsear diagnóstico' }) }
-  }
+  const parsed = extractJSON(fullText)
+  if (!parsed) return { statusCode: 500, headers, body: JSON.stringify({ error: 'JSON não encontrado na resposta' }) }
 
   const { data: diag, error: diagErr } = await supabase
     .from('diagnosticos')
