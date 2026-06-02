@@ -150,6 +150,7 @@ export function SocialListening() {
   const [periodo, setPeriodo]             = useState('30d')
   const [filtroFonte, setFiltroFonte]     = useState('todas')
   const [filtroSent, setFiltroSent]       = useState('todos')
+  const [filtroTopico, setFiltroTopico]   = useState(null)
   const [loadError, setLoadError]         = useState('')
   const [collecting, setCollecting]       = useState(false)
   const [collectStep, setCollectStep]     = useState('')
@@ -261,9 +262,10 @@ export function SocialListening() {
   const fontes = ['todas', ...new Set(events.map(e => e.fonte).filter(Boolean))]
 
   const evtFiltrados = events.filter(e => {
-    const okFonte = filtroFonte === 'todas' || e.fonte === filtroFonte
-    const okSent  = filtroSent  === 'todos' || e.sentiment === filtroSent
-    return okFonte && okSent
+    const okFonte   = filtroFonte  === 'todas' || e.fonte === filtroFonte
+    const okSent    = filtroSent   === 'todos' || e.sentiment === filtroSent
+    const okTopico  = !filtroTopico || (`${e.titulo || ''} ${e.conteudo || ''}`).toLowerCase().includes(filtroTopico)
+    return okFonte && okSent && okTopico
   })
 
   const topicos = (() => {
@@ -428,21 +430,40 @@ export function SocialListening() {
           {/* Tópicos em alta */}
           {topicos.length > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="overline" color="text.disabled" display="block" mb={1}>
-                Tópicos em alta — Trend Discovery
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {topicos.map(([word, count]) => (
-                  <Chip key={word}
-                    label={`${word} (${count})`}
-                    icon={<TrendingUpIcon />}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="overline" color="text.disabled">
+                  Tópicos em alta — Trend Discovery
+                </Typography>
+                {filtroTopico && (
+                  <Chip
+                    label="Limpar filtro"
                     size="small"
-                    sx={{
-                      bgcolor: 'rgba(13,158,122,0.08)', color: 'primary.main', fontWeight: 700,
-                      '& .MuiChip-icon': { color: 'primary.main', fontSize: 14 },
-                    }}
+                    onDelete={() => setFiltroTopico(null)}
+                    deleteIcon={<CloseIcon />}
+                    sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }}
                   />
-                ))}
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {topicos.map(([word, count]) => {
+                  const ativo = filtroTopico === word
+                  return (
+                    <Chip key={word}
+                      label={`${word} (${count})`}
+                      icon={<TrendingUpIcon />}
+                      size="small"
+                      onClick={() => setFiltroTopico(ativo ? null : word)}
+                      sx={{
+                        cursor: 'pointer',
+                        bgcolor: ativo ? 'primary.main' : 'rgba(13,158,122,0.08)',
+                        color:   ativo ? '#fff'          : 'primary.main',
+                        fontWeight: 700,
+                        '& .MuiChip-icon': { color: ativo ? '#fff' : 'primary.main', fontSize: 14 },
+                        '&:hover': { bgcolor: ativo ? 'primary.dark' : 'rgba(13,158,122,0.18)' },
+                      }}
+                    />
+                  )
+                })}
               </Box>
             </Box>
           )}
@@ -450,6 +471,16 @@ export function SocialListening() {
           {/* Feed */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
             <Typography variant="overline" color="text.disabled">Feed de menções</Typography>
+            {filtroTopico && (
+              <Chip
+                label={filtroTopico}
+                size="small"
+                onDelete={() => setFiltroTopico(null)}
+                deleteIcon={<CloseIcon />}
+                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: 'primary.main', color: '#fff',
+                  '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', fontSize: 14 } }}
+              />
+            )}
             <Box sx={{ flex: 1 }} />
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel>Fonte</InputLabel>
