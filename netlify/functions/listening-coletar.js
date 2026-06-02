@@ -26,6 +26,19 @@ Retorne APENAS JSON, sem markdown:
 {"events":[{"titulo":"<80chars>","conteudo":"<300chars>","fonte":"${fonte.nome}","sentiment":"positivo|neutro|negativo","score_impacto":<1-10>,"url":"https://...ou null"}]}`
 }
 
+const MODEL_LIMITATION_PATTERNS = [
+  /não (tenho|possui|é possível|foi possível)/i,
+  /sem acesso/i,
+  /base de conhecimento/i,
+  /não (consigo|posso) (acessar|pesquisar|buscar)/i,
+  /acesso (em tempo real|direto)/i,
+]
+
+function isModelDisclaimer(event) {
+  const text = `${event.titulo || ''} ${event.conteudo || ''}`.toLowerCase()
+  return MODEL_LIMITATION_PATTERNS.some(p => p.test(text))
+}
+
 function parseEvents(txt, fonteNome) {
   const s = txt.replace(/^```[a-z]*\n?/im, '').replace(/\n?```$/im, '').trim()
   const tryParse = (str) => {
@@ -39,10 +52,13 @@ function parseEvents(txt, fonteNome) {
     const j0 = s.indexOf('{'), j1 = s.lastIndexOf('}')
     if (j0 >= 0 && j1 > j0) events = tryParse(s.slice(j0, j1 + 1))
   }
-  return (events || []).map(e => ({ ...e, fonte: e.fonte || fonteNome }))
+  return (events || [])
+    .map(e => ({ ...e, fonte: e.fonte || fonteNome }))
+    .filter(e => !isModelDisclaimer(e))
 }
 
 async function coletarFonte(marca, fonte, apiKey, isLocalDev, termos = []) {
+  if (isLocalDev) return []   // sem web_search, Haiku só gera disclaimers — pula em dev local
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -52,9 +68,9 @@ async function coletarFonte(marca, fonte, apiKey, isLocalDev, termos = []) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model:      isLocalDev ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-5',
+        model:      'claude-sonnet-4-5',
         max_tokens: 1024,
-        ...(isLocalDev ? {} : { tools: [{ type: 'web_search_20250305', name: 'web_search' }] }),
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
       }),
     })
@@ -103,6 +119,10 @@ export const handler = async (event) => {
   const marca = ws.dominio || ws.nome
   const isLocalDev = !!process.env.NETLIFY_DEV
   const apiKey = process.env.ANTHROPIC_KEY
+
+  if (isLocalDev) {
+    return { statusCode: 200, headers, body: JSON.stringify({ events: [], summary: { positivo_pct: 0, neutro_pct: 0, negativo_pct: 0, total: 0 }, falhas: [], dev: true, message: 'Social Listening requer ambiente de produção (usa web_search).' }) }
+  }
 
   // Termos customizados de busca do workspace
   const { data: termsData } = await supabase.from('listening_terms').select('termo').eq('workspace_id', workspace_id)
