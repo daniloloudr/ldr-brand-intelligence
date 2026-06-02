@@ -18,8 +18,10 @@ const FONTES = [
 ]
 
 function buildPrompt(marca, fonte, termos) {
-  const extra = termos.length ? ` e dos termos: ${termos.map(t => `"${t}"`).join(', ')}` : ''
-  return `Pesquise menções recentes de "${marca}"${extra} em ${fonte.nome} (${fonte.hint}).
+  const termosStr = termos.length
+    ? `\nAlém da marca, monitore também cada um destes termos de forma independente: ${termos.map(t => `"${t}"`).join(', ')}.`
+    : ''
+  return `Pesquise menções recentes de "${marca}" em ${fonte.nome} (${fonte.hint}).${termosStr}
 Retorne APENAS JSON, sem markdown:
 {"events":[{"titulo":"<80chars>","conteudo":"<300chars>","fonte":"${fonte.nome}","sentiment":"positivo|neutro|negativo","score_impacto":<1-10>,"url":"https://...ou null"}]}`
 }
