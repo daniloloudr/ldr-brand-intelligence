@@ -57,7 +57,7 @@ function parseEvents(txt, fonteNome) {
     .filter(e => !isModelDisclaimer(e))
 }
 
-async function coletarFonte(marca, fonte, apiKey, termos = []) {
+async function coletarFonte(marca, fonte, apiKey, termos = [], attempt = 0) {
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -73,11 +73,20 @@ async function coletarFonte(marca, fonte, apiKey, termos = []) {
         messages: [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
       }),
     })
-    if (!resp.ok) return null
+    if (resp.status === 429 && attempt === 0) {
+      await new Promise(r => setTimeout(r, 3000))
+      return coletarFonte(marca, fonte, apiKey, termos, 1)
+    }
+    if (!resp.ok) {
+      const errBody = await resp.json().catch(() => ({}))
+      console.error(`[listening] ${fonte.nome} HTTP ${resp.status}:`, JSON.stringify(errBody))
+      return null
+    }
     const data = await resp.json()
     const text = data.content?.find(b => b.type === 'text')?.text || ''
     return parseEvents(text, fonte.nome)
-  } catch {
+  } catch (e) {
+    console.error(`[listening] ${fonte.nome} exception:`, e.message)
     return null
   }
 }
@@ -122,9 +131,18 @@ export const handler = async (event) => {
   const { data: termsData } = await supabase.from('listening_terms').select('termo').eq('workspace_id', workspace_id)
   const termos = (termsData || []).map(t => t.termo).filter(Boolean)
 
-  // 8 chamadas paralelas, uma por plataforma
+  // Escalonadas a cada 300ms para evitar burst de rate limit (30k tokens/min)
+  // Em dev local o netlify-cli força timeout de 30s; em prod o timeout é 60s (netlify.toml)
+  const isLocalDev = !!process.env.NETLIFY_DEV
+  const staggerMs    = 300
+  const callTimeoutMs = isLocalDev ? 25000 : 50000
+  const withDeadline = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))])
+
   const resultados = await Promise.allSettled(
-    FONTES.map(f => coletarFonte(marca, f, apiKey, termos))
+    FONTES.map((f, i) =>
+      new Promise(r => setTimeout(r, i * staggerMs))
+        .then(() => withDeadline(coletarFonte(marca, f, apiKey, termos), callTimeoutMs - i * staggerMs))
+    )
   )
 
   const fontesFalhas = []
