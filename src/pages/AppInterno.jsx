@@ -5,12 +5,10 @@ import logoPositivo from "../assets/logo-positivo-200px.png";
 import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { runStream } from "../lib/api";
-import { fmtDate, tryParseJSON, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../lib/helpers";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
-import { RelatorioCompleto } from "./RelatorioCompleto";
-import { StreamingView } from "./StreamingView";
+import { RelatorioCompleto } from "../components/RelatorioCompleto";
 import { NovoManual } from "./NovoManual";
 import { DashboardHistorico } from "./DashboardHistorico";
 
@@ -145,16 +143,13 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
   const [historico, setHistorico]                     = useState([]);
   const [loadingHist, setLoadingHist]                 = useState(true);
   const [histCount, setHistCount]                     = useState(0);
-  const [selectedRel, setSelectedRel]                 = useState(null);
-  const [streamSteps, setStreamSteps]                 = useState([]);
-  const [partialData, setPartialData]                 = useState(null);
-  const [error, setError]                             = useState("");
-  const [rodando, setRodando]                         = useState(null);
-  const [rateLimitCountdown, setRateLimitCountdown]   = useState(0);
-  const [rateLimitAttempt, setRateLimitAttempt]       = useState(0);
-  const [cooldownAtivo, setCooldownAtivo]             = useState(0);
-  const [filtroSetor, setFiltroSetor]                 = useState("");
-  const [searchVal, setSearchVal]                     = useState("");
+  const [selectedRel, setSelectedRel]   = useState(null);
+  const [error, setError]               = useState("");
+  const [rodando, setRodando]           = useState(null);
+  const [gerandoStep, setGerandoStep]   = useState(0);
+  const [cooldownAtivo, setCooldownAtivo] = useState(0);
+  const [filtroSetor, setFiltroSetor]   = useState("");
+  const [searchVal, setSearchVal]       = useState("");
   const cooldownRef = useRef(null);
   const mainRef     = useRef(null);
 
@@ -195,6 +190,12 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
   }, []);
 
+  useEffect(() => {
+    if (page !== "gerando") return;
+    const id = setInterval(() => setGerandoStep(s => s + 1), 8000);
+    return () => clearInterval(id);
+  }, [page]);
+
   function iniciarCooldown() {
     setCooldownAtivo(COOLDOWN_ENTRE_APROVACOES);
     if (cooldownRef.current) clearInterval(cooldownRef.current);
@@ -224,9 +225,9 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
   async function aprovarERodar(sol) {
     if (cooldownAtivo > 0) return;
     setRodando(sol.id);
-    setStreamSteps([]); setPartialData(null); setError("");
-    setRateLimitCountdown(0); setRateLimitAttempt(0);
-    setPage("streaming");
+    setError("");
+    setGerandoStep(0);
+    setPage("gerando");
     iniciarCooldown();
 
     await supabase.from("solicitacoes").update({ status: "aprovado" }).eq("id", sol.id);
@@ -239,40 +240,59 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
       `Solicitante: ${sol.nome} (${sol.email})`,
     ].filter(Boolean).join("\n");
 
-    await runStream({
-      empresa: sol.empresa,
-      contexto: contextoCompleto,
-      onSearchStep: (count, query) => {
-        setStreamSteps(prev => { const u = [...prev]; u[count - 1] = query || `Busca ${count}`; return u; });
-      },
-      onText: txt => { const p = tryParseJSON(txt); if (p) setPartialData(p); },
-      onRateLimit: (segundos, tentativa) => { setRateLimitCountdown(segundos); setRateLimitAttempt(tentativa); },
-      onDone: async parsed => {
-        const { data: diag } = await supabase.from("diagnosticos").insert({
-          user_id: user.id, user_email: user.email,
-          user_name: user.user_metadata?.full_name || user.email.split("@")[0],
-          empresa: parsed.empresa, dominio: parsed.dominio,
-          setor: normalizeSector(parsed.setor), porte: parsed.porte,
-          score_singularidade: parsed.score_singularidade,
-          score_consistencia: parsed.score_consistencia,
-          score_posicionamento: parsed.score_posicionamento,
-          frase_diagnostico: parsed.frase_diagnostico,
-          data: parsed,
-        }).select().single();
+    const since = new Date().toISOString();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão expirada.");
 
-        await supabase.from("solicitacoes").update({ status: "concluido", diagnostico_id: diag?.id }).eq("id", sol.id);
-        setRodando(null);
-        await fetchSolicitacoes();
-        await fetchHistorico();
-        setSelectedRel({ data: parsed, meta: { id: diag?.id, created_at: new Date().toISOString(), user_name: user.user_metadata?.full_name || user.email.split("@")[0] } });
-        setPage("relatorio");
-      },
-      onError: async msg => {
-        setError(msg);
-        await supabase.from("solicitacoes").update({ status: "erro" }).eq("id", sol.id);
-        setRodando(null);
-        setPage("solicitacoes");
-      },
+      const res = await fetch("/.netlify/functions/diagnostico-gerar-background", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ empresa: sol.empresa, contexto: contextoCompleto }),
+      });
+      if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`);
+
+      const diag = await pollForDiagnostico(user.id, since);
+      await supabase.from("solicitacoes").update({ status: "concluido", diagnostico_id: diag.id }).eq("id", sol.id);
+      setRodando(null);
+      await fetchSolicitacoes();
+      await fetchHistorico();
+      setSelectedRel({ data: diag.data, meta: diag });
+      setPage("relatorio");
+    } catch (e) {
+      setError(e.message || "Erro ao gerar diagnóstico.");
+      await supabase.from("solicitacoes").update({ status: "erro" }).eq("id", sol.id);
+      setRodando(null);
+      setPage("solicitacoes");
+    }
+  }
+
+  function pollForDiagnostico(userId, since) {
+    const MAX_WAIT = 180_000;
+    const start = Date.now();
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        if (Date.now() - start > MAX_WAIT) {
+          reject(new Error("O diagnóstico demorou mais que o esperado. Tente novamente."));
+          return;
+        }
+        const { data } = await supabase
+          .from("diagnosticos")
+          .select("*")
+          .eq("user_id", userId)
+          .is("workspace_id", null)
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) {
+          if (data.data?._job_error) reject(new Error(data.data.error || "Erro ao gerar diagnóstico."));
+          else resolve(data);
+        } else {
+          setTimeout(check, 3000);
+        }
+      };
+      setTimeout(check, 3000);
     });
   }
 
@@ -425,7 +445,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 
           <nav style={{ flex: 1, padding: "4px 10px" }}>
             {navItems.map(({ id, label, Icon, badge }) => {
-              const active = page === id || (page === "streaming" && id === "solicitacoes") || (page === "relatorio" && id === "todos");
+              const active = page === id || (page === "gerando" && id === "solicitacoes") || (page === "relatorio" && id === "todos");
               return (
                 <button key={id} onClick={() => navigate(id)} style={{
                   display: "flex", alignItems: "center", gap: 10,
@@ -608,13 +628,23 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
               }} />
             )}
 
-            {page === "streaming" && (
-              <StreamingView searchSteps={streamSteps} partialData={partialData} rateLimitCountdown={rateLimitCountdown} rateLimitAttempt={rateLimitAttempt} />
+            {page === "gerando" && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: 20, textAlign: "center", fontFamily: F }}>
+                <div style={{ width: 48, height: 48, border: `3px solid ${DS.green}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 6 }}>Gerando diagnóstico</div>
+                  <div style={{ fontSize: 13, color: C.textSec, minHeight: 20 }}>
+                    {["Pesquisando o site e fontes públicas...", "Aplicando framework Smart Branding...", "Calculando scores...", "Mapeando gaps de identidade...", "Identificando oportunidades...", "Finalizando..."][gerandoStep % 6]}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: C.textDis }}>Pode fechar esta aba — o diagnóstico continuará no servidor</div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
             )}
 
             {page === "relatorio" && selectedRel && (
               <RelatorioCompleto
-                data={selectedRel.data}
+                data={{ ...(selectedRel.meta || {}), ...(selectedRel.data || {}) }}
                 meta={selectedRel.meta}
                 onBack={() => navigate("historico")}
                 backLabel="← Voltar ao histórico"

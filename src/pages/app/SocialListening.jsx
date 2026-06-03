@@ -18,7 +18,6 @@ import {
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
-import { coletarListening } from '../../lib/api'
 import { PLANOS } from '../../lib/constants'
 
 const PERIODOS = [
@@ -227,18 +226,47 @@ export function SocialListening() {
     }
   }
 
+  function pollForSnapshot(since) {
+    const MAX_WAIT = 180_000
+    const start = Date.now()
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        if (Date.now() - start > MAX_WAIT) {
+          reject(new Error('A coleta demorou mais que o esperado. Tente novamente.'))
+          return
+        }
+        const { data } = await supabase
+          .from('sentiment_snapshots')
+          .select('id')
+          .eq('workspace_id', workspace.id)
+          .gte('created_at', since)
+          .limit(1)
+          .maybeSingle()
+        if (data) resolve()
+        else setTimeout(check, 3000)
+      }
+      setTimeout(check, 3000)
+    })
+  }
+
   async function handleCollect() {
     setCollecting(true)
     setCollectError('')
     setCollectWarn('')
-    setCollectStep('Coletando menções...')
+    setCollectStep('Pesquisando menções em 8 fontes...')
+    const since = new Date().toISOString()
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Sessão expirada.')
-      const result = await coletarListening({ workspaceId: workspace.id, token: session.access_token })
-      if (result?.falhas?.length) {
-        setCollectWarn(`Falha ao buscar em ${result.falhas.length} fonte(s): ${result.falhas.join(', ')}. Os demais dados foram coletados normalmente.`)
-      }
+      const res = await fetch('/.netlify/functions/listening-coletar-background', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ workspace_id: workspace.id }),
+      })
+      if (res.status === 401) throw new Error('Sessão expirada.')
+      if (res.status === 403) throw new Error('Sem acesso ao workspace.')
+      if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`)
+      await pollForSnapshot(since)
       load()
     } catch (e) {
       setCollectError(e.message)

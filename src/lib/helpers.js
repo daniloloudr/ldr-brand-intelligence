@@ -13,6 +13,7 @@ export function getRoute() {
   if (h === '#/app/evolucao')        return 'posicionamento';
   if (h === '#/app/concorrentes')    return 'posicionamento';
   if (h === '#/app/listening')       return 'listening';
+  if (h === '#/app/content-hub')     return 'content-hub';
   if (h === '#/app/workspace')       return 'workspace';
   if (h === '#/app/brands')                                        return 'brands-list';
   if (h === '#/app/brands/new')                                    return 'brands-new';

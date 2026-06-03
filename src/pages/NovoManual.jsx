@@ -1,12 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "@mui/material/styles";
 import { supabase } from "../lib/supabase";
 import { DS, F } from "../lib/constants";
-import { runStream } from "../lib/api";
-import { tryParseJSON } from "../lib/helpers";
 import { Input } from "../components/Input";
 import { Card } from "../components/Card";
-import { StreamingView } from "./StreamingView";
+
+const STEPS = [
+  'Pesquisando o site e fontes públicas...',
+  'Aplicando framework Smart Branding...',
+  'Calculando scores de singularidade e consistência...',
+  'Mapeando gaps de identidade...',
+  'Identificando oportunidades estratégicas...',
+  'Finalizando o diagnóstico...',
+]
+
+function pollForDiagnostico(userId, since) {
+  const MAX_WAIT = 180_000
+  const start = Date.now()
+  return new Promise((resolve, reject) => {
+    const check = async () => {
+      if (Date.now() - start > MAX_WAIT) {
+        reject(new Error('O diagnóstico demorou mais que o esperado. Tente novamente.'))
+        return
+      }
+      const { data } = await supabase
+        .from('diagnosticos')
+        .select('*')
+        .eq('user_id', userId)
+        .is('workspace_id', null)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (data) {
+        if (data.data?._job_error) reject(new Error(data.data.error || 'Erro ao gerar diagnóstico.'))
+        else resolve(data)
+      } else {
+        setTimeout(check, 3000)
+      }
+    }
+    setTimeout(check, 3000)
+  })
+}
 
 export function NovoManual({ user, onDone }) {
   const muiTheme = useTheme();
@@ -24,6 +59,9 @@ export function NovoManual({ user, onDone }) {
     label:   "#96AABF",
     btn:     "#0D9E7A",
     btnDis:  "#2A4A68",
+    stepBg:  "#0A1525",
+    stepText:"#4D6070",
+    stepAct: "#96AABF",
   } : {
     title:   "#0D1B2A",
     sub:     "#8A9AB0",
@@ -36,47 +74,60 @@ export function NovoManual({ user, onDone }) {
     label:   "#8A9AB0",
     btn:     "#0D9E7A",
     btnDis:  "#D1D9E0",
+    stepBg:  "#F5F7F8",
+    stepText:"#8A9AB0",
+    stepAct: "#4A5A6A",
   };
 
-  const [empresa, setEmpresa]         = useState("");
-  const [contexto, setContexto]       = useState("");
-  const [streaming, setStreaming]     = useState(false);
-  const [steps, setSteps]             = useState([]);
-  const [partial, setPartial]         = useState(null);
-  const [streamText, setStreamText]   = useState("");
-  const [error, setError]             = useState("");
-  const [rlCountdown, setRlCountdown] = useState(0);
-  const [rlAttempt, setRlAttempt]     = useState(0);
+  const [empresa, setEmpresa]   = useState("");
+  const [contexto, setContexto] = useState("");
+  const [gerando, setGerando]   = useState(false);
+  const [step, setStep]         = useState(0);
+  const [error, setError]       = useState("");
+
+  useEffect(() => {
+    if (!gerando) return
+    const id = setInterval(() => setStep(s => s + 1), 8000)
+    return () => clearInterval(id)
+  }, [gerando])
 
   async function run() {
     if (!empresa.trim()) return;
-    setStreaming(true); setSteps([]); setPartial(null); setStreamText(""); setError("");
-    await runStream({
-      empresa, contexto,
-      onSearchStep: (c, q) => setSteps(p => { const u=[...p]; u[c-1]=q||`Busca ${c}`; return u; }),
-      onText: (txt) => { setStreamText(txt); const p=tryParseJSON(txt); if(p) setPartial(p); },
-      onRateLimit: (s, t) => { setRlCountdown(s); setRlAttempt(t); },
-      onDone: async (parsed) => {
-        const { data: diag } = await supabase.from("diagnosticos").insert({
-          user_id: user.id, user_email: user.email,
-          user_name: user.user_metadata?.full_name || user.email.split("@")[0],
-          empresa: parsed.empresa, dominio: parsed.dominio,
-          setor: parsed.setor, porte: parsed.porte,
-          score_singularidade: parsed.score_singularidade,
-          score_consistencia: parsed.score_consistencia,
-          score_posicionamento: parsed.score_posicionamento,
-          frase_diagnostico: parsed.frase_diagnostico,
-          data: parsed,
-          publico: true,
-        }).select().single();
-        setStreaming(false);
-        onDone(parsed, { id: diag?.id, created_at: new Date().toISOString(), user_name: user.user_metadata?.full_name || user.email.split("@")[0] });
-      },
-      onError: (msg) => { setError(msg); setStreaming(false); },
-    });
+    setError("");
+    setGerando(true);
+    setStep(0);
+    const since = new Date().toISOString();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Sessão expirada. Faça login novamente.');
+      const res = await fetch('/.netlify/functions/diagnostico-gerar-background', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ empresa: empresa.trim(), contexto: contexto.trim() || undefined }),
+      });
+      if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`);
+      const diag = await pollForDiagnostico(user.id, since);
+      setGerando(false);
+      onDone(diag.data, diag);
+    } catch (e) {
+      setGerando(false);
+      setError(e.message || 'Erro inesperado. Tente novamente.');
+    }
   }
 
-  if (streaming) return <StreamingView searchSteps={steps} partialData={partial} rateLimitCountdown={rlCountdown} rateLimitAttempt={rlAttempt} streamText={streamText} />;
+  if (gerando) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '40vh', gap: 20, textAlign: 'center', padding: '2rem', fontFamily: F }}>
+        <div style={{ width: 48, height: 48, border: `3px solid ${DS.green}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.title, marginBottom: 6 }}>Gerando diagnóstico</div>
+          <div style={{ fontSize: 13, color: C.stepAct, minHeight: 20 }}>{STEPS[step % STEPS.length]}</div>
+        </div>
+        <div style={{ fontSize: 11, color: C.stepText }}>Pode fechar esta aba — o diagnóstico continuará no servidor</div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -8,8 +8,9 @@ const ANTHROPIC_VERSION = '2023-06-01'
 
 // Named model presets — swap here to update every function at once
 export const MODELS = {
-  fast:  'claude-haiku-4-5-20251001',   // cheap, no web_search — local dev / simple tasks
-  smart: 'claude-sonnet-4-5',           // full capability + web_search — production
+  fast:   'claude-haiku-4-5-20251001',  // cheap, no web_search — local dev / simple tasks
+  medium: 'claude-sonnet-4-5',          // faster sonnet — dev when 30s netlify-cli timeout applies
+  smart:  'claude-sonnet-4-6',          // full capability + web_search — production
 }
 
 export const TOOLS = {
@@ -17,6 +18,39 @@ export const TOOLS = {
 }
 
 export const isDev = () => !!process.env.NETLIFY_DEV
+
+/**
+ * Returns a ready-to-spread config object for callAI/streamAI based on tier + environment.
+ *
+ * Tiers:
+ *   'fast'     — Haiku, no web search. Dev and prod. For simple, cheap tasks (keyword draft, etc.)
+ *   'standard' — Dev: Sonnet 4.5, no web search. Prod: Sonnet 4.6 + web search. For all analysis.
+ *   'premium'  — Always Sonnet 4.6 + web search. For highest quality regardless of env.
+ */
+export function aiConfig(tier = 'standard') {
+  const dev = isDev()
+  if (tier === 'fast') return {
+    model:      MODELS.fast,
+    maxTokens:  4000,
+    retries:    1,
+    retryDelay: 2000,
+  }
+  if (tier === 'premium') return {
+    model:      MODELS.smart,
+    maxTokens:  8000,
+    tools:      [TOOLS.webSearch],
+    retries:    1,
+    retryDelay: 5000,
+  }
+  // 'standard' — default
+  return {
+    model:      dev ? MODELS.medium : MODELS.smart,
+    maxTokens:  dev ? 5000 : 6000,
+    tools:      dev ? undefined : [TOOLS.webSearch],
+    retries:    1,
+    retryDelay: dev ? 2000 : 5000,
+  }
+}
 
 function anthropicHeaders(apiKey) {
   return {

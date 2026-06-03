@@ -30,8 +30,7 @@ import { useWorkspace }      from '../../lib/WorkspaceContext'
 import { supabase }          from '../../lib/supabase'
 import { PLANOS }            from '../../lib/constants'
 import { fmtDate, sc, checkPlano } from '../../lib/helpers'
-import { gerarDiagnosticoServidor } from '../../lib/api'
-import { RelatorioCompleto }  from '../RelatorioCompleto'
+import { RelatorioCompleto }  from '../../components/RelatorioCompleto'
 import { IdentityGapCard }    from '../../components/intelligence/IdentityGapCard'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
@@ -97,6 +96,15 @@ function ScatterTooltip({ active, payload }) {
     </Paper>
   )
 }
+
+const STEPS = [
+  'Pesquisando o site e fontes públicas...',
+  'Aplicando framework Smart Branding...',
+  'Calculando scores de singularidade e consistência...',
+  'Mapeando gaps de identidade...',
+  'Identificando oportunidades estratégicas...',
+  'Finalizando o diagnóstico...',
+]
 
 /* ─── empty state ─────────────────────────────────────────────────────────── */
 
@@ -677,21 +685,58 @@ export function Posicionamento() {
     setFormOpen(true)
   }
 
+  function pollForDiagnostico(since) {
+    const MAX_WAIT = 180_000
+    const start = Date.now()
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        if (Date.now() - start > MAX_WAIT) {
+          reject(new Error('O diagnóstico demorou mais que o esperado. Tente novamente.'))
+          return
+        }
+        const { data } = await supabase
+          .from('diagnosticos')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (data) {
+          if (data.data?._job_error) reject(new Error(data.data.error || 'Erro ao gerar diagnóstico.'))
+          else resolve(data)
+        } else {
+          setTimeout(check, 3000)
+        }
+      }
+      setTimeout(check, 3000)
+    })
+  }
+
   async function iniciar(contexto) {
     setFormOpen(false)
     setGerandoErro('')
     setGerandoStep(0)
     setGerando(true)
+    const since = new Date().toISOString()
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Sessão expirada. Faça login novamente.')
-      const diag = await gerarDiagnosticoServidor({ workspaceId: workspace.id, contexto, token: session.access_token })
+      const res = await fetch('/.netlify/functions/diagnostico-gerar-background', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ workspace_id: workspace.id, contexto: contexto || null }),
+      })
+      if (res.status === 401) throw new Error('Sessão expirada. Faça login novamente.')
+      if (res.status === 403) throw new Error('Sem acesso ao workspace.')
+      if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`)
+      const diag = await pollForDiagnostico(since)
       await fetchDiagnosticos()
-      setSelectedDiag({ ...diag, data: diag.data })
-      setEstado('relatorio')
+      setSelectedDiag({ ...diag, data: diag.data || {} })
       setGerando(false)
+      setEstado('relatorio')
     } catch (e) {
-      setGerandoErro(e.message)
+      setGerandoErro(e.message || 'Erro inesperado. Tente novamente.')
     }
   }
 

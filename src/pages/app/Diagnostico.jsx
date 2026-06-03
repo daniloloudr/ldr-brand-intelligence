@@ -17,7 +17,7 @@ import { supabase }         from '../../lib/supabase'
 import { PLANOS }           from '../../lib/constants'
 import { fmtDate, sc, tryParseJSON } from '../../lib/helpers'
 import { runStream }        from '../../lib/api'
-import { RelatorioCompleto } from '../RelatorioCompleto'
+import { RelatorioCompleto } from '../../components/RelatorioCompleto'
 import { StreamingView }    from '../StreamingView'
 import { IdentityGapCard }  from '../../components/intelligence/IdentityGapCard'
 

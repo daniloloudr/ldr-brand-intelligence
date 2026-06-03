@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { callAI, MODELS, TOOLS, extractJSON } from './_ai.js'
+import { callAI, aiConfig, extractJSON } from './_ai.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -61,12 +61,9 @@ function parseEvents(txt, fonteNome) {
 async function coletarFonte(marca, fonte, termos = []) {
   try {
     const { text } = await callAI({
-      model:     MODELS.smart,
+      ...aiConfig('standard'),
       maxTokens: 1024,
-      tools:     [TOOLS.webSearch],
       messages:  [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
-      retries:   1,
-      retryDelay: 3000,
     })
     return parseEvents(text, fonte.nome)
   } catch (e) {

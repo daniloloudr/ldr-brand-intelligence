@@ -12,10 +12,6 @@
 [build.environment]
   NODE_VERSION = "20"
 
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
 
 [functions."cron-monitor"]
   schedule = "0 8 * * 1"
@@ -25,3 +21,6 @@
 
 [functions."listening-coletar"]
   timeout = 60
+
+[functions."content-hub-gerar"]
+  timeout = 120

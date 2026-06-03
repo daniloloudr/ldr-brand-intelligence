@@ -48,8 +48,8 @@ export const handler = async (event) => {
   let fullText
   try {
     fullText = await streamAI({
-      model:     dev ? MODELS.fast : MODELS.smart,
-      maxTokens: dev ? 2048 : 4000,
+      model:     dev ? MODELS.medium : MODELS.smart,
+      maxTokens: dev ? 5000 : 6000,
       system:    SYSTEM_PROMPT,
       tools:     dev ? [] : [TOOLS.webSearch],
       messages:  [{ role: 'user', content: msgText }],

@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [react({ include: /\.(jsx|js)$/ })],
   server: {
     proxy: {
+      '/.netlify': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'https://api.anthropic.com',
         changeOrigin: true,

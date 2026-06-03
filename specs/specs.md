@@ -1,9 +1,10 @@
 # LOUDR OS — Especificação Completa do Produto
-**Versão:** 5.5
+**Versão:** 5.6
 **Data:** Junho 2026
 **Status:** Documento vivo — atualizar a cada entrega
 **Owner:** Danilo Silva · LOUDR
-**Changelog v5.5:** Decisões arquiteturais alinhadas com o código existente. Streaming mantido em Netlify Functions Node.js (funciona em produção, sem timeout real observado — migrar para Edge Functions Deno apenas se houver problema concreto). Zustand e TanStack Query removidos da stack — manter WorkspaceContext.jsx e fetches diretos via supabase-js (menos overhead, time pequeno). Drizzle removido — supabase-js com service key nas functions admin é suficiente. ANTHROPIC_API_KEY renomeado para ANTHROPIC_KEY (alinhado com o que está em produção). Lexical adiado — brand book editor com MUI TextField por ora.
+**Changelog v5.6:** Arquitetura de IA migrada para background functions + polling. Todas as funções que chamam IA usam sufixo `-background.js` — Netlify retorna 202 imediatamente, function processa async, frontend faz polling no Supabase a cada 3s. `aiConfig(tier)` centralizado em `_ai.js` (fast/standard/premium) — modelo/tokens/web_search por tier sem `if (isDev())` nas functions. Diagnóstico usa `aiConfig('premium')` — Sonnet 4.6 + web search em dev e prod (sem web search o modelo alucina dados públicos). Admin (aprovarERodar + NovoManual) migrado de runStream para background + poll. `RelatorioCompleto` movido de `src/pages/` para `src/components/` — componente compartilhado entre admin, app e relatório público. Passagem de dados unificada em `{ ...row, ...row.data }` nos três contextos.
+**Changelog v5.5:** Decisões arquiteturais alinhadas com o código existente. Streaming mantido em Netlify Functions Node.js. Zustand e TanStack Query removidos. Drizzle removido. ANTHROPIC_API_KEY renomeado para ANTHROPIC_KEY. Lexical adiado.
 **Changelog v5.4:** Modelo de acesso fechado — sem self-service. Apenas convidados acessam. Admin master (danilo@loudr.com.br) cria workspaces, convida clientes e pode impersonar qualquer ambiente. Register público removido. Onboarding removido. F03 reescrito. F05 expandido com gestão de workspaces e impersonation. Pontos de atenção corrigidos — stripe removido do schema e pastas, roadmap sem fase de billing, rota raiz corrigida para redirect, nomes de arquivos alinhados com numeração F01-F19, SYSTEM_PROMPT_MANUAL consolidado no F11, LandingPage.jsx removida da estrutura. F11 expandido — extração de manual gera design.md estruturado seguindo padrão de mercado, com SYSTEM_PROMPT dedicado, schema atualizado e integração com RAG. Listening dividido em Social e Search. Stack de AI expandida com estratégia multi-modelo para gestão de custos. Stripe removido — validar modelo comercial antes. Exportação removida — dados ficam na plataforma. Landing page substituída por redirect para login.
 
 ---
@@ -65,8 +66,9 @@ Combina diagnóstico externo com dados públicos, governança interna do brand b
 | Streaming | **Netlify Functions (Node.js 20)** | Já funciona em produção — migrar para Edge Functions Deno só se houver timeout real |
 | Servidor | Netlify Functions (Node.js 20) | CRUD, webhooks, cron, streaming |
 | Variável AI | `ANTHROPIC_KEY` | Nome em produção — não renomear |
-| AI principal (produção) | Anthropic claude-sonnet-4-5 + web_search | Diagnósticos, listening, cron, aprovações |
-| AI principal (dev local) | claude-haiku-4-5-20251001 sem web_search | Via `NETLIFY_DEV` — rápido, sem timeout |
+| AI (diagnóstico) | claude-sonnet-4-6 + web_search (sempre) | `aiConfig('premium')` — dev e prod iguais |
+| AI (outros módulos) | Sonnet 4.5 dev / Sonnet 4.6 prod | `aiConfig('standard')` — web search só em prod |
+| AI (tarefas simples) | Haiku 4.5 (sem web search) | `aiConfig('fast')` — barato, rápido |
 | AI chat | Futuro: GPT-4o mini ou Gemini Flash | Brand Assistant conversacional — mais barato por token |
 | AI social X | Futuro: Grok API | Busca de dados públicos no X/Twitter |
 | AI social Meta | Futuro: Meta AI | Dados públicos de Facebook e Instagram |
@@ -80,16 +82,15 @@ Combina diagnóstico externo com dados públicos, governança interna do brand b
 
 O produto usa modelos diferentes por tipo de tarefa para otimizar custo sem sacrificar qualidade.
 
-| Tarefa | Modelo atual | Modelo futuro | Motivo |
-|--------|-------------|--------------|--------|
-| Diagnóstico de marca | claude-sonnet-4 | manter | Qualidade máxima — produto core |
-| Extração de manual PDF | claude-sonnet-4 | manter | Precisão crítica |
-| Aprovação de campanha | claude-sonnet-4 | manter | Avaliação estratégica |
-| Brand Assistant (chat) | claude-sonnet-4 | GPT-4o mini / Gemini Flash | Conversação — não precisa do modelo mais caro |
-| Palavras-chave (Content) | claude-sonnet-4 com web_search | manter no MVP | SEO API quando validado |
-| Dados do X / Twitter | web_search via Anthropic | Grok API | Dados nativos do X são mais completos |
-| Dados Facebook / Instagram | web_search via Anthropic | Meta AI API | Dados nativos da Meta são mais completos |
-| Embeddings RAG | voyage-3 | manter | Qualidade dos embeddings impacta o assistant |
+| Tarefa | Tier atual | Modelo | Modelo futuro | Motivo |
+|--------|-----------|--------|--------------|--------|
+| Diagnóstico de marca | `premium` | Sonnet 4.6 + web_search (sempre) | manter | Qualidade máxima — produto core. Sem web search alucina dados públicos |
+| Extração de manual PDF | `premium` | Sonnet 4.6 | manter | Precisão crítica |
+| Aprovação de campanha | `standard` | Sonnet 4.6 prod | manter | Avaliação estratégica |
+| Keywords / Content Hub | `standard` | Sonnet 4.6 prod | SEO API | web_search adequado no MVP |
+| Social Listening | `standard` | Sonnet 4.6 prod | Grok/Meta API | Dados nativos são mais completos |
+| Brand Assistant (chat) | stream | Sonnet 4.6 | GPT-4o mini / Gemini Flash | Conversação — custo alto por token |
+| Embeddings RAG | — | voyage-3 (futuro) | manter | Qualidade dos embeddings impacta o assistant |
 
 **Princípio de implementação:**
 - Abstrair o cliente de AI num `AIClient` em `src/lib/ai.js` — a troca de modelo não deve exigir mudança nas páginas
@@ -117,14 +118,42 @@ export const AI_ROUTING = {
 
 ---
 
-### Streaming — Netlify Functions Node.js
+### Background Functions — Padrão obrigatório para IA
 
-Streaming SSE via `netlify/functions/anthropic.js` (Node.js 20). Funciona em produção sem timeout observado — as conexões SSE ativas não são cortadas pelo limite de 10s enquanto há fluxo de dados. Migrar para Edge Functions Deno apenas se houver problema real em produção.
+Todas as Netlify Functions que chamam IA usam sufixo `-background.js`. Netlify retorna 202 imediatamente, a function processa de forma assíncrona (até 15min), salva resultado no Supabase, e o frontend faz polling.
 
 ```
-/.netlify/functions/anthropic   → diagnóstico + streaming
-/.netlify/functions/anthropic   → assistant chat (mesmo proxy)
+Padrão de implementação:
+  POST /.netlify/functions/<nome>-background
+  → 202 aceito imediatamente
+
+  Background:
+  → callAI({ ...aiConfig(tier) }) 
+  → salva resultado em tabela Supabase
+  → erro salvo como { _job_error: true, error: "..." }
+
+  Frontend:
+  → polling Supabase a cada 3s, since = timestamp antes do POST
+  → timeout 2-3min, detecta _job_error
 ```
+
+```
+Functions de IA:
+  diagnostico-gerar-background.js      → aiConfig('premium')
+  content-hub-gerar-background.js      → aiConfig('standard') dev / aiConfig com web search prod
+  listening-coletar-background.js      → aiConfig('standard')
+
+Streaming SSE (apenas Brand Assistant):
+  anthropic.js                         → proxy SSE — chat conversacional
+```
+
+**`aiConfig(tier)` em `netlify/functions/_ai.js`:**
+
+| Tier | Modelo | Tokens | Web Search | Quando usar |
+|------|--------|--------|-----------|-------------|
+| `fast` | Haiku 4.5 | 4000 | nunca | dev simples, tarefas baratas |
+| `standard` | Sonnet 4.5 (dev) / Sonnet 4.6 (prod) | 5000/6000 | só prod | análises gerais |
+| `premium` | Sonnet 4.6 | 8000 | sempre | diagnóstico, extração PDF, qualidade crítica |
 
 ### Acesso ao banco — supabase-js em todo lugar
 
