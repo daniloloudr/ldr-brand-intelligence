@@ -9,10 +9,10 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { PRATICAS }            from '../lib/constants'
 import { fmtDate, sc }         from '../lib/helpers'
 import { gerarPDF }            from '../lib/pdf'
-import { Bar }                 from '../components/Bar'
-import { Pill, ipill, apill, ppill } from '../components/Pill'
-import { Lbl }                 from '../components/Lbl'
-import { Card }                from '../components/Card'
+import { Bar }                 from './Bar'
+import { Pill, ipill, apill, ppill } from './Pill'
+import { Lbl }                 from './Lbl'
+import { Card }                from './Card'
 
 function SharePanel({ meta, data }) {
   const [copied, setCopied]         = useState(false)

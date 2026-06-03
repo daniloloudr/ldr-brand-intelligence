@@ -3,13 +3,24 @@
   publish   = "dist"
   functions = "netlify/functions"
 
+[dev]
+  command     = "npm run dev"
+  targetPort  = 5173
+  port        = 8888
+  autoLaunch  = false
+
 [build.environment]
   NODE_VERSION = "20"
 
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
 
 [functions."cron-monitor"]
   schedule = "0 8 * * 1"
+
+[functions."diagnostico-gerar"]
+  timeout = 120
+
+[functions."listening-coletar"]
+  timeout = 60
+
+[functions."content-hub-gerar"]
+  timeout = 120

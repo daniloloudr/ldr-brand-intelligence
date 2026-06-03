@@ -8,7 +8,7 @@ import CircularProgress       from '@mui/material/CircularProgress'
 
 import { supabase }          from '../lib/supabase'
 import { themeLight }        from '../lib/theme'
-import { RelatorioCompleto } from './RelatorioCompleto'
+import { RelatorioCompleto } from '../components/RelatorioCompleto'
 import { GlobalStyle }       from '../components/GlobalStyle'
 import { PublicHeader }      from '../components/PublicHeader'
 import { PublicFooter }      from '../components/PublicFooter'

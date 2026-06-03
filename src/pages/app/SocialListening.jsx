@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  Box, Typography, Card, CircularProgress, Chip, Paper,
+  Box, Typography, Card, CircularProgress, Chip, Paper, Button, Alert,
   ToggleButtonGroup, ToggleButton, MenuItem, Select, FormControl, InputLabel,
+  TextField, IconButton,
 } from '@mui/material'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import AddIcon from '@mui/icons-material/Add'
+import CloseIcon from '@mui/icons-material/Close'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt'
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral'
@@ -13,6 +18,7 @@ import {
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
+import { PLANOS } from '../../lib/constants'
 
 const PERIODOS = [
   { label: '7 dias',  value: '7d',  days: 7  },
@@ -27,7 +33,8 @@ const SENT_CFG = {
 }
 
 function fmtCurta(iso) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  // Append T12:00:00 to avoid UTC midnight being shifted to previous day in UTC-3
+  return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
 function CustomTooltip({ active, payload, label }) {
@@ -78,7 +85,23 @@ function EventRow({ ev }) {
       <Icon sx={{ color: cfg.color, fontSize: 20, mt: 0.25, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4, flexWrap: 'wrap' }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{ev.titulo}</Typography>
+          {ev.url ? (
+            <Typography
+              component="a"
+              href={ev.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                fontSize: 13, fontWeight: 700, color: 'text.primary',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+              }}
+            >
+              {ev.titulo}
+            </Typography>
+          ) : (
+            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{ev.titulo}</Typography>
+          )}
           {ev.fonte && (
             <Chip label={ev.fonte} size="small"
               sx={{ height: 16, fontSize: '0.6rem', fontWeight: 700 }} />
@@ -89,11 +112,28 @@ function EventRow({ ev }) {
             {ev.conteudo.length > 200 ? ev.conteudo.slice(0, 200) + '…' : ev.conteudo}
           </Typography>
         )}
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="caption" color="text.disabled">{fmtDate(ev.created_at)}</Typography>
           {ev.score_impacto != null && (
             <Typography variant="caption" sx={{ color: cfg.color, fontWeight: 700 }}>
               Impacto {ev.score_impacto}/10
+            </Typography>
+          )}
+          {ev.url && (
+            <Typography
+              component="a"
+              href={ev.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="caption"
+              sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.3,
+                color: 'text.disabled', textDecoration: 'none', ml: 'auto',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              <OpenInNewIcon sx={{ fontSize: 11 }} />
+              Ver fonte
             </Typography>
           )}
         </Box>
@@ -104,44 +144,136 @@ function EventRow({ ev }) {
 
 export function SocialListening() {
   const { workspace } = useWorkspace()
-  const [loading, setLoading]         = useState(true)
-  const [snapshots, setSnapshots]     = useState([])
-  const [events, setEvents]           = useState([])
-  const [periodo, setPeriodo]         = useState('30d')
-  const [filtroFonte, setFiltroFonte] = useState('todas')
-  const [filtroSent, setFiltroSent]   = useState('todos')
+  const [loading, setLoading]             = useState(true)
+  const [snapshots, setSnapshots]         = useState([])
+  const [events, setEvents]               = useState([])
+  const [periodo, setPeriodo]             = useState('30d')
+  const [filtroFonte, setFiltroFonte]     = useState('todas')
+  const [filtroSent, setFiltroSent]       = useState('todos')
+  const [filtroTopico, setFiltroTopico]   = useState(null)
+  const [loadError, setLoadError]         = useState('')
+  const [collecting, setCollecting]       = useState(false)
+  const [collectStep, setCollectStep]     = useState('')
+  const [collectError, setCollectError]   = useState('')
+  const [collectWarn, setCollectWarn]     = useState('')
+  const [termos, setTermos]               = useState([])
+  const [novoTermo, setNovoTermo]         = useState('')
+  const [savingTermo, setSavingTermo]     = useState(false)
+  const inputRef                          = useRef(null)
+
+  const plano          = PLANOS[workspace?.plano] || PLANOS.trial
+  const limiteTermos   = plano.termos_listening || 0
+  const temListening   = plano.social_listening || false
 
   useEffect(() => {
     if (!workspace?.id) return
     load()
+    loadTermos()
   }, [workspace?.id, periodo])
+
+  async function loadTermos() {
+    const { data } = await supabase.from('listening_terms').select('*').eq('workspace_id', workspace.id).order('created_at')
+    setTermos(data || [])
+  }
+
+  async function addTermo() {
+    const t = novoTermo.trim()
+    if (!t || termos.length >= limiteTermos) return
+    setSavingTermo(true)
+    await supabase.from('listening_terms').insert({ workspace_id: workspace.id, termo: t })
+    setNovoTermo('')
+    setSavingTermo(false)
+    loadTermos()
+  }
+
+  async function removeTermo(id) {
+    await supabase.from('listening_terms').delete().eq('id', id)
+    setTermos(prev => prev.filter(t => t.id !== id))
+  }
 
   async function load() {
     setLoading(true)
-    const days  = PERIODOS.find(p => p.value === periodo)?.days || 30
-    const since = new Date()
-    since.setDate(since.getDate() - days)
-    const sinceISO  = since.toISOString()
-    const sinceDate = sinceISO.split('T')[0]
+    setLoadError('')
+    try {
+      const days  = PERIODOS.find(p => p.value === periodo)?.days || 30
+      const since = new Date()
+      since.setDate(since.getDate() - days)
+      const sinceISO  = since.toISOString()
+      const sinceDate = sinceISO.split('T')[0]
 
-    const [{ data: snaps }, { data: evs }] = await Promise.all([
-      supabase
-        .from('sentiment_snapshots')
-        .select('*')
-        .eq('workspace_id', workspace.id)
-        .gte('data', sinceDate)
-        .order('data', { ascending: true }),
-      supabase
-        .from('listening_events')
-        .select('*')
-        .eq('workspace_id', workspace.id)
-        .gte('created_at', sinceISO)
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ])
-    setSnapshots(snaps || [])
-    setEvents(evs || [])
-    setLoading(false)
+      const [{ data: snaps, error: e1 }, { data: evs, error: e2 }] = await Promise.all([
+        supabase
+          .from('sentiment_snapshots')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .gte('data', sinceDate)
+          .order('data', { ascending: true }),
+        supabase
+          .from('listening_events')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .gte('created_at', sinceISO)
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ])
+      if (e1 || e2) throw new Error((e1 || e2).message)
+      setSnapshots(snaps || [])
+      setEvents(evs || [])
+    } catch (e) {
+      setLoadError('Erro ao carregar os dados. Verifique sua conexão e tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function pollForSnapshot(since) {
+    const MAX_WAIT = 180_000
+    const start = Date.now()
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        if (Date.now() - start > MAX_WAIT) {
+          reject(new Error('A coleta demorou mais que o esperado. Tente novamente.'))
+          return
+        }
+        const { data } = await supabase
+          .from('sentiment_snapshots')
+          .select('id')
+          .eq('workspace_id', workspace.id)
+          .gte('created_at', since)
+          .limit(1)
+          .maybeSingle()
+        if (data) resolve()
+        else setTimeout(check, 3000)
+      }
+      setTimeout(check, 3000)
+    })
+  }
+
+  async function handleCollect() {
+    setCollecting(true)
+    setCollectError('')
+    setCollectWarn('')
+    setCollectStep('Pesquisando menções em 8 fontes...')
+    const since = new Date().toISOString()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada.')
+      const res = await fetch('/.netlify/functions/listening-coletar-background', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ workspace_id: workspace.id }),
+      })
+      if (res.status === 401) throw new Error('Sessão expirada.')
+      if (res.status === 403) throw new Error('Sem acesso ao workspace.')
+      if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`)
+      await pollForSnapshot(since)
+      load()
+    } catch (e) {
+      setCollectError(e.message)
+    } finally {
+      setCollecting(false)
+      setCollectStep('')
+    }
   }
 
   const total = snapshots.length
@@ -159,9 +291,10 @@ export function SocialListening() {
   const fontes = ['todas', ...new Set(events.map(e => e.fonte).filter(Boolean))]
 
   const evtFiltrados = events.filter(e => {
-    const okFonte = filtroFonte === 'todas' || e.fonte === filtroFonte
-    const okSent  = filtroSent  === 'todos' || e.sentiment === filtroSent
-    return okFonte && okSent
+    const okFonte   = filtroFonte  === 'todas' || e.fonte === filtroFonte
+    const okSent    = filtroSent   === 'todos' || e.sentiment === filtroSent
+    const okTopico  = !filtroTopico || (`${e.titulo || ''} ${e.conteudo || ''}`).toLowerCase().includes(filtroTopico)
+    return okFonte && okSent && okTopico
   })
 
   const topicos = (() => {
@@ -183,12 +316,89 @@ export function SocialListening() {
     <Box sx={{ p: 4 }}>
 
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Social Listening</Typography>
-        <Typography variant="body2" color="text.secondary" mt={0.5}>
-          Monitoramento de sentimento e menções da sua marca no mercado.
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box>
+          <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Social Listening</Typography>
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
+            Monitoramento de sentimento e menções da sua marca no mercado.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          color="primary"
+          size="small"
+          startIcon={collecting ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
+          onClick={handleCollect}
+          disabled={collecting}
+          sx={{ fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          {collecting ? (collectStep || 'Coletando...') : 'Coletar menções'}
+        </Button>
       </Box>
+
+      {/* Termos monitorados */}
+      {temListening && (
+        <Card sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Box>
+              <Typography variant="overline" color="text.disabled" display="block" lineHeight={1.2}>
+                Termos monitorados
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Incluídos em todas as buscas junto com a sua marca · {termos.length}/{limiteTermos} termos
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: termos.length ? 1.5 : 0 }}>
+            {termos.map(t => (
+              <Chip
+                key={t.id}
+                label={t.termo}
+                size="small"
+                onDelete={() => removeTermo(t.id)}
+                deleteIcon={<CloseIcon />}
+                sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+              />
+            ))}
+          </Box>
+          {termos.length < limiteTermos && (
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField
+                inputRef={inputRef}
+                size="small"
+                placeholder='Ex: "produto X", "CEO nome", "#hashtag"'
+                value={novoTermo}
+                onChange={e => setNovoTermo(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTermo() } }}
+                sx={{ flex: 1, maxWidth: 360, '& .MuiInputBase-input': { fontSize: 13 } }}
+                disabled={savingTermo}
+              />
+              <IconButton size="small" onClick={addTermo} disabled={!novoTermo.trim() || savingTermo} color="primary"
+                sx={{ border: '1px solid', borderColor: 'primary.main', borderRadius: 1.5 }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+        </Card>
+      )}
+
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setLoadError('')}>
+          {loadError}
+        </Alert>
+      )}
+
+      {collectError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCollectError('')}>
+          {collectError}
+        </Alert>
+      )}
+
+      {collectWarn && (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCollectWarn('')}>
+          {collectWarn}
+        </Alert>
+      )}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -249,21 +459,40 @@ export function SocialListening() {
           {/* Tópicos em alta */}
           {topicos.length > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="overline" color="text.disabled" display="block" mb={1}>
-                Tópicos em alta — Trend Discovery
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {topicos.map(([word, count]) => (
-                  <Chip key={word}
-                    label={`${word} (${count})`}
-                    icon={<TrendingUpIcon />}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="overline" color="text.disabled">
+                  Tópicos em alta — Trend Discovery
+                </Typography>
+                {filtroTopico && (
+                  <Chip
+                    label="Limpar filtro"
                     size="small"
-                    sx={{
-                      bgcolor: 'rgba(13,158,122,0.08)', color: 'primary.main', fontWeight: 700,
-                      '& .MuiChip-icon': { color: 'primary.main', fontSize: 14 },
-                    }}
+                    onDelete={() => setFiltroTopico(null)}
+                    deleteIcon={<CloseIcon />}
+                    sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }}
                   />
-                ))}
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {topicos.map(([word, count]) => {
+                  const ativo = filtroTopico === word
+                  return (
+                    <Chip key={word}
+                      label={`${word} (${count})`}
+                      icon={<TrendingUpIcon />}
+                      size="small"
+                      onClick={() => setFiltroTopico(ativo ? null : word)}
+                      sx={{
+                        cursor: 'pointer',
+                        bgcolor: ativo ? 'primary.main' : 'rgba(13,158,122,0.08)',
+                        color:   ativo ? '#fff'          : 'primary.main',
+                        fontWeight: 700,
+                        '& .MuiChip-icon': { color: ativo ? '#fff' : 'primary.main', fontSize: 14 },
+                        '&:hover': { bgcolor: ativo ? 'primary.dark' : 'rgba(13,158,122,0.18)' },
+                      }}
+                    />
+                  )
+                })}
               </Box>
             </Box>
           )}
@@ -271,6 +500,16 @@ export function SocialListening() {
           {/* Feed */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
             <Typography variant="overline" color="text.disabled">Feed de menções</Typography>
+            {filtroTopico && (
+              <Chip
+                label={filtroTopico}
+                size="small"
+                onDelete={() => setFiltroTopico(null)}
+                deleteIcon={<CloseIcon />}
+                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: 'primary.main', color: '#fff',
+                  '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', fontSize: 14 } }}
+              />
+            )}
             <Box sx={{ flex: 1 }} />
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel>Fonte</InputLabel>

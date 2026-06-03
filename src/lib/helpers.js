@@ -2,17 +2,18 @@ import { DS } from "./constants";
 
 export function getRoute() {
   const h = window.location.hash;
-  if (!h || h === '#/')              return 'public';
+  if (!h || h === '#/')              return 'login';
   if (h === '#/metodologia')         return 'metodologia';
   if (h.startsWith('#/relatorio/'))  return 'relatorio-publico';
   if (h === '#/login')               return 'login';
-  if (h === '#/register')            return 'register';
-  if (h === '#/onboarding')          return 'onboarding';
   if (h === '#/app')                 return 'app-home';
-  if (h === '#/app/diagnostico')     return 'diagnostico';
-  if (h === '#/app/evolucao')        return 'evolucao';
+  if (h === '#/app/posicionamento')  return 'posicionamento';
+  // legacy redirects mantidos temporariamente
+  if (h === '#/app/diagnostico')     return 'posicionamento';
+  if (h === '#/app/evolucao')        return 'posicionamento';
+  if (h === '#/app/concorrentes')    return 'posicionamento';
   if (h === '#/app/listening')       return 'listening';
-  if (h === '#/app/concorrentes')    return 'concorrentes';
+  if (h === '#/app/content-hub')     return 'content-hub';
   if (h === '#/app/workspace')       return 'workspace';
   if (h === '#/app/brands')                                        return 'brands-list';
   if (h === '#/app/brands/new')                                    return 'brands-new';
@@ -104,6 +105,6 @@ export function checkPlano(workspace, feature) {
   const plano = workspace?.plano || 'trial';
   const ordem = ['trial', 'starter', 'pro', 'enterprise'];
   const idx = ordem.indexOf(plano);
-  const req = { 'evolucao': 1, 'listening': 2, 'concorrentes': 2, 'relatorio-mensal': 1 };
+  const req = { 'evolucao': 1, 'listening': 2, 'concorrentes': 1, 'relatorio-mensal': 1 };
   return idx >= (req[feature] ?? 0);
 }

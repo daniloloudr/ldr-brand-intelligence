@@ -3,22 +3,31 @@ import { supabase } from "./lib/supabase";
 import { DS } from "./lib/constants";
 import { getRoute } from "./lib/helpers";
 import { GlobalStyle } from "./components/GlobalStyle";
-import { PaginaPublica } from "./pages/PaginaPublica";
 import { LoginPage } from "./pages/LoginPage";
-import { RegisterPage } from "./pages/auth/RegisterPage";
-import { OnboardingPage } from "./pages/auth/OnboardingPage";
+import { InvitePage } from "./pages/auth/Invite";
 import { AppInterno } from "./pages/AppInterno";
 import { AppShell } from "./pages/app/AppShell";
 import { PaginaMetodologia } from "./pages/PaginaMetodologia";
 import { RelatorioPublico } from "./pages/RelatorioPublico";
 
-const WORKSPACE_ROUTES = ['app-home', 'diagnostico', 'evolucao', 'listening', 'concorrentes', 'workspace', 'brands-list', 'brands-new', 'brands-detail', 'brands-assistant', 'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail'];
-const ADMIN_ROUTES     = ['admin', 'admin-historico'];
+const WORKSPACE_ROUTES = [
+  'app-home', 'posicionamento', 'listening', 'content-hub', 'workspace',
+  'brands-list', 'brands-new', 'brands-detail', 'brands-assistant',
+  'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail',
+];
+const ADMIN_ROUTES = ['admin', 'admin-historico'];
+
+// Captura o hash de forma síncrona antes do Supabase processar e limpar a URL
+const _INITIAL_HASH = window.location.hash
 
 export default function App() {
+  const [isInviteFlow, setInviteFlow] = useState(
+    _INITIAL_HASH.includes('type=invite') || _INITIAL_HASH.includes('type=recovery')
+  );
   const [route, setRoute]             = useState(getRoute());
   const [user, setUser]               = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [impersonating, setImpersonating] = useState(null); // { workspaceId, workspaceName }
 
   useEffect(() => {
     const l = document.createElement("link");
@@ -44,6 +53,10 @@ export default function App() {
     };
   }, []);
 
+  // Mostra antes do authLoading — o Supabase limpa o hash de forma assíncrona
+  // então precisamos capturar o tipo antes que o hash suma
+  if (isInviteFlow) return <InvitePage onDone={() => setInviteFlow(false)} />;
+
   if (authLoading) return (
     <div style={{ minHeight: "100vh", background: DS.navy, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <GlobalStyle />
@@ -51,8 +64,7 @@ export default function App() {
     </div>
   );
 
-  if (route === "public")           return <PaginaPublica />;
-  if (route === "metodologia")      return <PaginaMetodologia />;
+  if (route === "metodologia")       return <PaginaMetodologia />;
   if (route === "relatorio-publico") return <RelatorioPublico />;
 
   if (route === "login") {
@@ -60,25 +72,18 @@ export default function App() {
     return <LoginPage onLogin={setUser} />;
   }
 
-  if (route === "register") {
-    if (user) { window.location.hash = "#/onboarding"; return null; }
-    return <RegisterPage />;
-  }
-
-  if (route === "onboarding") {
-    if (!user) { window.location.hash = "#/login"; return null; }
-    return <OnboardingPage user={user} onHasWorkspace={() => { window.location.hash = "#/app"; }} />;
-  }
-
   if (WORKSPACE_ROUTES.includes(route)) {
     if (!user) { window.location.hash = "#/login"; return null; }
     return (
       <AppShell
         user={user}
+        impersonating={impersonating}
+        onStopImpersonating={() => { setImpersonating(null); window.location.hash = "#/admin"; }}
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);
-          window.location.hash = "";
+          setImpersonating(null);
+          window.location.hash = "#/login";
         }}
       />
     );
@@ -89,14 +94,17 @@ export default function App() {
     return (
       <AppInterno
         user={user}
+        onImpersonate={(data) => { setImpersonating(data); window.location.hash = "#/app"; }}
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);
-          window.location.hash = "";
+          window.location.hash = "#/login";
         }}
       />
     );
   }
 
-  return <PaginaPublica />;
+  // Fallback: redireciona para login
+  window.location.hash = user ? "#/app" : "#/login";
+  return null;
 }
