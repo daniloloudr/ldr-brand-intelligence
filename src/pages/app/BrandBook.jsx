@@ -1,168 +1,30 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Box, Typography, CircularProgress, Button, Chip, Alert,
-  TextField, Paper, Divider, IconButton, Tooltip,
+  Box, Typography, CircularProgress, Button, Chip, Alert, Paper,
 } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import SaveIcon from '@mui/icons-material/Save'
-import HistoryIcon from '@mui/icons-material/History'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import { useWorkspace } from '../../lib/WorkspaceContext'
-import { supabase } from '../../lib/supabase'
-import { getBrandSection } from '../../lib/helpers'
-import { fmtDate } from '../../lib/helpers'
+import ArrowBackIcon    from '@mui/icons-material/ArrowBack'
+import SaveIcon          from '@mui/icons-material/Save'
+import HistoryIcon       from '@mui/icons-material/History'
+import AutoAwesomeIcon   from '@mui/icons-material/AutoAwesome'
+import FileUploadIcon    from '@mui/icons-material/FileUpload'
+import PaletteIcon       from '@mui/icons-material/Palette'
+import TokenIcon         from '@mui/icons-material/Token'
+import { useWorkspace }  from '../../lib/WorkspaceContext'
+import { supabase }      from '../../lib/supabase'
+import { getBrandSection, fmtDate } from '../../lib/helpers'
+import { BrandManualImport }    from './BrandManualImport'
+import { BrandAssetsSection }   from './BrandAssetsSection'
+import { DesignTokensSection }  from './DesignTokensSection'
+import { BrandSection }         from './BrandSection'
+import { DesignSystemSection }  from './DesignSystemSection'
 
 const SECTIONS = [
-  { key: 'identity',      label: 'Identidade',   color: '#0D9E7A' },
-  { key: 'positioning',   label: 'Posicionamento', color: '#7F77DD' },
+  { key: 'brand',        label: 'Marca',         color: '#0D9E7A' },
   { key: 'design_system', label: 'Design System', color: '#EF9F27' },
-  { key: 'references',    label: 'Referências',   color: '#E8185A' },
-  { key: 'history',       label: 'Histórico',     color: '#8A9AB0' },
+  { key: 'assets',       label: 'Assets',         color: '#4A9ECC' },
+  { key: 'tokens',       label: 'Design Tokens',  color: '#FF7043' },
+  { key: 'history',      label: 'Histórico',      color: '#8A9AB0' },
 ]
-
-/* ─── renderiza campos de cada seção ─────────────────────────── */
-
-function IdentitySection({ data, onChange }) {
-  const d = data || {}
-  function up(field, val) { onChange({ ...d, [field]: val }) }
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      <TextField label="Missão" value={d.missao || ''} onChange={e => up('missao', e.target.value)} fullWidth multiline minRows={2} />
-      <TextField label="Visão"  value={d.visao  || ''} onChange={e => up('visao',  e.target.value)} fullWidth multiline minRows={2} />
-      <Box>
-        <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" display="block" mb={1}>
-          Valores
-        </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
-          {(d.valores || []).map(v => (
-            <Chip key={v} label={v} size="small" onDelete={() => up('valores', d.valores.filter(x => x !== v))}
-              sx={{ bgcolor: 'rgba(13,158,122,0.08)', color: 'primary.main', fontWeight: 700 }} />
-          ))}
-        </Box>
-        <TextField
-          size="small"
-          placeholder="Adicionar valor e pressionar Enter…"
-          onKeyDown={e => {
-            if (e.key === 'Enter' && e.target.value.trim()) {
-              up('valores', [...(d.valores || []), e.target.value.trim()])
-              e.target.value = ''
-            }
-          }}
-          sx={{ width: 280 }}
-        />
-      </Box>
-      <TextField label="Arquétipo"       value={d.arquetipo    || ''} onChange={e => up('arquetipo',    e.target.value)} fullWidth />
-      <TextField label="Tom de voz"      value={d.tom_voz      || ''} onChange={e => up('tom_voz',      e.target.value)} fullWidth multiline minRows={2} />
-      <TextField label="Público-alvo"    value={d.publico_alvo || ''} onChange={e => up('publico_alvo', e.target.value)} fullWidth multiline minRows={2} />
-      <TextField label="Vocabulário proibido (separado por vírgula)" value={(d.vocabulario_proibido || []).join(', ')}
-        onChange={e => up('vocabulario_proibido', e.target.value.split(',').map(s => s.trim()).filter(Boolean))} fullWidth />
-    </Box>
-  )
-}
-
-function PositioningSection({ data, onChange }) {
-  const d = data || {}
-  function up(field, val) { onChange({ ...d, [field]: val }) }
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      <TextField label="Posicionamento principal" value={d.posicionamento || ''} onChange={e => up('posicionamento', e.target.value)} fullWidth multiline minRows={3} />
-      <TextField label="Proposta de valor única"  value={d.proposta_valor || ''} onChange={e => up('proposta_valor', e.target.value)} fullWidth multiline minRows={2} />
-      <TextField label="Mensagem central"         value={d.mensagem_central || ''} onChange={e => up('mensagem_central', e.target.value)} fullWidth multiline minRows={2} />
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-        <TextField label="Score diferenciação (0-10)" type="number" inputProps={{ min: 0, max: 10 }}
-          value={d.differentiation_score ?? ''} onChange={e => up('differentiation_score', Number(e.target.value))} fullWidth />
-      </Box>
-    </Box>
-  )
-}
-
-function DesignSystemSection({ data, onChange }) {
-  const d = data || {}
-  const colors = d.colors || {}
-  const typography = d.typography || {}
-
-  function upColor(role, field, val) {
-    onChange({ ...d, colors: { ...colors, [role]: { ...(colors[role] || {}), [field]: val } } })
-  }
-  function upTypo(field, val) {
-    onChange({ ...d, typography: { ...typography, [field]: val } })
-  }
-  function upRoot(field, val) {
-    onChange({ ...d, [field]: val })
-  }
-
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {/* Preview de cores */}
-      <Box>
-        <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" display="block" mb={1.5}>
-          Paleta de cores
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-          {[['primary', 'Primária'], ['secondary', 'Secundária'], ['background', 'Fundo'], ['surface', 'Superfície']].map(([role, label]) => (
-            <Box key={role}>
-              <Typography variant="caption" color="text.disabled" display="block" mb={0.75}>{label}</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box
-                  component="input"
-                  type="color"
-                  value={colors[role]?.main || '#000000'}
-                  onChange={e => upColor(role, 'main', e.target.value)}
-                  sx={{ width: 36, height: 36, border: '1px solid', borderColor: 'divider', borderRadius: 1, cursor: 'pointer', p: 0.5, bgcolor: 'background.paper' }}
-                />
-                <TextField size="small" value={colors[role]?.main || ''} onChange={e => upColor(role, 'main', e.target.value)} sx={{ flex: 1 }} />
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-
-      {/* Tipografia */}
-      <Box>
-        <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" display="block" mb={1.5}>
-          Tipografia
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-          <TextField label="Fonte primária"   value={typography.font_primary   || ''} onChange={e => upTypo('font_primary',   e.target.value)} fullWidth />
-          <TextField label="Fonte secundária" value={typography.font_secondary || ''} onChange={e => upTypo('font_secondary', e.target.value)} fullWidth />
-        </Box>
-      </Box>
-
-      {/* Border radius */}
-      <Box>
-        <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" display="block" mb={1.5}>
-          Border radius
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-          {['sm', 'md', 'lg'].map(size => (
-            <TextField key={size} label={size.toUpperCase()}
-              value={d.border_radius?.[size] || ''} onChange={e => upRoot('border_radius', { ...(d.border_radius || {}), [size]: e.target.value })}
-              placeholder="8px" fullWidth />
-          ))}
-        </Box>
-      </Box>
-    </Box>
-  )
-}
-
-function ReferencesSection({ data, onChange }) {
-  const d = data || {}
-  function up(field, val) { onChange({ ...d, [field]: val }) }
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      <TextField label="Marcas de referência (uma por linha)" value={(d.brands || []).join('\n')}
-        onChange={e => up('brands', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
-        fullWidth multiline minRows={3} placeholder="Apple&#10;Airbnb&#10;Stripe" />
-      <TextField label="Diferenciação vs. referências"
-        value={d.differentiation || ''} onChange={e => up('differentiation', e.target.value)} fullWidth multiline minRows={3} />
-      <TextField label="Moodboard (URLs separadas por linha)"
-        value={(d.moodboard || []).join('\n')} onChange={e => up('moodboard', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
-        fullWidth multiline minRows={3} placeholder="https://..." />
-      <TextField label="Anti-referências (o que a marca NÃO é)"
-        value={d.anti_referencias || ''} onChange={e => up('anti_referencias', e.target.value)} fullWidth multiline minRows={2} />
-    </Box>
-  )
-}
 
 function HistorySection({ history }) {
   if (!history?.length) {
@@ -200,10 +62,18 @@ export function BrandBook({ brandId }) {
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
   const [error, setError]       = useState('')
+  const [assets, setAssets]     = useState([])
+  const [tokens, setTokens]     = useState([])
+  const [importOpen, setImportOpen] = useState(false)
 
   const sectionFromHash = getBrandSection()
   const [activeSection, setActiveSection] = useState(
-    sectionFromHash || 'identity'
+    // map legacy hash values to new keys
+    (() => {
+      const s = sectionFromHash
+      if (s === 'identity' || s === 'positioning' || s === 'references') return 'brand'
+      return s || 'brand'
+    })()
   )
 
   useEffect(() => {
@@ -213,21 +83,51 @@ export function BrandBook({ brandId }) {
 
   async function load() {
     setLoading(true)
-    const [{ data: b }, { data: bb }, { data: hist }] = await Promise.all([
+    const [{ data: b }, { data: bb }, { data: hist }, { data: ass }, { data: tok }] = await Promise.all([
       supabase.from('brands').select('*').eq('id', brandId).single(),
       supabase.from('brand_books').select('*').eq('brand_id', brandId).maybeSingle(),
       supabase.from('brand_book_history').select('*').eq('brand_book_id',
         (await supabase.from('brand_books').select('id').eq('brand_id', brandId).maybeSingle()).data?.id
       ).order('changed_at', { ascending: false }).limit(20),
+      supabase.from('brand_assets').select('*').eq('brand_id', brandId).order('created_at'),
+      supabase.from('design_tokens').select('*').eq('brand_id', brandId).order('categoria').order('nome'),
     ])
     setBrand(b)
     setBook(bb)
     setHistory(hist || [])
+    setAssets(ass || [])
+    setTokens(tok || [])
     setLoading(false)
   }
 
   function updateSection(section, data) {
     setBook(prev => ({ ...prev, [section]: data }))
+  }
+
+  function handleBrandUpdate(section, data) {
+    setBook(prev => ({ ...prev, [section]: data }))
+  }
+
+  async function deleteAsset(id) {
+    await supabase.from('brand_assets').delete().eq('id', id)
+    setAssets(prev => prev.filter(a => a.id !== id))
+  }
+
+  async function saveAsset(data) {
+    const existing = assets.find(a => a.tipo === data.tipo && data.tipo === 'logo')
+    if (existing) {
+      await supabase.from('brand_assets').update(data).eq('id', existing.id)
+      setAssets(prev => prev.map(a => a.id === existing.id ? { ...a, ...data } : a))
+    } else {
+      const { data: novo } = await supabase.from('brand_assets')
+        .insert({ brand_id: brandId, ...data }).select().single()
+      if (novo) setAssets(prev => [...prev, novo])
+    }
+  }
+
+  async function deleteToken(id) {
+    await supabase.from('design_tokens').delete().eq('id', id)
+    setTokens(prev => prev.filter(t => t.id !== id))
   }
 
   async function save() {
@@ -245,11 +145,12 @@ export function BrandBook({ brandId }) {
           updated_at:    new Date().toISOString(),
         }).eq('id', book.id)
 
-        if (activeSection !== 'history') {
+        const histSection = activeSection === 'brand' ? 'identity' : activeSection
+        if (activeSection !== 'history' && activeSection !== 'assets' && activeSection !== 'tokens') {
           await supabase.from('brand_book_history').insert({
             brand_book_id: book.id,
-            section:       activeSection,
-            snapshot:      book[activeSection],
+            section:       histSection,
+            snapshot:      book[histSection],
             changed_by:    user?.id,
           })
         }
@@ -267,6 +168,16 @@ export function BrandBook({ brandId }) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
       load()
+
+      // Regenera embeddings em background (fire-and-forget)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) return
+        fetch('/.netlify/functions/brand-book-embed-background', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body:    JSON.stringify({ brand_id: brandId }),
+        }).catch(() => {})
+      })
     } catch (err) {
       setError(err.message || 'Erro ao salvar')
     } finally {
@@ -369,38 +280,62 @@ export function BrandBook({ brandId }) {
 
       {/* ── Conteúdo da seção ── */}
       <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
-        {activeSection !== 'history' && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+        {(activeSection === 'brand' || activeSection === 'design_system') && (
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
             <Typography variant="h6" fontWeight={900}>
               {SECTIONS.find(s => s.key === activeSection)?.label}
             </Typography>
             <Box sx={{ flex: 1 }} />
-            <Button
-              variant="contained"
+            <Button size="small" variant="outlined" color="inherit"
+              startIcon={<FileUploadIcon />}
+              onClick={() => setImportOpen(true)}
+              sx={{ fontWeight: 700, fontSize: 11, mr: 1.5, borderColor: 'divider', color: 'text.secondary' }}>
+              Importar Manual
+            </Button>
+            <Button variant="contained"
               startIcon={saving ? <CircularProgress size={14} color="inherit" /> : (saved ? null : <SaveIcon />)}
-              onClick={save}
-              disabled={saving}
+              onClick={save} disabled={saving}
               color={saved ? 'success' : 'primary'}
-              sx={{ fontWeight: 800 }}
-            >
+              sx={{ fontWeight: 800 }}>
               {saving ? 'Salvando…' : saved ? 'Salvo!' : 'Salvar'}
+            </Button>
+          </Box>
+        )}
+        {(activeSection === 'assets' || activeSection === 'tokens') && (
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {activeSection === 'assets'
+                ? <PaletteIcon sx={{ fontSize: 20, color: '#4A9ECC' }} />
+                : <TokenIcon  sx={{ fontSize: 20, color: '#FF7043' }} />}
+              <Typography variant="h6" fontWeight={900}>
+                {SECTIONS.find(s => s.key === activeSection)?.label}
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              size="small" variant="outlined" color="inherit"
+              startIcon={<FileUploadIcon />}
+              onClick={() => setImportOpen(true)}
+              sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}
+            >
+              Importar Manual
             </Button>
           </Box>
         )}
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        {activeSection === 'identity' && (
-          <IdentitySection data={book?.identity} onChange={d => updateSection('identity', d)} />
-        )}
-        {activeSection === 'positioning' && (
-          <PositioningSection data={book?.positioning} onChange={d => updateSection('positioning', d)} />
+        {activeSection === 'brand' && (
+          <BrandSection book={book} onUpdate={handleBrandUpdate} />
         )}
         {activeSection === 'design_system' && (
           <DesignSystemSection data={book?.design_system} onChange={d => updateSection('design_system', d)} />
         )}
-        {activeSection === 'references' && (
-          <ReferencesSection data={book?.references} onChange={d => updateSection('references', d)} />
+        {activeSection === 'assets' && (
+          <BrandAssetsSection assets={assets} brandId={brandId} onDelete={deleteAsset} onSave={saveAsset} />
+        )}
+        {activeSection === 'tokens' && (
+          <DesignTokensSection tokens={tokens} onDelete={deleteToken} />
         )}
         {activeSection === 'history' && (
           <>
@@ -409,6 +344,13 @@ export function BrandBook({ brandId }) {
           </>
         )}
       </Box>
+
+      <BrandManualImport
+        brandId={brandId}
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => { setImportOpen(false); load() }}
+      />
     </Box>
   )
 }

@@ -23,7 +23,7 @@ const SUGESTOES = [
   'Quais valores da marca deveriam estar visíveis nesta campanha?',
 ]
 
-function buildSystemPrompt(brand, book) {
+function buildSystemPrompt(brand, book, ragChunks) {
   if (!book) {
     return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma LOUDR OS.
 Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
@@ -33,7 +33,7 @@ Ainda não há um brand book configurado. Oriente o usuário a preencher o brand
   const pos = book.positioning || {}
   const ds = book.design_system || {}
 
-  return `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma LOUDR OS.
+  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma LOUDR OS.
 Você conhece profundamente esta marca e responde com base exclusivamente no brand book abaixo.
 Seja estratégico, direto e on-brand. Nunca invente informações que não estão no brand book.
 
@@ -59,6 +59,13 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
 - Cor secundária: ${ds.colors?.secondary?.main || 'não definida'}
 
 Responda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.`
+
+  if (ragChunks?.length) {
+    prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
+    ragChunks.forEach(c => { prompt += `- ${c.chunk_text}\n` })
+  }
+
+  return prompt
 }
 
 async function runAssistantStream({ messages, systemPrompt, onText, onDone, onError, onRateLimit }) {
@@ -166,6 +173,7 @@ export function BrandAssistant({ brandId }) {
   const [streamText, setStreamText] = useState('')
   const [rateLimitSec, setRateLimit] = useState(0)
   const [loading, setLoading]       = useState(true)
+  const [chunksCount, setChunksCount] = useState(0)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -188,6 +196,16 @@ export function BrandAssistant({ brandId }) {
     setBrand(b)
     setBook(bb)
     setConvs(convs || [])
+
+    // Conta chunks indexados
+    if (b?.id) {
+      const { count } = await supabase
+        .from('brand_book_chunks')
+        .select('id', { count: 'exact', head: true })
+        .eq('brand_id', b.id)
+      setChunksCount(count || 0)
+    }
+
     setLoading(false)
   }
 
@@ -250,7 +268,24 @@ export function BrandAssistant({ brandId }) {
       content: userMsg.content,
     })
 
-    const systemPrompt = buildSystemPrompt(brand, book)
+    // Busca chunks relevantes via RAG (Voyage AI + pgvector)
+    let ragChunks = []
+    try {
+      const { data: { session: sess } } = await supabase.auth.getSession()
+      if (sess) {
+        const searchRes = await fetch('/.netlify/functions/brand-book-search', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess.access_token}` },
+          body:    JSON.stringify({ brand_id: brandId, query: userMsg.content }),
+        })
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          ragChunks = (searchData.chunks || []).filter(c => c.similarity > 0.5)
+        }
+      }
+    } catch { /* RAG failure não bloqueia o assistente */ }
+
+    const systemPrompt = buildSystemPrompt(brand, book, ragChunks)
     const history = [...messages, userMsg]
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }))
@@ -284,7 +319,7 @@ export function BrandAssistant({ brandId }) {
     })
   }
 
-  const systemPrompt = buildSystemPrompt(brand, book)
+  const systemPrompt = buildSystemPrompt(brand, book, [])
   const bookSections = book ? [
     { label: 'Identidade', filled: !!(book.identity?.missao) },
     { label: 'Posicionamento', filled: !!(book.positioning?.posicionamento) },
@@ -447,9 +482,18 @@ export function BrandAssistant({ brandId }) {
         width: 240, flexShrink: 0, borderLeft: '1px solid', borderColor: 'divider',
         p: 2.5, overflowY: 'auto',
       }}>
-        <Typography variant="overline" color="text.disabled" display="block" mb={2}>
-          Contexto RAG
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="overline" color="text.disabled">Contexto RAG</Typography>
+          <Chip
+            label={chunksCount > 0 ? `${chunksCount} chunks` : 'sem índice'}
+            size="small"
+            sx={{
+              height: 18, fontSize: '0.58rem', fontWeight: 800,
+              bgcolor: chunksCount > 0 ? 'rgba(13,158,122,0.12)' : 'rgba(255,255,255,0.06)',
+              color:   chunksCount > 0 ? '#0D9E7A' : 'text.disabled',
+            }}
+          />
+        </Box>
 
         {bookSections.length > 0 ? (
           <>
