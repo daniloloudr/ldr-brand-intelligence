@@ -20,6 +20,7 @@ create index if not exists brand_book_chunks_embedding_idx
 -- RLS
 alter table brand_book_chunks enable row level security;
 
+drop policy if exists "workspace acessa brand_book_chunks" on brand_book_chunks;
 create policy "workspace acessa brand_book_chunks" on brand_book_chunks
   for all using (
     brand_id in (
