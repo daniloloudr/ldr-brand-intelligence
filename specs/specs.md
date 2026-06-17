@@ -1,8 +1,9 @@
 # LOUDR OS — Especificação Completa do Produto
-**Versão:** 5.6
+**Versão:** 5.7
 **Data:** Junho 2026
 **Status:** Documento vivo — atualizar a cada entrega
 **Owner:** Danilo Silva · LOUDR
+**Changelog v5.7:** Fase 4 (Brand System) entregue. Brand Book refatorado em seções (`BrandSection`). Manual de Marca com upload PDF + extração em background (`brand-manual-extract-background.js`) + polling. Brand Assets (`BrandAssetsSection`) e Design Tokens (`DesignTokensSection`) como seções independentes com CRUD completo. Design System section (`DesignSystemSection`) separada. Content Hub dividido em 3 sub-páginas (`ContentPalavras`, `ContentOportunidades`, `ContentIdeias`) + `ContentGerarDrawer` lateral para geração. RAG do Brand Book via `brand-book-embed-background.js` (Voyage voyage-3, vector(1024), HNSW) + `brand-book-search.js` (busca por similaridade cosseno). Migrations 012 (brand_book_chunks) e 013 (brand_assets, design_tokens, brand_manual_jobs) aplicadas em produção. `listening-coletar.js` removido — substituído por `listening-coletar-background.js` já existente.
 **Changelog v5.6:** Arquitetura de IA migrada para background functions + polling. Todas as funções que chamam IA usam sufixo `-background.js` — Netlify retorna 202 imediatamente, function processa async, frontend faz polling no Supabase a cada 3s. `aiConfig(tier)` centralizado em `_ai.js` (fast/standard/premium) — modelo/tokens/web_search por tier sem `if (isDev())` nas functions. Diagnóstico usa `aiConfig('premium')` — Sonnet 4.6 + web search em dev e prod (sem web search o modelo alucina dados públicos). Admin (aprovarERodar + NovoManual) migrado de runStream para background + poll. `RelatorioCompleto` movido de `src/pages/` para `src/components/` — componente compartilhado entre admin, app e relatório público. Passagem de dados unificada em `{ ...row, ...row.data }` nos três contextos.
 **Changelog v5.5:** Decisões arquiteturais alinhadas com o código existente. Streaming mantido em Netlify Functions Node.js. Zustand e TanStack Query removidos. Drizzle removido. ANTHROPIC_API_KEY renomeado para ANTHROPIC_KEY. Lexical adiado.
 **Changelog v5.4:** Modelo de acesso fechado — sem self-service. Apenas convidados acessam. Admin master (danilo@loudr.com.br) cria workspaces, convida clientes e pode impersonar qualquer ambiente. Register público removido. Onboarding removido. F03 reescrito. F05 expandido com gestão de workspaces e impersonation. Pontos de atenção corrigidos — stripe removido do schema e pastas, roadmap sem fase de billing, rota raiz corrigida para redirect, nomes de arquivos alinhados com numeração F01-F19, SYSTEM_PROMPT_MANUAL consolidado no F11, LandingPage.jsx removida da estrutura. F11 expandido — extração de manual gera design.md estruturado seguindo padrão de mercado, com SYSTEM_PROMPT dedicado, schema atualizado e integração com RAG. Listening dividido em Social e Search. Stack de AI expandida com estratégia multi-modelo para gestão de custos. Stripe removido — validar modelo comercial antes. Exportação removida — dados ficam na plataforma. Landing page substituída por redirect para login.
@@ -72,7 +73,7 @@ Combina diagnóstico externo com dados públicos, governança interna do brand b
 | AI chat | Futuro: GPT-4o mini ou Gemini Flash | Brand Assistant conversacional — mais barato por token |
 | AI social X | Futuro: Grok API | Busca de dados públicos no X/Twitter |
 | AI social Meta | Futuro: Meta AI | Dados públicos de Facebook e Instagram |
-| Embeddings | Anthropic voyage-3 | RAG do Brand Assistant |
+| Embeddings | Voyage voyage-3 (via Voyage AI API) | RAG do Brand Assistant — vector(1024), HNSW cosine |
 | E-mail | Resend | Transacional + nurturing |
 | Assets | Supabase Storage | Logos, fontes, moodboard, manuais PDF |
 | Auth | Supabase Auth | JWT, sessões, invite links |
@@ -139,12 +140,15 @@ Padrão de implementação:
 
 ```
 Functions de IA:
-  diagnostico-gerar-background.js      → aiConfig('premium')
-  content-hub-gerar-background.js      → aiConfig('standard') dev / aiConfig com web search prod
-  listening-coletar-background.js      → aiConfig('standard')
+  diagnostico-gerar-background.js         → aiConfig('premium')
+  content-hub-gerar-background.js         → aiConfig('standard') dev / aiConfig com web search prod
+  listening-coletar-background.js         → aiConfig('standard')
+  brand-manual-extract-background.js      → aiConfig('premium') — PDF → JSON estruturado
+  brand-book-embed-background.js          → Voyage voyage-3 — chunkiza brand book + salva embeddings
+  brand-book-search.js                    → busca por similaridade cosseno em brand_book_chunks
 
 Streaming SSE (apenas Brand Assistant):
-  anthropic.js                         → proxy SSE — chat conversacional
+  anthropic.js                            → proxy SSE — chat conversacional
 ```
 
 **`aiConfig(tier)` em `netlify/functions/_ai.js`:**
@@ -252,30 +256,23 @@ loudr-os/
 │   │   ├── anthropic.js
 │   │   └── assistant-chat.js
 │   └── functions/                   # Node.js 20 — CRUD, webhooks, cron
-│       ├── _supabase.js
-│       ├── _drizzle.js
-│       ├── _middleware.js           # requireAuth, ok(), serverError()
-│       ├── _prompts.js              # SYSTEM_PROMPT_DIAGNOSTICO, _PALAVRAS, _MANUAL, _IDEIAS
-│       ├── _rag.js                  # chunks, embeddings, retrieval por brand_id
-│       ├── _rateLimit.js
-│       ├── cron-monitor.js          # diagnósticos automáticos — sequencial 12s
-│       ├── auth/
-│       ├── workspaces/
-│       ├── intelligence/
-│       │   ├── diagnose.js
-│       │   ├── listen.js
-│       │   └── alerts.js
-│       ├── content/
-│       │   ├── keywords.js          # análise de palavras-chave do domínio
-│       │   ├── opportunities.js     # gap de conteúdo vs concorrentes
-│       │   └── ideas.js             # clusters de tópicos + ideias on-brand
-│       ├── brand-system/
-│       │   ├── manual-extract.js    # PDF → Anthropic → brand book estruturado
-│       │   ├── brand-book-update.js # atualiza seção + re-embed (debounce 2s)
-│       │   ├── tokens.js            # retorna CSS custom properties
-│       │   └── fonts.js             # proxy Google Fonts API
-│       ├── campaigns/
-│       └── emails/
+│       ├── _ai.js                              # aiConfig(tier) + extractJSON + isDev
+│       ├── _prompt.js                          # SYSTEM_PROMPT_DIAGNOSTICO, _PALAVRAS, _MANUAL
+│       ├── anthropic.js                        # proxy SSE — Brand Assistant streaming
+│       ├── cron-monitor.js                     # diagnósticos automáticos — sequencial 15s
+│       ├── admin-create-workspace.js
+│       ├── admin-invite.js
+│       ├── admin-list-members.js
+│       ├── diagnostico-gerar.js                # dispara background + retorna 202
+│       ├── diagnostico-gerar-background.js     # aiConfig('premium') — salva em diagnosticos
+│       ├── content-hub-gerar.js
+│       ├── content-hub-gerar-background.js
+│       ├── listening-coletar-background.js     # 8 chamadas paralelas por plataforma
+│       ├── brand-manual-extract-background.js  # PDF base64 → JSON → brand_manuals + brand_manual_jobs
+│       ├── brand-book-embed-background.js      # chunking brand book → Voyage voyage-3 → brand_book_chunks
+│       ├── brand-book-search.js                # cosine search via match_brand_book_chunks()
+│       ├── stripe-checkout.js
+│       └── stripe-webhook.js
 │
 ├── src/
 │   ├── main.jsx
@@ -349,21 +346,20 @@ loudr-os/
 │       │   └── Invite.jsx         # aceitar convite + definir senha
 │       ├── app/
 │       │   ├── Home.jsx                    # Painel da Marca
-│       │   ├── Posicionamento.jsx          # F06
-│       │   ├── ListeningSocial.jsx         # F07a
-│       │   ├── ListeningSearch.jsx         # F07b
-│       │   ├── Content.jsx                 # hub de conteúdo
-│       │   ├── ContentPalavras.jsx         # F08
-│       │   ├── ContentOportunidades.jsx    # F09
-│       │   ├── ContentIdeias.jsx           # F10
-│       │   ├── BrandSystem.jsx             # hub do brand system
-│       │   ├── BrandManual.jsx             # F11
-│       │   ├── BrandAssets.jsx             # F12
-│       │   ├── BrandTokens.jsx             # F13
-│       │   ├── BrandBook.jsx               # F14
-│       │   ├── Campaigns.jsx               # F15 — dentro do brand system
-│       │   ├── CampaignNew.jsx
-│       │   ├── CampaignDetail.jsx
+│       │   ├── Posicionamento.jsx          # F06 ✅
+│       │   ├── ListeningSocial.jsx         # F07a ✅
+│       │   ├── ListeningSearch.jsx         # F07b (pendente)
+│       │   ├── ContentHub.jsx              # hub — redireciona para sub-páginas
+│       │   ├── ContentPalavras.jsx         # F08 ✅
+│       │   ├── ContentOportunidades.jsx    # F09 ✅
+│       │   ├── ContentIdeias.jsx           # F10 ✅
+│       │   ├── ContentGerarDrawer.jsx      # drawer lateral de geração de conteúdo
+│       │   ├── BrandBook.jsx               # F14 ✅ — hub Brand System com abas
+│       │   ├── BrandSection.jsx            # seção editável do brand book (identidade/posicionamento)
+│       │   ├── BrandManualImport.jsx       # dialog de upload PDF + polling extração
+│       │   ├── BrandAssetsSection.jsx      # F12 ✅ — CRUD de assets (logo, cor, tipografia)
+│       │   ├── DesignSystemSection.jsx     # seção de design system no brand book
+│       │   ├── DesignTokensSection.jsx     # F13 ✅ — CRUD de design tokens
 │       │   ├── BrandAssistant.jsx          # F16 — tela cheia
 │       │   └── WorkspacePage.jsx
 │       └── admin/
@@ -639,16 +635,36 @@ create table brand_manuals (
   extracao      jsonb
 );
 
+-- Migration 013
 create table brand_assets (
-  id            uuid default gen_random_uuid() primary key,
-  created_at    timestamptz default now(),
-  workspace_id  uuid references workspaces(id),
-  brand_id      uuid references brands(id),
-  tipo          text,                  -- logo | fonte | cor | outro
-  nome          text,
-  arquivo_url   text,
-  formato       text,                  -- svg | png | woff2 | hex
-  versao        int default 1
+  id         uuid default gen_random_uuid() primary key,
+  created_at timestamptz default now(),
+  brand_id   uuid references brands(id) on delete cascade,
+  tipo       text not null,   -- logo | cor | tipografia | icone | padrao | outro
+  nome       text not null,
+  descricao  text,
+  valor      text,            -- hex para cores, nome da fonte, URL para arquivos
+  metadata   jsonb default '{}'
+);
+
+create table design_tokens (
+  id         uuid default gen_random_uuid() primary key,
+  created_at timestamptz default now(),
+  brand_id   uuid references brands(id) on delete cascade,
+  nome       text not null,
+  valor      text not null,
+  categoria  text not null,   -- color | typography | spacing | border-radius | shadow | outro
+  descricao  text,
+  metadata   jsonb default '{}'
+);
+
+create table brand_manual_jobs (
+  id         uuid default gen_random_uuid() primary key,
+  created_at timestamptz default now(),
+  brand_id   uuid references brands(id) on delete cascade,
+  file_path  text not null,
+  status     text default 'processing',  -- processing | done | error
+  error      text
 );
 
 create table brand_books (
@@ -672,19 +688,37 @@ create table brand_book_history (
   note            text
 );
 
--- RAG: habilitar pg_vector com: supabase db execute "create extension if not exists vector"
+-- RAG: pgvector com HNSW (migration 012)
 create table brand_book_chunks (
   id            uuid default gen_random_uuid() primary key,
   created_at    timestamptz default now(),
   brand_id      uuid references brands(id) on delete cascade,
-  section       text not null,
-  content       text not null,
-  embedding     vector(1536),
-  updated_at    timestamptz default now()
+  brand_book_id uuid references brand_books(id) on delete cascade,
+  section       text not null,   -- identity | positioning | design_system | references
+  chunk_text    text not null,
+  embedding     vector(1024),    -- Voyage voyage-3
+  metadata      jsonb default '{}'
 );
 
-create index on brand_book_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
-create index on brand_book_chunks (brand_id);
+-- HNSW para datasets pequenos (melhor que ivfflat para < 100k linhas)
+create index brand_book_chunks_embedding_idx
+  on brand_book_chunks using hnsw (embedding vector_cosine_ops);
+
+-- Função SQL de busca por similaridade
+create or replace function match_brand_book_chunks(
+  p_brand_id  uuid,
+  p_embedding vector(1024),
+  p_limit     int default 5
+)
+returns table (id uuid, section text, chunk_text text, similarity float)
+language sql stable as $$
+  select id, section, chunk_text,
+         1 - (embedding <=> p_embedding) as similarity
+  from brand_book_chunks
+  where brand_id = p_brand_id and embedding is not null
+  order by embedding <=> p_embedding
+  limit p_limit;
+$$;
 
 create table conversations (
   id          uuid default gen_random_uuid() primary key,
@@ -1523,14 +1557,14 @@ git push origin dev
 
 | Fase | Funcionalidades | Critério de aceite |
 |------|----------------|-------------------|
-| **1 — Infra + Auth** | Deploy Netlify + Edge Functions, Supabase schema completo, auth, workspace, onboarding, seed admin | Login em produção, workspace criado, danilo@loudr.com.br acessa sem onboarding |
-| **2 — Intelligence MVP** | F01, F02, F03, F05, F06 (diagnóstico + evolução), F19 (e-mails) | Diagnóstico gerado e relatório público funcionando |
-| **3 — Listening + Content** | F07a, F07b, F08, F09, F10 | Social com temperatura + Search + Content com 3 sub-páginas |
-| **4 — Brand System** | F11, F12, F13, F14, F15 | Manual em PDF → design.md gerado + brand book preenchido |
-| **5 — Brand Assistant** | F16 (RAG + sidebar lateral) | Assistant responde com contexto real do brand book |
-| **6 — Integração + Dashboard** | F04 completo, F17, F18, F19 completo | Identity Gap calculado em tempo real · Dashboard com todos os blocos |
+| **1 — Infra + Auth** ✅ | Deploy Netlify + Edge Functions, Supabase schema completo, auth, workspace, onboarding, seed admin | Login em produção, workspace criado, danilo@loudr.com.br acessa sem onboarding |
+| **2 — Intelligence MVP** ✅ | F01, F02, F03, F05, F06 (diagnóstico + evolução), F19 (e-mails) | Diagnóstico gerado e relatório público funcionando |
+| **3 — Listening + Content** ✅ | F07a, F08, F09, F10 | Social com temperatura + Content com 3 sub-páginas (F07b Search pendente) |
+| **4 — Brand System** ✅ | F11, F12, F13, F14 | Manual PDF → extração background → brand book preenchido + assets + tokens + RAG embeddings |
+| **5 — Brand Assistant** | F16 (RAG + sidebar lateral) | Assistant responde com contexto real do brand book via voyage-3 |
+| **6 — Integração + Dashboard** | F04 completo, F15, F17, F18, F19 completo | Identity Gap calculado em tempo real · Dashboard com todos os blocos |
 
 ---
 
-*LOUDR OS · SPECS v5.4 · Maio 2026*
+*LOUDR OS · SPECS v5.7 · Junho 2026*
 *Atualizar este documento após cada entrega. Em caso de conflito com PROMPT-AGENTE.md, este prevalece.*

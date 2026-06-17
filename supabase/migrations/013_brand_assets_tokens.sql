@@ -12,6 +12,7 @@ create table if not exists brand_assets (
 
 alter table brand_assets enable row level security;
 
+drop policy if exists "workspace acessa brand_assets" on brand_assets;
 create policy "workspace acessa brand_assets" on brand_assets
   for all using (
     brand_id in (
@@ -37,6 +38,7 @@ create table if not exists design_tokens (
 
 alter table design_tokens enable row level security;
 
+drop policy if exists "workspace acessa design_tokens" on design_tokens;
 create policy "workspace acessa design_tokens" on design_tokens
   for all using (
     brand_id in (
@@ -60,6 +62,7 @@ create table if not exists brand_manual_jobs (
 
 alter table brand_manual_jobs enable row level security;
 
+drop policy if exists "workspace acessa brand_manual_jobs" on brand_manual_jobs;
 create policy "workspace acessa brand_manual_jobs" on brand_manual_jobs
   for all using (
     brand_id in (
@@ -76,10 +79,12 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('brand-manuals', 'brand-manuals', false, 52428800, ARRAY['application/pdf'])
 on conflict (id) do nothing;
 
+drop policy if exists "autenticado faz upload de brand manual" on storage.objects;
 create policy "autenticado faz upload de brand manual"
   on storage.objects for insert to authenticated
   with check (bucket_id = 'brand-manuals');
 
+drop policy if exists "autenticado lê seus brand manuals" on storage.objects;
 create policy "autenticado lê seus brand manuals"
   on storage.objects for select to authenticated
   using (bucket_id = 'brand-manuals');
