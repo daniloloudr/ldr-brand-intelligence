@@ -1,5 +1,5 @@
 import { useState, useEffect }        from 'react'
-import { Box, CircularProgress }       from '@mui/material'
+import { Box, CircularProgress, Typography, Button } from '@mui/material'
 import { styled, useTheme }            from '@mui/material/styles'
 import { ThemeProvider, CssBaseline }  from '@mui/material'
 import { theme as themeDark, themeLight } from '../../lib/theme'
@@ -112,6 +112,23 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   if (!workspace) {
     window.location.hash = '#/login'
     return null
+  }
+
+  if (workspace.ativo === false) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, p: 4 }}>
+        <img src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" style={{ height: 28, marginBottom: 8 }} />
+        <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">
+          Workspace inativo
+        </Typography>
+        <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={380}>
+          Este workspace está temporariamente inativo. Entre em contato com o suporte para reativar o acesso.
+        </Typography>
+        <Button variant="outlined" size="small" onClick={onLogout} sx={{ mt: 1, fontWeight: 700 }}>
+          Sair
+        </Button>
+      </Box>
+    )
   }
 
   const plano    = PLANOS[workspace.plano] || PLANOS.trial
