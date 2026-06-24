@@ -34,7 +34,7 @@ function compileBrandContext({ brandBook, tokens, brand }) {
   const paleta = arr(vi.paleta).map(p => p?.hex || p?.valor || p).filter(Boolean)
   const todasCores = [...new Set([...paleta, ...cores])].slice(0, 8)
 
-  const personalidade = [...arr(v.personalidade), ...arr(v.tom_atributos)].filter(Boolean)
+  const personalidade = [...new Set([...arr(v.personalidade), ...arr(v.tom_atributos)].filter(Boolean))]
   const tipografia = [vi.tipo_principal_nome, vi.tipo_secundario_nome, vi.tipo_display].filter(Boolean)
   const estetica = [vi.foto_mood, vi.foto_luz_edicao, vi.foto_enquadramento, vi.ilustracao_estilo, vi.icone_estilo].filter(Boolean)
   const evitar = [v.tom_evitar, arr(vi.usos_proibidos).join('; '), arr(vi.foto_dont).join('; ')].filter(Boolean)
@@ -99,10 +99,13 @@ export const handler = async (event) => {
   }
 
   // Compila brand context (estruturado: verbal + visual + tokens)
-  const [{ data: brandBook }, { data: tokens }] = await Promise.all([
-    supabase.from('brand_books').select('verbal_identity, visual_identity').eq('brand_id', brand_id).maybeSingle(),
+  // Pega a linha de brand_book MAIS RECENTE — resiliente a duplicatas de brand_id
+  // (a tabela deveria ter unique(brand_id), mas hoje há linhas duplicadas).
+  const [{ data: bbRows }, { data: tokens }] = await Promise.all([
+    supabase.from('brand_books').select('verbal_identity, visual_identity').eq('brand_id', brand_id).order('updated_at', { ascending: false }).limit(1),
     supabase.from('design_tokens').select('nome, valor, categoria').eq('brand_id', brand_id),
   ])
+  const brandBook = bbRows?.[0] || null
   const { prefix, snapshot } = compileBrandContext({ brandBook, tokens, brand })
 
   const promptFinal = `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
