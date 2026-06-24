@@ -35,6 +35,7 @@ export const handler = async (event) => {
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
   const { brand_id, conceito, workflow_id = null, nome } = body
+  const mode = body.mode === 'adapt' ? 'adapt' : 'independent'
   const formatos = [...new Set((body.formatos || []).filter(Boolean))].slice(0, MAX_FORMATOS)
   if (!brand_id)        return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
   if (!conceito)        return { statusCode: 400, headers, body: JSON.stringify({ error: 'conceito obrigatório' }) }
@@ -74,13 +75,18 @@ export const handler = async (event) => {
     nome:     nome || conceito.slice(0, 60),
     conceito,
     formatos,
+    mode,
     status:   'gerando',
   }).select().single()
   if (campErr) return { statusCode: 500, headers, body: JSON.stringify({ error: campErr.message }) }
 
-  // Fan-out: um job independente por formato, mesmo brand context
+  // independent: fan-out de todos os formatos de uma vez.
+  // adapt: submete só o hero (1º formato); as adaptações disparam quando ele
+  //        concluir (em _studio.js), usando o hero como imagem de referência.
+  const formatosToSubmit = mode === 'adapt' ? formatos.slice(0, 1) : formatos
+
   const generations = []
-  for (const formato of formatos) {
+  for (const formato of formatosToSubmit) {
     const promptFinal = `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${conceito}\n\n[FORMATO]\n${formato}`
     const { gen, error } = await submitGeneration(supabase, {
       workspace_id, brand_id, workflow_id, campaign_id: campaign.id,
@@ -88,6 +94,11 @@ export const handler = async (event) => {
     })
     if (gen) generations.push({ id: gen.id, formato })
     else     console.error(`[campaign ${campaign.id}] formato ${formato} falhou:`, error)
+  }
+
+  // adapt: registra o hero para o fan-out posterior
+  if (mode === 'adapt' && generations.length) {
+    await supabase.from('studio_campaigns').update({ hero_generation_id: generations[0].id }).eq('id', campaign.id)
   }
 
   // Nenhuma peça submetida → marca a campanha como erro

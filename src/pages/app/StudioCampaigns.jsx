@@ -19,6 +19,7 @@ const ar = f => (FORMATOS.find(x => x.v === f)?.ar) || '1 / 1'
 export function StudioCampaigns({ brandId }) {
   const [conceito, setConceito] = useState('')
   const [selected, setSelected] = useState(['1:1', '9:16', '16:9'])
+  const [mode, setMode] = useState('independent')
   const [generating, setGenerating] = useState(false)
   const [pieces, setPieces] = useState([])   // { id, formato, status, image_url, error }
   const [msg, setMsg] = useState('')
@@ -41,7 +42,7 @@ export function StudioCampaigns({ brandId }) {
       const res = await fetch('/.netlify/functions/studio-campaign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ brand_id: brandId, conceito: conceito.trim(), formatos: selected }),
+        body: JSON.stringify({ brand_id: brandId, conceito: conceito.trim(), formatos: selected, mode }),
       })
       json = await res.json()
       if (!res.ok) throw new Error(json.error || `Erro ${res.status}`)
@@ -57,14 +58,15 @@ export function StudioCampaigns({ brandId }) {
     if (pollRef.current) clearInterval(pollRef.current)
     const start = Date.now()
     pollRef.current = setInterval(async () => {
-      if (Date.now() - start > 240_000) { clearInterval(pollRef.current); setGenerating(false); return }
-      const { data } = await supabase.from('studio_generations')
-        .select('id, formato, status, image_url, error').eq('campaign_id', campaignId)
-      if (!data) return
-      setPieces(data.map(d => ({ id: d.id, formato: d.formato, status: d.status, image_url: d.image_url, error: d.error })))
-      if (data.length && data.every(d => d.status !== 'processing')) {
-        clearInterval(pollRef.current); setGenerating(false)
-      }
+      if (Date.now() - start > 300_000) { clearInterval(pollRef.current); setGenerating(false); return }
+      const [{ data: gens }, { data: camp }] = await Promise.all([
+        supabase.from('studio_generations').select('id, formato, status, image_url, error').eq('campaign_id', campaignId).order('created_at'),
+        supabase.from('studio_campaigns').select('status').eq('id', campaignId).maybeSingle(),
+      ])
+      if (gens) setPieces(gens.map(d => ({ id: d.id, formato: d.formato, status: d.status, image_url: d.image_url, error: d.error })))
+      // Para quando a campanha sai de "gerando" (concluida/rascunho) — robusto para
+      // o modo adapt, onde as adaptações só surgem depois do hero concluir.
+      if (camp && camp.status !== 'gerando') { clearInterval(pollRef.current); setGenerating(false) }
     }, 3000)
   }
 
@@ -102,6 +104,23 @@ export function StudioCampaigns({ brandId }) {
                 variant={selected.includes(f.v) ? 'filled' : 'outlined'}
                 sx={{ fontWeight: 700, ...(selected.includes(f.v) && { bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }) }}
               />
+            ))}
+          </Stack>
+
+          <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>
+            Modo
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2.5 }}>
+            {[
+              { v: 'independent', label: 'Variações independentes', hint: 'N peças do mesmo conceito — mais variedade' },
+              { v: 'adapt',       label: 'Adaptar de uma peça',     hint: 'gera 1 (1º formato) e reenquadra as demais — mais coerente' },
+            ].map(m => (
+              <Paper key={m.v} variant="outlined" onClick={() => !generating && setMode(m.v)}
+                sx={{ p: 1.25, flex: 1, cursor: generating ? 'default' : 'pointer', borderRadius: 2,
+                  borderColor: mode === m.v ? TEAL : 'divider', borderWidth: mode === m.v ? 2 : 1 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: mode === m.v ? TEAL : 'text.primary' }}>{m.label}</Typography>
+                <Typography sx={{ fontSize: 11, color: 'text.secondary', mt: 0.25 }}>{m.hint}</Typography>
+              </Paper>
             ))}
           </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center">

@@ -115,23 +115,56 @@ export async function finalizeGeneration(supabase, gen, falImageUrl) {
     status: 'done', image_url: imageUrl, thumbnail_url: imageUrl, error: null,
   }).eq('id', gen.id)
 
-  await maybeCompleteCampaign(supabase, gen.campaign_id)
+  await onGenerationSettled(supabase, gen)
 }
 
 export async function failGeneration(supabase, genId, msg) {
   const { data } = await supabase.from('studio_generations')
-    .update({ status: 'error', error: msg }).eq('id', genId).select('campaign_id').single()
-  await maybeCompleteCampaign(supabase, data?.campaign_id)
+    .update({ status: 'error', error: msg }).eq('id', genId).select('id, campaign_id').single()
+  await onGenerationSettled(supabase, data || { id: genId })
 }
 
-/** Marca a campanha como concluída quando nenhuma peça está mais processando. */
-async function maybeCompleteCampaign(supabase, campaign_id) {
-  if (!campaign_id) return
+// Progresso de campanha: dispara o fan-out de adaptações (modo adapt) quando o
+// hero conclui, e marca concluida quando nenhuma peça está mais processando.
+async function onGenerationSettled(supabase, gen) {
+  if (!gen?.campaign_id) return
+  const { data: camp } = await supabase.from('studio_campaigns').select('*').eq('id', gen.campaign_id).single()
+  if (!camp) return
+
+  // Modo adapt: o HERO concluiu → adapta os demais formatos usando-o como referência
+  if (camp.mode === 'adapt' && gen.id === camp.hero_generation_id && !camp.adapt_started) {
+    // claim atômico — evita disparo duplo em retry de webhook
+    const { data: claimed } = await supabase.from('studio_campaigns')
+      .update({ adapt_started: true }).eq('id', camp.id).eq('adapt_started', false).select('id')
+    if (claimed?.length) {
+      const { data: hero } = await supabase.from('studio_generations')
+        .select('image_url, status').eq('id', gen.id).single()
+      if (hero?.status === 'done' && hero.image_url) {
+        const { data: brand } = await supabase.from('brands').select('nome').eq('id', camp.brand_id).single()
+        const { prefix, snapshot } = await resolveBrandContext(supabase, camp.brand_id, brand?.nome || '')
+        for (const formato of (camp.formatos || []).slice(1)) {
+          const promptFinal = `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${camp.conceito}\n\n[ADAPTAÇÃO]\nAdapte a peça de referência para o formato ${formato}, mantendo EXATAMENTE a mesma direção de arte, composição, paleta, elementos e estética. Apenas reenquadre/recomponha para ${formato}.`
+          await submitGeneration(supabase, {
+            workspace_id: camp.workspace_id, brand_id: camp.brand_id, workflow_id: camp.workflow_id,
+            campaign_id: camp.id, promptFinal, snapshot, formato, references: [hero.image_url], mode: 'adapt',
+          })
+        }
+        return  // ainda não conclui — aguarda as adaptações
+      }
+      // hero falhou → encerra a campanha
+      await supabase.from('studio_campaigns').update({ status: 'rascunho' }).eq('id', camp.id)
+      return
+    }
+  }
+
+  // Conclui quando nenhuma peça está mais processando
   const { count } = await supabase.from('studio_generations')
     .select('id', { count: 'exact', head: true })
-    .eq('campaign_id', campaign_id).eq('status', 'processing')
+    .eq('campaign_id', camp.id).eq('status', 'processing')
   if ((count || 0) === 0) {
-    await supabase.from('studio_campaigns').update({ status: 'concluida' }).eq('id', campaign_id)
+    // adapt: só conclui depois que o fan-out das adaptações começou
+    if (camp.mode === 'adapt' && !camp.adapt_started) return
+    await supabase.from('studio_campaigns').update({ status: 'concluida' }).eq('id', camp.id)
   }
 }
 
