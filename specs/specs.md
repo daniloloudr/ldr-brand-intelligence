@@ -1,8 +1,9 @@
 # LOUDR OS — Especificação Completa do Produto
-**Versão:** 5.7
+**Versão:** 5.8
 **Data:** Junho 2026
 **Status:** Documento vivo — atualizar a cada entrega
 **Owner:** Danilo Silva · LOUDR
+**Changelog v5.8:** Brand Book reestruturado em **Identidade Verbal** e **Identidade Visual** (migration 016 — colunas `verbal_identity` e `visual_identity` jsonb em `brand_books`, com backfill de `identity`→verbal e `references`→visual). Novas seções `VerbalIdentitySection` e `VisualIdentitySection` (esta com abas internas + `BrandAssetsSection` embutida). `BrandBook.jsx` vira hub de abas: Verbal / Visual / Design System / Assets / Tokens, com `mapLegacySection()` traduzindo chaves antigas (identity/positioning/brand → verbal; references/assets → visual). Shell de apresentação extraído para `src/components/shell/` — `AppLayout.jsx` (top bar + nav + banner) e `PageHeader.jsx`; `AppShell.jsx` permanece como container/router e passa a consumir `AppLayout`. Diagnósticos ganham coluna `status` (running/done/error — migration 014) e policy RLS dedicada para platform_admin via `is_platform_admin()` (migration 015). Brand Assets com upload real para Supabase Storage: bucket público `brand-assets` (20MB, SVG/PNG/JPEG/WebP/GIF/PDF) + colunas `file_path`/`mime_type`/`size_bytes` (migration 017). Novos: function `workspace-members.js` (lista membros com nome/email de auth.users via service key), hook `useBrandManualJobs.js` (polling 5s de jobs de extração, done/error visíveis por 30min). Migrations 014–017 aplicadas.
 **Changelog v5.7:** Fase 4 (Brand System) entregue. Brand Book refatorado em seções (`BrandSection`). Manual de Marca com upload PDF + extração em background (`brand-manual-extract-background.js`) + polling. Brand Assets (`BrandAssetsSection`) e Design Tokens (`DesignTokensSection`) como seções independentes com CRUD completo. Design System section (`DesignSystemSection`) separada. Content Hub dividido em 3 sub-páginas (`ContentPalavras`, `ContentOportunidades`, `ContentIdeias`) + `ContentGerarDrawer` lateral para geração. RAG do Brand Book via `brand-book-embed-background.js` (Voyage voyage-3, vector(1024), HNSW) + `brand-book-search.js` (busca por similaridade cosseno). Migrations 012 (brand_book_chunks) e 013 (brand_assets, design_tokens, brand_manual_jobs) aplicadas em produção. `listening-coletar.js` removido — substituído por `listening-coletar-background.js` já existente.
 **Changelog v5.6:** Arquitetura de IA migrada para background functions + polling. Todas as funções que chamam IA usam sufixo `-background.js` — Netlify retorna 202 imediatamente, function processa async, frontend faz polling no Supabase a cada 3s. `aiConfig(tier)` centralizado em `_ai.js` (fast/standard/premium) — modelo/tokens/web_search por tier sem `if (isDev())` nas functions. Diagnóstico usa `aiConfig('premium')` — Sonnet 4.6 + web search em dev e prod (sem web search o modelo alucina dados públicos). Admin (aprovarERodar + NovoManual) migrado de runStream para background + poll. `RelatorioCompleto` movido de `src/pages/` para `src/components/` — componente compartilhado entre admin, app e relatório público. Passagem de dados unificada em `{ ...row, ...row.data }` nos três contextos.
 **Changelog v5.5:** Decisões arquiteturais alinhadas com o código existente. Streaming mantido em Netlify Functions Node.js. Zustand e TanStack Query removidos. Drizzle removido. ANTHROPIC_API_KEY renomeado para ANTHROPIC_KEY. Lexical adiado.
@@ -147,6 +148,9 @@ Functions de IA:
   brand-book-embed-background.js          → Voyage voyage-3 — chunkiza brand book + salva embeddings
   brand-book-search.js                    → busca por similaridade cosseno em brand_book_chunks
 
+Functions utilitárias (sem IA):
+  workspace-members.js                    → lista membros com nome/email de auth.users (service key)
+
 Streaming SSE (apenas Brand Assistant):
   anthropic.js                            → proxy SSE — chat conversacional
 ```
@@ -271,6 +275,7 @@ loudr-os/
 │       ├── brand-manual-extract-background.js  # PDF base64 → JSON → brand_manuals + brand_manual_jobs
 │       ├── brand-book-embed-background.js      # chunking brand book → Voyage voyage-3 → brand_book_chunks
 │       ├── brand-book-search.js                # cosine search via match_brand_book_chunks()
+│       ├── workspace-members.js                # lista membros com nome/email de auth.users (service key)
 │       ├── stripe-checkout.js
 │       └── stripe-webhook.js
 │
@@ -296,10 +301,14 @@ loudr-os/
 │   │   ├── supabase.js
 │   │   ├── api.js
 │   │   ├── runStream.js             # SSE com retry 3x e countdown 65s
+│   │   ├── useBrandManualJobs.js    # polling 5s de jobs de extração de manual (done/error visíveis 30min)
 │   │   ├── schemas.js
 │   │   └── utils.js                 # fmtDate, calcularScoreLead, checkPlano,
 │   │                                # PLANOS, calcIdentityGap, calcTemperatura
 │   ├── components/
+│   │   ├── shell/                   # shell de apresentação do app
+│   │   │   ├── AppLayout.jsx        # top bar + nav 6 grupos + banner impersonation + tema dark/light
+│   │   │   └── PageHeader.jsx       # cabeçalho de página (title/subtitle/action)
 │   │   ├── common/
 │   │   │   ├── GlobalStyle.jsx
 │   │   │   ├── ScoreBar.jsx
@@ -354,10 +363,12 @@ loudr-os/
 │       │   ├── ContentOportunidades.jsx    # F09 ✅
 │       │   ├── ContentIdeias.jsx           # F10 ✅
 │       │   ├── ContentGerarDrawer.jsx      # drawer lateral de geração de conteúdo
-│       │   ├── BrandBook.jsx               # F14 ✅ — hub Brand System com abas
-│       │   ├── BrandSection.jsx            # seção editável do brand book (identidade/posicionamento)
+│       │   ├── BrandBook.jsx               # F14 ✅ — hub Brand System: abas Verbal/Visual/Design System/Assets/Tokens
+│       │   ├── BrandSection.jsx            # primitivos compartilhados (FieldLabel, ChipInput, ArquetipoSelector, SectionDivider)
+│       │   ├── VerbalIdentitySection.jsx   # F14 ✅ — identidade verbal (missão, tom, vocabulário)
+│       │   ├── VisualIdentitySection.jsx   # F14 ✅ — identidade visual (abas internas + BrandAssetsSection)
 │       │   ├── BrandManualImport.jsx       # dialog de upload PDF + polling extração
-│       │   ├── BrandAssetsSection.jsx      # F12 ✅ — CRUD de assets (logo, cor, tipografia)
+│       │   ├── BrandAssetsSection.jsx      # F12 ✅ — CRUD de assets + upload Storage (bucket brand-assets)
 │       │   ├── DesignSystemSection.jsx     # seção de design system no brand book
 │       │   ├── DesignTokensSection.jsx     # F13 ✅ — CRUD de design tokens
 │       │   ├── BrandAssistant.jsx          # F16 — tela cheia
@@ -498,8 +509,11 @@ create table diagnosticos (
   frase_diagnostico     text,
   dados                 jsonb,
   publico               boolean default true,
-  tipo                  text default 'manual'
+  tipo                  text default 'manual',
+  status                text default 'done'   -- running | done | error (migration 014)
 );
+
+create index idx_diagnosticos_status on diagnosticos(status);
 
 create table solicitacoes (
   id                  uuid default gen_random_uuid() primary key,
@@ -635,7 +649,7 @@ create table brand_manuals (
   extracao      jsonb
 );
 
--- Migration 013
+-- Migration 013 (+ 017 para storage)
 create table brand_assets (
   id         uuid default gen_random_uuid() primary key,
   created_at timestamptz default now(),
@@ -644,8 +658,20 @@ create table brand_assets (
   nome       text not null,
   descricao  text,
   valor      text,            -- hex para cores, nome da fonte, URL para arquivos
-  metadata   jsonb default '{}'
+  metadata   jsonb default '{}',
+  -- migration 017: upload real para Supabase Storage (bucket brand-assets)
+  file_path  text,
+  mime_type  text,
+  size_bytes bigint
 );
+
+-- Migration 017: bucket público para upload de assets (logos SVG, fotos,
+-- ilustrações, ícones, padrões, mockups). 20MB, SVG/PNG/JPEG/WebP/GIF/PDF.
+-- Policies: insert/delete por authenticated, select público — todas por bucket_id.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('brand-assets', 'brand-assets', true, 20971520,
+        array['image/svg+xml','image/png','image/jpeg','image/webp','image/gif','application/pdf'])
+on conflict (id) do update set public = excluded.public;
 
 create table design_tokens (
   id         uuid default gen_random_uuid() primary key,
@@ -670,13 +696,19 @@ create table brand_manual_jobs (
 create table brand_books (
   id              uuid default gen_random_uuid() primary key,
   brand_id        uuid unique references brands(id),
-  identity        jsonb,
-  positioning     jsonb,
+  identity        jsonb,                       -- legado — mantido para compat
+  positioning     jsonb,                       -- legado
   design_system   jsonb,
-  references      jsonb,
+  references      jsonb,                       -- legado
+  verbal_identity jsonb default '{}'::jsonb,   -- migration 016 — backfill de identity
+  visual_identity jsonb default '{}'::jsonb,   -- migration 016 — backfill de references
   version         int default 1,
   updated_at      timestamptz default now()
 );
+
+-- Migration 016: índices GIN para as novas seções
+create index idx_brand_books_verbal_identity on brand_books using gin (verbal_identity);
+create index idx_brand_books_visual_identity on brand_books using gin (visual_identity);
 
 create table brand_book_history (
   id              uuid default gen_random_uuid() primary key,
@@ -819,6 +851,11 @@ create policy "workspace acessa diagnosticos" on diagnosticos
 
 create policy "publico pode solicitar" on solicitacoes
   for insert to anon, authenticated with check (true);
+
+-- Migration 015: platform_admin cria a linha "running" (antes de chamar a
+-- background function) e pode reabrir um job para retry — via auth token, não service key
+create policy "platform_admin acessa diagnosticos" on diagnosticos
+  for all using (is_platform_admin()) with check (is_platform_admin());
 
 -- Repetir padrão workspace_id para: listening_events, sentiment_snapshots,
 -- concorrentes, diagnosticos_concorrentes, alertas, content_keywords,
@@ -1335,13 +1372,22 @@ Exportar: design.md · tokens.json · CSS custom properties
 ### F14 · Brand System — Brand Book
 **Arquivo:** `src/pages/app/BrandBook.jsx` · **Rota:** `#/app/brand-system/brand-book`
 
+Hub de abas. Cada aba mapeia para uma coluna jsonb de `brand_books`:
+
 ```
-Seção Identidade:     Missão, visão, valores, arquétipo, tom, vocabulário on-brand vs proibido
-Seção Posicionamento: Proposta de valor, personas, diferenciação
-Seção Histórico:      Changelog com diff por seção
+Identidade Verbal  → verbal_identity   VerbalIdentitySection — missão, visão, valores, arquétipo,
+                                        tom de voz, vocabulário on-brand vs proibido
+Identidade Visual  → visual_identity   VisualIdentitySection — abas internas + BrandAssetsSection
+                                        (paleta, tipografia, referências, assets)
+Design System      → design_system     DesignSystemSection
+Assets             → brand_assets      BrandAssetsSection — CRUD + upload Storage
+Tokens             → design_tokens     DesignTokensSection
+Histórico          → brand_book_history changelog com diff por seção
 ```
 
-Edição inline com Lexical · Toda edição → `brand_book_history` · Re-embed com debounce 2s · Recalcula Identity Gap
+**Compat de chaves legadas** (`mapLegacySection()`): `identity`/`positioning`/`brand` → `verbal`; `references`/`assets` → `visual`.
+
+Edição inline (MUI controlled inputs) · Toda edição → `brand_book_history` (mapeada por seção) · Re-embed com debounce 2s · Recalcula Identity Gap
 
 **Git:** `feat: F14 brand system brand book editor` → push
 
@@ -1566,5 +1612,5 @@ git push origin dev
 
 ---
 
-*LOUDR OS · SPECS v5.7 · Junho 2026*
+*LOUDR OS · SPECS v5.8 · Junho 2026*
 *Atualizar este documento após cada entrega. Em caso de conflito com PROMPT-AGENTE.md, este prevalece.*
