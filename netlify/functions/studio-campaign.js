@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════════════
-// studio-generate.js — dispatch SÍNCRONO (<1s) de UMA geração
-// Compila o brand context server-side, submete o job no fal e grava a linha.
-// Spec: specs/features/studio.md §1
+// studio-campaign.js — FAN-OUT: 1 conceito → N peças coerentes
+// Cria a campanha e enfileira N jobs independentes (mesmo brand context),
+// um por formato. Cada peça conclui sozinha (webhook/poll). NÃO faz loop
+// bloqueante. Spec: specs/features/studio.md §2 (Arquitetura de Escala)
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
@@ -15,6 +16,7 @@ const headers = {
 
 const STUDIO_PLANS  = ['pro', 'enterprise']
 const MONTHLY_LIMIT = parseInt(process.env.STUDIO_MONTHLY_LIMIT || '1000', 10)
+const MAX_FORMATOS  = 8
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers }
@@ -32,23 +34,25 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode } = body
-  if (!brand_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
-  if (!prompt)   return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
+  const { brand_id, conceito, workflow_id = null, nome } = body
+  const formatos = [...new Set((body.formatos || []).filter(Boolean))].slice(0, MAX_FORMATOS)
+  if (!brand_id)        return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
+  if (!conceito)        return { statusCode: 400, headers, body: JSON.stringify({ error: 'conceito obrigatório' }) }
+  if (!formatos.length) return { statusCode: 400, headers, body: JSON.stringify({ error: 'selecione ao menos um formato' }) }
 
-  // Brand → workspace (fonte autoritativa)
+  // Brand → workspace
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
   if (!brand) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Marca não encontrada' }) }
   const workspace_id = brand.workspace_id
 
-  // Acesso: membro do workspace OU platform_admin
+  // Acesso
   const [{ data: member }, { data: platformAdmin }] = await Promise.all([
     supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user.id).maybeSingle(),
     supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  // Gate de plano (Studio = Pro+) + quota mensal — admin bypassa
+  // Plano + quota (a campanha consome N do limite mensal)
   if (!platformAdmin) {
     const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
     if (!STUDIO_PLANS.includes(ws?.plano)) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Studio requer plano Pro ou superior' }) }
@@ -57,17 +61,40 @@ export const handler = async (event) => {
     const { count } = await supabase.from('studio_generations')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspace_id).gte('created_at', inicioMes.toISOString())
-    if ((count || 0) >= MONTHLY_LIMIT) return { statusCode: 429, headers, body: JSON.stringify({ error: 'Limite mensal de gerações atingido' }) }
+    if ((count || 0) + formatos.length > MONTHLY_LIMIT)
+      return { statusCode: 429, headers, body: JSON.stringify({ error: 'A campanha excede o limite mensal de gerações' }) }
   }
 
+  // Brand context único — coerência da campanha vem daqui
   const { prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome)
-  const promptFinal = `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
 
-  const { gen, request_id, error } = await submitGeneration(supabase, {
-    workspace_id, brand_id, workflow_id, node_id, campaign_id,
-    promptFinal, snapshot, formato, references, mode,
-  })
-  if (error) return { statusCode: 502, headers, body: JSON.stringify({ error }) }
+  // Cria a campanha (status gerando)
+  const { data: campaign, error: campErr } = await supabase.from('studio_campaigns').insert({
+    workspace_id, brand_id, workflow_id,
+    nome:     nome || conceito.slice(0, 60),
+    conceito,
+    formatos,
+    status:   'gerando',
+  }).select().single()
+  if (campErr) return { statusCode: 500, headers, body: JSON.stringify({ error: campErr.message }) }
 
-  return { statusCode: 200, headers, body: JSON.stringify({ generation_id: gen.id, request_id, status: 'processing' }) }
+  // Fan-out: um job independente por formato, mesmo brand context
+  const generations = []
+  for (const formato of formatos) {
+    const promptFinal = `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${conceito}\n\n[FORMATO]\n${formato}`
+    const { gen, error } = await submitGeneration(supabase, {
+      workspace_id, brand_id, workflow_id, campaign_id: campaign.id,
+      promptFinal, snapshot, formato,
+    })
+    if (gen) generations.push({ id: gen.id, formato })
+    else     console.error(`[campaign ${campaign.id}] formato ${formato} falhou:`, error)
+  }
+
+  // Nenhuma peça submetida → marca a campanha como erro
+  if (!generations.length) {
+    await supabase.from('studio_campaigns').update({ status: 'rascunho' }).eq('id', campaign.id)
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Falha ao submeter as peças no fal' }) }
+  }
+
+  return { statusCode: 200, headers, body: JSON.stringify({ campaign_id: campaign.id, generations, status: 'gerando' }) }
 }

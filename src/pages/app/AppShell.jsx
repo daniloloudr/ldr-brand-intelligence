@@ -23,6 +23,7 @@ import { CampaignDetail } from './CampaignDetail'
 import { WorkspacePage, ContaPage, TimePage, PlanoPage, AlertasPage } from './WorkspacePage'
 import { ContentHub } from './ContentHub'
 import { StudioCanvas } from './StudioCanvas'
+import { StudioCampaigns } from './StudioCampaigns'
 import { UpgradeGate } from '../../components/UpgradeGate'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import logoNegativa from '../../assets/negativa.svg'
@@ -124,7 +125,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
     if (route === 'brands-studio')         return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCanvas brandId={getBrandId()} workflowId={getWorkflowId()} /></UpgradeGate>
-    if (route === 'brands-studio-campaigns') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCanvas brandId={getBrandId()} workflowId={getWorkflowId()} /></UpgradeGate>
+    if (route === 'brands-studio-campaigns') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCampaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
   }

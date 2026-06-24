@@ -228,6 +228,7 @@ export function StudioCanvas({ brandId, workflowId }) {
           <Stack direction="row" spacing={1} alignItems="center">
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('antes') || msg.includes('prompt') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => { window.location.hash = `#/app/brands/${brandId}/brand-book` }} sx={{ color: 'text.secondary' }}>Marca</Button>
+            <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
             <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={run} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
           </Stack>

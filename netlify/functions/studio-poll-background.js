@@ -19,7 +19,7 @@ export const handler = async (event) => {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   const { data: gen } = await supabase.from('studio_generations')
-    .select('id, workspace_id, brand_id, status').eq('id', generation_id).single()
+    .select('id, workspace_id, brand_id, campaign_id, status').eq('id', generation_id).single()
   if (!gen) return { statusCode: 404 }
 
   const MAX_WAIT = 180_000
