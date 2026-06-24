@@ -6,12 +6,14 @@ import {
 import '@xyflow/react/dist/style.css'
 import {
   Box, Button, Typography, TextField, MenuItem, Select, Paper,
-  Stack, CircularProgress, Divider, Tooltip,
+  Stack, CircularProgress, Divider, Tooltip, IconButton,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SaveIcon from '@mui/icons-material/Save'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -82,13 +84,31 @@ const GenerateNode = memo(({ data }) => (
   </NodeShell>
 ))
 
-const PreviewNode = memo(({ data }) => (
+const PreviewNode = memo(({ id, data }) => (
   <NodeShell color={CORAL} title="Preview" output={false}>
-    {data.imageUrl
-      ? <Box component="img" src={data.imageUrl} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
-      : <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>
-        </Box>}
+    {data.imageUrl ? (
+      <>
+        <Box component="img" src={data.imageUrl} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
+        <Stack direction="row" spacing={0} justifyContent="flex-end" className="nodrag" sx={{ mt: 0.25 }}>
+          <Tooltip title="Baixar">
+            <IconButton size="small" onClick={() => data.onDownload?.(data.imageUrl)}>
+              <DownloadOutlinedIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
+            <span>
+              <IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, data)}>
+                <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+      </>
+    ) : (
+      <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>
+      </Box>
+    )}
   </NodeShell>
 ))
 
@@ -124,6 +144,31 @@ export function StudioCanvas({ brandId, workflowId }) {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
   }, [])
 
+  const downloadImage = useCallback(async (url) => {
+    try {
+      const res = await fetch(url); const blob = await res.blob()
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'loudr-studio.png'; a.click(); URL.revokeObjectURL(a.href)
+    } catch { window.open(url, '_blank') }
+  }, [])
+
+  const savePiece = useCallback(async (nodeId, data) => {
+    if (!data?.imageUrl || data.saved) return
+    const { error } = await supabase.from('brand_assets').insert({
+      brand_id: brandId, tipo: 'foto',
+      nome: `Studio · ${data.formato || 'peça'}`, descricao: 'Gerado no Studio',
+      valor: data.imageUrl, mime_type: 'image/png',
+      metadata: { source: 'studio', generation_id: data.genId, formato: data.formato },
+    })
+    if (!error) updateNodeData(nodeId, { saved: true })
+  }, [brandId, updateNodeData])
+
+  // Injeta callbacks nos nós interativos (não serializados)
+  const attachHandlers = useCallback(n => {
+    if (['prompt', 'formato'].includes(n.type)) return { ...n, data: { ...n.data, onChange: updateNodeData } }
+    if (n.type === 'preview') return { ...n, data: { ...n.data, onSave: savePiece, onDownload: downloadImage } }
+    return n
+  }, [updateNodeData, savePiece, downloadImage])
+
   // Carrega workflow salvo ou semeia o grafo inicial
   useEffect(() => {
     let active = true
@@ -131,16 +176,16 @@ export function StudioCanvas({ brandId, workflowId }) {
       if (wfId) {
         const { data } = await supabase.from('studio_workflows').select('nodes, edges').eq('id', wfId).maybeSingle()
         if (active && data?.nodes?.length) {
-          setNodes(data.nodes.map(n => ['prompt', 'formato'].includes(n.type) ? { ...n, data: { ...n.data, onChange: updateNodeData } } : n))
+          setNodes(data.nodes.map(attachHandlers))
           setEdges(data.edges || [])
           return
         }
       }
-      if (active) { setNodes(seedNodes(updateNodeData)); setEdges(seedEdges) }
+      if (active) { setNodes(seedNodes(updateNodeData).map(attachHandlers)); setEdges(seedEdges) }
     }
     load()
     return () => { active = false; if (pollRef.current) clearInterval(pollRef.current) }
-  }, [wfId, updateNodeData])
+  }, [wfId, updateNodeData, attachHandlers])
 
   const onNodesChange = useCallback(ch => setNodes(ns => applyNodeChanges(ch, ns)), [])
   const onEdgesChange = useCallback(ch => setEdges(es => applyEdgeChanges(ch, es)), [])
@@ -148,7 +193,7 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   function serializableNodes() {
     return nodes.map(({ id, type, position, data }) => {
-      const { onChange, ...rest } = data
+      const rest = Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v !== 'function'))
       return { id, type, position, data: rest }
     })
   }
@@ -195,10 +240,10 @@ export function StudioCanvas({ brandId, workflowId }) {
     } catch (e) {
       updateNodeData(genNode.id, { status: 'error', error: e.message }); return
     }
-    pollGeneration(json.generation_id, genNode.id, previewNode?.id)
+    pollGeneration(json.generation_id, genNode.id, previewNode?.id, formatoNode?.data?.formato || '1:1')
   }
 
-  function pollGeneration(genId, genNodeId, previewNodeId) {
+  function pollGeneration(genId, genNodeId, previewNodeId, formato) {
     if (pollRef.current) clearInterval(pollRef.current)
     const start = Date.now()
     pollRef.current = setInterval(async () => {
@@ -211,7 +256,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       if (data.status === 'done') {
         clearInterval(pollRef.current)
         updateNodeData(genNodeId, { status: 'done' })
-        if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: data.image_url })
+        if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: data.image_url, genId, formato, saved: false })
       } else if (data.status === 'error') {
         clearInterval(pollRef.current)
         updateNodeData(genNodeId, { status: 'error', error: data.error || 'erro na geração' })
