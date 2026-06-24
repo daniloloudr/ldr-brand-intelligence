@@ -17,9 +17,9 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
 
-  const { workspace_id, empresa: empresaParam, contexto } = body
+  const { workspace_id, empresa: empresaParam, contexto, diagnostico_id } = body
 
-  if (!workspace_id && !empresaParam) return { statusCode: 400 }
+  if (!workspace_id && !empresaParam && !diagnostico_id) return { statusCode: 400 }
 
   let wsData      = null
   let workspaceId = null
@@ -55,6 +55,14 @@ export const handler = async (event) => {
   const userName = user.user_metadata?.full_name || user.email.split('@')[0]
 
   const saveError = async (msg) => {
+    if (diagnostico_id) {
+      await supabase.from('diagnosticos').update({
+        status:  'error',
+        data:    { _job_error: true, error: msg },
+        publico: false,
+      }).eq('id', diagnostico_id).catch(() => {})
+      return
+    }
     await supabase.from('diagnosticos').insert({
       workspace_id: workspaceId,
       user_id:      user.id,
@@ -65,6 +73,7 @@ export const handler = async (event) => {
       data:         { _job_error: true, error: msg },
       publico:      false,
       tipo:         'background_error',
+      status:       'error',
     }).catch(() => {})
   }
 
@@ -87,11 +96,7 @@ export const handler = async (event) => {
     return { statusCode: 200 }
   }
 
-  const { error: insertErr } = await supabase.from('diagnosticos').insert({
-    workspace_id:         workspaceId,
-    user_id:              user.id,
-    user_email:           user.email,
-    user_name:            userName,
+  const payload = {
     empresa:              parsed.empresa,
     dominio:              parsed.dominio,
     setor:                parsed.setor,
@@ -102,11 +107,27 @@ export const handler = async (event) => {
     frase_diagnostico:    parsed.frase_diagnostico,
     data:                 parsed,
     publico:              true,
-    tipo:                 'manual',
-  })
+    status:               'done',
+  }
 
-  if (insertErr) {
-    await saveError(insertErr.message)
+  let writeErr
+  if (diagnostico_id) {
+    const { error } = await supabase.from('diagnosticos').update(payload).eq('id', diagnostico_id)
+    writeErr = error
+  } else {
+    const { error } = await supabase.from('diagnosticos').insert({
+      ...payload,
+      workspace_id: workspaceId,
+      user_id:      user.id,
+      user_email:   user.email,
+      user_name:    userName,
+      tipo:         'manual',
+    })
+    writeErr = error
+  }
+
+  if (writeErr) {
+    await saveError(writeErr.message)
     return { statusCode: 200 }
   }
 

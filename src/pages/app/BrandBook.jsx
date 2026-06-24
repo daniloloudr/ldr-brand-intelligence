@@ -17,14 +17,26 @@ import { BrandAssetsSection }   from './BrandAssetsSection'
 import { DesignTokensSection }  from './DesignTokensSection'
 import { BrandSection }         from './BrandSection'
 import { DesignSystemSection }  from './DesignSystemSection'
+import { VerbalIdentitySection } from './VerbalIdentitySection'
+import { VisualIdentitySection } from './VisualIdentitySection'
+import { PageHeader }           from '../../components/shell/PageHeader'
+import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 
 const SECTIONS = [
-  { key: 'brand',        label: 'Marca',         color: '#0D9E7A' },
-  { key: 'design_system', label: 'Design System', color: '#EF9F27' },
-  { key: 'assets',       label: 'Assets',         color: '#4A9ECC' },
-  { key: 'tokens',       label: 'Design Tokens',  color: '#FF7043' },
-  { key: 'history',      label: 'Histórico',      color: '#8A9AB0' },
+  { key: 'verbal',       label: 'Identidade Verbal', color: '#0D9E7A' },
+  { key: 'visual',       label: 'Identidade Visual', color: '#7F77DD' },
+  { key: 'design_system', label: 'Design System',     color: '#EF9F27' },
+  { key: 'history',      label: 'Histórico',          color: '#8A9AB0' },
 ]
+
+// Map legacy section keys → new keys
+function mapLegacySection(s) {
+  if (!s) return 'verbal'
+  if (['identity', 'positioning', 'brand'].includes(s)) return 'verbal'
+  if (['references', 'assets'].includes(s)) return 'visual'
+  if (s === 'tokens') return 'design_system'
+  return s
+}
 
 function HistorySection({ history }) {
   if (!history?.length) {
@@ -40,7 +52,7 @@ function HistorySection({ history }) {
         <Paper key={h.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
             <Chip label={h.section} size="small" sx={{ fontWeight: 700, height: 18, fontSize: '0.6rem' }} />
-            <Typography variant="caption" color="text.disabled">{fmtDate(h.changed_at)}</Typography>
+            <Typography variant="caption" color="text.disabled">{fmtDate(h.created_at)}</Typography>
           </Box>
           {h.note && (
             <Typography variant="caption" color="text.secondary">{h.note}</Typography>
@@ -67,31 +79,49 @@ export function BrandBook({ brandId }) {
   const [importOpen, setImportOpen] = useState(false)
 
   const sectionFromHash = getBrandSection()
-  const [activeSection, setActiveSection] = useState(
-    // map legacy hash values to new keys
-    (() => {
-      const s = sectionFromHash
-      if (s === 'identity' || s === 'positioning' || s === 'references') return 'brand'
-      return s || 'brand'
-    })()
-  )
+  const [activeSection, setActiveSection] = useState(mapLegacySection(sectionFromHash))
 
   useEffect(() => {
     if (!brandId) return
     load()
   }, [brandId])
 
+  // Auto-reload quando um job de manual terminar (done) pra essa marca
+  const { jobs: manualJobs } = useBrandManualJobs(workspace?.id)
+  const lastDoneJobRef = useRef(null)
+  useEffect(() => {
+    if (!brandId) return
+    const doneForThis = manualJobs.find(j => j.brand_id === brandId && j.status === 'done')
+    if (doneForThis && lastDoneJobRef.current !== doneForThis.id) {
+      lastDoneJobRef.current = doneForThis.id
+      load()
+    }
+  }, [manualJobs, brandId])
+
   async function load() {
     setLoading(true)
-    const [{ data: b }, { data: bb }, { data: hist }, { data: ass }, { data: tok }] = await Promise.all([
+    // Busca a row mais recente de brand_books (em vez de maybeSingle, que falha se houver duplicatas)
+    const { data: books, error: booksErr } = await supabase
+      .from('brand_books').select('*').eq('brand_id', brandId)
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+    const bb = books?.[0] || null
+    console.log('[BrandBook.load] brand_books rows encontradas:', books?.length, 'erro:', booksErr?.message)
+
+    const [{ data: b }, { data: hist }, { data: ass }, { data: tok }] = await Promise.all([
       supabase.from('brands').select('*').eq('id', brandId).single(),
-      supabase.from('brand_books').select('*').eq('brand_id', brandId).maybeSingle(),
-      supabase.from('brand_book_history').select('*').eq('brand_book_id',
-        (await supabase.from('brand_books').select('id').eq('brand_id', brandId).maybeSingle()).data?.id
-      ).order('changed_at', { ascending: false }).limit(20),
+      bb?.id
+        ? supabase.from('brand_book_history').select('*').eq('brand_book_id', bb.id).order('created_at', { ascending: false }).limit(20)
+        : Promise.resolve({ data: [] }),
       supabase.from('brand_assets').select('*').eq('brand_id', brandId).order('created_at'),
       supabase.from('design_tokens').select('*').eq('brand_id', brandId).order('categoria').order('nome'),
     ])
+    console.log('[BrandBook.load] brand:', b?.id, b?.nome)
+    console.log('[BrandBook.load] book:', bb?.id, 'version:', bb?.version)
+    console.log('[BrandBook.load] verbal_identity keys:', Object.keys(bb?.verbal_identity || {}))
+    console.log('[BrandBook.load] visual_identity keys:', Object.keys(bb?.visual_identity || {}))
+    console.log('[BrandBook.load] design_system keys:', Object.keys(bb?.design_system || {}))
     setBrand(b)
     setBook(bb)
     setHistory(hist || [])
@@ -114,7 +144,12 @@ export function BrandBook({ brandId }) {
   }
 
   async function saveAsset(data) {
-    const existing = assets.find(a => a.tipo === data.tipo && data.tipo === 'logo')
+    // Legacy: logo SVG inline (sem file_path) — substitui o anterior, mantém um único.
+    // Uploads de arquivos (com file_path) sempre criam nova entrada.
+    const isLegacyLogo = data.tipo === 'logo' && !data.file_path
+    const existing = isLegacyLogo
+      ? assets.find(a => a.tipo === 'logo' && !a.file_path)
+      : null
     if (existing) {
       await supabase.from('brand_assets').update(data).eq('id', existing.id)
       setAssets(prev => prev.map(a => a.id === existing.id ? { ...a, ...data } : a))
@@ -137,16 +172,20 @@ export function BrandBook({ brandId }) {
     try {
       if (book.id) {
         await supabase.from('brand_books').update({
-          identity:      book.identity,
-          positioning:   book.positioning,
-          design_system: book.design_system,
-          references:    book.references,
-          version:       (book.version || 1) + 1,
-          updated_at:    new Date().toISOString(),
+          verbal_identity: book.verbal_identity,
+          visual_identity: book.visual_identity,
+          design_system:   book.design_system,
+          // legacy mirrors (manter por compat até deprecar)
+          identity:        book.identity,
+          positioning:     book.positioning,
+          references:      book.references,
+          version:         (book.version || 1) + 1,
+          updated_at:      new Date().toISOString(),
         }).eq('id', book.id)
 
-        const histSection = activeSection === 'brand' ? 'identity' : activeSection
-        if (activeSection !== 'history' && activeSection !== 'assets' && activeSection !== 'tokens') {
+        const histSectionMap = { verbal: 'verbal_identity', visual: 'visual_identity', design_system: 'design_system' }
+        const histSection = histSectionMap[activeSection]
+        if (histSection) {
           await supabase.from('brand_book_history').insert({
             brand_book_id: book.id,
             section:       histSection,
@@ -156,11 +195,10 @@ export function BrandBook({ brandId }) {
         }
       } else {
         const { data: newBook } = await supabase.from('brand_books').insert({
-          brand_id:      brandId,
-          identity:      book.identity || {},
-          positioning:   book.positioning || {},
-          design_system: book.design_system || {},
-          references:    book.references || {},
+          brand_id:        brandId,
+          verbal_identity: book.verbal_identity || {},
+          visual_identity: book.visual_identity || {},
+          design_system:   book.design_system || {},
         }).select().single()
         setBook(newBook)
       }
@@ -202,7 +240,17 @@ export function BrandBook({ brandId }) {
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box>
+      <PageHeader
+        title={brand.nome}
+        subtitle={brand.status === 'active' ? 'Brand Book · Ativo' : 'Brand Book · Rascunho'}
+        action={
+          <Button startIcon={<ArrowBackIcon />} onClick={() => { window.location.hash = '#/app/brands' }} sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            Voltar a Brand OS
+          </Button>
+        }
+      />
+    <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 130px)' }}>
 
       {/* ── Sidebar de seções ── */}
       <Box sx={{
@@ -280,7 +328,7 @@ export function BrandBook({ brandId }) {
 
       {/* ── Conteúdo da seção ── */}
       <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
-        {(activeSection === 'brand' || activeSection === 'design_system') && (
+        {activeSection !== 'history' && (
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
             <Typography variant="h6" fontWeight={900}>
               {SECTIONS.find(s => s.key === activeSection)?.label}
@@ -301,41 +349,27 @@ export function BrandBook({ brandId }) {
             </Button>
           </Box>
         )}
-        {(activeSection === 'assets' || activeSection === 'tokens') && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {activeSection === 'assets'
-                ? <PaletteIcon sx={{ fontSize: 20, color: '#4A9ECC' }} />
-                : <TokenIcon  sx={{ fontSize: 20, color: '#FF7043' }} />}
-              <Typography variant="h6" fontWeight={900}>
-                {SECTIONS.find(s => s.key === activeSection)?.label}
-              </Typography>
-            </Box>
-            <Box sx={{ flex: 1 }} />
-            <Button
-              size="small" variant="outlined" color="inherit"
-              startIcon={<FileUploadIcon />}
-              onClick={() => setImportOpen(true)}
-              sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}
-            >
-              Importar Manual
-            </Button>
-          </Box>
-        )}
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        {activeSection === 'brand' && (
-          <BrandSection book={book} onUpdate={handleBrandUpdate} />
+        {activeSection === 'verbal' && (
+          <VerbalIdentitySection
+            data={book?.verbal_identity}
+            onChange={d => updateSection('verbal_identity', d)}
+          />
+        )}
+        {activeSection === 'visual' && (
+          <VisualIdentitySection
+            data={book?.visual_identity}
+            onChange={d => updateSection('visual_identity', d)}
+            assets={assets}
+            brandId={brandId}
+            onAssetSave={saveAsset}
+            onAssetDelete={deleteAsset}
+          />
         )}
         {activeSection === 'design_system' && (
           <DesignSystemSection data={book?.design_system} onChange={d => updateSection('design_system', d)} />
-        )}
-        {activeSection === 'assets' && (
-          <BrandAssetsSection assets={assets} brandId={brandId} onDelete={deleteAsset} onSave={saveAsset} />
-        )}
-        {activeSection === 'tokens' && (
-          <DesignTokensSection tokens={tokens} onDelete={deleteToken} />
         )}
         {activeSection === 'history' && (
           <>
@@ -351,6 +385,7 @@ export function BrandBook({ brandId }) {
         onClose={() => setImportOpen(false)}
         onSuccess={() => { setImportOpen(false); load() }}
       />
+    </Box>
     </Box>
   )
 }

@@ -8,6 +8,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
@@ -175,18 +176,17 @@ export function CampaignNew({ brandId }) {
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 720, mx: 'auto' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={goBack}
-          sx={{ color: 'text.secondary', fontWeight: 700, minWidth: 0 }}
-        >
-          Campanhas
-        </Button>
-        <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Nova campanha</Typography>
-      </Box>
-
+    <Box>
+      <PageHeader
+        title="Nova campanha"
+        subtitle="Submeta a peça e a IA avalia se está alinhada com o brand book."
+        action={
+          <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            Voltar
+          </Button>
+        }
+      />
+      <Box sx={{ p: 4, maxWidth: 720, mx: 'auto' }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         <TextField
           label="Título da campanha *"
@@ -263,6 +263,7 @@ export function CampaignNew({ brandId }) {
             {loading ? 'Analisando…' : 'Analisar campanha'}
           </Button>
         </Box>
+      </Box>
       </Box>
     </Box>
   )

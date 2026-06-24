@@ -8,6 +8,7 @@ import { supabase }     from '../../lib/supabase'
 import { ContentPalavras }     from './ContentPalavras'
 import { ContentOportunidades } from './ContentOportunidades'
 import { ContentIdeias }        from './ContentIdeias'
+import { PageHeader }           from '../../components/shell/PageHeader'
 
 const CORES = ['#0D9E7A', '#E8185A', '#7F77DD', '#EF9F27', '#4A9ECC', '#FF7043']
 
@@ -107,29 +108,21 @@ export function ContentHub() {
     s + (c.keywords || []).filter(k => k.tipo === 'oportunidade').length, 0)
 
   return (
-    <Box sx={{ p: 4 }}>
-
-      {/* Header */}
-      <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start',
-        justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-        <Box>
-          <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">
-            Content Hub
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Territórios de keywords identificados a partir do seu site.
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined" color="primary" size="small"
-          startIcon={generating
-            ? <CircularProgress size={14} color="inherit" />
-            : <AutoAwesomeIcon />}
-          onClick={handleGerar} disabled={generating}
-          sx={{ fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {generating ? 'Analisando...' : analise ? 'Reanalisar' : 'Analisar site'}
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Content Hub"
+        subtitle="Territórios de keywords identificados a partir do seu site."
+        action={
+          <Button
+            variant="contained" color="primary"
+            startIcon={generating ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
+            onClick={handleGerar} disabled={generating}
+            sx={{ fontWeight: 800 }}>
+            {generating ? 'Analisando…' : analise ? 'Reanalisar' : 'Analisar site'}
+          </Button>
+        }
+      />
+      <Box sx={{ p: 4 }}>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError('')}>
@@ -219,6 +212,7 @@ export function ContentHub() {
           {tab === 2 && <ContentIdeias ideias={ideias} clusters={clusters} workspace={workspace} />}
         </>
       )}
+      </Box>
     </Box>
   )
 }

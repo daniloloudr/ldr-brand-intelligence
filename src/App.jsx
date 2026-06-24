@@ -11,7 +11,8 @@ import { PaginaMetodologia } from "./pages/PaginaMetodologia";
 import { RelatorioPublico } from "./pages/RelatorioPublico";
 
 const WORKSPACE_ROUTES = [
-  'app-home', 'posicionamento', 'listening', 'content-hub', 'workspace',
+  'app-home', 'posicionamento', 'listening', 'content-hub',
+  'workspace', 'conta', 'time', 'plano', 'alertas',
   'brands-list', 'brands-new', 'brands-detail', 'brands-assistant',
   'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail',
 ];

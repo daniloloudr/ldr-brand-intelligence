@@ -10,6 +10,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
@@ -336,7 +337,17 @@ export function BrandAssistant({ brandId }) {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <Box>
+      <PageHeader
+        title={`${brand?.nome || ''} — Brand Assistant`}
+        subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
+        action={
+          <Button onClick={() => { window.location.hash = `#/app/brands/${brand?.id}` }} sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            ← Voltar ao Brand Book
+          </Button>
+        }
+      />
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 130px)', overflow: 'hidden' }}>
 
       {/* ── Esquerda: histórico de conversas ── */}
       <Box sx={{
@@ -386,14 +397,6 @@ export function BrandAssistant({ brandId }) {
 
       {/* ── Centro: chat ── */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-
-        {/* Header */}
-        <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 20 }} />
-          <Typography fontWeight={800} fontSize={15}>
-            {brand?.nome} — Brand Assistant
-          </Typography>
-        </Box>
 
         {/* Mensagens */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
@@ -547,6 +550,7 @@ export function BrandAssistant({ brandId }) {
           </Box>
         )}
       </Box>
+    </Box>
     </Box>
   )
 }
