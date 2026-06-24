@@ -170,37 +170,32 @@ export function BrandBook({ brandId }) {
     setSaving(true)
     setError('')
     try {
-      if (book.id) {
-        await supabase.from('brand_books').update({
-          verbal_identity: book.verbal_identity,
-          visual_identity: book.visual_identity,
-          design_system:   book.design_system,
-          // legacy mirrors (manter por compat até deprecar)
-          identity:        book.identity,
-          positioning:     book.positioning,
-          references:      book.references,
-          version:         (book.version || 1) + 1,
-          updated_at:      new Date().toISOString(),
-        }).eq('id', book.id)
+      // Upsert por brand_id — 1 linha por marca (constraint unique brand_id),
+      // nunca cria duplicata mesmo se book.id vier nulo.
+      const { data: saved, error: upErr } = await supabase.from('brand_books').upsert({
+        brand_id:        brandId,
+        verbal_identity: book.verbal_identity || {},
+        visual_identity: book.visual_identity || {},
+        design_system:   book.design_system || {},
+        // legacy mirrors (manter por compat até deprecar)
+        identity:        book.identity,
+        positioning:     book.positioning,
+        references:      book.references,
+        version:         (book.version || 1) + 1,
+        updated_at:      new Date().toISOString(),
+      }, { onConflict: 'brand_id' }).select().single()
+      if (upErr) throw upErr
+      setBook(saved)
 
-        const histSectionMap = { verbal: 'verbal_identity', visual: 'visual_identity', design_system: 'design_system' }
-        const histSection = histSectionMap[activeSection]
-        if (histSection) {
-          await supabase.from('brand_book_history').insert({
-            brand_book_id: book.id,
-            section:       histSection,
-            snapshot:      book[histSection],
-            changed_by:    user?.id,
-          })
-        }
-      } else {
-        const { data: newBook } = await supabase.from('brand_books').insert({
-          brand_id:        brandId,
-          verbal_identity: book.verbal_identity || {},
-          visual_identity: book.visual_identity || {},
-          design_system:   book.design_system || {},
-        }).select().single()
-        setBook(newBook)
+      const histSectionMap = { verbal: 'verbal_identity', visual: 'visual_identity', design_system: 'design_system' }
+      const histSection = histSectionMap[activeSection]
+      if (histSection && saved?.id) {
+        await supabase.from('brand_book_history').insert({
+          brand_book_id: saved.id,
+          section:       histSection,
+          snapshot:      book[histSection],
+          changed_by:    user?.id,
+        })
       }
 
       setSaved(true)
