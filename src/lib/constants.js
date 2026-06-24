@@ -97,10 +97,10 @@ export const STEPS = [
 ];
 
 export const PLANOS = {
-  trial:      { nome:"Trial",      preco:0,    diagnosticos_mes:1, monitor:null,      concorrentes:0,  membros:1,          social_listening:false, termos_listening:0  },
-  starter:    { nome:"Starter",    preco:490,  diagnosticos_mes:1, monitor:"mensal",  concorrentes:5,  membros:1,          social_listening:false, termos_listening:0  },
-  pro:        { nome:"Pro",        preco:1490, diagnosticos_mes:3, monitor:"semanal", concorrentes:5,  membros:3,          social_listening:true,  termos_listening:3  },
-  enterprise: { nome:"Enterprise", preco:3990, diagnosticos_mes:Infinity, monitor:"diario", concorrentes:15, membros:Infinity, social_listening:true,  termos_listening:10 },
+  trial:      { nome:"Trial",      preco:0,    diagnosticos_mes:1, monitor:null,      concorrentes:0,  membros:1,          social_listening:false, termos_listening:0,  studio:false },
+  starter:    { nome:"Starter",    preco:490,  diagnosticos_mes:1, monitor:"mensal",  concorrentes:5,  membros:1,          social_listening:false, termos_listening:0,  studio:false },
+  pro:        { nome:"Pro",        preco:1490, diagnosticos_mes:3, monitor:"semanal", concorrentes:5,  membros:3,          social_listening:true,  termos_listening:3,  studio:true  },
+  enterprise: { nome:"Enterprise", preco:3990, diagnosticos_mes:Infinity, monitor:"diario", concorrentes:15, membros:Infinity, social_listening:true,  termos_listening:10, studio:true  },
 };
 
 export const RATE_LIMIT_WAIT = 65;

@@ -296,6 +296,14 @@ export function BrandBook({ brandId }) {
           >
             Campanhas
           </Button>
+          <Button
+            fullWidth
+            startIcon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
+            onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio` }}
+            sx={{ bgcolor: 'rgba(13,158,122,0.08)', color: '#0D9E7A', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
+          >
+            Studio
+          </Button>
         </Box>
 
         {/* Nav */}

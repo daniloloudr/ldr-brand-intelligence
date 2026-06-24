@@ -5,7 +5,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { theme as themeDark, themeLight } from '../../lib/theme'
-import { getRoute, getBrandId, getCampaignId, fmtDate } from '../../lib/helpers'
+import { getRoute, getBrandId, getCampaignId, getWorkflowId, fmtDate } from '../../lib/helpers'
 import { PLANOS } from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
 import { useBrandManualJobs } from '../../lib/useBrandManualJobs'
@@ -22,6 +22,7 @@ import { CampaignNew } from './CampaignNew'
 import { CampaignDetail } from './CampaignDetail'
 import { WorkspacePage, ContaPage, TimePage, PlanoPage, AlertasPage } from './WorkspacePage'
 import { ContentHub } from './ContentHub'
+import { StudioCanvas } from './StudioCanvas'
 import { UpgradeGate } from '../../components/UpgradeGate'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import logoNegativa from '../../assets/negativa.svg'
@@ -122,6 +123,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-campaigns')      return <UpgradeGate planoNecessario="pro" workspace={workspace}><Campaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
+    if (route === 'brands-studio')         return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCanvas brandId={getBrandId()} workflowId={getWorkflowId()} /></UpgradeGate>
+    if (route === 'brands-studio-campaigns') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCanvas brandId={getBrandId()} workflowId={getWorkflowId()} /></UpgradeGate>
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
   }

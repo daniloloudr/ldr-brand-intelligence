@@ -15,6 +15,7 @@ const WORKSPACE_ROUTES = [
   'workspace', 'conta', 'time', 'plano', 'alertas',
   'brands-list', 'brands-new', 'brands-detail', 'brands-assistant',
   'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail',
+  'brands-studio', 'brands-studio-campaigns',
 ];
 const ADMIN_ROUTES = ['admin', 'admin-historico'];
 
