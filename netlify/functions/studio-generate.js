@@ -32,7 +32,8 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode } = body
+  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra } = body
+  const useBrand = body.use_brand !== false   // marca opcional — default ligada
   if (!brand_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
   if (!prompt)   return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
 
@@ -60,12 +61,16 @@ export const handler = async (event) => {
     if ((count || 0) >= MONTHLY_LIMIT) return { statusCode: 429, headers, body: JSON.stringify({ error: 'Limite mensal de gerações atingido' }) }
   }
 
-  const { prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome)
-  const promptFinal = `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
+  // Marca como referência OPCIONAL — só injeta se useBrand
+  let snapshot = null, prefix = ''
+  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome))
+  const promptFinal = useBrand
+    ? `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
+    : `${prompt}\n\n[FORMATO]\n${formato}`
 
   const { gen, request_id, error } = await submitGeneration(supabase, {
     workspace_id, brand_id, workflow_id, node_id, campaign_id,
-    promptFinal, snapshot, formato, references, mode,
+    promptFinal, snapshot, formato, references, mode, model, extra,
   })
   if (error) return { statusCode: 502, headers, body: JSON.stringify({ error }) }
 

@@ -1,18 +1,24 @@
 // ════════════════════════════════════════════════════════════════════
-// _image.js — geração de imagem abstraída (espelha o aiConfig do _ai.js)
-// Gateway atual: fal.ai (queue API + webhook). Trocar de modelo/provider
-// é mudança de config, não de código.
-// Spec: specs/features/studio.md — Provider de Geração de Imagem + §1
+// _image.js — geração de imagem via fal.ai (queue API + webhook)
+// Catálogo ABERTO: o model id vem por request (qualquer modelo do fal).
+// O IMAGE_MODELS abaixo é só atalho de UX, não limita o que dá pra usar.
+// Spec: specs/features/studio.md — Modelos & Provider
 // ════════════════════════════════════════════════════════════════════
 
 const FAL_KEY  = process.env.FAL_KEY
 const FAL_BASE = 'https://queue.fal.run'
 
-// Modelo inicial: Gemini 2.5 Flash Image (Nano Banana) — consistência entre
-// peças + aceita referências da marca via image_urls. Trocável por env.
-//   text→image : fal-ai/gemini-25-flash-image   (ou fal-ai/flux/dev)
-//   image→image: fal-ai/gemini-25-flash-image/edit  (referências em image_urls)
-const MODEL = process.env.FAL_IMAGE_MODEL || 'fal-ai/gemini-25-flash-image'
+export const DEFAULT_MODEL = process.env.FAL_IMAGE_MODEL || 'fal-ai/gemini-25-flash-image'
+
+// Catálogo curado — só para UX (nomes amigáveis + quais aceitam referência).
+// Qualquer id do fal funciona via "ID custom" no frontend.
+export const IMAGE_MODELS = [
+  { id: 'fal-ai/gemini-25-flash-image', label: 'Nano Banana (Gemini)', refs: true  },
+  { id: 'fal-ai/flux/dev',              label: 'Flux dev',             refs: false },
+  { id: 'fal-ai/flux-pro/v1.1',         label: 'Flux Pro 1.1',         refs: false },
+  { id: 'fal-ai/ideogram/v2',           label: 'Ideogram v2 (texto)',  refs: false },
+  { id: 'fal-ai/recraft-v3',            label: 'Recraft v3 (design)',  refs: false },
+]
 
 export const falConfigured = () => !!FAL_KEY
 
@@ -20,44 +26,48 @@ function authHeaders() {
   return { 'Authorization': `Key ${FAL_KEY}`, 'Content-Type': 'application/json' }
 }
 
-/** Modelo efetivo: usa o endpoint /edit quando há referências de marca. */
-export function modelFor({ references = [], mode } = {}) {
-  const useEdit = (references && references.length > 0) || mode === 'edit' || mode === 'variation'
-  return useEdit ? `${MODEL}/edit` : MODEL
+/**
+ * Resolve o endpoint efetivo. Gemini/Nano Banana usa /edit quando há
+ * referência (image-to-image). Outros modelos: usa o id como veio — escolha
+ * um modelo i2i específico se precisar de referência.
+ */
+export function modelFor(model, { references = [], mode } = {}) {
+  const base = model || DEFAULT_MODEL
+  const isNano = /gemini-25-flash-image|nano-banana/.test(base) && !/\/edit$/.test(base)
+  const wantsEdit = (references && references.length > 0) || ['edit', 'variation', 'adapt'].includes(mode)
+  return (isNano && wantsEdit) ? `${base}/edit` : base
 }
 
 /**
- * Submete um job na fila do fal com webhook. Retorna { request_id, model, ... }.
- * Não espera a geração — o webhook (ou o poll de dev) conclui.
+ * Submete um job na fila do fal com webhook. Retorna { request_id, model (endpoint), ... }.
+ * Payload tolerante: prompt sempre; image_urls se refs; aspect_ratio best-effort;
+ * `extra` (JSON) mesclado por cima para params específicos do modelo.
  */
-export async function submitImageJob({ prompt, references = [], format, mode, webhookUrl }) {
-  const model = modelFor({ references, mode })
+export async function submitImageJob({ model, prompt, references = [], format, mode, extra, webhookUrl }) {
+  const endpoint = modelFor(model, { references, mode })
   const input = { prompt, num_images: 1 }
-  if (format)               input.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
-  if (references?.length)    input.image_urls   = references    // assets/refs da marca
+  if (format)             input.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
+  if (references?.length) input.image_urls   = references
+  if (extra && typeof extra === 'object') Object.assign(input, extra)
 
   const url = webhookUrl
-    ? `${FAL_BASE}/${model}?fal_webhook=${encodeURIComponent(webhookUrl)}`
-    : `${FAL_BASE}/${model}`
+    ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`
+    : `${FAL_BASE}/${endpoint}`
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(input),
-  })
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(input) })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
     throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
   }
   const data = await res.json()
-  return { ...data, model }                                    // { request_id, status_url, response_url, ... }
+  return { ...data, model: endpoint }                        // { request_id, status_url, ... }
 }
 
 /** Status do job (dev fallback sem webhook). */
 export async function getJobStatus(model, requestId) {
   const res = await fetch(`${FAL_BASE}/${model}/requests/${requestId}/status`, { headers: authHeaders() })
   if (!res.ok) throw new Error(`fal status ${res.status}`)
-  return res.json()                                            // { status: IN_QUEUE | IN_PROGRESS | COMPLETED }
+  return res.json()
 }
 
 /** Resultado final do job — payload do modelo. */

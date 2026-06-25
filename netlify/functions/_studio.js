@@ -61,12 +61,12 @@ export async function resolveBrandContext(supabase, brand_id, brandNome) {
 // ── Submissão de uma geração (fal + insert + poll dev) ───────────────
 export async function submitGeneration(supabase, {
   workspace_id, brand_id, workflow_id = null, node_id = null, campaign_id = null,
-  promptFinal, snapshot, formato, references = [], mode,
+  promptFinal, snapshot, formato, references = [], mode, model, extra,
 }) {
   const webhookUrl = isDev() ? null : `${siteBase()}/.netlify/functions/studio-webhook`
   let job
   try {
-    job = await submitImageJob({ prompt: promptFinal, references, format: formato, mode, webhookUrl })
+    job = await submitImageJob({ model, prompt: promptFinal, references, format: formato, mode, extra, webhookUrl })
   } catch (e) {
     return { error: `Falha ao submeter no fal: ${e.message}` }
   }

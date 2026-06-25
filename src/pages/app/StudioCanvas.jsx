@@ -17,6 +17,7 @@ import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { StudioTabs } from './StudioTabs'
 
 const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A'
 const FORMATOS = [
@@ -209,7 +210,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     else      res = await supabase.from('studio_workflows').insert(payload).select().single()
     setSaving(false)
     if (res.error) { setMsg('Erro ao salvar: ' + res.error.message); return }
-    if (!wfId) { setWfId(res.data.id); window.location.hash = `#/app/brands/${brandId}/studio/${res.data.id}` }
+    if (!wfId) { setWfId(res.data.id); window.location.hash = `#/app/brands/${brandId}/studio/workflow/${res.data.id}` }
     setMsg('Salvo ✓')
   }
 
@@ -271,8 +272,8 @@ export function StudioCanvas({ brandId, workflowId }) {
         subtitle="Geração visual on-brand"
         action={
           <Stack direction="row" spacing={1} alignItems="center">
+            <StudioTabs brandId={brandId} active="workflow" />
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('antes') || msg.includes('prompt') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
-            <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => { window.location.hash = `#/app/brands/${brandId}/brand-book` }} sx={{ color: 'text.secondary' }}>Marca</Button>
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
             <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={run} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>

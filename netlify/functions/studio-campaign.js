@@ -34,8 +34,9 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, conceito, workflow_id = null, nome } = body
+  const { brand_id, conceito, workflow_id = null, nome, model, extra } = body
   const mode = body.mode === 'adapt' ? 'adapt' : 'independent'
+  const useBrand = body.use_brand !== false   // marca opcional — default ligada
   const formatos = [...new Set((body.formatos || []).filter(Boolean))].slice(0, MAX_FORMATOS)
   if (!brand_id)        return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
   if (!conceito)        return { statusCode: 400, headers, body: JSON.stringify({ error: 'conceito obrigatório' }) }
@@ -66,8 +67,9 @@ export const handler = async (event) => {
       return { statusCode: 429, headers, body: JSON.stringify({ error: 'A campanha excede o limite mensal de gerações' }) }
   }
 
-  // Brand context único — coerência da campanha vem daqui
-  const { prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome)
+  // Brand context único (opcional) — coerência da campanha vem daqui
+  let snapshot = null, prefix = ''
+  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome))
 
   // Cria a campanha (status gerando)
   const { data: campaign, error: campErr } = await supabase.from('studio_campaigns').insert({
@@ -87,10 +89,12 @@ export const handler = async (event) => {
 
   const generations = []
   for (const formato of formatosToSubmit) {
-    const promptFinal = `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${conceito}\n\n[FORMATO]\n${formato}`
+    const promptFinal = useBrand
+      ? `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${conceito}\n\n[FORMATO]\n${formato}`
+      : `${conceito}\n\n[FORMATO]\n${formato}`
     const { gen, error } = await submitGeneration(supabase, {
       workspace_id, brand_id, workflow_id, campaign_id: campaign.id,
-      promptFinal, snapshot, formato,
+      promptFinal, snapshot, formato, model, extra,
     })
     if (gen) generations.push({ id: gen.id, formato })
     else     console.error(`[campaign ${campaign.id}] formato ${formato} falhou:`, error)

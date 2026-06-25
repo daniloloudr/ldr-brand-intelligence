@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Box, Typography, CircularProgress, Button, Chip, Alert, Paper,
+  Box, Typography, CircularProgress, Button, Chip, Alert, Paper, Stack,
 } from '@mui/material'
 import ArrowBackIcon    from '@mui/icons-material/ArrowBack'
 import SaveIcon          from '@mui/icons-material/Save'
@@ -80,6 +80,13 @@ export function BrandBook({ brandId }) {
 
   const sectionFromHash = getBrandSection()
   const [activeSection, setActiveSection] = useState(mapLegacySection(sectionFromHash))
+
+  // Reage à navegação da sidebar global (mesma rota, hash muda)
+  useEffect(() => {
+    const onHash = () => setActiveSection(mapLegacySection(getBrandSection()))
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     if (!brandId) return
@@ -234,142 +241,39 @@ export function BrandBook({ brandId }) {
     )
   }
 
+  const sectionLabel = SECTIONS.find(s => s.key === activeSection)?.label || 'Brand Book'
+
   return (
     <Box>
       <PageHeader
-        title={brand.nome}
-        subtitle={brand.status === 'active' ? 'Brand Book · Ativo' : 'Brand Book · Rascunho'}
+        title={sectionLabel}
+        subtitle={`Brand Book · ${brand.nome}`}
         action={
-          <Button startIcon={<ArrowBackIcon />} onClick={() => { window.location.hash = '#/app/brands' }} sx={{ color: 'text.secondary', fontWeight: 700 }}>
-            Voltar a Brand OS
-          </Button>
-        }
-      />
-    <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 130px)' }}>
-
-      {/* ── Sidebar de seções ── */}
-      <Box sx={{
-        width: 200, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider',
-        display: 'flex', flexDirection: 'column',
-      }}>
-        {/* Marca header */}
-        <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => { window.location.hash = '#/app/brands' }}
-            sx={{ color: 'text.disabled', fontWeight: 700, fontSize: 11, px: 0, mb: 1.5, minWidth: 0 }}
-          >
-            Marcas
-          </Button>
-          <Typography fontWeight={900} fontSize={15} noWrap>{brand.nome}</Typography>
-          <Chip
-            label={brand.status === 'active' ? 'Ativo' : 'Rascunho'}
-            size="small"
-            sx={{
-              mt: 0.75,
-              bgcolor: (brand.status === 'active' ? '#0D9E7A' : '#EF9F27') + '18',
-              color: brand.status === 'active' ? '#0D9E7A' : '#EF9F27',
-              fontWeight: 700, fontSize: '0.6rem', height: 18,
-            }}
-          />
-        </Box>
-
-        {/* Assistant + Campaigns links */}
-        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-          <Button
-            fullWidth
-            startIcon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
-            onClick={() => { window.location.hash = `#/app/brands/${brandId}/assistant` }}
-            sx={{ bgcolor: 'rgba(127,119,221,0.08)', color: '#7F77DD', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
-          >
-            Brand Assistant
-          </Button>
-          <Button
-            fullWidth
-            onClick={() => { window.location.hash = `#/app/brands/${brandId}/campaigns` }}
-            sx={{ bgcolor: 'rgba(232,24,90,0.06)', color: '#E8185A', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
-          >
-            Campanhas
-          </Button>
-          <Button
-            fullWidth
-            startIcon={<AutoAwesomeIcon sx={{ fontSize: '14px !important' }} />}
-            onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio` }}
-            sx={{ bgcolor: 'rgba(13,158,122,0.08)', color: '#0D9E7A', fontWeight: 700, fontSize: 11, py: 0.75, justifyContent: 'flex-start' }}
-          >
-            Studio
-          </Button>
-        </Box>
-
-        {/* Nav */}
-        <nav style={{ flex: 1, paddingTop: 8 }}>
-          {SECTIONS.map(({ key, label, color }) => (
-            <button
-              key={key}
-              onClick={() => {
-                setActiveSection(key)
-                window.location.hash = `#/app/brands/${brandId}/${key}`
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '9px 16px', background: 'none', border: 'none',
-                borderLeft: activeSection === key ? `3px solid ${color}` : '3px solid transparent',
-                cursor: 'pointer', fontFamily: "'Cairo', sans-serif", fontSize: 13,
-                fontWeight: activeSection === key ? 800 : 500,
-                color: activeSection === key ? '#D8E4F0' : '#8A9AB0',
-                textAlign: 'left', transition: 'all 0.15s',
-              }}
-            >
-              {key === 'history' ? <HistoryIcon sx={{ fontSize: 15, color }} /> : (
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: activeSection === key ? color : 'transparent', border: `1.5px solid ${color}` }} />
-              )}
-              {label}
-            </button>
-          ))}
-        </nav>
-      </Box>
-
-      {/* ── Conteúdo da seção ── */}
-      <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
-        {activeSection !== 'history' && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-            <Typography variant="h6" fontWeight={900}>
-              {SECTIONS.find(s => s.key === activeSection)?.label}
-            </Typography>
-            <Box sx={{ flex: 1 }} />
-            <Button size="small" variant="outlined" color="inherit"
-              startIcon={<FileUploadIcon />}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button size="small" variant="outlined" color="inherit" startIcon={<FileUploadIcon />}
               onClick={() => setImportOpen(true)}
-              sx={{ fontWeight: 700, fontSize: 11, mr: 1.5, borderColor: 'divider', color: 'text.secondary' }}>
+              sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}>
               Importar Manual
             </Button>
-            <Button variant="contained"
+            <Button size="small" variant="contained"
               startIcon={saving ? <CircularProgress size={14} color="inherit" /> : (saved ? null : <SaveIcon />)}
-              onClick={save} disabled={saving}
-              color={saved ? 'success' : 'primary'}
+              onClick={save} disabled={saving} color={saved ? 'success' : 'primary'}
               sx={{ fontWeight: 800 }}>
               {saving ? 'Salvando…' : saved ? 'Salvo!' : 'Salvar'}
             </Button>
-          </Box>
-        )}
+          </Stack>
+        }
+      />
 
+      <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {activeSection === 'verbal' && (
-          <VerbalIdentitySection
-            data={book?.verbal_identity}
-            onChange={d => updateSection('verbal_identity', d)}
-          />
+          <VerbalIdentitySection data={book?.verbal_identity} onChange={d => updateSection('verbal_identity', d)} />
         )}
         {activeSection === 'visual' && (
-          <VisualIdentitySection
-            data={book?.visual_identity}
-            onChange={d => updateSection('visual_identity', d)}
-            assets={assets}
-            brandId={brandId}
-            onAssetSave={saveAsset}
-            onAssetDelete={deleteAsset}
-          />
+          <VisualIdentitySection data={book?.visual_identity} onChange={d => updateSection('visual_identity', d)}
+            assets={assets} brandId={brandId} onAssetSave={saveAsset} onAssetDelete={deleteAsset} />
         )}
         {activeSection === 'design_system' && (
           <DesignSystemSection data={book?.design_system} onChange={d => updateSection('design_system', d)} />
@@ -382,13 +286,7 @@ export function BrandBook({ brandId }) {
         )}
       </Box>
 
-      <BrandManualImport
-        brandId={brandId}
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onSuccess={() => { setImportOpen(false); load() }}
-      />
-    </Box>
+      <BrandManualImport brandId={brandId} open={importOpen} onClose={() => setImportOpen(false)} onSuccess={() => { setImportOpen(false); load() }} />
     </Box>
   )
 }

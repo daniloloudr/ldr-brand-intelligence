@@ -26,6 +26,8 @@ export function getRoute() {
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/campanhas/))       return 'brands-studio-campaigns';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow/))        return 'brands-studio-workflow';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio/))                  return 'brands-studio';
   if (h.startsWith('#/app/brands/'))                               return 'brands-detail';
   if (h === '#/admin')               return 'admin';
@@ -53,8 +55,8 @@ export function getBrandSection() {
 
 export function getWorkflowId() {
   const h = window.location.hash;
-  const m = h.match(/^#\/app\/brands\/[^/]+\/studio\/([^/]+)/)
-  return (m && m[1] !== 'campanhas') ? m[1] : null
+  const m = h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow\/([^/]+)/)
+  return m ? m[1] : null
 }
 
 export const sc    = s => s >= 7 ? DS.green    : s >= 5 ? DS.amber    : DS.pink;

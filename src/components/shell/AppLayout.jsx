@@ -139,39 +139,50 @@ export function AppLayout({
         </Typography>
 
         <Box component="nav" sx={{ flex: 1, px: 1.25, py: 0.5 }}>
-          {nav.map(({ id, label, icon: Icon, badge, locked, isActive }) => {
-            const active = typeof isActive === "function" ? isActive(currentRoute) : isActive;
+          {nav.map((entry, i) => {
+            // ── Grupo: cabeçalho + filhos indentados ──
+            if (entry.type === "group") {
+              const Icon = entry.icon;
+              return (
+                <Box key={i} sx={{ mt: 1.25 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 1.5, py: 0.75, color: "text.secondary" }}>
+                    {Icon && <Box sx={{ display: "flex", alignItems: "center", opacity: 0.7 }}><Icon /></Box>}
+                    <Box sx={{ flex: 1, fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{entry.label}</Box>
+                  </Box>
+                  {entry.children.map(c => (
+                    <Box key={c.hash} component="button" onClick={() => !c.locked && onNavigate(c.hash)} disabled={c.locked}
+                      sx={{
+                        display: "flex", alignItems: "center", gap: 1, width: "100%", pl: 4, pr: 1.5, py: 0.8, mb: 0.1,
+                        border: "none", borderLeft: 3, borderLeftColor: c.active ? TEAL : "transparent",
+                        bgcolor: c.active ? theme => theme.palette.action.selected : "transparent",
+                        color: c.active ? "text.primary" : "text.secondary",
+                        fontWeight: c.active ? 700 : 500, fontSize: 12.5,
+                        textAlign: "left", cursor: c.locked ? "not-allowed" : "pointer", borderRadius: 1,
+                        opacity: c.locked ? 0.5 : 1, transition: "all 0.15s",
+                        "&:hover": !c.locked && { color: "text.primary", bgcolor: theme => theme.palette.action.hover },
+                      }}>
+                      <Box sx={{ flex: 1 }}>{c.label}</Box>
+                      {c.locked && <Box sx={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: PINK, border: `1px solid ${PINK}33`, px: 0.6, py: 0.05, textTransform: "uppercase" }}>Pro</Box>}
+                    </Box>
+                  ))}
+                </Box>
+              );
+            }
+            // ── Item simples ──
+            const Icon = entry.icon;
             return (
-              <Box key={id} component="button" onClick={() => onNavigate(id)} disabled={locked}
+              <Box key={i} component="button" onClick={() => onNavigate(entry.hash)}
                 sx={{
-                  display: "flex", alignItems: "center", gap: 1.25,
-                  width: "100%", px: 1.5, py: 1.1, mb: 0.25,
-                  border: "none", borderLeft: 3, borderLeftColor: active ? TEAL : "transparent",
-                  bgcolor: active ? theme => theme.palette.action.selected : "transparent",
-                  color: active ? "text.primary" : "text.secondary",
-                  fontWeight: active ? 700 : 500, fontSize: 13,
-                  textAlign: "left", cursor: locked ? "not-allowed" : "pointer",
-                  borderRadius: 1,
-                  opacity: locked ? 0.5 : 1,
-                  transition: "all 0.15s",
-                  "&:hover": !locked && { color: "text.primary", bgcolor: theme => theme.palette.action.hover },
+                  display: "flex", alignItems: "center", gap: 1.25, width: "100%", px: 1.5, py: 1.1, mb: 0.25, mt: 0.5,
+                  border: "none", borderLeft: 3, borderLeftColor: entry.active ? TEAL : "transparent",
+                  bgcolor: entry.active ? theme => theme.palette.action.selected : "transparent",
+                  color: entry.active ? "text.primary" : "text.secondary",
+                  fontWeight: entry.active ? 700 : 500, fontSize: 13,
+                  textAlign: "left", cursor: "pointer", borderRadius: 1, transition: "all 0.15s",
+                  "&:hover": { color: "text.primary", bgcolor: theme => theme.palette.action.hover },
                 }}>
-                {Icon && (
-                  <Box sx={{ display: "flex", alignItems: "center", color: active ? TEAL : "currentColor", opacity: active ? 1 : 0.65 }}>
-                    <Icon />
-                  </Box>
-                )}
-                <Box sx={{ flex: 1 }}>{label}</Box>
-                {badge && (
-                  <Box sx={{ bgcolor: PINK, color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, px: 0.85, py: 0.05 }}>
-                    {badge}
-                  </Box>
-                )}
-                {locked && (
-                  <Box sx={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: PINK, border: `1px solid ${PINK}33`, px: 0.6, py: 0.05, textTransform: "uppercase" }}>
-                    Pro
-                  </Box>
-                )}
+                {Icon && <Box sx={{ display: "flex", alignItems: "center", color: entry.active ? TEAL : "currentColor", opacity: entry.active ? 1 : 0.65 }}><Icon /></Box>}
+                <Box sx={{ flex: 1 }}>{entry.label}</Box>
               </Box>
             );
           })}
