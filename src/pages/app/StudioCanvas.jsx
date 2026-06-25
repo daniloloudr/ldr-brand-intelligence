@@ -6,7 +6,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import {
   Box, Button, Typography, TextField, MenuItem, Select, Paper,
-  Stack, CircularProgress, Divider, Tooltip, IconButton,
+  Stack, CircularProgress, Divider, Tooltip, IconButton, Menu,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SaveIcon from '@mui/icons-material/Save'
@@ -18,6 +18,7 @@ import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { StudioTabs } from './StudioTabs'
+import { IMAGE_MODELS, resolveModel } from '../../lib/studioModels'
 
 const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A'
 const FORMATOS = [
@@ -74,10 +75,18 @@ const FormatoNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const GenerateNode = memo(({ data }) => (
+const GenerateNode = memo(({ id, data }) => (
   <NodeShell color={TEAL} title="Generate">
-    <Stack spacing={0.75} alignItems="flex-start">
-      <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Gera a peça on-brand</Typography>
+    <Stack spacing={0.5} className="nodrag">
+      <Select value={data.model || 'auto'} onChange={e => data.onChange(id, { model: e.target.value })}
+        size="small" fullWidth sx={{ fontSize: 11 }}>
+        {IMAGE_MODELS.map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>)}
+        <MenuItem value="custom" sx={{ fontSize: 11 }}>ID custom…</MenuItem>
+      </Select>
+      {data.model === 'custom' && (
+        <TextField value={data.customModel || ''} onChange={e => data.onChange(id, { customModel: e.target.value })}
+          placeholder="fal-ai/…" size="small" fullWidth sx={{ '& .MuiInputBase-input': { fontSize: 11 } }} />
+      )}
       {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL }}>gerando…</Typography></Stack>}
       {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>✓ concluído</Typography>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
@@ -121,7 +130,7 @@ const seedNodes = (onChange) => [
   { id: 'visual',  type: 'brandContext', position: { x: 0,   y: 140 }, data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
   { id: 'prompt',  type: 'prompt',       position: { x: 0,   y: 280 }, data: { text: '', onChange } },
   { id: 'formato', type: 'formato',      position: { x: 0,   y: 430 }, data: { formato: '1:1', onChange } },
-  { id: 'gen',     type: 'generate',     position: { x: 300, y: 200 }, data: { status: 'idle' } },
+  { id: 'gen',     type: 'generate',     position: { x: 300, y: 200 }, data: { status: 'idle', model: 'auto' } },
   { id: 'preview', type: 'preview',      position: { x: 600, y: 180 }, data: { imageUrl: null } },
 ]
 const seedEdges = [
@@ -130,6 +139,16 @@ const seedEdges = [
   { id: 'e3', source: 'prompt',  target: 'gen' },
   { id: 'e4', source: 'formato', target: 'gen' },
   { id: 'e5', source: 'gen',     target: 'preview' },
+]
+
+// Paleta de nós que podem ser adicionados ao canvas
+const NODE_TEMPLATES = [
+  { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
+  { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
+  { type: 'generate',     label: 'Generate',     data: { status: 'idle', model: 'auto' } },
+  { type: 'preview',      label: 'Preview',      data: { imageUrl: null } },
+  { type: 'brandContext', label: 'Brand DNA',    data: { title: 'Brand DNA', desc: 'Tom, personalidade e vocabulário da marca' } },
+  { type: 'brandContext', label: 'Brand Visual', data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
 ]
 
 export function StudioCanvas({ brandId, workflowId }) {
@@ -165,10 +184,21 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   // Injeta callbacks nos nós interativos (não serializados)
   const attachHandlers = useCallback(n => {
-    if (['prompt', 'formato'].includes(n.type)) return { ...n, data: { ...n.data, onChange: updateNodeData } }
+    if (['prompt', 'formato', 'generate'].includes(n.type)) return { ...n, data: { ...n.data, onChange: updateNodeData } }
     if (n.type === 'preview') return { ...n, data: { ...n.data, onSave: savePiece, onDownload: downloadImage } }
     return n
   }, [updateNodeData, savePiece, downloadImage])
+
+  const [addAnchor, setAddAnchor] = useState(null)
+  function addNode(tpl) {
+    setAddAnchor(null)
+    const newNode = attachHandlers({
+      id: `${tpl.type}-${Date.now()}`, type: tpl.type,
+      position: { x: 260 + Math.random() * 120, y: 120 + Math.random() * 220 },
+      data: { ...tpl.data },
+    })
+    setNodes(ns => [...ns, newNode])
+  }
 
   // Carrega workflow salvo ou semeia o grafo inicial
   useEffect(() => {
@@ -214,54 +244,72 @@ export function StudioCanvas({ brandId, workflowId }) {
     setMsg('Salvo ✓')
   }
 
-  async function run() {
-    const genNode = nodes.find(n => n.type === 'generate')
-    const promptNode = nodes.find(n => n.type === 'prompt')
-    const formatoNode = nodes.find(n => n.type === 'formato')
-    const hasBrand = nodes.some(n => n.type === 'brandContext')
-    const previewNode = nodes.find(n => n.type === 'preview')
-    const prompt = (promptNode?.data?.text || '').trim()
-
-    if (!hasBrand) return setMsg('Conecte ao menos um nó de marca antes de gerar.')
-    if (!prompt)   return setMsg('Escreva um prompt no nó Prompt.')
-
-    setMsg(''); updateNodeData(genNode.id, { status: 'running', error: null })
-    if (previewNode) updateNodeData(previewNode.id, { imageUrl: null })
-
-    const { data: { session } } = await supabase.auth.getSession()
-    let json
-    try {
-      const res = await fetch('/.netlify/functions/studio-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: genNode.id, prompt, formato: formatoNode?.data?.formato || '1:1' }),
-      })
-      json = await res.json()
-      if (!res.ok) throw new Error(json.error || `Erro ${res.status}`)
-    } catch (e) {
-      updateNodeData(genNode.id, { status: 'error', error: e.message }); return
+  // Resolve os inputs conectados a um nó Generate (marca é opcional: só injeta
+  // se houver um nó de marca conectado).
+  function inputsFor(genId) {
+    const inIds = edges.filter(e => e.target === genId).map(e => e.source)
+    const ins = nodes.filter(n => inIds.includes(n.id))
+    const promptNode  = ins.find(n => n.type === 'prompt')
+    const formatoNode = ins.find(n => n.type === 'formato')
+    const hasBrand    = ins.some(n => n.type === 'brandContext')
+    const previewNode = nodes.find(n => n.type === 'preview' && edges.some(e => e.source === genId && e.target === n.id))
+    return {
+      prompt: (promptNode?.data?.text || '').trim(),
+      formato: formatoNode?.data?.formato || '1:1',
+      hasBrand, previewNodeId: previewNode?.id,
     }
-    pollGeneration(json.generation_id, genNode.id, previewNode?.id, formatoNode?.data?.formato || '1:1')
   }
 
-  function pollGeneration(genId, genNodeId, previewNodeId, formato) {
+  async function run() {
+    const genNodes = nodes.filter(n => n.type === 'generate')
+    if (!genNodes.length) return setMsg('Adicione um nó Generate ao canvas.')
+    setMsg('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const jobs = []
+    for (const g of genNodes) {
+      const { prompt, formato, hasBrand, previewNodeId } = inputsFor(g.id)
+      if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); continue }
+      const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
+      updateNodeData(g.id, { status: 'running', error: null })
+      if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null })
+      try {
+        const res = await fetch('/.netlify/functions/studio-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, model }),
+        })
+        const j = await res.json()
+        if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+        jobs.push({ genId: j.generation_id, genNodeId: g.id, previewNodeId, formato })
+      } catch (e) {
+        updateNodeData(g.id, { status: 'error', error: e.message })
+      }
+    }
+    if (jobs.length) pollJobs(jobs)
+  }
+
+  function pollJobs(jobs) {
     if (pollRef.current) clearInterval(pollRef.current)
     const start = Date.now()
+    const pending = new Set(jobs.map(j => j.genId))
     pollRef.current = setInterval(async () => {
-      if (Date.now() - start > 180_000) {
-        clearInterval(pollRef.current)
-        updateNodeData(genNodeId, { status: 'error', error: 'tempo esgotado' }); return
+      if (!pending.size || Date.now() - start > 180_000) { clearInterval(pollRef.current); return }
+      const { data } = await supabase.from('studio_generations')
+        .select('id, status, image_url, error').in('id', [...pending])
+      for (const row of data || []) {
+        const job = jobs.find(j => j.genId === row.id)
+        if (!job) continue
+        if (row.status === 'done') {
+          pending.delete(row.id)
+          updateNodeData(job.genNodeId, { status: 'done' })
+          if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false })
+        } else if (row.status === 'error') {
+          pending.delete(row.id)
+          updateNodeData(job.genNodeId, { status: 'error', error: row.error || 'erro na geração' })
+        }
       }
-      const { data } = await supabase.from('studio_generations').select('status, image_url, error').eq('id', genId).maybeSingle()
-      if (!data) return
-      if (data.status === 'done') {
-        clearInterval(pollRef.current)
-        updateNodeData(genNodeId, { status: 'done' })
-        if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: data.image_url, genId, formato, saved: false })
-      } else if (data.status === 'error') {
-        clearInterval(pollRef.current)
-        updateNodeData(genNodeId, { status: 'error', error: data.error || 'erro na geração' })
-      }
+      if (!pending.size) clearInterval(pollRef.current)
     }, 3000)
   }
 
@@ -273,7 +321,11 @@ export function StudioCanvas({ brandId, workflowId }) {
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             <StudioTabs brandId={brandId} active="workflow" />
-            {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('antes') || msg.includes('prompt') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
+            {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
+            <Button size="small" startIcon={<AddIcon />} onClick={e => setAddAnchor(e.currentTarget)} sx={{ color: 'text.secondary' }}>Adicionar</Button>
+            <Menu anchorEl={addAnchor} open={!!addAnchor} onClose={() => setAddAnchor(null)}>
+              {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNode(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
+            </Menu>
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
             <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={run} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
