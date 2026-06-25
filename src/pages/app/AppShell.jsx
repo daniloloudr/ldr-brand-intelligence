@@ -24,6 +24,7 @@ import { CampaignDetail } from './CampaignDetail'
 import { WorkspacePage, ContaPage, TimePage, PlanoPage, AlertasPage } from './WorkspacePage'
 import { ContentHub } from './ContentHub'
 import { StudioImage } from './StudioImage'
+import { StudioWorkflows } from './StudioWorkflows'
 import { StudioCanvas } from './StudioCanvas'
 import { StudioCampaigns } from './StudioCampaigns'
 import { StudioVideo } from './StudioVideo'
@@ -141,7 +142,10 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
     if (route === 'brands-studio')         return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioImage brandId={getBrandId()} /></UpgradeGate>
-    if (route === 'brands-studio-workflow') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCanvas brandId={getBrandId()} workflowId={getWorkflowId()} /></UpgradeGate>
+    if (route === 'brands-studio-workflow') {
+      const wf = getWorkflowId()
+      return <UpgradeGate planoNecessario="pro" workspace={workspace}>{wf ? <StudioCanvas brandId={getBrandId()} workflowId={wf} /> : <StudioWorkflows brandId={getBrandId()} />}</UpgradeGate>
+    }
     if (route === 'brands-studio-video')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioVideo brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-studio-campaigns') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCampaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
