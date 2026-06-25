@@ -16,6 +16,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -158,10 +159,29 @@ const AppNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode }
+// Imagem externa (upload) — traz arquivos para compor o workflow
+const ImageInputNode = memo(({ id, data }) => (
+  <NodeShell id={id} color={GRAY} title="Imagem" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+    {data.url ? (
+      <Box component="img" src={data.url} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
+    ) : (
+      <Box component="label" className="nodrag" sx={{
+        aspectRatio: '4 / 3', border: '1px dashed', borderColor: 'divider', borderRadius: 1,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.5, cursor: 'pointer',
+      }}>
+        {data.uploading
+          ? <CircularProgress size={16} />
+          : <><ImageOutlinedIcon sx={{ fontSize: 22, color: 'text.disabled' }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Subir imagem</Typography></>}
+        <input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) data.onUpload?.(id, f) }} />
+      </Box>
+    )}
+  </NodeShell>
+))
+
+const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode }
 
 // Nós que produzem imagem (podem alimentar apps a jusante)
-const PRODUCES_IMAGE = new Set(['generate', 'app'])
+const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput'])
 
 // Paleta de nós que podem ser adicionados ao canvas (novo workflow = canvas em branco)
 const NODE_TEMPLATES = [
@@ -169,6 +189,7 @@ const NODE_TEMPLATES = [
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
   { type: 'generate',     label: 'Generate',     data: { status: 'idle', model: 'auto' } },
   { type: 'preview',      label: 'Preview',      data: { imageUrl: null } },
+  { type: 'imageInput',   label: 'Imagem (upload)', data: {} },
   { type: 'brandContext', label: 'Brand Voice',  data: { title: 'Brand Voice', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
   { type: 'brandContext', label: 'Brand Visual', data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
   { type: 'app',          label: 'Upscale',      data: { op: 'upscale',   label: 'Upscale',   status: 'idle' } },
@@ -184,6 +205,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg]     = useState('')
   const pollRef = useRef(null)
+  const rfRef = useRef(null)
+  const connectSrcRef = useRef(null)
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -205,6 +228,15 @@ export function StudioCanvas({ brandId, workflowId }) {
       metadata: { source: 'studio', generation_id: data.genId, formato: data.formato },
     })
     if (!error) updateNodeData(nodeId, { saved: true })
+  }, [brandId, updateNodeData])
+
+  const uploadImageInput = useCallback(async (id, file) => {
+    updateNodeData(id, { uploading: true })
+    const path = `${brandId}/workflow/${Date.now()}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
+    const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+    if (error) { updateNodeData(id, { uploading: false }); return }
+    const { data } = supabase.storage.from('brand-assets').getPublicUrl(path)
+    updateNodeData(id, { url: data.publicUrl, uploading: false })
   }, [brandId, updateNodeData])
 
   const deleteNode = useCallback((id) => {
@@ -230,11 +262,13 @@ export function StudioCanvas({ brandId, workflowId }) {
     const data = { ...n.data, onDelete: deleteNode, onDuplicate: duplicateNode }
     if (['prompt', 'formato', 'generate'].includes(n.type)) data.onChange = updateNodeData
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage }
+    if (n.type === 'imageInput') data.onUpload = uploadImageInput
     return { ...n, data }
-  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode])
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput])
   attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
+  const [connectMenu, setConnectMenu] = useState(null)
   function addNode(tpl) {
     setAddAnchor(null)
     const newNode = attachHandlers({
@@ -266,6 +300,23 @@ export function StudioCanvas({ brandId, workflowId }) {
   const onNodesChange = useCallback(ch => setNodes(ns => applyNodeChanges(ch, ns)), [])
   const onEdgesChange = useCallback(ch => setEdges(es => applyEdgeChanges(ch, es)), [])
   const onConnect     = useCallback(c => setEdges(es => addEdge(c, es)), [])
+  const onConnectStart = useCallback((_, p) => { connectSrcRef.current = p?.nodeId || null }, [])
+  const onConnectEnd = useCallback((event) => {
+    const source = connectSrcRef.current; connectSrcRef.current = null
+    if (!source) return
+    // soltou no vazio (pane) → oferece criar um nó conectado
+    if (!event.target?.classList?.contains('react-flow__pane')) return
+    const p = event.changedTouches ? event.changedTouches[0] : event
+    const flowPos = rfRef.current?.screenToFlowPosition?.({ x: p.clientX, y: p.clientY })
+    setConnectMenu({ left: p.clientX, top: p.clientY, source, flowPos })
+  }, [])
+  function addNodeFromConnect(tpl) {
+    const { source, flowPos } = connectMenu
+    setConnectMenu(null)
+    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data } })
+    setNodes(ns => [...ns, newNode])
+    setEdges(es => addEdge({ id: `e-${Date.now()}`, source, target: newNode.id }, es))
+  }
 
   function serializableNodes() {
     return nodes.map(({ id, type, position, data }) => {
@@ -314,7 +365,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   async function run() {
     const genNodes = nodes.filter(n => n.type === 'generate')
     const appNodes = nodes.filter(n => n.type === 'app')
-    if (!genNodes.length) return setMsg('Adicione um nó Generate ao canvas.')
+    if (!genNodes.length && !appNodes.length) return setMsg('Adicione nós ao canvas.')
     setMsg('')
 
     const session = (await supabase.auth.getSession()).data.session
@@ -351,9 +402,17 @@ export function StudioCanvas({ brandId, workflowId }) {
       } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
     }
 
+    // imageInput já tem a imagem pronta → semeia outputs (alimenta apps a jusante)
+    for (const n of nodes.filter(n => n.type === 'imageInput' && n.data?.url)) outputs[n.id] = n.data.url
+
     const jobs = []
     for (const g of genNodes) { const job = await dispatchGenerate(g); if (job) jobs.push(job) }
-    if (!jobs.length) return
+    for (const a of appNodes) {
+      if (dispatched.has(a.id)) continue
+      const up = imageUpstreamOf(a.id)
+      if (up && outputs[up.id]) { const job = await dispatchApp(a); if (job) jobs.push(job) }
+    }
+    if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate ou conecte uma imagem a um app.')
     pollEngine(jobs, { outputs, dispatched, appNodes, dispatchApp })
   }
 
@@ -423,9 +482,16 @@ export function StudioCanvas({ brandId, workflowId }) {
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }}>
           {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNode(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
         </Menu>
+        {/* Soltar conexão no vazio → escolher o tipo do novo nó */}
+        <Menu open={!!connectMenu} onClose={() => setConnectMenu(null)}
+          anchorReference="anchorPosition"
+          anchorPosition={connectMenu ? { top: connectMenu.top, left: connectMenu.left } : undefined}>
+          {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNodeFromConnect(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
+        </Menu>
         <ReactFlow
           nodes={nodes} edges={edges} nodeTypes={nodeTypes}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
+          onConnectStart={onConnectStart} onConnectEnd={onConnectEnd} onInit={inst => { rfRef.current = inst }}
           fitView proOptions={{ hideAttribution: true }}
         >
           <Background gap={16} color="#1E3550" />
