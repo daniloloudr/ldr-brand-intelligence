@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import {
-  ReactFlow, Background, Controls, MiniMap,
+  ReactFlow, Background, Controls, MiniMap, NodeToolbar,
   addEdge, applyNodeChanges, applyEdgeChanges, Handle, Position,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -14,6 +14,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -29,12 +31,20 @@ const FORMATOS = [
 ]
 
 // ── Shell visual de um nó ────────────────────────────────────────────
-function NodeShell({ color, title, children, inputs = true, output = true }) {
+function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate }) {
   return (
     <Paper elevation={0} sx={{
       minWidth: 200, maxWidth: 240, border: '1px solid', borderColor: 'divider',
       borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
     }}>
+      {(onDelete || onDuplicate) && (
+        <NodeToolbar position={Position.Top} offset={6}>
+          <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
+            {onDuplicate && <Tooltip title="Duplicar"><IconButton size="small" onClick={() => onDuplicate(id)}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>}
+            {onDelete && <Tooltip title="Excluir"><IconButton size="small" onClick={() => onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>}
+          </Paper>
+        </NodeToolbar>
+      )}
       {inputs && <Handle type="target" position={Position.Left} style={{ background: color, width: 9, height: 9 }} />}
       <Box sx={{ px: 1.5, py: 1 }}>
         <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color }}>
@@ -48,14 +58,14 @@ function NodeShell({ color, title, children, inputs = true, output = true }) {
 }
 
 // ── Nós customizados ─────────────────────────────────────────────────
-const BrandContextNode = memo(({ data }) => (
-  <NodeShell color={PURPLE} title={data.title} inputs={false}>
+const BrandContextNode = memo(({ id, data }) => (
+  <NodeShell id={id} color={PURPLE} title={data.title} inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     <Typography sx={{ fontSize: 11, color: 'text.secondary', lineHeight: 1.4 }}>{data.desc}</Typography>
   </NodeShell>
 ))
 
 const PromptNode = memo(({ id, data }) => (
-  <NodeShell color={GRAY} title="Prompt" inputs={false}>
+  <NodeShell id={id} color={GRAY} title="Prompt" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     <TextField
       value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
       placeholder="O que criar…" multiline minRows={2} maxRows={5} fullWidth size="small"
@@ -65,7 +75,7 @@ const PromptNode = memo(({ id, data }) => (
 ))
 
 const FormatoNode = memo(({ id, data }) => (
-  <NodeShell color={GRAY} title="Formato" inputs={false}>
+  <NodeShell id={id} color={GRAY} title="Formato" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     <Select
       value={data.formato || '1:1'} onChange={e => data.onChange(id, { formato: e.target.value })}
       fullWidth size="small" className="nodrag" sx={{ fontSize: 12 }}
@@ -76,7 +86,7 @@ const FormatoNode = memo(({ id, data }) => (
 ))
 
 const GenerateNode = memo(({ id, data }) => (
-  <NodeShell color={TEAL} title="Generate">
+  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     <Stack spacing={0.5} className="nodrag">
       <Select value={data.model || 'auto'} onChange={e => data.onChange(id, { model: e.target.value })}
         size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -95,7 +105,7 @@ const GenerateNode = memo(({ id, data }) => (
 ))
 
 const PreviewNode = memo(({ id, data }) => (
-  <NodeShell color={CORAL} title="Preview" output={false}>
+  <NodeShell id={id} color={CORAL} title="Preview" output={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     {data.imageUrl ? (
       <>
         <Box component="img" src={data.imageUrl} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
@@ -125,7 +135,7 @@ const PreviewNode = memo(({ id, data }) => (
 const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem' }
 
 const AppNode = memo(({ id, data }) => (
-  <NodeShell color={GRAY} title={data.label || data.op}>
+  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     <Stack spacing={0.5} className="nodrag">
       {data.outputUrl ? (
         <>
@@ -153,30 +163,13 @@ const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato:
 // Nós que produzem imagem (podem alimentar apps a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app'])
 
-// ── Grafo inicial ────────────────────────────────────────────────────
-const seedNodes = (onChange) => [
-  { id: 'dna',     type: 'brandContext', position: { x: 0,   y: 0 },   data: { title: 'Brand DNA', desc: 'Tom, personalidade e vocabulário da marca' } },
-  { id: 'visual',  type: 'brandContext', position: { x: 0,   y: 140 }, data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
-  { id: 'prompt',  type: 'prompt',       position: { x: 0,   y: 280 }, data: { text: '', onChange } },
-  { id: 'formato', type: 'formato',      position: { x: 0,   y: 430 }, data: { formato: '1:1', onChange } },
-  { id: 'gen',     type: 'generate',     position: { x: 300, y: 200 }, data: { status: 'idle', model: 'auto' } },
-  { id: 'preview', type: 'preview',      position: { x: 600, y: 180 }, data: { imageUrl: null } },
-]
-const seedEdges = [
-  { id: 'e1', source: 'dna',     target: 'gen' },
-  { id: 'e2', source: 'visual',  target: 'gen' },
-  { id: 'e3', source: 'prompt',  target: 'gen' },
-  { id: 'e4', source: 'formato', target: 'gen' },
-  { id: 'e5', source: 'gen',     target: 'preview' },
-]
-
-// Paleta de nós que podem ser adicionados ao canvas
+// Paleta de nós que podem ser adicionados ao canvas (novo workflow = canvas em branco)
 const NODE_TEMPLATES = [
   { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
   { type: 'generate',     label: 'Generate',     data: { status: 'idle', model: 'auto' } },
   { type: 'preview',      label: 'Preview',      data: { imageUrl: null } },
-  { type: 'brandContext', label: 'Brand DNA',    data: { title: 'Brand DNA', desc: 'Tom, personalidade e vocabulário da marca' } },
+  { type: 'brandContext', label: 'Brand Voice',  data: { title: 'Brand Voice', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
   { type: 'brandContext', label: 'Brand Visual', data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
   { type: 'app',          label: 'Upscale',      data: { op: 'upscale',   label: 'Upscale',   status: 'idle' } },
   { type: 'app',          label: 'Remove BG',    data: { op: 'removebg',  label: 'Remove BG', status: 'idle' } },
@@ -214,12 +207,32 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (!error) updateNodeData(nodeId, { saved: true })
   }, [brandId, updateNodeData])
 
-  // Injeta callbacks nos nós interativos (não serializados)
+  const deleteNode = useCallback((id) => {
+    setNodes(ns => ns.filter(n => n.id !== id))
+    setEdges(es => es.filter(e => e.source !== id && e.target !== id))
+  }, [])
+
+  const attachHandlersRef = useRef(null)
+  const duplicateNode = useCallback((id) => {
+    setNodes(ns => {
+      const n = ns.find(x => x.id === id); if (!n) return ns
+      const copy = attachHandlersRef.current({
+        ...n, id: `${n.type}-${Date.now()}`,
+        position: { x: n.position.x + 48, y: n.position.y + 48 },
+        data: { ...n.data, status: 'idle', outputUrl: null, imageUrl: null, saved: false },
+      })
+      return [...ns, copy]
+    })
+  }, [])
+
+  // Injeta callbacks nos nós (não serializados): ações + edição
   const attachHandlers = useCallback(n => {
-    if (['prompt', 'formato', 'generate'].includes(n.type)) return { ...n, data: { ...n.data, onChange: updateNodeData } }
-    if (['preview', 'app'].includes(n.type)) return { ...n, data: { ...n.data, onSave: savePiece, onDownload: downloadImage } }
-    return n
-  }, [updateNodeData, savePiece, downloadImage])
+    const data = { ...n.data, onDelete: deleteNode, onDuplicate: duplicateNode }
+    if (['prompt', 'formato', 'generate'].includes(n.type)) data.onChange = updateNodeData
+    if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage }
+    return { ...n, data }
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode])
+  attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
   function addNode(tpl) {
@@ -244,7 +257,7 @@ export function StudioCanvas({ brandId, workflowId }) {
           return
         }
       }
-      if (active) { setNodes(seedNodes(updateNodeData).map(attachHandlers)); setEdges(seedEdges) }
+      if (active) { setNodes([]); setEdges([]) }   // novo workflow = canvas em branco
     }
     load()
     return () => { active = false; if (pollRef.current) clearInterval(pollRef.current) }
@@ -391,17 +404,25 @@ export function StudioCanvas({ brandId, workflowId }) {
           <Stack direction="row" spacing={1} alignItems="center">
             <StudioTabs brandId={brandId} active="workflow" />
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
-            <Button size="small" startIcon={<AddIcon />} onClick={e => setAddAnchor(e.currentTarget)} sx={{ color: 'text.secondary' }}>Adicionar</Button>
-            <Menu anchorEl={addAnchor} open={!!addAnchor} onClose={() => setAddAnchor(null)}>
-              {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNode(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
-            </Menu>
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
             <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={run} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
           </Stack>
         }
       />
-      <Box sx={{ flex: 1, minHeight: 0 }}>
+      <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {/* Toolbar lateral de controle */}
+        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', gap: 0.5, p: 0.5, borderRadius: 2 }}>
+          <Tooltip title="Adicionar nó" placement="right">
+            <IconButton onClick={e => setAddAnchor(e.currentTarget)} sx={{ bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }}>
+              <AddIcon />
+            </IconButton>
+          </Tooltip>
+        </Paper>
+        <Menu anchorEl={addAnchor} open={!!addAnchor} onClose={() => setAddAnchor(null)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }}>
+          {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNode(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
+        </Menu>
         <ReactFlow
           nodes={nodes} edges={edges} nodeTypes={nodeTypes}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
