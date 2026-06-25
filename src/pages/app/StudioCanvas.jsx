@@ -122,7 +122,36 @@ const PreviewNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode }
+const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem' }
+
+const AppNode = memo(({ id, data }) => (
+  <NodeShell color={GRAY} title={data.label || data.op}>
+    <Stack spacing={0.5} className="nodrag">
+      {data.outputUrl ? (
+        <>
+          <Box component="img" src={data.outputUrl} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
+          <Stack direction="row" spacing={0} justifyContent="flex-end" sx={{ mt: 0.25 }}>
+            <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}><DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+            <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
+              <span><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, formato: data.op })}>
+                <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
+              </IconButton></span>
+            </Tooltip>
+          </Stack>
+        </>
+      ) : (
+        <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{APP_DESC[data.op] || ''}</Typography>
+      )}
+      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: GRAY }} /><Typography sx={{ fontSize: 10, color: 'text.secondary' }}>processando…</Typography></Stack>}
+      {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
+    </Stack>
+  </NodeShell>
+))
+
+const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode }
+
+// Nós que produzem imagem (podem alimentar apps a jusante)
+const PRODUCES_IMAGE = new Set(['generate', 'app'])
 
 // ── Grafo inicial ────────────────────────────────────────────────────
 const seedNodes = (onChange) => [
@@ -149,6 +178,9 @@ const NODE_TEMPLATES = [
   { type: 'preview',      label: 'Preview',      data: { imageUrl: null } },
   { type: 'brandContext', label: 'Brand DNA',    data: { title: 'Brand DNA', desc: 'Tom, personalidade e vocabulário da marca' } },
   { type: 'brandContext', label: 'Brand Visual', data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
+  { type: 'app',          label: 'Upscale',      data: { op: 'upscale',   label: 'Upscale',   status: 'idle' } },
+  { type: 'app',          label: 'Remove BG',    data: { op: 'removebg',  label: 'Remove BG', status: 'idle' } },
+  { type: 'app',          label: 'Variation',    data: { op: 'variation', label: 'Variation', status: 'idle' } },
 ]
 
 export function StudioCanvas({ brandId, workflowId }) {
@@ -185,7 +217,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   // Injeta callbacks nos nós interativos (não serializados)
   const attachHandlers = useCallback(n => {
     if (['prompt', 'formato', 'generate'].includes(n.type)) return { ...n, data: { ...n.data, onChange: updateNodeData } }
-    if (n.type === 'preview') return { ...n, data: { ...n.data, onSave: savePiece, onDownload: downloadImage } }
+    if (['preview', 'app'].includes(n.type)) return { ...n, data: { ...n.data, onSave: savePiece, onDownload: downloadImage } }
     return n
   }, [updateNodeData, savePiece, downloadImage])
 
@@ -260,53 +292,90 @@ export function StudioCanvas({ brandId, workflowId }) {
     }
   }
 
+  // Nó produtor de imagem conectado à entrada de um nó (encadeamento)
+  function imageUpstreamOf(nodeId) {
+    const inIds = edges.filter(e => e.target === nodeId).map(e => e.source)
+    return nodes.find(n => inIds.includes(n.id) && PRODUCES_IMAGE.has(n.type))
+  }
+
   async function run() {
     const genNodes = nodes.filter(n => n.type === 'generate')
+    const appNodes = nodes.filter(n => n.type === 'app')
     if (!genNodes.length) return setMsg('Adicione um nó Generate ao canvas.')
     setMsg('')
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const jobs = []
-    for (const g of genNodes) {
+    const session = (await supabase.auth.getSession()).data.session
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }
+    const outputs = {}            // nodeId -> image_url pronto (encadeamento)
+    const dispatched = new Set()
+
+    async function dispatchGenerate(g) {
       const { prompt, formato, hasBrand, previewNodeId } = inputsFor(g.id)
-      if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); continue }
+      if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); return null }
       const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
       updateNodeData(g.id, { status: 'running', error: null })
       if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null })
       try {
-        const res = await fetch('/.netlify/functions/studio-generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, model }),
-        })
-        const j = await res.json()
-        if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
-        jobs.push({ genId: j.generation_id, genNodeId: g.id, previewNodeId, formato })
-      } catch (e) {
-        updateNodeData(g.id, { status: 'error', error: e.message })
-      }
+        const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
+          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, model }) })
+        const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+        dispatched.add(g.id)
+        return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
+      } catch (e) { updateNodeData(g.id, { status: 'error', error: e.message }); return null }
     }
-    if (jobs.length) pollJobs(jobs)
+
+    async function dispatchApp(a) {
+      const up = imageUpstreamOf(a.id)
+      const imageUrl = outputs[up?.id]
+      if (!imageUrl) { updateNodeData(a.id, { status: 'error', error: 'conecte uma imagem de entrada' }); return null }
+      updateNodeData(a.id, { status: 'running', error: null, outputUrl: null })
+      try {
+        const res = await fetch('/.netlify/functions/studio-edit', { method: 'POST', headers: auth,
+          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl }) })
+        const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+        dispatched.add(a.id)
+        return { genId: j.generation_id, nodeId: a.id, kind: 'app' }
+      } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
+    }
+
+    const jobs = []
+    for (const g of genNodes) { const job = await dispatchGenerate(g); if (job) jobs.push(job) }
+    if (!jobs.length) return
+    pollEngine(jobs, { outputs, dispatched, appNodes, dispatchApp })
   }
 
-  function pollJobs(jobs) {
+  // Poll concorrente + dispara apps a jusante quando o upstream conclui
+  function pollEngine(initialJobs, ctx) {
     if (pollRef.current) clearInterval(pollRef.current)
-    const start = Date.now()
+    const { outputs, dispatched, appNodes, dispatchApp } = ctx
+    const jobs = [...initialJobs]
     const pending = new Set(jobs.map(j => j.genId))
+    const start = Date.now()
     pollRef.current = setInterval(async () => {
-      if (!pending.size || Date.now() - start > 180_000) { clearInterval(pollRef.current); return }
-      const { data } = await supabase.from('studio_generations')
-        .select('id, status, image_url, error').in('id', [...pending])
+      if (!pending.size || Date.now() - start > 300_000) { clearInterval(pollRef.current); return }
+      const { data } = await supabase.from('studio_generations').select('id, status, image_url, error').in('id', [...pending])
+      const settled = []
       for (const row of data || []) {
-        const job = jobs.find(j => j.genId === row.id)
-        if (!job) continue
+        const job = jobs.find(j => j.genId === row.id); if (!job) continue
         if (row.status === 'done') {
-          pending.delete(row.id)
-          updateNodeData(job.genNodeId, { status: 'done' })
-          if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false })
+          pending.delete(row.id); settled.push(job); outputs[job.nodeId] = row.image_url
+          if (job.kind === 'generate') {
+            updateNodeData(job.nodeId, { status: 'done' })
+            if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false })
+          } else {
+            updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url, genId: row.id, saved: false })
+          }
         } else if (row.status === 'error') {
           pending.delete(row.id)
-          updateNodeData(job.genNodeId, { status: 'error', error: row.error || 'erro na geração' })
+          updateNodeData(job.nodeId, { status: 'error', error: row.error || 'erro na geração' })
+        }
+      }
+      // encadeamento: dispara apps cujo upstream acabou de concluir
+      for (const job of settled) {
+        const ready = appNodes.filter(a => !dispatched.has(a.id) && imageUpstreamOf(a.id)?.id === job.nodeId)
+        for (const a of ready) {
+          const newJob = await dispatchApp(a)
+          if (newJob) { jobs.push(newJob); pending.add(newJob.genId) }
         }
       }
       if (!pending.size) clearInterval(pollRef.current)

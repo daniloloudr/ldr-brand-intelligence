@@ -43,18 +43,25 @@ export function modelFor(model, { references = [], mode } = {}) {
  * Payload tolerante: prompt sempre; image_urls se refs; aspect_ratio best-effort;
  * `extra` (JSON) mesclado por cima para params específicos do modelo.
  */
-export async function submitImageJob({ model, prompt, references = [], format, mode, extra, webhookUrl }) {
+export async function submitImageJob({ model, prompt, references = [], format, mode, extra, input, webhookUrl }) {
   const endpoint = modelFor(model, { references, mode })
-  const input = { prompt, num_images: 1 }
-  if (format)             input.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
-  if (references?.length) input.image_urls   = references
-  if (extra && typeof extra === 'object') Object.assign(input, extra)
+  // `input` (override) é usado pelos apps (upscale/remove-bg/variation) que têm
+  // schema próprio (ex. image_url singular). Caso contrário, monta o default.
+  let body
+  if (input) {
+    body = input
+  } else {
+    body = { prompt, num_images: 1 }
+    if (format)             body.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
+    if (references?.length) body.image_urls   = references
+    if (extra && typeof extra === 'object') Object.assign(body, extra)
+  }
 
   const url = webhookUrl
     ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`
     : `${FAL_BASE}/${endpoint}`
 
-  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(input) })
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
     throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
