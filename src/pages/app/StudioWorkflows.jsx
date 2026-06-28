@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import {
-  Box, Button, Typography, Paper, Stack, IconButton, Menu, MenuItem, CircularProgress, Chip,
+  Box, Button, Typography, Paper, Stack, IconButton, Menu, MenuItem, CircularProgress, Chip, TextField,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { StudioTabs } from './StudioTabs'
+import { WORKFLOW_TEMPLATES, TEMPLATE_CAT_COLOR } from '../../lib/studioWorkflowTemplates'
 
 const TEAL = '#0D9E7A'
 
@@ -29,6 +31,9 @@ export function StudioWorkflows({ brandId }) {
   const [workflows, setWorkflows] = useState([])
   const [loading, setLoading] = useState(true)
   const [menu, setMenu] = useState(null)   // { anchor, wf }
+  const [iaPrompt, setIaPrompt] = useState('')
+  const [building, setBuilding] = useState(false)
+  const [iaMsg, setIaMsg] = useState('')
 
   useEffect(() => { load() }, [brandId])
 
@@ -42,10 +47,39 @@ export function StudioWorkflows({ brandId }) {
   }
 
   async function novo() {
+    await criarComGrafo('Novo workflow', [], [])
+  }
+
+  // Cria um workflow a partir de um grafo (nodes/edges) e abre o canvas
+  async function criarComGrafo(nome, nodes, edges) {
     const { data, error } = await supabase.from('studio_workflows')
-      .insert({ workspace_id: workspace?.id, brand_id: brandId, nome: 'Novo workflow', nodes: [], edges: [] })
+      .insert({ workspace_id: workspace?.id, brand_id: brandId, nome, nodes, edges })
       .select().single()
     if (!error && data) window.location.hash = `#/app/brands/${brandId}/studio/workflow/${data.id}`
+    return { data, error }
+  }
+
+  // Template embutido (catálogo) → novo workflow clonando o grafo
+  function usarBuiltin(t) {
+    criarComGrafo(t.nome, t.nodes, t.edges)
+  }
+
+  // Cria workflow a partir de um prompt (Sonnet 4.6 monta o grafo)
+  async function criarPorPrompt() {
+    if (!iaPrompt.trim() || building) return
+    setBuilding(true); setIaMsg('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/.netlify/functions/studio-workflow-build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ brand_id: brandId, prompt: iaPrompt.trim() }),
+      })
+      const j = await res.json()
+      if (!res.ok) { setIaMsg(j.error || `Erro ${res.status}`); setBuilding(false); return }
+      await criarComGrafo(j.nome || 'Workflow', j.nodes || [], j.edges || [])
+    } catch (e) { setIaMsg(e.message) }
+    setBuilding(false)
   }
 
   function abrir(wf) { window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}` }
@@ -141,6 +175,51 @@ export function StudioWorkflows({ brandId }) {
       />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
+        {/* Criar por prompt (IA monta o grafo) */}
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 3, borderColor: TEAL, bgcolor: 'rgba(13,158,122,0.04)' }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
+            <AutoAwesomeIcon sx={{ fontSize: 18, color: TEAL }} />
+            <Typography sx={{ fontSize: 13, fontWeight: 800 }}>Criar workflow por prompt</Typography>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-start' }}>
+            <TextField
+              value={iaPrompt} onChange={e => setIaPrompt(e.target.value)} disabled={building}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); criarPorPrompt() } }}
+              placeholder="Ex.: gerar 3 formatos de um post de produto on-brand a partir de uma foto…"
+              fullWidth size="small" multiline maxRows={3} sx={{ '& .MuiInputBase-input': { fontSize: 13 } }} />
+            <Button variant="contained" onClick={criarPorPrompt} disabled={building || !iaPrompt.trim()}
+              startIcon={building ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
+              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {building ? 'Montando…' : 'Criar com IA'}
+            </Button>
+          </Stack>
+          {iaMsg && <Typography sx={{ fontSize: 12, color: '#E8185A', mt: 1 }}>{iaMsg}</Typography>}
+        </Paper>
+
+        {/* Templates embutidos do Studio (catálogo) */}
+        <Box sx={{ mb: 4 }}>
+          <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Templates de workflow</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+            {WORKFLOW_TEMPLATES.map(t => {
+              const cor = TEMPLATE_CAT_COLOR[t.categoria] || TEAL
+              return (
+                <Paper key={t.id} variant="outlined" onClick={() => usarBuiltin(t)}
+                  sx={{ borderRadius: 2, overflow: 'hidden', cursor: 'pointer', '&:hover': { borderColor: cor } }}>
+                  <Box sx={{ position: 'relative', aspectRatio: '16 / 10', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: `linear-gradient(135deg, ${cor}26 0%, ${cor}0D 100%)` }}>
+                    <Chip label={t.categoria} size="small" sx={{ position: 'absolute', top: 6, left: 6, height: 18, fontSize: 9, fontWeight: 800, bgcolor: cor, color: '#fff' }} />
+                    <AccountTreeOutlinedIcon sx={{ fontSize: 30, color: cor }} />
+                  </Box>
+                  <Box sx={{ px: 1.5, py: 1 }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nome}</Typography>
+                    <Typography sx={{ fontSize: 11, color: 'text.disabled', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descricao}</Typography>
+                  </Box>
+                </Paper>
+              )
+            })}
+          </Box>
+        </Box>
+
         {loading ? (
           <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
         ) : workflows.length === 0 ? (
