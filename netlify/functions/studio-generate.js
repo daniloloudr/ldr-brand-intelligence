@@ -32,8 +32,12 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra } = body
+  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra, brand_facets } = body
   const useBrand = body.use_brand !== false   // marca opcional — default ligada
+  // facets opcional: ['verbal','visual'] (Workflow). Ausente = ambas.
+  const facets = Array.isArray(brand_facets) && brand_facets.length
+    ? { verbal: brand_facets.includes('verbal'), visual: brand_facets.includes('visual') }
+    : undefined
   if (!brand_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
   if (!prompt)   return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
 
@@ -63,7 +67,7 @@ export const handler = async (event) => {
 
   // Marca como referência OPCIONAL — só injeta se useBrand
   let snapshot = null, prefix = ''
-  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome))
+  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome, facets))
   const promptFinal = useBrand
     ? `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
     : `${prompt}\n\n[FORMATO]\n${formato}`

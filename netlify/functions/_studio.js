@@ -18,7 +18,11 @@ export function siteBase() {
 // ── Brand context ────────────────────────────────────────────────────
 const arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
 
-export function compileBrandContext({ brandBook, tokens, brandNome }) {
+// facets controla quais facetas da marca entram no contexto: { verbal, visual }.
+// Default = ambas (compat). No Workflow, nós Brand Voice/Brand Visual escolhem.
+export function compileBrandContext({ brandBook, tokens, brandNome, facets }) {
+  const useVerbal = facets ? !!facets.verbal : true
+  const useVisual = facets ? !!facets.visual : true
   const v  = brandBook?.verbal_identity || {}
   const vi = brandBook?.visual_identity || {}
 
@@ -31,31 +35,34 @@ export function compileBrandContext({ brandBook, tokens, brandNome }) {
   const personalidade = [...new Set([...arr(v.personalidade), ...arr(v.tom_atributos)].filter(Boolean))]
   const tipografia = [vi.tipo_principal_nome, vi.tipo_secundario_nome, vi.tipo_display].filter(Boolean)
   const estetica = [vi.foto_mood, vi.foto_luz_edicao, vi.foto_enquadramento, vi.ilustracao_estilo, vi.icone_estilo].filter(Boolean)
-  const evitar = [v.tom_evitar, arr(vi.usos_proibidos).join('; '), arr(vi.foto_dont).join('; ')].filter(Boolean)
+  const evitar = [
+    ...(useVerbal ? [v.tom_evitar] : []),
+    ...(useVisual ? [arr(vi.usos_proibidos).join('; '), arr(vi.foto_dont).join('; ')] : []),
+  ].filter(Boolean)
 
   const linhas = []
   linhas.push(`Marca: ${brandNome || ''}`)
-  if (v.posicionamento || v.proposta_valor) linhas.push(`Posicionamento: ${v.posicionamento || v.proposta_valor}`)
-  if (personalidade.length) linhas.push(`Personalidade: ${personalidade.join(', ')} — a peça deve transmitir isso`)
-  if (v.tom_voz) linhas.push(`Tom: ${v.tom_voz}`)
-  if (todasCores.length) linhas.push(`Paleta (use como cores dominantes): ${todasCores.join(', ')}`)
-  if (tipografia.length) linhas.push(`Tipografia (se houver texto): ${tipografia.join(', ')}`)
-  if (estetica.length) linhas.push(`Estética visual: ${estetica.join('; ')}`)
+  if (useVerbal && (v.posicionamento || v.proposta_valor)) linhas.push(`Posicionamento: ${v.posicionamento || v.proposta_valor}`)
+  if (useVerbal && personalidade.length) linhas.push(`Personalidade: ${personalidade.join(', ')} — a peça deve transmitir isso`)
+  if (useVerbal && v.tom_voz) linhas.push(`Tom: ${v.tom_voz}`)
+  if (useVisual && todasCores.length) linhas.push(`Paleta (use como cores dominantes): ${todasCores.join(', ')}`)
+  if (useVisual && tipografia.length) linhas.push(`Tipografia (se houver texto): ${tipografia.join(', ')}`)
+  if (useVisual && estetica.length) linhas.push(`Estética visual: ${estetica.join('; ')}`)
   if (evitar.length) linhas.push(`Evitar: ${evitar.join('; ')}`)
 
   const prefix = `[BRAND CONTEXT]\n${linhas.join('\n')}`
-  const snapshot = { verbal: v, visual: vi, cores: todasCores, personalidade, tipografia, estetica }
+  const snapshot = { facets: { verbal: useVerbal, visual: useVisual }, verbal: v, visual: vi, cores: todasCores, personalidade, tipografia, estetica }
   return { prefix, snapshot }
 }
 
 /** Lê brand_book (linha mais recente) + tokens e compila o brand context. */
-export async function resolveBrandContext(supabase, brand_id, brandNome) {
+export async function resolveBrandContext(supabase, brand_id, brandNome, facets) {
   const [{ data: bbRows }, { data: tokens }] = await Promise.all([
     supabase.from('brand_books').select('verbal_identity, visual_identity')
       .eq('brand_id', brand_id).order('updated_at', { ascending: false }).limit(1),
     supabase.from('design_tokens').select('nome, valor, categoria').eq('brand_id', brand_id),
   ])
-  return compileBrandContext({ brandBook: bbRows?.[0] || null, tokens, brandNome })
+  return compileBrandContext({ brandBook: bbRows?.[0] || null, tokens, brandNome, facets })
 }
 
 // ── Submissão de uma geração (fal + insert + poll dev) ───────────────

@@ -16,6 +16,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
@@ -40,15 +41,16 @@ const FORMATOS = [
 ]
 
 // ── Shell visual de um nó ────────────────────────────────────────────
-function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate }) {
+function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun }) {
   return (
     <Paper elevation={0} sx={{
       minWidth: 200, maxWidth: 240, border: '1px solid', borderColor: 'divider',
       borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
     }}>
-      {(onDelete || onDuplicate) && (
+      {(onDelete || onDuplicate || onRun) && (
         <NodeToolbar position={Position.Top} offset={6}>
           <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
+            {onRun && <Tooltip title="Rodar este"><IconButton size="small" onClick={() => onRun(id)}><PlayArrowIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton></Tooltip>}
             {onDuplicate && <Tooltip title="Duplicar"><IconButton size="small" onClick={() => onDuplicate(id)}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>}
             {onDelete && <Tooltip title="Excluir"><IconButton size="small" onClick={() => onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>}
           </Paper>
@@ -103,7 +105,7 @@ const FormatoNode = memo(({ id, data }) => (
 ))
 
 const GenerateNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun}>
     <Stack spacing={0.5} className="nodrag">
       <Select value={data.model || 'auto'} onChange={e => data.onChange(id, { model: e.target.value })}
         size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -163,7 +165,7 @@ const PreviewNode = memo(({ id, data }) => (
 const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem' }
 
 const AppNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun}>
     <Stack spacing={0.5} className="nodrag">
       {data.outputUrl ? (
         <>
@@ -248,6 +250,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   const nodesRef = useRef(nodes)
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   const markDirty = useCallback(() => setDirty(true), [])
+  const runRef = useRef(null)                       // run() estável p/ os nós (run seletivo)
+  const runNode = useCallback(id => runRef.current?.(id), [])
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -339,10 +343,11 @@ export function StudioCanvas({ brandId, workflowId }) {
     const data = { ...n.data, onDelete: deleteNode, onDuplicate: duplicateNode }
     if (['prompt', 'formato', 'generate'].includes(n.type)) data.onChange = updateNodeData
     if (n.type === 'prompt') data.onImprove = improvePrompt
+    if (['generate', 'app'].includes(n.type)) data.onRun = runNode
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') data.onUpload = uploadImageInput
     return { ...n, data }
-  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece])
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece, runNode])
   attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
@@ -447,12 +452,16 @@ export function StudioCanvas({ brandId, workflowId }) {
     const ins = nodes.filter(n => inIds.includes(n.id))
     const promptNode  = ins.find(n => n.type === 'prompt')
     const formatoNode = ins.find(n => n.type === 'formato')
-    const hasBrand    = ins.some(n => n.type === 'brandContext')
+    const brandNodes  = ins.filter(n => n.type === 'brandContext')
     const previewNode = nodes.find(n => n.type === 'preview' && edges.some(e => e.source === genId && e.target === n.id))
+    // Faceta da marca por nó conectado (Brand Voice → verbal, Brand Visual → visual)
+    const brandFacets = []
+    if (brandNodes.some(n => /voz|voice|verbal/i.test(n.data?.title || ''))) brandFacets.push('verbal')
+    if (brandNodes.some(n => /visual/i.test(n.data?.title || ''))) brandFacets.push('visual')
     return {
       prompt: (promptNode?.data?.text || '').trim(),
       formato: formatoNode?.data?.formato || '1:1',
-      hasBrand, previewNodeId: previewNode?.id,
+      hasBrand: brandNodes.length > 0, brandFacets, previewNodeId: previewNode?.id,
     }
   }
 
@@ -466,10 +475,24 @@ export function StudioCanvas({ brandId, workflowId }) {
     const inIds = edges.filter(e => e.target === nodeId).map(e => e.source)
     return nodes.filter(n => inIds.includes(n.id) && PRODUCES_IMAGE.has(n.type))
   }
+  // Fecho a jusante de um nó (ele + tudo que descende dele) — p/ run seletivo
+  function downstreamClosure(rootId) {
+    const keep = new Set([rootId]); const stack = [rootId]
+    while (stack.length) {
+      const cur = stack.pop()
+      for (const e of edges) if (e.source === cur && !keep.has(e.target)) { keep.add(e.target); stack.push(e.target) }
+    }
+    return keep
+  }
 
-  async function run() {
-    const genNodes = nodes.filter(n => n.type === 'generate')
-    const appNodes = nodes.filter(n => n.type === 'app')
+  async function run(rootId = null) {
+    let genNodes = nodes.filter(n => n.type === 'generate')
+    let appNodes = nodes.filter(n => n.type === 'app')
+    if (rootId) {                                  // run seletivo: só o nó + descendentes
+      const keep = downstreamClosure(rootId)
+      genNodes = genNodes.filter(n => keep.has(n.id))
+      appNodes = appNodes.filter(n => keep.has(n.id))
+    }
     if (!genNodes.length && !appNodes.length) return setMsg('Adicione nós ao canvas.')
     setMsg('')
 
@@ -479,7 +502,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const dispatched = new Set()
 
     async function dispatchGenerate(g) {
-      const { prompt, formato, hasBrand, previewNodeId } = inputsFor(g.id)
+      const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
       if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); return null }
       const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
       const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
@@ -487,7 +510,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null })
       try {
         const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, model, references }) })
+          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
         const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
         dispatched.add(g.id)
         return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
@@ -510,6 +533,8 @@ export function StudioCanvas({ brandId, workflowId }) {
 
     // imageInput já tem a imagem pronta → semeia outputs (alimenta apps/refs a jusante)
     for (const n of nodes.filter(n => n.type === 'imageInput' && n.data?.url)) outputs[n.id] = n.data.url
+    // Run seletivo: reusa imagens já produzidas a montante (apps) sem reprocessar
+    if (rootId) for (const n of nodes.filter(n => n.type === 'app' && n.data?.outputUrl && !appNodes.includes(n))) outputs[n.id] = n.data.outputUrl
     // Generate só dispara quando todas as referências de imagem conectadas estão prontas
     const genReady = g => imageUpstreamsOf(g.id).every(u => outputs[u.id])
 
@@ -568,6 +593,8 @@ export function StudioCanvas({ brandId, workflowId }) {
       if (!pending.size) clearInterval(pollRef.current)
     }, 3000)
   }
+
+  runRef.current = run   // mantém a referência estável apontando p/ o run atual
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
