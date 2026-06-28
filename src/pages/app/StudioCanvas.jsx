@@ -5,8 +5,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
-  Box, Button, Typography, TextField, MenuItem, Select, Paper,
-  Stack, CircularProgress, Divider, Tooltip, IconButton, Menu,
+  Box, Button, Typography, TextField, MenuItem, Select, ListSubheader, Paper,
+  Stack, CircularProgress, Divider, Tooltip, IconButton, Menu, Dialog,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SaveIcon from '@mui/icons-material/Save'
@@ -17,6 +17,12 @@ import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import CloseIcon from '@mui/icons-material/Close'
+import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
+import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
+import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -24,6 +30,8 @@ import { StudioTabs } from './StudioTabs'
 import { IMAGE_MODELS, resolveModel } from '../../lib/studioModels'
 
 const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A'
+// Grupos do catálogo (inclui 'Automático') p/ o seletor do nó Generate.
+const MODEL_GROUPS = [...new Set(IMAGE_MODELS.map(m => m.group))]
 const FORMATOS = [
   { v: '1:1',  label: 'Feed 1:1' },
   { v: '9:16', label: 'Story 9:16' },
@@ -67,11 +75,19 @@ const BrandContextNode = memo(({ id, data }) => (
 
 const PromptNode = memo(({ id, data }) => (
   <NodeShell id={id} color={GRAY} title="Prompt" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
-    <TextField
-      value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
-      placeholder="O que criar…" multiline minRows={2} maxRows={5} fullWidth size="small"
-      className="nodrag" sx={{ '& .MuiInputBase-input': { fontSize: 12 } }}
-    />
+    <Stack spacing={0.25} className="nodrag">
+      <TextField
+        value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
+        placeholder="O que criar…" multiline minRows={2} maxRows={5} fullWidth size="small"
+        sx={{ '& .MuiInputBase-input': { fontSize: 12 } }}
+      />
+      <Button size="small" disabled={data.improving || !(data.text || '').trim()}
+        startIcon={data.improving ? <CircularProgress size={11} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 14 }} />}
+        onClick={() => data.onImprove?.(id)}
+        sx={{ alignSelf: 'flex-end', fontSize: 10, fontWeight: 700, color: TEAL, minWidth: 0, py: 0 }}>
+        {data.improving ? 'Melhorando…' : 'Melhorar'}
+      </Button>
+    </Stack>
   </NodeShell>
 ))
 
@@ -91,7 +107,10 @@ const GenerateNode = memo(({ id, data }) => (
     <Stack spacing={0.5} className="nodrag">
       <Select value={data.model || 'auto'} onChange={e => data.onChange(id, { model: e.target.value })}
         size="small" fullWidth sx={{ fontSize: 11 }}>
-        {IMAGE_MODELS.map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>)}
+        {MODEL_GROUPS.flatMap(g => [
+          <ListSubheader key={g} sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 2.2, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
+          ...IMAGE_MODELS.filter(m => m.group === g).map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>),
+        ])}
         <MenuItem value="custom" sx={{ fontSize: 11 }}>ID custom…</MenuItem>
       </Select>
       {data.model === 'custom' && (
@@ -109,8 +128,16 @@ const PreviewNode = memo(({ id, data }) => (
   <NodeShell id={id} color={CORAL} title="Preview" output={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     {data.imageUrl ? (
       <>
-        <Box component="img" src={data.imageUrl} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
-        <Stack direction="row" spacing={0} justifyContent="flex-end" className="nodrag" sx={{ mt: 0.25 }}>
+        <Box component="img" src={data.imageUrl} alt="" className="nodrag" onClick={() => data.onOpen?.(data.imageUrl)}
+          sx={{ width: '100%', borderRadius: 1, display: 'block', cursor: 'zoom-in' }} />
+        <Stack direction="row" spacing={0} alignItems="center" className="nodrag" sx={{ mt: 0.25 }}>
+          <Tooltip title="Aprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'up')}>
+            {data.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 14, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />}
+          </IconButton></Tooltip>
+          <Tooltip title="Reprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'down')}>
+            {data.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 14, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />}
+          </IconButton></Tooltip>
+          <Box sx={{ flex: 1 }} />
           <Tooltip title="Baixar">
             <IconButton size="small" onClick={() => data.onDownload?.(data.imageUrl)}>
               <DownloadOutlinedIcon sx={{ fontSize: 15 }} />
@@ -140,8 +167,16 @@ const AppNode = memo(({ id, data }) => (
     <Stack spacing={0.5} className="nodrag">
       {data.outputUrl ? (
         <>
-          <Box component="img" src={data.outputUrl} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
-          <Stack direction="row" spacing={0} justifyContent="flex-end" sx={{ mt: 0.25 }}>
+          <Box component="img" src={data.outputUrl} alt="" onClick={() => data.onOpen?.(data.outputUrl)}
+            sx={{ width: '100%', borderRadius: 1, display: 'block', cursor: 'zoom-in' }} />
+          <Stack direction="row" spacing={0} alignItems="center" sx={{ mt: 0.25 }}>
+            <Tooltip title="Aprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'up')}>
+              {data.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 14, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />}
+            </IconButton></Tooltip>
+            <Tooltip title="Reprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'down')}>
+              {data.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 14, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />}
+            </IconButton></Tooltip>
+            <Box sx={{ flex: 1 }} />
             <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}><DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
             <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
               <span><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, formato: data.op })}>
@@ -206,9 +241,12 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg]     = useState('')
+  const [lightbox, setLightbox] = useState(null)   // url aberta em tela cheia
   const pollRef = useRef(null)
   const rfRef = useRef(null)
   const connectSrcRef = useRef(null)
+  const nodesRef = useRef(nodes)
+  useEffect(() => { nodesRef.current = nodes }, [nodes])
   const markDirty = useCallback(() => setDirty(true), [])
 
   const updateNodeData = useCallback((id, patch) => {
@@ -243,6 +281,39 @@ export function StudioCanvas({ brandId, workflowId }) {
     updateNodeData(id, { url: data.publicUrl, uploading: false })
   }, [brandId, updateNodeData])
 
+  // Melhorar o prompt do nó (Sonnet 4.6 via studio-prompt.js). Marca como on-brand
+  // se houver algum nó de marca no grafo.
+  const improvePrompt = useCallback(async (id) => {
+    const node = nodesRef.current.find(n => n.id === id)
+    const idea = (node?.data?.text || '').trim()
+    if (!idea) return
+    const useBrand = nodesRef.current.some(n => n.type === 'brandContext')
+    updateNodeData(id, { improving: true })
+    try {
+      const session = (await supabase.auth.getSession()).data.session
+      const res = await fetch('/.netlify/functions/studio-prompt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ brand_id: brandId, idea, use_brand: useBrand }),
+      })
+      const j = await res.json()
+      updateNodeData(id, { improving: false, ...(res.ok && j.prompt ? { text: j.prompt } : {}) })
+    } catch { updateNodeData(id, { improving: false }) }
+  }, [brandId, updateNodeData])
+
+  // Votação/aprovação da peça do nó → studio_generations.feedback (RLS for all).
+  const votePiece = useCallback(async (id, genId, voto) => {
+    if (!genId) return
+    const node = nodesRef.current.find(n => n.id === id)
+    const novo = node?.data?.feedback === voto ? null : voto
+    updateNodeData(id, { feedback: novo })
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('studio_generations')
+      .update({ feedback: novo, feedback_at: novo ? new Date().toISOString() : null, feedback_by: novo ? user?.id : null })
+      .eq('id', genId)
+  }, [updateNodeData])
+
+  const openLightbox = useCallback(url => url && setLightbox(url), [])
+
   const deleteNode = useCallback((id) => {
     setNodes(ns => ns.filter(n => n.id !== id))
     setEdges(es => es.filter(e => e.source !== id && e.target !== id))
@@ -267,10 +338,11 @@ export function StudioCanvas({ brandId, workflowId }) {
   const attachHandlers = useCallback(n => {
     const data = { ...n.data, onDelete: deleteNode, onDuplicate: duplicateNode }
     if (['prompt', 'formato', 'generate'].includes(n.type)) data.onChange = updateNodeData
-    if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage }
+    if (n.type === 'prompt') data.onImprove = improvePrompt
+    if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') data.onUpload = uploadImageInput
     return { ...n, data }
-  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput])
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece])
   attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
@@ -389,6 +461,11 @@ export function StudioCanvas({ brandId, workflowId }) {
     const inIds = edges.filter(e => e.target === nodeId).map(e => e.source)
     return nodes.find(n => inIds.includes(n.id) && PRODUCES_IMAGE.has(n.type))
   }
+  // Todos os nós produtores de imagem conectados → viram referências (image-to-image)
+  function imageUpstreamsOf(nodeId) {
+    const inIds = edges.filter(e => e.target === nodeId).map(e => e.source)
+    return nodes.filter(n => inIds.includes(n.id) && PRODUCES_IMAGE.has(n.type))
+  }
 
   async function run() {
     const genNodes = nodes.filter(n => n.type === 'generate')
@@ -404,12 +481,13 @@ export function StudioCanvas({ brandId, workflowId }) {
     async function dispatchGenerate(g) {
       const { prompt, formato, hasBrand, previewNodeId } = inputsFor(g.id)
       if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); return null }
+      const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
       const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
       updateNodeData(g.id, { status: 'running', error: null })
       if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null })
       try {
         const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, model }) })
+          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, model, references }) })
         const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
         dispatched.add(g.id)
         return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
@@ -430,24 +508,26 @@ export function StudioCanvas({ brandId, workflowId }) {
       } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
     }
 
-    // imageInput já tem a imagem pronta → semeia outputs (alimenta apps a jusante)
+    // imageInput já tem a imagem pronta → semeia outputs (alimenta apps/refs a jusante)
     for (const n of nodes.filter(n => n.type === 'imageInput' && n.data?.url)) outputs[n.id] = n.data.url
+    // Generate só dispara quando todas as referências de imagem conectadas estão prontas
+    const genReady = g => imageUpstreamsOf(g.id).every(u => outputs[u.id])
 
     const jobs = []
-    for (const g of genNodes) { const job = await dispatchGenerate(g); if (job) jobs.push(job) }
+    for (const g of genNodes) { if (genReady(g)) { const job = await dispatchGenerate(g); if (job) jobs.push(job) } }
     for (const a of appNodes) {
       if (dispatched.has(a.id)) continue
       const up = imageUpstreamOf(a.id)
       if (up && outputs[up.id]) { const job = await dispatchApp(a); if (job) jobs.push(job) }
     }
     if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate ou conecte uma imagem a um app.')
-    pollEngine(jobs, { outputs, dispatched, appNodes, dispatchApp })
+    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, dispatchGenerate, dispatchApp, genReady })
   }
 
-  // Poll concorrente + dispara apps a jusante quando o upstream conclui
+  // Poll concorrente + dispara apps/generates a jusante quando o upstream conclui
   function pollEngine(initialJobs, ctx) {
     if (pollRef.current) clearInterval(pollRef.current)
-    const { outputs, dispatched, appNodes, dispatchApp } = ctx
+    const { outputs, dispatched, genNodes, appNodes, dispatchGenerate, dispatchApp, genReady } = ctx
     const jobs = [...initialJobs]
     const pending = new Set(jobs.map(j => j.genId))
     const start = Date.now()
@@ -470,11 +550,18 @@ export function StudioCanvas({ brandId, workflowId }) {
           updateNodeData(job.nodeId, { status: 'error', error: row.error || 'erro na geração' })
         }
       }
-      // encadeamento: dispara apps cujo upstream acabou de concluir
+      // encadeamento: dispara apps e generates cujo upstream acabou de concluir
       for (const job of settled) {
-        const ready = appNodes.filter(a => !dispatched.has(a.id) && imageUpstreamOf(a.id)?.id === job.nodeId)
-        for (const a of ready) {
+        const readyApps = appNodes.filter(a => !dispatched.has(a.id) && imageUpstreamOf(a.id)?.id === job.nodeId)
+        for (const a of readyApps) {
           const newJob = await dispatchApp(a)
+          if (newJob) { jobs.push(newJob); pending.add(newJob.genId) }
+        }
+        // generates que usam a saída deste nó como referência (image-to-image)
+        const readyGens = genNodes.filter(g => !dispatched.has(g.id)
+          && imageUpstreamsOf(g.id).some(u => u.id === job.nodeId) && genReady(g))
+        for (const g of readyGens) {
+          const newJob = await dispatchGenerate(g)
           if (newJob) { jobs.push(newJob); pending.add(newJob.genId) }
         }
       }
@@ -532,6 +619,23 @@ export function StudioCanvas({ brandId, workflowId }) {
           <MiniMap pannable zoomable nodeColor={() => PURPLE} style={{ background: '#162840' }} />
         </ReactFlow>
       </Box>
+
+      {/* Lightbox — abre a imagem do R2 em tela cheia */}
+      <Dialog open={!!lightbox} onClose={() => setLightbox(null)} maxWidth="lg"
+        slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible' } } }}>
+        <Box sx={{ position: 'relative' }}>
+          <IconButton onClick={() => setLightbox(null)} sx={{ position: 'absolute', top: -14, right: -14, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+          {lightbox && <Box component="img" src={lightbox} alt="" sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 2 }} />}
+          {lightbox && (
+            <Button startIcon={<DownloadOutlinedIcon />} onClick={() => downloadImage(lightbox)}
+              sx={{ position: 'absolute', bottom: 12, right: 12, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', fontWeight: 700, '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
+              Baixar
+            </Button>
+          )}
+        </Box>
+      </Dialog>
     </Box>
   )
 }
