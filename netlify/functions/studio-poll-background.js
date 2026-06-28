@@ -14,7 +14,7 @@ export const handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
-  const { generation_id, model, request_id } = body
+  const { generation_id, model, request_id, status_url, response_url } = body
   if (!generation_id || !model || !request_id) return { statusCode: 400 }
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
@@ -26,9 +26,9 @@ export const handler = async (event) => {
   const start = Date.now()
   try {
     while (Date.now() - start < MAX_WAIT) {
-      const st = await getJobStatus(model, request_id)
+      const st = await getJobStatus(model, request_id, status_url)
       if (st.status === 'COMPLETED') {
-        const result = await getJobResult(model, request_id)
+        const result = await getJobResult(model, request_id, response_url)
         await finalizeGeneration(supabase, gen, firstImageUrl(result))
         return { statusCode: 200 }
       }

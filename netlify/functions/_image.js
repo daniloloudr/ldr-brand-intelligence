@@ -70,16 +70,24 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   return { ...data, model: endpoint }                        // { request_id, status_url, ... }
 }
 
+// A rota de queue do fal usa o APP base, não o endpoint de operação. Reconstruir
+// `${model}/requests/...` quebra (405) quando o endpoint tem subrota (ex. /edit,
+// /text-to-image). Por isso preferimos sempre a URL que o próprio fal devolve no
+// submit (statusUrl/resultUrl); a reconstrução fica só como fallback de compat.
+const stripOp = model => String(model).replace(/\/(edit|text-to-image|image-to-image)$/, '')
+
 /** Status do job (dev fallback sem webhook). */
-export async function getJobStatus(model, requestId) {
-  const res = await fetch(`${FAL_BASE}/${model}/requests/${requestId}/status`, { headers: authHeaders() })
+export async function getJobStatus(model, requestId, statusUrl) {
+  const url = statusUrl || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}/status`
+  const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) throw new Error(`fal status ${res.status}`)
   return res.json()
 }
 
 /** Resultado final do job — payload do modelo. */
-export async function getJobResult(model, requestId) {
-  const res = await fetch(`${FAL_BASE}/${model}/requests/${requestId}`, { headers: authHeaders() })
+export async function getJobResult(model, requestId, resultUrl) {
+  const url = resultUrl || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}`
+  const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) throw new Error(`fal result ${res.status}`)
   return res.json()
 }

@@ -79,11 +79,16 @@ export async function submitGeneration(supabase, {
   }).select().single()
   if (error) return { error: error.message }
 
-  // Dev: sem webhook em localhost → dispara o poll-background (fire-and-forget)
+  // Dev: sem webhook em localhost → dispara o poll-background (fire-and-forget).
+  // Passa as URLs que o fal devolveu (status_url/response_url) p/ evitar reconstruir
+  // a rota — multi-path como /edit ou /text-to-image quebram na reconstrução (405).
   if (isDev()) {
     fetch(`${siteBase()}/.netlify/functions/studio-poll-background`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ generation_id: gen.id, model: job.model, request_id: job.request_id }),
+      body: JSON.stringify({
+        generation_id: gen.id, model: job.model, request_id: job.request_id,
+        status_url: job.status_url, response_url: job.response_url,
+      }),
     }).catch(() => {})
   }
   return { gen, request_id: job.request_id }
