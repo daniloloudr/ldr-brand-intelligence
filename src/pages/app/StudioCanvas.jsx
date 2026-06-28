@@ -202,14 +202,18 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([])
   const [wfId, setWfId]   = useState(workflowId || null)
+  const [nome, setNome]   = useState('Novo workflow')
+  const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg]     = useState('')
   const pollRef = useRef(null)
   const rfRef = useRef(null)
   const connectSrcRef = useRef(null)
+  const markDirty = useCallback(() => setDirty(true), [])
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
+    setDirty(true)
   }, [])
 
   const downloadImage = useCallback(async (url) => {
@@ -242,6 +246,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const deleteNode = useCallback((id) => {
     setNodes(ns => ns.filter(n => n.id !== id))
     setEdges(es => es.filter(e => e.source !== id && e.target !== id))
+    setDirty(true)
   }, [])
 
   const attachHandlersRef = useRef(null)
@@ -255,6 +260,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       })
       return [...ns, copy]
     })
+    setDirty(true)
   }, [])
 
   // Injeta callbacks nos nós (não serializados): ações + edição
@@ -277,6 +283,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       data: { ...tpl.data },
     })
     setNodes(ns => [...ns, newNode])
+    setDirty(true)
   }
 
   // Carrega workflow salvo ou semeia o grafo inicial
@@ -284,22 +291,38 @@ export function StudioCanvas({ brandId, workflowId }) {
     let active = true
     async function load() {
       if (wfId) {
-        const { data } = await supabase.from('studio_workflows').select('nodes, edges').eq('id', wfId).maybeSingle()
-        if (active && data?.nodes?.length) {
-          setNodes(data.nodes.map(attachHandlers))
+        const { data } = await supabase.from('studio_workflows').select('nome, nodes, edges').eq('id', wfId).maybeSingle()
+        if (active && data) {
+          if (data.nome) setNome(data.nome)
+          setNodes((data.nodes || []).map(attachHandlers))
           setEdges(data.edges || [])
+          setDirty(false)
           return
         }
       }
-      if (active) { setNodes([]); setEdges([]) }   // novo workflow = canvas em branco
+      if (active) { setNodes([]); setEdges([]); setDirty(false) }   // novo workflow = canvas em branco
     }
     load()
     return () => { active = false; if (pollRef.current) clearInterval(pollRef.current) }
   }, [wfId, updateNodeData, attachHandlers])
 
-  const onNodesChange = useCallback(ch => setNodes(ns => applyNodeChanges(ch, ns)), [])
-  const onEdgesChange = useCallback(ch => setEdges(es => applyEdgeChanges(ch, es)), [])
-  const onConnect     = useCallback(c => setEdges(es => addEdge(c, es)), [])
+  // Aviso ao fechar/recarregar a aba com alterações não salvas
+  useEffect(() => {
+    if (!dirty) return
+    const warn = e => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
+  const onNodesChange = useCallback(ch => {
+    if (ch.some(c => !['dimensions', 'select'].includes(c.type))) setDirty(true)
+    setNodes(ns => applyNodeChanges(ch, ns))
+  }, [])
+  const onEdgesChange = useCallback(ch => {
+    if (ch.some(c => c.type !== 'select')) setDirty(true)
+    setEdges(es => applyEdgeChanges(ch, es))
+  }, [])
+  const onConnect     = useCallback(c => { setEdges(es => addEdge(c, es)); setDirty(true) }, [])
   const onConnectStart = useCallback((_, p) => { connectSrcRef.current = p?.nodeId || null }, [])
   const onConnectEnd = useCallback((event) => {
     const source = connectSrcRef.current; connectSrcRef.current = null
@@ -316,6 +339,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data } })
     setNodes(ns => [...ns, newNode])
     setEdges(es => addEdge({ id: `e-${Date.now()}`, source, target: newNode.id }, es))
+    setDirty(true)
   }
 
   function serializableNodes() {
@@ -327,9 +351,12 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   async function save() {
     setSaving(true); setMsg('')
+    // thumbnail = 1ª imagem produzida no grafo (preview/app/imageInput)
+    const thumb = nodes.map(n => n.data?.imageUrl || n.data?.outputUrl || n.data?.url).find(Boolean) || null
     const payload = {
       workspace_id: workspace?.id, brand_id: brandId,
-      nome: 'Workflow', nodes: serializableNodes(), edges, updated_at: new Date().toISOString(),
+      nome: (nome || 'Novo workflow').trim(), nodes: serializableNodes(), edges,
+      thumbnail_url: thumb, updated_at: new Date().toISOString(),
     }
     let res
     if (wfId) res = await supabase.from('studio_workflows').update(payload).eq('id', wfId).select().single()
@@ -337,6 +364,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     setSaving(false)
     if (res.error) { setMsg('Erro ao salvar: ' + res.error.message); return }
     if (!wfId) { setWfId(res.data.id); window.location.hash = `#/app/brands/${brandId}/studio/workflow/${res.data.id}` }
+    setDirty(false)
     setMsg('Salvo ✓')
   }
 
@@ -462,9 +490,14 @@ export function StudioCanvas({ brandId, workflowId }) {
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             <StudioTabs brandId={brandId} active="workflow" />
+            <TextField value={nome} onChange={e => { setNome(e.target.value); setDirty(true) }}
+              variant="standard" placeholder="Nome do workflow"
+              sx={{ minWidth: 140, '& .MuiInputBase-input': { fontSize: 13, fontWeight: 700 } }}
+              InputProps={{ disableUnderline: true }} />
+            {dirty && <Tooltip title="Alterações não salvas"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#EF9F27', flexShrink: 0 }} /></Tooltip>}
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
-            <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
+            <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
             <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={run} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
           </Stack>
         }
