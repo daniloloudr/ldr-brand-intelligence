@@ -23,6 +23,7 @@ import { StudioTabs } from './StudioTabs'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A'
+const MAX_REFS = 5   // até 5 referências p/ ajudar composições e banners
 
 // Ações inline pós-geração (reaproveitam studio-edit.js)
 const APP_ACTIONS = [
@@ -44,7 +45,7 @@ export function StudioImage({ brandId }) {
   const [generating, setGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
-  const [refUrl, setRefUrl] = useState('')        // imagem de referência (upload)
+  const [refUrls, setRefUrls] = useState([])      // referências (upload) — até MAX_REFS
   const [refUploading, setRefUploading] = useState(false)
   const [improving, setImproving] = useState(false)
   const [voting, setVoting] = useState({})        // id -> bool
@@ -95,7 +96,7 @@ export function StudioImage({ brandId }) {
     const modelId = resolveModel(model)
     const body = JSON.stringify({
       brand_id: brandId, prompt: prompt.trim(), formato, use_brand: useBrand, model: modelId,
-      references: refUrl ? [refUrl] : [],
+      references: refUrls,
     })
 
     const ids = []
@@ -138,15 +139,24 @@ export function StudioImage({ brandId }) {
     setActing(a => ({ ...a, [key]: false }))
   }
 
-  // ── Referência (upload p/ bucket brand-assets, mesma fundação do Workflow) ──
-  async function uploadRef(file) {
-    if (!file) return
-    setRefUploading(true); setMsg('')
-    const path = `${brandId}/studio-ref/${Date.now()}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
-    const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
-    if (error) { setRefUploading(false); setMsg('Falha no upload da referência.'); return }
-    const { data } = supabase.storage.from('brand-assets').getPublicUrl(path)
-    setRefUrl(data.publicUrl); setRefUploading(false)
+  // ── Referências (upload p/ bucket brand-assets, mesma fundação do Workflow) ──
+  async function uploadRefs(fileList) {
+    const files = Array.from(fileList || [])
+    if (!files.length) return
+    const livres = MAX_REFS - refUrls.length
+    if (livres <= 0) { setMsg(`Máximo de ${MAX_REFS} referências.`); return }
+    const aSubir = files.slice(0, livres)
+    if (files.length > livres) setMsg(`Só cabem mais ${livres} (máx. ${MAX_REFS}).`)
+    setRefUploading(true)
+    const novas = []
+    for (const file of aSubir) {
+      const path = `${brandId}/studio-ref/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
+      const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+      if (error) { setMsg('Falha no upload de uma referência.'); continue }
+      novas.push(supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl)
+    }
+    if (novas.length) setRefUrls(prev => [...prev, ...novas].slice(0, MAX_REFS))
+    setRefUploading(false)
   }
 
   // ── Melhorar o prompt (Sonnet 4.6, on-brand) ──
@@ -246,24 +256,31 @@ export function StudioImage({ brandId }) {
           </Stack>
           <TextField value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Descreva a imagem…" multiline minRows={2} maxRows={6} fullWidth disabled={generating} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }} />
 
-          {/* Referência (upload) */}
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { uploadRef(e.target.files?.[0]); e.target.value = '' }} />
-            {refUrl ? (
-              <Box sx={{ position: 'relative', width: 56, height: 56, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                <Box component="img" src={refUrl} alt="ref" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <IconButton size="small" onClick={() => setRefUrl('')} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+          {/* Referências (upload) — até MAX_REFS p/ compor cenas/banners */}
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { uploadRefs(e.target.files); e.target.value = '' }} />
+            {refUrls.map((url, i) => (
+              <Box key={url} sx={{ position: 'relative', width: 56, height: 56, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                <Box component="img" src={url} alt={`ref ${i + 1}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <IconButton size="small" onClick={() => setRefUrls(prev => prev.filter(u => u !== url))}
+                  sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
                   <CloseIcon sx={{ fontSize: 13 }} />
                 </IconButton>
               </Box>
-            ) : (
-              <Button variant="outlined" size="small" startIcon={refUploading ? <CircularProgress size={13} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 17 }} />}
-                onClick={() => fileRef.current?.click()} disabled={generating || refUploading} sx={{ fontWeight: 700 }}>
-                {refUploading ? 'Enviando…' : 'Imagem de referência'}
-              </Button>
+            ))}
+            {refUrls.length < MAX_REFS && (
+              <Tooltip title={refUrls.length ? 'Adicionar referência' : 'Imagens de referência'}>
+                <Box onClick={() => !generating && !refUploading && fileRef.current?.click()}
+                  sx={{ width: 56, height: 56, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: generating || refUploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: TEAL, color: TEAL } }}>
+                  {refUploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />}
+                </Box>
+              </Tooltip>
             )}
-            <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>
-              {refUrl ? 'Referência ativa (image-to-image)' : 'Opcional — funciona melhor com Nano Banana'}
+            <Typography sx={{ fontSize: 11, color: 'text.disabled', ml: 0.5 }}>
+              {refUrls.length
+                ? `${refUrls.length}/${MAX_REFS} referência${refUrls.length > 1 ? 's' : ''} (image-to-image)`
+                : `Opcional — até ${MAX_REFS} imagens p/ compor cenas e banners (melhor com Nano Banana)`}
             </Typography>
           </Stack>
 
