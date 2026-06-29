@@ -58,7 +58,7 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
   return (
     <Paper elevation={0} sx={{
       width: '100%', height: '100%', minWidth: 160, minHeight: 100, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
-      borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
+      borderTop: `3px solid ${color}`, borderRadius: '5px', bgcolor: 'background.paper', overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
       <NodeResizer color={color} isVisible={selected} minWidth={160} minHeight={100} onResizeEnd={() => onResize?.()} />
@@ -247,7 +247,7 @@ const NoteNode = memo(({ id, data, selected }) => (
         <Tooltip title="Excluir"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
       </Paper>
     </NodeToolbar>
-    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', bgcolor: '#FFF6C8', border: '1px solid #ECD27A', borderRadius: 1.5, p: 1 }}>
+    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', bgcolor: '#FFF6C8', border: '1px solid #ECD27A', borderRadius: '5px', p: 1 }}>
       <TextField value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
         placeholder="Anotação…" multiline variant="standard" fullWidth className="nodrag" InputProps={{ disableUnderline: true }}
         sx={{ height: '100%', '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start', p: 0 }, '& textarea': { fontSize: 12, color: '#7A6A20', lineHeight: 1.4 } }} />
@@ -265,7 +265,7 @@ const GroupNode = memo(({ id, data, selected }) => (
         <Tooltip title="Excluir grupo e nós"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
       </Paper>
     </NodeToolbar>
-    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', border: `1.5px dashed ${PURPLE}`, borderRadius: 2, bgcolor: 'rgba(127,119,221,0.06)' }}>
+    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', border: `1.5px dashed ${PURPLE}`, borderRadius: '5px', bgcolor: 'rgba(127,119,221,0.06)' }}>
       <TextField value={data.label ?? 'Grupo'} onChange={e => data.onChange(id, { label: e.target.value })}
         variant="standard" className="nodrag" InputProps={{ disableUnderline: true }}
         sx={{ position: 'absolute', top: 4, left: 8, '& input': { fontSize: 11, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em', py: 0 } }} />
