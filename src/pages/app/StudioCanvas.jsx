@@ -57,10 +57,11 @@ const FORMATOS = [
 function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected }) {
   return (
     <Paper elevation={0} sx={{
-      width: '100%', height: '100%', minWidth: 200, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
+      width: '100%', height: '100%', minWidth: 160, minHeight: 120, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
       borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
     }}>
-      <NodeResizer color={color} isVisible={selected} minWidth={200} minHeight={70} onResizeEnd={() => onResize?.()} />
+      <NodeResizer color={color} isVisible={selected} minWidth={160} minHeight={120} onResizeEnd={() => onResize?.()} />
       {(onDelete || onDuplicate || onRun || onRegen) && (
         <NodeToolbar position={Position.Top} offset={6}>
           <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
@@ -72,11 +73,11 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
         </NodeToolbar>
       )}
       {inputs && <Handle type="target" position={Position.Left} style={{ background: color, width: 9, height: 9 }} />}
-      <Box sx={{ px: 1.5, py: 1 }}>
-        <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color }}>
+      <Box sx={{ px: 1.5, py: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color, flexShrink: 0 }}>
           {title}
         </Typography>
-        <Box sx={{ mt: 0.75 }}>{children}</Box>
+        <Box sx={{ mt: 0.75, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
       </Box>
       {output && <Handle type="source" position={Position.Right} style={{ background: color, width: 9, height: 9 }} />}
     </Paper>
@@ -140,9 +141,11 @@ const PreviewNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={CORAL} title="Preview" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
     {data.imageUrl ? (
       <>
-        <Box component="img" src={data.imageUrl} alt="" className="nodrag" onClick={() => data.onOpen?.(data.imageUrl)}
-          sx={{ width: '100%', borderRadius: 1, display: 'block', cursor: 'zoom-in' }} />
-        <Stack direction="row" spacing={0} alignItems="center" className="nodrag" sx={{ mt: 0.25 }}>
+        <Box className="nodrag" onClick={() => data.onOpen?.(data.imageUrl)}
+          sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-in' }}>
+          <Box component="img" src={data.imageUrl} alt="" sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 1, display: 'block' }} />
+        </Box>
+        <Stack direction="row" spacing={0} alignItems="center" className="nodrag" sx={{ mt: 0.25, flexShrink: 0 }}>
           <Tooltip title="Aprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'up')}>
             {data.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 14, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />}
           </IconButton></Tooltip>
@@ -165,7 +168,7 @@ const PreviewNode = memo(({ id, data, selected }) => (
         </Stack>
       </>
     ) : (
-      <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'center', justifyContent: 'center' }}>
         {data.loading
           ? <><CircularProgress size={20} sx={{ color: CORAL }} /><Typography sx={{ fontSize: 10, color: CORAL, fontWeight: 700 }}>gerando…</Typography></>
           : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>}
@@ -178,12 +181,14 @@ const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remov
 
 const AppNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
-    <Stack spacing={0.5} className="nodrag">
+    <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
       {data.outputUrl ? (
         <>
-          <Box component="img" src={data.outputUrl} alt="" onClick={() => data.onOpen?.(data.outputUrl)}
-            sx={{ width: '100%', borderRadius: 1, display: 'block', cursor: 'zoom-in' }} />
-          <Stack direction="row" spacing={0} alignItems="center" sx={{ mt: 0.25 }}>
+          <Box onClick={() => data.onOpen?.(data.outputUrl)}
+            sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-in' }}>
+            <Box component="img" src={data.outputUrl} alt="" sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 1, display: 'block' }} />
+          </Box>
+          <Stack direction="row" spacing={0} alignItems="center" sx={{ mt: 0.25, flexShrink: 0 }}>
             <Tooltip title="Aprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'up')}>
               {data.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 14, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />}
             </IconButton></Tooltip>
@@ -273,6 +278,7 @@ const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato:
 // Nós que produzem imagem (podem alimentar apps/generates a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
 const MAX_REF = 5
+const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
 // Normaliza a saída de um nó em lista de URLs (imageInput pode ter várias)
 const toUrls = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
 const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url] : [])
@@ -289,7 +295,7 @@ const NODE_TEMPLATES = [
   { type: 'app',          label: 'Upscale',      data: { op: 'upscale',   label: 'Upscale',   status: 'idle' } },
   { type: 'app',          label: 'Remove BG',    data: { op: 'removebg',  label: 'Remove BG', status: 'idle' } },
   { type: 'app',          label: 'Variation',    data: { op: 'variation', label: 'Variation', status: 'idle' } },
-  { type: 'note',         label: 'Nota (sticky)', data: { text: '' }, style: { width: 220, height: 140 } },
+  { type: 'note',         label: 'Nota (sticky)', data: { text: '' }, style: { width: 250, height: 250 } },
 ]
 
 export function StudioCanvas({ brandId, workflowId }) {
@@ -440,6 +446,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   // Injeta callbacks nos nós (não serializados): ações + edição
   const attachHandlers = useCallback(n => {
     const data = { ...n.data }
+    // tamanho padrão uniforme (250×250) p/ nós sem tamanho salvo — não toca grupos
+    const style = (n.type !== 'group' && !n.style?.width) ? { width: DEFAULT_NODE, height: DEFAULT_NODE, ...(n.style || {}) } : n.style
     if (n.type === 'group') { data.onChange = updateNodeData; data.onUngroup = ungroup; data.onDelete = deleteGroup; data.onResize = markDirty; return { ...n, data } }
     data.onDelete = deleteNode; data.onDuplicate = duplicateNode; data.onResize = markDirty
     if (['prompt', 'formato', 'generate', 'note'].includes(n.type)) data.onChange = updateNodeData
@@ -447,7 +455,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (['generate', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput }
-    return { ...n, data }
+    return { ...n, style, data }
   }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, removeImageInput, improvePrompt, openLightbox, votePiece, runNode, regenNodeCb, ungroup, deleteGroup, markDirty])
   attachHandlersRef.current = attachHandlers
 
@@ -469,7 +477,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const newNode = attachHandlers({
       id: `${tpl.type}-${Date.now()}`, type: tpl.type,
       position: { x: c.x - 110 + j(), y: c.y - 70 + j() },   // centraliza o nó no viewport
-      data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: 220 },
+      data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: DEFAULT_NODE, height: DEFAULT_NODE },
     })
     // notas ficam atrás dos demais nós (são fundo organizacional)
     setNodes(ns => tpl.type === 'note' ? [newNode, ...ns] : [...ns, newNode])
@@ -528,7 +536,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   function addNodeFromConnect(tpl) {
     const { source, flowPos } = connectMenu
     setConnectMenu(null)
-    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: 220 } })
+    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: DEFAULT_NODE, height: DEFAULT_NODE } })
     setNodes(ns => [...ns, newNode])
     setEdges(es => addEdge({ id: `e-${Date.now()}`, source, target: newNode.id }, es))
     setDirty(true)
