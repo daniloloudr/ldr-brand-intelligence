@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import {
-  ReactFlow, Background, Controls, MiniMap, NodeToolbar,
+  ReactFlow, Background, Controls, MiniMap, NodeToolbar, NodeResizer,
   addEdge, applyNodeChanges, applyEdgeChanges, Handle, Position,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -18,6 +18,16 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import AlignHorizontalLeftIcon from '@mui/icons-material/AlignHorizontalLeft'
+import AlignHorizontalCenterIcon from '@mui/icons-material/AlignHorizontalCenter'
+import AlignHorizontalRightIcon from '@mui/icons-material/AlignHorizontalRight'
+import AlignVerticalTopIcon from '@mui/icons-material/AlignVerticalTop'
+import AlignVerticalCenterIcon from '@mui/icons-material/AlignVerticalCenter'
+import AlignVerticalBottomIcon from '@mui/icons-material/AlignVerticalBottom'
+import ViewWeekOutlinedIcon from '@mui/icons-material/ViewWeekOutlined'
+import ViewStreamOutlinedIcon from '@mui/icons-material/ViewStreamOutlined'
+import GroupWorkOutlinedIcon from '@mui/icons-material/GroupWorkOutlined'
+import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
 import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined'
@@ -216,7 +226,42 @@ const ImageInputNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode }
+// Sticky note — organização visual (não entra na execução). Redimensionável.
+const NoteNode = memo(({ id, data, selected }) => (
+  <Box sx={{ width: '100%', height: '100%' }}>
+    <NodeResizer color="#E0B33A" isVisible={selected} minWidth={150} minHeight={80} onResizeEnd={() => data.onResize?.()} />
+    <NodeToolbar position={Position.Top} offset={6}>
+      <Paper elevation={3} className="nodrag" sx={{ p: 0.25, borderRadius: 1.5 }}>
+        <Tooltip title="Excluir"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
+      </Paper>
+    </NodeToolbar>
+    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', bgcolor: '#FFF6C8', border: '1px solid #ECD27A', borderRadius: 1.5, p: 1 }}>
+      <TextField value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
+        placeholder="Anotação…" multiline variant="standard" fullWidth className="nodrag" InputProps={{ disableUnderline: true }}
+        sx={{ height: '100%', '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start', p: 0 }, '& textarea': { fontSize: 12, color: '#7A6A20', lineHeight: 1.4 } }} />
+    </Box>
+  </Box>
+))
+
+// Grupo — container que move os filhos juntos (parentId do React Flow). Renderiza atrás.
+const GroupNode = memo(({ id, data, selected }) => (
+  <Box sx={{ width: '100%', height: '100%' }}>
+    <NodeResizer color={PURPLE} isVisible={selected} minWidth={180} minHeight={140} onResizeEnd={() => data.onResize?.()} />
+    <NodeToolbar position={Position.Top} offset={6}>
+      <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
+        <Tooltip title="Desagrupar"><IconButton size="small" onClick={() => data.onUngroup(id)}><WorkspacesOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+        <Tooltip title="Excluir grupo e nós"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
+      </Paper>
+    </NodeToolbar>
+    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', border: `1.5px dashed ${PURPLE}`, borderRadius: 2, bgcolor: 'rgba(127,119,221,0.06)' }}>
+      <TextField value={data.label ?? 'Grupo'} onChange={e => data.onChange(id, { label: e.target.value })}
+        variant="standard" className="nodrag" InputProps={{ disableUnderline: true }}
+        sx={{ position: 'absolute', top: 4, left: 8, '& input': { fontSize: 11, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em', py: 0 } }} />
+    </Box>
+  </Box>
+))
+
+const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, note: NoteNode, group: GroupNode }
 
 // Nós que produzem imagem (podem alimentar apps a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput'])
@@ -233,6 +278,7 @@ const NODE_TEMPLATES = [
   { type: 'app',          label: 'Upscale',      data: { op: 'upscale',   label: 'Upscale',   status: 'idle' } },
   { type: 'app',          label: 'Remove BG',    data: { op: 'removebg',  label: 'Remove BG', status: 'idle' } },
   { type: 'app',          label: 'Variation',    data: { op: 'variation', label: 'Variation', status: 'idle' } },
+  { type: 'note',         label: 'Nota (sticky)', data: { text: '' }, style: { width: 220, height: 140 } },
 ]
 
 export function StudioCanvas({ brandId, workflowId }) {
@@ -341,16 +387,40 @@ export function StudioCanvas({ brandId, workflowId }) {
     setDirty(true)
   }, [])
 
+  // Desfaz o grupo: solta os filhos de volta em coordenadas absolutas
+  const ungroup = useCallback((gid) => {
+    setNodes(ns => {
+      const g = ns.find(n => n.id === gid); if (!g) return ns
+      const gp = g.position
+      return ns.filter(n => n.id !== gid).map(n => n.parentId === gid
+        ? { ...n, parentId: undefined, extent: undefined, position: { x: n.position.x + gp.x, y: n.position.y + gp.y } }
+        : n)
+    })
+    setDirty(true)
+  }, [])
+
+  // Exclui o grupo E os nós dentro dele
+  const deleteGroup = useCallback((gid) => {
+    const kids = nodesRef.current.filter(n => n.parentId === gid).map(n => n.id)
+    const dead = new Set([gid, ...kids])
+    setNodes(ns => ns.filter(n => !dead.has(n.id)))
+    setEdges(es => es.filter(e => !dead.has(e.source) && !dead.has(e.target)))
+    setDirty(true)
+  }, [])
+
   // Injeta callbacks nos nós (não serializados): ações + edição
   const attachHandlers = useCallback(n => {
-    const data = { ...n.data, onDelete: deleteNode, onDuplicate: duplicateNode }
-    if (['prompt', 'formato', 'generate'].includes(n.type)) data.onChange = updateNodeData
+    const data = { ...n.data }
+    if (n.type === 'group') { data.onChange = updateNodeData; data.onUngroup = ungroup; data.onDelete = deleteGroup; data.onResize = markDirty; return { ...n, data } }
+    data.onDelete = deleteNode; data.onDuplicate = duplicateNode
+    if (['prompt', 'formato', 'generate', 'note'].includes(n.type)) data.onChange = updateNodeData
+    if (n.type === 'note') data.onResize = markDirty
     if (n.type === 'prompt') data.onImprove = improvePrompt
     if (['generate', 'app'].includes(n.type)) data.onRun = runNode
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') data.onUpload = uploadImageInput
     return { ...n, data }
-  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece, runNode])
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece, runNode, ungroup, deleteGroup, markDirty])
   attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
@@ -360,9 +430,10 @@ export function StudioCanvas({ brandId, workflowId }) {
     const newNode = attachHandlers({
       id: `${tpl.type}-${Date.now()}`, type: tpl.type,
       position: { x: 260 + Math.random() * 120, y: 120 + Math.random() * 220 },
-      data: { ...tpl.data },
+      data: { ...tpl.data }, ...(tpl.style ? { style: { ...tpl.style } } : {}),
     })
-    setNodes(ns => [...ns, newNode])
+    // notas ficam atrás dos demais nós (são fundo organizacional)
+    setNodes(ns => tpl.type === 'note' ? [newNode, ...ns] : [...ns, newNode])
     setDirty(true)
   }
 
@@ -374,7 +445,9 @@ export function StudioCanvas({ brandId, workflowId }) {
         const { data } = await supabase.from('studio_workflows').select('nome, nodes, edges').eq('id', wfId).maybeSingle()
         if (active && data) {
           if (data.nome) setNome(data.nome)
-          setNodes((data.nodes || []).map(attachHandlers))
+          const loaded = (data.nodes || []).map(attachHandlers)
+          loaded.sort((a, b) => (a.type === 'group' ? -1 : 0) - (b.type === 'group' ? -1 : 0))  // grupos antes dos filhos
+          setNodes(loaded)
           setEdges(data.edges || [])
           setDirty(false)
           return
@@ -423,9 +496,14 @@ export function StudioCanvas({ brandId, workflowId }) {
   }
 
   function serializableNodes() {
-    return nodes.map(({ id, type, position, data }) => {
+    return nodes.map(({ id, type, position, data, style, parentId, extent, width, height }) => {
       const rest = Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v !== 'function'))
-      return { id, type, position, data: rest }
+      const out = { id, type, position, data: rest }
+      // tamanho de notas/grupos (NodeResizer) + vínculo de grupo
+      const w = width || style?.width, h = height || style?.height
+      if (w || h) out.style = { ...(style || {}), ...(w ? { width: w } : {}), ...(h ? { height: h } : {}) }
+      if (parentId) { out.parentId = parentId; out.extent = extent || 'parent' }
+      return out
     })
   }
 
@@ -606,6 +684,65 @@ export function StudioCanvas({ brandId, workflowId }) {
     }, 3000)
   }
 
+  // ── Organização: alinhar, distribuir, agrupar ───────────────────────
+  const dim = n => ({ w: n.width || n.measured?.width || n.style?.width || 220, h: n.height || n.measured?.height || n.style?.height || 120 })
+  const selectedTop = nodes.filter(n => n.selected && n.type !== 'group' && !n.parentId)
+
+  function align(kind) {
+    const sel = selectedTop; if (sel.length < 2) return
+    const ids = new Set(sel.map(n => n.id))
+    const minX = Math.min(...sel.map(n => n.position.x))
+    const maxR = Math.max(...sel.map(n => n.position.x + dim(n).w))
+    const minY = Math.min(...sel.map(n => n.position.y))
+    const maxB = Math.max(...sel.map(n => n.position.y + dim(n).h))
+    const cx = (minX + maxR) / 2, cy = (minY + maxB) / 2
+    setNodes(ns => ns.map(n => {
+      if (!ids.has(n.id)) return n
+      const { w, h } = dim(n); const p = { ...n.position }
+      if (kind === 'left') p.x = minX
+      else if (kind === 'right') p.x = maxR - w
+      else if (kind === 'hcenter') p.x = cx - w / 2
+      else if (kind === 'top') p.y = minY
+      else if (kind === 'bottom') p.y = maxB - h
+      else if (kind === 'vcenter') p.y = cy - h / 2
+      return { ...n, position: p }
+    }))
+    setDirty(true)
+  }
+
+  function distribute(axis) {
+    if (selectedTop.length < 3) return
+    const sorted = [...selectedTop].sort((a, b) => axis === 'h' ? a.position.x - b.position.x : a.position.y - b.position.y)
+    const first = sorted[0], last = sorted[sorted.length - 1]
+    const span = (axis === 'h' ? last.position.x - first.position.x : last.position.y - first.position.y)
+    const step = span / (sorted.length - 1)
+    const base = axis === 'h' ? first.position.x : first.position.y
+    const target = new Map(); sorted.forEach((n, i) => target.set(n.id, base + step * i))
+    setNodes(ns => ns.map(n => target.has(n.id)
+      ? { ...n, position: axis === 'h' ? { ...n.position, x: target.get(n.id) } : { ...n.position, y: target.get(n.id) } }
+      : n))
+    setDirty(true)
+  }
+
+  function groupSelection() {
+    const sel = selectedTop
+    if (sel.length < 2) return setMsg('Selecione 2+ nós para agrupar.')
+    const pad = 28, header = 22
+    const minX = Math.min(...sel.map(n => n.position.x))
+    const minY = Math.min(...sel.map(n => n.position.y))
+    const maxR = Math.max(...sel.map(n => n.position.x + dim(n).w))
+    const maxB = Math.max(...sel.map(n => n.position.y + dim(n).h))
+    const gx = minX - pad, gy = minY - pad - header
+    const gw = (maxR - minX) + pad * 2, gh = (maxB - minY) + pad * 2 + header
+    const gid = `group-${Date.now()}`
+    const groupNode = attachHandlers({ id: gid, type: 'group', position: { x: gx, y: gy }, data: { label: 'Grupo' }, style: { width: gw, height: gh } })
+    const ids = new Set(sel.map(n => n.id))
+    setNodes(ns => [groupNode, ...ns.map(n => ids.has(n.id)
+      ? { ...n, parentId: gid, extent: 'parent', position: { x: n.position.x - gx, y: n.position.y - gy }, selected: false }
+      : n)])
+    setDirty(true); setMsg('')
+  }
+
   runRef.current = run   // mantém a referência estável apontando p/ o run atual
 
   return (
@@ -645,6 +782,23 @@ export function StudioCanvas({ brandId, workflowId }) {
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }}>
           {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNode(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
         </Menu>
+        {/* Alinhar / distribuir / agrupar — aparece com 2+ nós selecionados */}
+        {selectedTop.length >= 2 && (
+          <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, display: 'flex', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 2 }}>
+            <Tooltip title="Alinhar à esquerda"><IconButton size="small" onClick={() => align('left')}><AlignHorizontalLeftIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+            <Tooltip title="Centralizar horizontal"><IconButton size="small" onClick={() => align('hcenter')}><AlignHorizontalCenterIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+            <Tooltip title="Alinhar à direita"><IconButton size="small" onClick={() => align('right')}><AlignHorizontalRightIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+            <Tooltip title="Alinhar ao topo"><IconButton size="small" onClick={() => align('top')}><AlignVerticalTopIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+            <Tooltip title="Centralizar vertical"><IconButton size="small" onClick={() => align('vcenter')}><AlignVerticalCenterIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+            <Tooltip title="Alinhar à base"><IconButton size="small" onClick={() => align('bottom')}><AlignVerticalBottomIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+            <Tooltip title="Distribuir horizontal (3+)"><span><IconButton size="small" disabled={selectedTop.length < 3} onClick={() => distribute('h')}><ViewWeekOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></span></Tooltip>
+            <Tooltip title="Distribuir vertical (3+)"><span><IconButton size="small" disabled={selectedTop.length < 3} onClick={() => distribute('v')}><ViewStreamOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></span></Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+            <Tooltip title="Agrupar"><IconButton size="small" onClick={groupSelection}><GroupWorkOutlinedIcon sx={{ fontSize: 18, color: PURPLE }} /></IconButton></Tooltip>
+          </Paper>
+        )}
         {/* Soltar conexão no vazio → escolher o tipo do novo nó */}
         <Menu open={!!connectMenu} onClose={() => setConnectMenu(null)}
           anchorReference="anchorPosition"
