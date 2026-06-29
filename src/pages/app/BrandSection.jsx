@@ -2,7 +2,7 @@ import { Box, Typography, TextField, Chip, Divider } from '@mui/material'
 
 /* ─── helpers ──────────────────────────────────────────────────────── */
 
-function FieldLabel({ children }) {
+export function FieldLabel({ children }) {
   return (
     <Typography variant="caption" color="text.disabled" fontWeight={800}
       textTransform="uppercase" letterSpacing="0.1em" display="block" mb={0.75}>
@@ -11,7 +11,7 @@ function FieldLabel({ children }) {
   )
 }
 
-function SectionDivider({ label, color }) {
+export function SectionDivider({ label, color }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 4 }}>
       <Box sx={{ width: 3, height: 18, bgcolor: color, borderRadius: 4, flexShrink: 0 }} />
@@ -32,7 +32,7 @@ const ARQUETIPOS = [
   'O Bobo', 'O Rebelde', 'O Mágico', 'O Cara Comum',
 ]
 
-function ArquetipoSelector({ value, onChange }) {
+export function ArquetipoSelector({ value, onChange }) {
   return (
     <Box>
       <FieldLabel>Arquétipo</FieldLabel>
@@ -57,7 +57,7 @@ function ArquetipoSelector({ value, onChange }) {
 
 /* ─── ChipInput ─────────────────────────────────────────────────────── */
 
-function ChipInput({ label, values, onChange, placeholder, color = 'primary.main' }) {
+export function ChipInput({ label, values, onChange, placeholder, color = 'primary.main' }) {
   return (
     <Box>
       <FieldLabel>{label}</FieldLabel>

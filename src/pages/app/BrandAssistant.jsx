@@ -10,6 +10,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
@@ -23,15 +24,41 @@ const SUGESTOES = [
   'Quais valores da marca deveriam estar visíveis nesta campanha?',
 ]
 
+const _arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
+const _join = x => _arr(x).map(o => typeof o === 'object' ? (o.hex || o.valor || o.nome || o.termo || '') : o).filter(Boolean).join(', ')
+
 function buildSystemPrompt(brand, book, ragChunks) {
-  if (!book) {
+  const v  = book?.verbal_identity || {}
+  const vi = book?.visual_identity || {}
+  // fallback legado (brand books antigos)
+  const id = book?.identity || {}
+  const pos = book?.positioning || {}
+
+  const tagline       = v.tagline || ''
+  const proposito     = v.proposito || ''
+  const missao        = v.missao || id.missao || ''
+  const visao         = v.visao || id.visao || ''
+  const valores       = _arr(v.valores).length ? v.valores : id.valores
+  const arquetipo     = v.arquetipo || id.arquetipo || ''
+  const personalidade = [...new Set([..._arr(v.personalidade), ..._arr(v.tom_atributos)])]
+  const tomVoz        = v.tom_voz || id.tom_voz || ''
+  const tomEvitar     = v.tom_evitar || ''
+  const posicionamento = v.posicionamento || pos.posicionamento || ''
+  const propostaValor  = v.proposta_valor || pos.proposta_valor || ''
+  const mensagem       = v.mensagem_central || pos.mensagem_central || ''
+  const publicoAlvo    = v.publico_alvo || id.publico_alvo || ''
+  const vocabOk        = _join(v.vocabulario_aprovado)
+  const vocabNao       = _join(v.vocabulario_proibido) || _join(id.vocabulario_proibido)
+  const paleta         = _join(vi.paleta)
+  const tipografia     = [vi.tipo_principal_nome, vi.tipo_secundario_nome, vi.tipo_display].filter(Boolean).join(' · ')
+
+  const hasContent = !!(tomVoz || valores?.length || posicionamento || personalidade.length ||
+    missao || proposito || paleta || (ragChunks?.length))
+
+  if (!hasContent) {
     return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma LOUDR OS.
 Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
   }
-
-  const id = book.identity || {}
-  const pos = book.positioning || {}
-  const ds = book.design_system || {}
 
   let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma LOUDR OS.
 Você conhece profundamente esta marca e responde com base exclusivamente no brand book abaixo.
@@ -39,26 +66,35 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
 
 # Brand Book — ${brand?.nome}
 
-## Identidade
-- Missão: ${id.missao || 'não definida'}
-- Visão: ${id.visao || 'não definida'}
-- Valores: ${(id.valores || []).join(', ') || 'não definidos'}
-- Arquétipo: ${id.arquetipo || 'não definido'}
-- Tom de voz: ${id.tom_voz || 'não definido'}
-- Público-alvo: ${id.publico_alvo || 'não definido'}
-- Vocabulário proibido: ${(id.vocabulario_proibido || []).join(', ') || 'nenhum'}
+## Identidade Verbal`
+  if (tagline)        prompt += `\n- Tagline: ${tagline}`
+  if (proposito)      prompt += `\n- Propósito: ${proposito}`
+  if (missao)         prompt += `\n- Missão: ${missao}`
+  if (visao)          prompt += `\n- Visão: ${visao}`
+  if (_arr(valores).length) prompt += `\n- Valores: ${_join(valores)}`
+  if (arquetipo)      prompt += `\n- Arquétipo: ${arquetipo}`
+  if (personalidade.length) prompt += `\n- Personalidade: ${personalidade.join(', ')}`
+  if (tomVoz)         prompt += `\n- Tom de voz: ${tomVoz}`
+  if (tomEvitar)      prompt += `\n- No tom, evitar: ${tomEvitar}`
+  if (publicoAlvo)    prompt += `\n- Público-alvo: ${publicoAlvo}`
+  if (vocabOk)        prompt += `\n- Vocabulário on-brand: ${vocabOk}`
+  if (vocabNao)       prompt += `\n- Vocabulário proibido: ${vocabNao}`
 
-## Posicionamento
-- Posicionamento: ${pos.posicionamento || 'não definido'}
-- Proposta de valor: ${pos.proposta_valor || 'não definida'}
-- Mensagem central: ${pos.mensagem_central || 'não definida'}
+  if (posicionamento || propostaValor || mensagem) {
+    prompt += `\n\n## Posicionamento`
+    if (posicionamento) prompt += `\n- Posicionamento: ${posicionamento}`
+    if (propostaValor)  prompt += `\n- Proposta de valor: ${propostaValor}`
+    if (mensagem)       prompt += `\n- Mensagem central: ${mensagem}`
+  }
 
-## Design System
-- Fonte primária: ${ds.typography?.font_primary || 'não definida'}
-- Cor primária: ${ds.colors?.primary?.main || 'não definida'}
-- Cor secundária: ${ds.colors?.secondary?.main || 'não definida'}
+  if (paleta || tipografia || vi.foto_mood) {
+    prompt += `\n\n## Identidade Visual`
+    if (paleta)        prompt += `\n- Paleta: ${paleta}`
+    if (tipografia)    prompt += `\n- Tipografia: ${tipografia}`
+    if (vi.foto_mood)  prompt += `\n- Mood fotográfico: ${vi.foto_mood}`
+  }
 
-Responda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.`
+  prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.`
 
   if (ragChunks?.length) {
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
@@ -189,12 +225,13 @@ export function BrandAssistant({ brandId }) {
     setLoading(true)
     const [{ data: b }, { data: bb }, { data: convs }] = await Promise.all([
       supabase.from('brands').select('*').eq('id', brandId).single(),
-      supabase.from('brand_books').select('*').eq('brand_id', brandId).maybeSingle(),
+      supabase.from('brand_books').select('*').eq('brand_id', brandId)
+        .order('updated_at', { ascending: false }).limit(1),
       supabase.from('conversations').select('*').eq('brand_id', brandId)
         .order('created_at', { ascending: false }).limit(20),
     ])
     setBrand(b)
-    setBook(bb)
+    setBook(bb?.[0] || null)
     setConvs(convs || [])
 
     // Conta chunks indexados
@@ -321,10 +358,9 @@ export function BrandAssistant({ brandId }) {
 
   const systemPrompt = buildSystemPrompt(brand, book, [])
   const bookSections = book ? [
-    { label: 'Identidade', filled: !!(book.identity?.missao) },
-    { label: 'Posicionamento', filled: !!(book.positioning?.posicionamento) },
-    { label: 'Design System', filled: !!(book.design_system?.colors) },
-    { label: 'Referências', filled: !!(book.references?.brands?.length) },
+    { label: 'Identidade Verbal', filled: !!(book.verbal_identity?.tom_voz || book.verbal_identity?.valores?.length || book.identity?.missao) },
+    { label: 'Posicionamento', filled: !!(book.verbal_identity?.posicionamento || book.positioning?.posicionamento) },
+    { label: 'Identidade Visual', filled: !!(book.visual_identity?.paleta?.length || book.visual_identity?.tipo_principal_nome || book.design_system?.colors) },
   ] : []
 
   if (loading) {
@@ -336,7 +372,17 @@ export function BrandAssistant({ brandId }) {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <Box>
+      <PageHeader
+        title={`${brand?.nome || ''} — Brand Assistant`}
+        subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
+        action={
+          <Button onClick={() => { window.location.hash = `#/app/brands/${brand?.id}` }} sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            ← Voltar ao Brand Book
+          </Button>
+        }
+      />
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 130px)', overflow: 'hidden' }}>
 
       {/* ── Esquerda: histórico de conversas ── */}
       <Box sx={{
@@ -386,14 +432,6 @@ export function BrandAssistant({ brandId }) {
 
       {/* ── Centro: chat ── */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-
-        {/* Header */}
-        <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 20 }} />
-          <Typography fontWeight={800} fontSize={15}>
-            {brand?.nome} — Brand Assistant
-          </Typography>
-        </Box>
 
         {/* Mensagens */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
@@ -547,6 +585,7 @@ export function BrandAssistant({ brandId }) {
           </Box>
         )}
       </Box>
+    </Box>
     </Box>
   )
 }

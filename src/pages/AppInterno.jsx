@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ThemeProvider, CssBaseline } from "@mui/material";
+import { ThemeProvider, CssBaseline, Popover, Box, Stack, Typography, Button, Divider } from "@mui/material";
 import { theme as themeDark, themeLight } from "../lib/theme";
 import logoPositivo from "../assets/logo-positivo-200px.png";
 import logoNegativa from "../assets/negativa.svg";
@@ -9,7 +9,7 @@ import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../l
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
-import { NovoManual } from "./NovoManual";
+import { NovoDiagnosticoDialog } from "./NovoManual";
 import { DashboardHistorico } from "./DashboardHistorico";
 
 const PORTES  = ["Startup", "PME", "Médio", "Grande"];
@@ -27,7 +27,7 @@ const IcoMoon   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="no
 const IcoBell   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>;
 
 /* ─── TodosPage ──────────────────────────────────────────────────── */
-function TodosPage({ historico, loadingHist, onOpen, initialSetor = "", isDark }) {
+function TodosPage({ historico, loadingHist, onOpen, onRetry, retrying, initialSetor = "", isDark }) {
   const [busca, setBusca] = useState("");
   const [setor, setSetor] = useState(initialSetor);
   const [porte, setPorte] = useState("");
@@ -92,22 +92,45 @@ function TodosPage({ historico, loadingHist, onOpen, initialSetor = "", isDark }
         <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontSize: 13, fontFamily: F }}>Nenhum resultado.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           {filtrado.map((d, i) => {
+            const status = d.status || "done";
+            const isRunning = status === "running";
+            const isError   = status === "error";
             const avg = [d.score_singularidade, d.score_consistencia, d.score_posicionamento]
               .filter(Boolean).reduce((a, b, _, arr) => a + b / arr.length, 0);
             const scoreColor = avg >= 7 ? DS.green : avg >= 4 ? DS.amber : DS.pink;
+            const isRetrying = retrying === d.id;
             return (
-              <div key={d.id} onClick={() => onOpen(d)}
-                style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 14px", borderRadius: 8, cursor: "pointer", background: i % 2 === 0 ? C.row0 : C.row1, transition: "opacity 0.15s", border: `1px solid ${C.border}` }}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.7"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+              <div key={d.id} onClick={() => !isRunning && !isError && onOpen(d)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 14, padding: "11px 14px", borderRadius: 8,
+                  cursor: (isRunning || isError) ? "default" : "pointer",
+                  background: i % 2 === 0 ? C.row0 : C.row1,
+                  transition: "opacity 0.15s", border: `1px solid ${C.border}`,
+                  opacity: isRunning ? 0.85 : 1,
+                }}
+                onMouseEnter={e => { if (!isRunning && !isError) e.currentTarget.style.opacity = "0.7"; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = isRunning ? "0.85" : "1"; }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: 6, background: DS.green + "22", color: DS.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, fontFamily: F, flexShrink: 0 }}>
-                  {(d.empresa || "?").charAt(0).toUpperCase()}
+                <div style={{ width: 32, height: 32, borderRadius: 6, background: (isError ? DS.pink : isRunning ? DS.amber : DS.green) + "22", color: (isError ? DS.pink : isRunning ? DS.amber : DS.green), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, fontFamily: F, flexShrink: 0 }}>
+                  {isRunning ? (
+                    <div style={{ width: 14, height: 14, border: `2px solid ${DS.amber}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  ) : (
+                    (d.empresa || "?").charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: F }}>{d.empresa}</div>
-                  {(d.setor || d.porte) && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: F }}>{d.empresa}</div>
+                    {isRunning && <Pill bg={DS.amberPale} color={DS.amber}>em andamento</Pill>}
+                    {isError   && <Pill bg={DS.pinkPale}  color={DS.pink}>erro</Pill>}
+                  </div>
+                  {isError && d.data?.error ? (
+                    <div style={{ fontSize: 11, color: DS.pink, fontFamily: F, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {d.data.error}
+                    </div>
+                  ) : (d.setor || d.porte) && (
                     <div style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>
                       {[normalizeSector(d.setor), d.porte].filter(Boolean).join(" · ")}
                     </div>
@@ -117,7 +140,19 @@ function TodosPage({ historico, loadingHist, onOpen, initialSetor = "", isDark }
                   {fmtDate(d.created_at)}
                   {d.user_name && <div style={{ fontSize: 10 }}>{d.user_name}</div>}
                 </div>
-                {avg > 0 && (
+                {isError && onRetry && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onRetry(d); }}
+                    disabled={isRetrying}
+                    style={{
+                      background: isRetrying ? C.textDis : DS.green, border: "none", borderRadius: 8,
+                      padding: "6px 12px", fontSize: 11, fontWeight: 700, color: "#fff",
+                      cursor: isRetrying ? "not-allowed" : "pointer", fontFamily: F, flexShrink: 0,
+                    }}>
+                    {isRetrying ? "Reiniciando..." : "Tentar novamente"}
+                  </button>
+                )}
+                {!isError && !isRunning && avg > 0 && (
                   <div style={{ width: 34, height: 34, borderRadius: 6, background: scoreColor + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 13, fontWeight: 900, color: scoreColor }}>{avg.toFixed(0)}</span>
                   </div>
@@ -146,6 +181,10 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
   const [selectedRel, setSelectedRel]   = useState(null);
   const [error, setError]               = useState("");
   const [rodando, setRodando]           = useState(null);
+  const [retrying, setRetrying]         = useState(null);
+  const [novoOpen, setNovoOpen]         = useState(false);
+  const [bellAnchor, setBellAnchor]     = useState(null);
+  const [wsCreateSignal, setWsCreateSignal] = useState(0);
   const [gerandoStep, setGerandoStep]   = useState(0);
   const [cooldownAtivo, setCooldownAtivo] = useState(0);
   const [filtroSetor, setFiltroSetor]   = useState("");
@@ -196,6 +235,41 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     return () => clearInterval(id);
   }, [page]);
 
+  // Polling automático enquanto houver diagnóstico em andamento — sincroniza
+  // solicitação quando o diagnóstico termina (concluido/erro).
+  useEffect(() => {
+    const hasRunning = historico.some(d => d.status === "running");
+    if (!hasRunning) return;
+    const id = setInterval(async () => {
+      const runningIds = historico.filter(d => d.status === "running").map(d => d.id);
+      if (runningIds.length === 0) return;
+      const { data: rows } = await supabase
+        .from("diagnosticos")
+        .select("*")
+        .in("id", runningIds);
+      if (!rows) return;
+      const byId = new Map(rows.map(r => [r.id, r]));
+      setHistorico(prev => prev.map(d => byId.get(d.id) || d));
+      // sincroniza solicitação correspondente
+      const settled = rows.filter(r => r.status !== "running");
+      if (settled.length === 0) return;
+      const { data: sols } = await supabase
+        .from("solicitacoes").select("id, diagnostico_id, status")
+        .in("diagnostico_id", settled.map(r => r.id));
+      if (sols && sols.length) {
+        await Promise.all(sols.map(s => {
+          const diag = byId.get(s.diagnostico_id);
+          if (!diag) return null;
+          const next = diag.status === "done" ? "concluido" : diag.status === "error" ? "erro" : s.status;
+          if (next === s.status) return null;
+          return supabase.from("solicitacoes").update({ status: next }).eq("id", s.id);
+        }));
+        await fetchSolicitacoes();
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [historico]);
+
   function iniciarCooldown() {
     setCooldownAtivo(COOLDOWN_ENTRE_APROVACOES);
     if (cooldownRef.current) clearInterval(cooldownRef.current);
@@ -226,11 +300,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     if (cooldownAtivo > 0) return;
     setRodando(sol.id);
     setError("");
-    setGerandoStep(0);
-    setPage("gerando");
     iniciarCooldown();
-
-    await supabase.from("solicitacoes").update({ status: "aprovado" }).eq("id", sol.id);
 
     const contextoCompleto = [
       sol.setor    && `Setor: ${sol.setor}`,
@@ -240,60 +310,87 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
       `Solicitante: ${sol.nome} (${sol.email})`,
     ].filter(Boolean).join("\n");
 
-    const since = new Date().toISOString();
+    const userName = user.user_metadata?.full_name || user.email.split("@")[0];
+
     try {
+      const { data: diagRow, error: insErr } = await supabase
+        .from("diagnosticos")
+        .insert({
+          user_id:    user.id,
+          user_email: user.email,
+          user_name:  userName,
+          empresa:    sol.empresa,
+          setor:      sol.setor,
+          porte:      sol.porte,
+          publico:    false,
+          tipo:       "manual",
+          status:     "running",
+        })
+        .select()
+        .single();
+      if (insErr || !diagRow) throw new Error(insErr?.message || "Não foi possível criar o registro.");
+
+      await supabase.from("solicitacoes")
+        .update({ status: "aprovado", diagnostico_id: diagRow.id }).eq("id", sol.id);
+
+      setHistorico(prev => [diagRow, ...prev]);
+      await fetchSolicitacoes();
+      navigate("todos");
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada.");
 
       const res = await fetch("/.netlify/functions/diagnostico-gerar-background", {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body:    JSON.stringify({ empresa: sol.empresa, contexto: contextoCompleto }),
+        body:    JSON.stringify({ empresa: sol.empresa, contexto: contextoCompleto, diagnostico_id: diagRow.id }),
       });
       if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`);
-
-      const diag = await pollForDiagnostico(user.id, since);
-      await supabase.from("solicitacoes").update({ status: "concluido", diagnostico_id: diag.id }).eq("id", sol.id);
       setRodando(null);
-      await fetchSolicitacoes();
-      await fetchHistorico();
-      setSelectedRel({ data: diag.data, meta: diag });
-      setPage("relatorio");
     } catch (e) {
       setError(e.message || "Erro ao gerar diagnóstico.");
-      await supabase.from("solicitacoes").update({ status: "erro" }).eq("id", sol.id);
       setRodando(null);
-      setPage("solicitacoes");
     }
   }
 
-  function pollForDiagnostico(userId, since) {
-    const MAX_WAIT = 180_000;
-    const start = Date.now();
-    return new Promise((resolve, reject) => {
-      const check = async () => {
-        if (Date.now() - start > MAX_WAIT) {
-          reject(new Error("O diagnóstico demorou mais que o esperado. Tente novamente."));
-          return;
-        }
-        const { data } = await supabase
-          .from("diagnosticos")
-          .select("*")
-          .eq("user_id", userId)
-          .is("workspace_id", null)
-          .gte("created_at", since)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (data) {
-          if (data.data?._job_error) reject(new Error(data.data.error || "Erro ao gerar diagnóstico."));
-          else resolve(data);
-        } else {
-          setTimeout(check, 3000);
-        }
-      };
-      setTimeout(check, 3000);
-    });
+  async function retryDiagnostico(d) {
+    if (retrying) return;
+    setRetrying(d.id);
+    setError("");
+    try {
+      await supabase.from("diagnosticos")
+        .update({ status: "running", data: null })
+        .eq("id", d.id);
+      setHistorico(prev => prev.map(x => x.id === d.id ? { ...x, status: "running", data: null } : x));
+
+      // remonta contexto a partir de uma solicitação ligada, se houver
+      const { data: sol } = await supabase
+        .from("solicitacoes").select("*").eq("diagnostico_id", d.id).maybeSingle();
+      const contextoCompleto = sol ? [
+        sol.setor && `Setor: ${sol.setor}`,
+        sol.porte && `Porte: ${sol.porte}`,
+        sol.site  && `Site: ${sol.site}`,
+        sol.contexto,
+        `Solicitante: ${sol.nome} (${sol.email})`,
+      ].filter(Boolean).join("\n") : null;
+
+      if (sol) await supabase.from("solicitacoes").update({ status: "aprovado" }).eq("id", sol.id);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão expirada.");
+
+      const res = await fetch("/.netlify/functions/diagnostico-gerar-background", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ empresa: d.empresa, contexto: contextoCompleto, diagnostico_id: d.id }),
+      });
+      if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`);
+      await fetchSolicitacoes();
+    } catch (e) {
+      setError(e.message || "Erro ao reiniciar diagnóstico.");
+    } finally {
+      setRetrying(null);
+    }
   }
 
   async function rejeitarSolicitacao(id) {
@@ -314,19 +411,21 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
   const userInitial = userName.charAt(0).toUpperCase();
 
   const navItems = [
-    { id: "workspaces",   label: "Workspaces",       Icon: IcoList,  badge: null },
     { id: "historico",    label: "Dashboard",        Icon: IcoChart, badge: null },
-    { id: "solicitacoes", label: "Solicitações",     Icon: IcoInbox, badge: pendentes > 0 ? pendentes : null },
-    { id: "novo",         label: "Novo diagnóstico", Icon: IcoPlus,  badge: null },
     { id: "todos",        label: "Diagnósticos",     Icon: IcoList,  badge: null },
+    { id: "workspaces",   label: "Workspaces",       Icon: IcoList,  badge: null },
   ];
+
+  const pendentesList = solicitacoes.filter(s => s.status === "pendente");
+
+  const historicoDone = historico.filter(d => (d.status || "done") === "done");
+  const doneCount     = historicoDone.length;
 
   const pageHeaders = {
     workspaces:   { title: "Workspaces",              sub: "Gerencie os workspaces dos clientes, convide membros e entre como cliente." },
     solicitacoes: { title: "Fila de solicitações",    sub: "Aprove para gerar o diagnóstico ou rejeite a solicitação." },
-    novo:         { title: "Novo diagnóstico",        sub: "Gere um diagnóstico manualmente para qualquer empresa." },
-    historico:    { title: "Dashboard",               sub: `${histCount} relatório${histCount !== 1 ? "s" : ""} gerado${histCount !== 1 ? "s" : ""} pela equipe LOUDR.` },
-    todos:        { title: "Todos os diagnósticos",   sub: `Lista completa — ${histCount} diagnóstico${histCount !== 1 ? "s" : ""}.` },
+    historico:    { title: "Dashboard",               sub: `${doneCount} relatório${doneCount !== 1 ? "s" : ""} gerado${doneCount !== 1 ? "s" : ""} pela equipe LOUDR.` },
+    todos:        { title: "Todos os diagnósticos",   sub: `Lista completa — ${historico.length} item${historico.length !== 1 ? "ns" : ""} (${doneCount} concluído${doneCount !== 1 ? "s" : ""}).` },
   };
 
   const ph = pageHeaders[page];
@@ -389,6 +488,8 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 
           {/* Bell */}
           <button
+            onClick={e => setBellAnchor(e.currentTarget)}
+            title="Solicitações"
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 34, height: 34, borderRadius: 8, cursor: "pointer",
@@ -399,10 +500,11 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
             <IcoBell />
             {pendentes > 0 && (
               <span style={{
-                position: "absolute", top: 4, right: 4,
-                width: 8, height: 8, borderRadius: "50%",
-                background: DS.pink,
-              }} />
+                position: "absolute", top: 2, right: 2,
+                minWidth: 14, height: 14, padding: "0 4px", borderRadius: 99,
+                background: DS.pink, color: "#fff", fontSize: 9, fontWeight: 800,
+                display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F,
+              }}>{pendentes}</span>
             )}
           </button>
 
@@ -511,10 +613,24 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
               background: C.topbar, borderBottom: `1px solid ${C.border}`,
               padding: "16px 28px", display: "flex", alignItems: "center", gap: 16,
             }}>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: "-0.02em", fontFamily: F }}>{ph.title}</div>
                 <div style={{ fontSize: 12, color: C.textSec, marginTop: 1, fontFamily: F }}>{ph.sub}</div>
               </div>
+              {(page === "todos" || page === "historico") && (
+                <button onClick={() => setNovoOpen(true)}
+                  style={{ background: DS.green, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 800, fontFamily: F, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+                >
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Novo diagnóstico
+                </button>
+              )}
+              {page === "workspaces" && (
+                <button onClick={() => setWsCreateSignal(s => s + 1)}
+                  style={{ background: DS.green, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 800, fontFamily: F, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+                >
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Criar workspace
+                </button>
+              )}
             </div>
           )}
 
@@ -620,14 +736,6 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
               </div>
             )}
 
-            {page === "novo" && (
-              <NovoManual user={user} onDone={async (parsed, meta) => {
-                await fetchHistorico();
-                setSelectedRel({ data: parsed, meta });
-                navigate("relatorio");
-              }} />
-            )}
-
             {page === "gerando" && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: 20, textAlign: "center", fontFamily: F }}>
                 <div style={{ width: 48, height: 48, border: `3px solid ${DS.green}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
@@ -654,11 +762,11 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
             {page === "historico" && (
               loadingHist ? (
                 <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontFamily: F }}>Carregando...</div>
-              ) : historico.length === 0 ? (
+              ) : historicoDone.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "4rem", color: C.textDis, fontFamily: F }}>Nenhum diagnóstico gerado ainda.</div>
               ) : (
                 <DashboardHistorico
-                  historico={historico}
+                  historico={historicoDone}
                   onVerRelatorio={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
                   onVerTodos={() => { setFiltroSetor(""); navigate("todos"); }}
                   onSetorClick={s => { setFiltroSetor(s); navigate("todos"); }}
@@ -673,6 +781,8 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
                 initialSetor={filtroSetor}
                 isDark={isDark}
                 onOpen={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
+                onRetry={retryDiagnostico}
+                retrying={retrying}
               />
             )}
 
@@ -682,11 +792,82 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
                 C={C}
                 isDark={isDark}
                 onImpersonate={onImpersonate}
+                createSignal={wsCreateSignal}
               />
             )}
           </div>
         </main>
       </div>
+
+      <NovoDiagnosticoDialog
+        open={novoOpen}
+        onClose={() => setNovoOpen(false)}
+        user={user}
+        onCreate={criadas => {
+          setHistorico(prev => [...criadas, ...prev]);
+          navigate("todos");
+        }}
+      />
+
+      <Popover
+        open={Boolean(bellAnchor)}
+        anchorEl={bellAnchor}
+        onClose={() => setBellAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { width: 380, maxHeight: 520, mt: 1, borderRadius: 2, overflow: "hidden" } } }}
+      >
+        <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}>
+          <Typography sx={{ fontWeight: 900, fontSize: 14 }}>Solicitações pendentes</Typography>
+          {pendentesList.length > 0 && (
+            <Typography sx={{ fontSize: 11, color: "text.secondary", fontWeight: 700 }}>{pendentesList.length}</Typography>
+          )}
+        </Box>
+        {pendentesList.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: "center" }}>
+            <Typography sx={{ fontSize: 13, color: "text.secondary" }}>Nenhuma solicitação pendente.</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ overflowY: "auto", maxHeight: 380 }}>
+            {pendentesList.map((sol, i) => (
+              <Box key={sol.id} sx={{ p: 2, borderBottom: i < pendentesList.length - 1 ? 1 : 0, borderColor: "divider" }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 13 }}>{sol.empresa}</Typography>
+                <Typography sx={{ fontSize: 11, color: "text.secondary", mb: 1 }}>
+                  {sol.nome} · {sol.email}
+                </Typography>
+                {sol.contexto && (
+                  <Typography sx={{ fontSize: 11, color: "text.secondary", mb: 1, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {sol.contexto}
+                  </Typography>
+                )}
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    onClick={() => rejeitarSolicitacao(sol.id)}
+                    size="small" color="inherit"
+                    sx={{ fontSize: 11, textTransform: "none", color: DS.pink, borderColor: DS.pink + "44", border: "1px solid", "&:hover": { borderColor: DS.pink, bgcolor: DS.pinkPale } }}
+                  >Rejeitar</Button>
+                  <Button
+                    onClick={() => { setBellAnchor(null); aprovarERodar(sol); }}
+                    disabled={cooldownAtivo > 0}
+                    size="small" variant="contained"
+                    sx={{ fontSize: 11, textTransform: "none", fontWeight: 800 }}
+                  >
+                    {cooldownAtivo > 0 ? `Aguarde ${cooldownAtivo}s` : "Aprovar e rodar"}
+                  </Button>
+                </Stack>
+              </Box>
+            ))}
+          </Box>
+        )}
+        <Divider />
+        <Box sx={{ p: 1.5, textAlign: "right" }}>
+          <Button
+            onClick={() => { setBellAnchor(null); navigate("solicitacoes"); }}
+            size="small"
+            sx={{ fontSize: 11, textTransform: "none", fontWeight: 700 }}
+          >Ver todas →</Button>
+        </Box>
+      </Popover>
     </ThemeProvider>
   );
 }
@@ -697,7 +878,7 @@ const WS_PORTES  = ["Startup","PME","Médio","Grande"];
 const WS_PLANOS  = ["trial","starter","pro","enterprise"];
 const PLANO_COR  = { enterprise: DS.green, pro: '#9B6DFF', starter: '#EF9F27', trial: null };
 
-function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
+function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   const [workspaces, setWorkspaces]       = useState([]);
   const [loading, setLoading]             = useState(true);
   const [showCreate, setShowCreate]       = useState(false);
@@ -712,6 +893,10 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
   const [loadingMembers, setLoadingMembers] = useState({});
 
   useEffect(() => { fetchWorkspaces(); }, []);
+
+  useEffect(() => {
+    if (createSignal > 0) { setShowCreate(true); setError(''); }
+  }, [createSignal]);
 
   async function fetchWorkspaces() {
     setLoading(true);
@@ -811,9 +996,8 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate }) {
     <div>
       {error && <div style={{ marginBottom: 16, padding: '10px 14px', background: DS.pinkPale, color: DS.pink, borderRadius: 8, fontSize: 13, fontFamily: F }}>{error}</div>}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ marginBottom: 20 }}>
         <span style={{ fontSize: 13, color: C.textDis, fontFamily: F }}>{workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''}</span>
-        <button style={btn()} onClick={() => { setShowCreate(true); setError(''); }}>+ Criar workspace</button>
       </div>
 
       {workspaces.map(ws => {

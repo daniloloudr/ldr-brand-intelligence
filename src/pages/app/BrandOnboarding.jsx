@@ -8,6 +8,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import CheckIcon from '@mui/icons-material/Check'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 const STEPS = ['Identidade básica', 'Missão & valores', 'Design inicial']
 
@@ -341,23 +342,21 @@ export function BrandOnboarding() {
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 680, mx: 'auto' }}>
-
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-        <Button
-          variant="text"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => step === 0 ? (window.location.hash = '#/app/brands') : setStep(s => s - 1)}
-          sx={{ color: 'text.secondary', fontWeight: 700, minWidth: 0 }}
-        >
-          {step === 0 ? 'Marcas' : 'Voltar'}
-        </Button>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Nova marca</Typography>
-          <Typography variant="body2" color="text.secondary">Passo {step + 1} de {STEPS.length}</Typography>
-        </Box>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Nova marca"
+        subtitle={`Passo ${step + 1} de ${STEPS.length}`}
+        action={
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => step === 0 ? (window.location.hash = '#/app/brands') : setStep(s => s - 1)}
+            sx={{ color: 'text.secondary', fontWeight: 700 }}
+          >
+            {step === 0 ? 'Marcas' : 'Voltar'}
+          </Button>
+        }
+      />
+      <Box sx={{ p: 4, maxWidth: 680, mx: 'auto' }}>
 
       {/* Stepper */}
       <Stepper activeStep={step} sx={{ mb: 4 }}>
@@ -408,6 +407,7 @@ export function BrandOnboarding() {
             {saving ? 'Criando…' : 'Criar marca'}
           </Button>
         )}
+      </Box>
       </Box>
     </Box>
   )

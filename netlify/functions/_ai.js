@@ -11,6 +11,7 @@ export const MODELS = {
   fast:   'claude-haiku-4-5-20251001',  // cheap, no web_search — local dev / simple tasks
   medium: 'claude-sonnet-4-5',          // faster sonnet — dev when 30s netlify-cli timeout applies
   smart:  'claude-sonnet-4-6',          // full capability + web_search — production
+  opus:   'claude-opus-4-7',            // máxima qualidade — extração de manuais, análises sensíveis
 }
 
 export const TOOLS = {

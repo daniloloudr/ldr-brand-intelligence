@@ -19,6 +19,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
 import { PLANOS } from '../../lib/constants'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 const PERIODOS = [
   { label: '7 dias',  value: '7d',  days: 7  },
@@ -313,28 +314,22 @@ export function SocialListening() {
   })()
 
   return (
-    <Box sx={{ p: 4 }}>
-
-      {/* Header */}
-      <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-        <Box>
-          <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Social Listening</Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Monitoramento de sentimento e menções da sua marca no mercado.
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined"
-          color="primary"
-          size="small"
-          startIcon={collecting ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
-          onClick={handleCollect}
-          disabled={collecting}
-          sx={{ fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          {collecting ? (collectStep || 'Coletando...') : 'Coletar menções'}
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Social Listening"
+        subtitle="Monitoramento de sentimento e menções da sua marca no mercado."
+        action={
+          <Button
+            variant="contained" color="primary"
+            startIcon={collecting ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
+            onClick={handleCollect} disabled={collecting}
+            sx={{ fontWeight: 800 }}
+          >
+            {collecting ? (collectStep || 'Coletando…') : 'Coletar menções'}
+          </Button>
+        }
+      />
+      <Box sx={{ p: 4 }}>
 
       {/* Termos monitorados */}
       {temListening && (
@@ -543,6 +538,7 @@ export function SocialListening() {
           </Card>
         </>
       )}
+      </Box>
     </Box>
   )
 }

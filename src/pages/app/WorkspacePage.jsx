@@ -3,17 +3,23 @@ import {
   Box, Card, CardContent, Typography, TextField, Button, MenuItem,
   Tab, Tabs, Chip, CircularProgress, Alert, IconButton, Select, FormControl,
   InputLabel, Paper, Divider, LinearProgress,
+  Table, TableHead, TableBody, TableRow, TableCell,
+  Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
+  Tooltip,
 } from '@mui/material'
-import DeleteIcon      from '@mui/icons-material/Delete'
+import DeleteIcon      from '@mui/icons-material/DeleteOutline'
+import EditIcon        from '@mui/icons-material/EditOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { useWorkspace }    from '../../lib/WorkspaceContext'
 import { supabase }        from '../../lib/supabase'
 import { PLANOS }          from '../../lib/constants'
 import { redirectToCheckout } from '../../lib/stripe'
+import { PageHeader }     from '../../components/shell/PageHeader'
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"]
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"]
 const ROLES   = ['admin', 'member']
+const ROLE_LABEL = { admin: 'Administrador', member: 'Membro' }
 
 function TabEmpresa({ workspace, reload }) {
   const [form, setForm]       = useState({ nome: workspace.nome || '', dominio: workspace.dominio || '', setor: workspace.setor || '', porte: workspace.porte || '' })
@@ -54,19 +60,34 @@ function TabEmpresa({ workspace, reload }) {
 function TabEquipe({ workspace }) {
   const [membros, setMembros]   = useState([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState('')
   const [email, setEmail]       = useState('')
   const [convMsg, setConvMsg]   = useState('')
+  const [editing, setEditing]   = useState(null) // { membro }
+  const [editRole, setEditRole] = useState('member')
+  const [saving, setSaving]     = useState(false)
+  const [confirmDel, setConfirmDel] = useState(null) // { membro }
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { loadMembros() }, [workspace.id])
 
   async function loadMembros() {
     setLoading(true)
-    const { data } = await supabase
-      .from('workspace_members')
-      .select('id, role, user_id, created_at')
-      .eq('workspace_id', workspace.id)
-    setMembros(data || [])
-    setLoading(false)
+    setError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada.')
+      const res = await fetch(`/.netlify/functions/workspace-members?workspace_id=${workspace.id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (!res.ok) throw new Error(`Erro ${res.status}`)
+      const { members } = await res.json()
+      setMembros(members || [])
+    } catch (e) {
+      setError(e.message || 'Erro ao carregar membros.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function convidar(e) {
@@ -78,59 +99,162 @@ function TabEquipe({ workspace }) {
     setEmail('')
   }
 
-  async function remover(membroId) {
-    await supabase.from('workspace_members').delete().eq('id', membroId)
-    await loadMembros()
+  function abrirEditar(m) {
+    setEditing(m)
+    setEditRole(m.role || 'member')
   }
 
-  async function mudarRole(membroId, role) {
-    await supabase.from('workspace_members').update({ role }).eq('id', membroId)
-    await loadMembros()
+  async function salvarEdicao() {
+    if (!editing) return
+    setSaving(true)
+    try {
+      await supabase.from('workspace_members').update({ role: editRole }).eq('id', editing.id)
+      setEditing(null)
+      await loadMembros()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function confirmarRemocao() {
+    if (!confirmDel) return
+    setDeleting(true)
+    try {
+      await supabase.from('workspace_members').delete().eq('id', confirmDel.id)
+      setConfirmDel(null)
+      await loadMembros()
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const plano  = PLANOS[workspace.plano] || PLANOS.trial
   const limite = plano.membros === Infinity ? '∞' : plano.membros
 
   return (
-    <Box sx={{ maxWidth: 560 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          {membros.length}/{limite} membros no plano {plano.nome}
-        </Typography>
-      </Box>
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {membros.length}/{limite} membros no plano {plano.nome}
+      </Typography>
 
+      {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {convMsg && <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setConvMsg('')}>{convMsg}</Alert>}
 
-      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: 1.5, mb: 3, maxWidth: 560 }}>
         <TextField
           fullWidth size="small" label="E-mail do convidado"
           value={email} onChange={e => setEmail(e.target.value)} type="email"
         />
-        <Button type="submit" variant="outlined" color="primary" sx={{ whiteSpace: 'nowrap', fontWeight: 800 }}>
+        <Button type="submit" variant="contained" color="primary" sx={{ whiteSpace: 'nowrap', fontWeight: 800 }}>
           Convidar
         </Button>
       </Box>
 
-      {loading ? <CircularProgress size={20} /> : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {membros.map(m => (
-            <Paper key={m.id} sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" fontWeight={700}>ID: {m.user_id?.slice(0, 8)}…</Typography>
-                <Typography variant="caption" color="text.secondary">{new Date(m.created_at).toLocaleDateString('pt-BR')}</Typography>
-              </Box>
-              <FormControl size="small" sx={{ minWidth: 100 }}>
-                <Select value={m.role} onChange={e => mudarRole(m.id, e.target.value)} sx={{ fontSize: 12 }}>
-                  {ROLES.map(r => <MenuItem key={r} value={r} sx={{ fontSize: 12 }}>{r}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <IconButton size="small" color="error" onClick={() => remover(m.id)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Paper>
-          ))}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress size={20} />
         </Box>
+      ) : (
+        <Paper sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'background.default' }}>
+                <TableCell sx={{ fontWeight: 800, fontSize: 12 }}>Nome</TableCell>
+                <TableCell sx={{ fontWeight: 800, fontSize: 12 }}>E-mail</TableCell>
+                <TableCell sx={{ fontWeight: 800, fontSize: 12 }}>Acesso</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: 12, width: 110 }}>Ações</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {membros.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4, color: 'text.disabled', fontSize: 13 }}>
+                    Nenhum membro ainda.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                membros.map(m => (
+                  <TableRow key={m.id} hover>
+                    <TableCell sx={{ fontSize: 13, fontWeight: 700 }}>
+                      {m.nome || <span style={{ color: '#8A9AB0' }}>—</span>}
+                      {m.is_self && <Chip label="você" size="small" sx={{ ml: 1, height: 16, fontSize: 9 }} />}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 13, color: 'text.secondary' }}>
+                      {m.email || <span style={{ color: '#8A9AB0' }}>—</span>}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 13 }}>
+                      <Chip
+                        label={ROLE_LABEL[m.role] || m.role}
+                        size="small"
+                        sx={{
+                          fontWeight: 700, fontSize: 11,
+                          bgcolor: m.role === 'admin' ? 'rgba(13,158,122,0.12)' : 'action.hover',
+                          color:   m.role === 'admin' ? 'primary.main' : 'text.secondary',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Editar">
+                        <IconButton size="small" onClick={() => abrirEditar(m)} sx={{ color: 'text.secondary' }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={m.is_self ? 'Não é possível remover você mesmo' : 'Remover'}>
+                        <span>
+                          <IconButton size="small" disabled={m.is_self}
+                            onClick={() => setConfirmDel(m)}
+                            sx={{ color: 'error.main', '&.Mui-disabled': { color: 'action.disabled' } }}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Paper>
       )}
+
+      {/* Editar acesso */}
+      <Dialog open={Boolean(editing)} onClose={() => !saving && setEditing(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 900 }}>Editar acesso</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2, fontSize: 13 }}>
+            {editing?.nome || editing?.email || 'Membro'}
+          </DialogContentText>
+          <FormControl fullWidth size="small">
+            <InputLabel>Acesso</InputLabel>
+            <Select value={editRole} label="Acesso" onChange={e => setEditRole(e.target.value)}>
+              {ROLES.map(r => <MenuItem key={r} value={r}>{ROLE_LABEL[r]}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setEditing(null)} disabled={saving} color="inherit">Cancelar</Button>
+          <Button onClick={salvarEdicao} disabled={saving} variant="contained" sx={{ fontWeight: 800 }}>
+            {saving ? 'Salvando…' : 'Salvar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmar remoção */}
+      <Dialog open={Boolean(confirmDel)} onClose={() => !deleting && setConfirmDel(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 900 }}>Remover membro?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: 13 }}>
+            Você tem certeza que deseja remover <strong>{confirmDel?.nome || confirmDel?.email || 'este membro'}</strong> do workspace?
+            Esta ação não pode ser desfeita.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmDel(null)} disabled={deleting} color="inherit">Cancelar</Button>
+          <Button onClick={confirmarRemocao} disabled={deleting} variant="contained" color="error" sx={{ fontWeight: 800 }}>
+            {deleting ? 'Removendo…' : 'Remover'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
@@ -256,38 +380,57 @@ function TabAlertas({ workspace }) {
   )
 }
 
-const TABS = [
-  { label: 'Empresa' },
-  { label: 'Equipe' },
-  { label: 'Plano' },
-  { label: 'Alertas' },
-]
-
-export function WorkspacePage() {
-  const { workspace, reload } = useWorkspace()
-  const [tab, setTab]         = useState(0)
-
-  if (!workspace) return null
-
+function PageShell({ title, subtitle, children }) {
   return (
-    <Box sx={{ p: 4 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Workspace</Typography>
-        <Typography variant="body2" color="text.secondary" mt={0.5}>{workspace.nome}</Typography>
-      </Box>
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} textColor="primary" indicatorColor="primary">
-          {TABS.map((t, i) => (
-            <Tab key={i} label={t.label} sx={{ fontFamily: "'Cairo', sans-serif", fontWeight: 700, fontSize: 13 }} />
-          ))}
-        </Tabs>
-      </Box>
-
-      {tab === 0 && <TabEmpresa workspace={workspace} reload={reload} />}
-      {tab === 1 && <TabEquipe  workspace={workspace} />}
-      {tab === 2 && <TabPlano   workspace={workspace} />}
-      {tab === 3 && <TabAlertas workspace={workspace} />}
+    <Box>
+      <PageHeader title={title} subtitle={subtitle} />
+      <Box sx={{ p: 4, maxWidth: 720 }}>{children}</Box>
     </Box>
   )
+}
+
+export function ContaPage() {
+  const { workspace, reload } = useWorkspace()
+  if (!workspace) return null
+  return (
+    <PageShell title="Configurações da conta" subtitle={`Workspace · ${workspace.nome}`}>
+      <TabEmpresa workspace={workspace} reload={reload} />
+    </PageShell>
+  )
+}
+
+export function TimePage() {
+  const { workspace } = useWorkspace()
+  if (!workspace) return null
+  return (
+    <PageShell title="Gestão de time" subtitle={`Workspace · ${workspace.nome}`}>
+      <TabEquipe workspace={workspace} />
+    </PageShell>
+  )
+}
+
+export function PlanoPage() {
+  const { workspace } = useWorkspace()
+  if (!workspace) return null
+  return (
+    <PageShell title="Plano e cobrança" subtitle={`Workspace · ${workspace.nome}`}>
+      <TabPlano workspace={workspace} />
+    </PageShell>
+  )
+}
+
+export function AlertasPage() {
+  const { workspace } = useWorkspace()
+  if (!workspace) return null
+  return (
+    <PageShell title="Alertas" subtitle={`Workspace · ${workspace.nome}`}>
+      <TabAlertas workspace={workspace} />
+    </PageShell>
+  )
+}
+
+// Compat shim: a página antiga `WorkspacePage` redireciona pra Conta.
+export function WorkspacePage() {
+  if (typeof window !== 'undefined') window.location.hash = '#/app/conta'
+  return null
 }

@@ -19,6 +19,7 @@ import { supabase }          from '../../lib/supabase'
 import { PRATICAS, PLANOS }  from '../../lib/constants'
 import { fmtDate }           from '../../lib/helpers'
 import { IdentityGapCard }   from '../../components/intelligence/IdentityGapCard'
+import { PageHeader }        from '../../components/shell/PageHeader'
 
 /* ── helpers ─────────────────────────────────────────────────────── */
 
@@ -251,19 +252,12 @@ export function Home() {
   const oportunidades = Array.isArray(dados?.oportunidades) ? dados.oportunidades.slice(0, 3) : []
 
   return (
-    <Box sx={{ p: { xs: '28px 20px 60px', md: '48px 52px 80px' }, maxWidth: 1060 }}>
-
-      {/* Header */}
-      <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
-        — Dashboard
-      </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary', lineHeight: 1, mb: 0.5 }}>
-        {workspace?.nome}
-      </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 5 }}>
-        Plano {planoNome}
-        {diag ? ` · último diagnóstico ${fmtDate(diag.created_at)}` : ' · nenhum diagnóstico gerado'}
-      </Typography>
+    <Box>
+      <PageHeader
+        title={workspace?.nome || 'Home'}
+        subtitle={`Plano ${planoNome}${diag ? ` · último diagnóstico ${fmtDate(diag.created_at)}` : ' · nenhum diagnóstico gerado'}`}
+      />
+      <Box sx={{ p: { xs: '24px 20px 60px', md: '32px 52px 80px' }, maxWidth: 1060 }}>
 
       {loadError && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setLoadError('')}>
@@ -416,6 +410,7 @@ export function Home() {
           </Box>
         </>
       )}
+      </Box>
     </Box>
   )
 }

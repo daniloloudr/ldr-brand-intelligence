@@ -7,6 +7,7 @@ import AddIcon from '@mui/icons-material/Add'
 import CampaignIcon from '@mui/icons-material/Campaign'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 function verdictColor(status, verdict) {
   if (status === 'approved' || verdict?.aprovado === true)  return '#0D9E7A'
@@ -73,24 +74,19 @@ export function Campaigns({ brandId }) {
   }
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 4 }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h5" fontWeight={900} letterSpacing="-0.02em">Aprovação de campanhas</Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Avalie se suas peças estão alinhadas com o brand book antes de publicar.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => { window.location.hash = `${window.location.hash.split('/campaigns')[0]}/campaigns/new` }}
-          sx={{ fontWeight: 800, flexShrink: 0 }}
-        >
-          Nova campanha
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Aprovação de campanhas"
+        subtitle="Avalie se suas peças estão alinhadas com o brand book antes de publicar."
+        action={
+          <Button
+            variant="contained" color="primary" startIcon={<AddIcon />}
+            onClick={() => { window.location.hash = `${window.location.hash.split('/campaigns')[0]}/campaigns/new` }}
+            sx={{ fontWeight: 800 }}
+          >Nova campanha</Button>
+        }
+      />
+      <Box sx={{ p: 4 }}>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -125,6 +121,7 @@ export function Campaigns({ brandId }) {
           ))}
         </Box>
       )}
+      </Box>
     </Box>
   )
 }

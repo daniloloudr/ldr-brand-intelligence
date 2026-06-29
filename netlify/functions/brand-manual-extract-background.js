@@ -1,42 +1,108 @@
 import { createClient } from '@supabase/supabase-js'
-import { extractJSON, isDev } from './_ai.js'
+import { extractJSON, MODELS } from './_ai.js'
 
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1/messages'
 
-const EXTRACTION_PROMPT = `Analise este brand manual e extraia todas as informações de marca.
+const EXTRACTION_PROMPT = `Analise este brand manual e extraia EXAUSTIVAMENTE todas as informações de marca.
 
-Retorne APENAS JSON válido sem markdown:
+Quanto mais campos preenchidos, melhor. NÃO invente informação — se algo não estiver no manual, deixe vazio.
+
+Retorne APENAS JSON válido sem markdown, no formato:
 {
-  "identity": {
+  "verbal_identity": {
+    "tagline": "",
+    "proposito": "",
+    "manifesto": "",
     "missao": "",
     "visao": "",
     "valores": [],
     "arquetipo": "",
+    "personalidade": [],
     "tom_voz": "",
-    "publico_alvo": "",
-    "vocabulario_proibido": []
-  },
-  "positioning": {
+    "tom_atributos": [],
+    "tom_evitar": "",
+    "narrativa_origem": "",
+    "boilerplate": "",
+    "marcos": [{ "ano": "", "titulo": "", "descricao": "" }],
     "posicionamento": "",
     "proposta_valor": "",
-    "mensagem_central": ""
+    "mensagem_central": "",
+    "publico_alvo": "",
+    "personas": [{ "nome": "", "demografia": "", "dor": "", "motivacao": "", "objecoes": "" }],
+    "vocabulario_aprovado": [],
+    "termos_proprios": [],
+    "vocabulario_proibido": [],
+    "exemplos_headlines": [{ "titulo": "", "contexto": "" }],
+    "exemplos_posts": [{ "canal": "", "objetivo": "", "texto": "" }],
+    "exemplos_ctas": [{ "cta": "", "contexto": "" }],
+    "situacoes": [{ "situacao": "", "como_falar": "", "evitar": "" }],
+    "textos_referencia": [
+      { "tipo": "e-mail|blog|linkedin|newsletter|anuncio|press_release|pitch|outro",
+        "titulo": "", "publico": "", "texto": "", "notas": "" }
+    ]
+  },
+  "visual_identity": {
+    "logos": [{ "versao": "", "descricao": "", "url": "", "regras_uso": "" }],
+    "area_protecao": "",
+    "tamanho_minimo": "",
+    "usos_proibidos": [],
+    "paleta": [{ "nome": "", "hex": "#RRGGBB", "tipo": "primária|secundária|neutra|acento", "uso": "" }],
+    "tipo_principal_nome": "",
+    "tipo_principal_pesos": "",
+    "tipo_principal_link": "",
+    "tipo_principal_uso": "",
+    "tipo_secundario_nome": "",
+    "tipo_secundario_pesos": "",
+    "tipo_secundario_link": "",
+    "tipo_secundario_uso": "",
+    "tipo_display": "",
+    "tipo_hierarquia": [{ "nivel": "", "tamanho": "", "peso": "", "uso": "" }],
+    "icone_estilo": "",
+    "icone_grid": "",
+    "icone_biblioteca": "",
+    "icone_exemplos": [],
+    "ilustracao_estilo": "",
+    "ilustracao_paleta": "",
+    "ilustracao_exemplos": [],
+    "foto_mood": "",
+    "foto_luz_edicao": "",
+    "foto_enquadramento": "",
+    "foto_do": [],
+    "foto_dont": [],
+    "foto_exemplos": [],
+    "video_estilo": "",
+    "video_timing": "",
+    "video_abertura": "",
+    "video_fechamento": "",
+    "padroes": [{ "nome": "", "descricao": "", "url": "" }],
+    "grid_descricao": "",
+    "grid_regras": "",
+    "aplicacoes": [{ "tipo": "", "descricao": "", "url": "" }]
   },
   "design_system": {
     "colors": {
-      "primary":    { "main": "" },
-      "secondary":  { "main": "" },
-      "background": { "main": "" },
-      "surface":    { "main": "" }
+      "primary": "", "secondary": "",
+      "success": "", "warning": "", "error": "", "info": "",
+      "background": "", "surface": ""
     },
-    "typography": {
-      "font_primary":   "",
-      "font_secondary": ""
-    }
-  },
-  "references": {
-    "brands": [],
-    "differentiation": "",
-    "anti_referencias": ""
+    "neutral_colors": {
+      "gray_50": "", "gray_100": "", "gray_300": "", "gray_500": "",
+      "gray_700": "", "gray_900": "", "white": "", "black": ""
+    },
+    "spacing":    { "xs": "", "sm": "", "md": "", "lg": "", "xl": "", "2xl": "" },
+    "font_sizes": { "caption": "", "body": "", "h6": "", "h5": "", "h4": "", "h3": "", "h2": "", "h1": "" },
+    "border_radius": { "none": "", "sm": "", "md": "", "lg": "", "full": "" },
+    "shadows":  { "none": "", "sm": "", "md": "", "lg": "" },
+    "breakpoints": { "xs": "", "sm": "", "md": "", "lg": "", "xl": "" },
+    "components": [
+      { "nome": "", "variantes": "", "tamanhos": "", "estados": "", "regras_uso": "" }
+    ],
+    "state_hover": "", "state_focus": "", "state_disabled": "", "state_error": "",
+    "motion": { "durations": "", "easings": "", "padroes": "" },
+    "accessibility": { "contraste": "", "foco": "", "aria": "", "regras_extras": [] },
+    "density": { "mobile": "", "desktop": "" },
+    "grid": { "colunas": "", "gutter": "", "container": "", "regras": "" },
+    "ux_patterns": [{ "nome": "", "descricao": "" }]
   },
   "assets": [
     { "tipo": "logo|cor|tipografia|icone|padrao|outro", "nome": "", "descricao": "", "valor": "" }
@@ -47,10 +113,16 @@ Retorne APENAS JSON válido sem markdown:
 }
 
 Regras:
-- Informação ausente: string vazia ou array vazio
-- Cores sempre em #RRGGBB hexadecimal
-- Extraia TODOS os tokens de design (cores, fontes, espaçamentos, border-radius, sombras)
-- Extraia todos os assets mencionados (logos, paleta de cores completa, fontes, ícones)`
+- Informação ausente: string vazia ou array vazio. NUNCA invente.
+- Cores sempre em #RRGGBB hexadecimal.
+- Extraia TODAS as variantes de logo mencionadas (principal, símbolo, horizontal, monocromática, negativa…).
+- Extraia TODA a paleta de cores (não só primária/secundária — neutros, acentos, semânticas).
+- Extraia tipografia COMPLETA: pesos disponíveis, hierarquia, quando usar cada uma.
+- Para storytelling, capture missão/visão/valores LITERAIS quando houver redação clara.
+- Para tom de voz, capture descrição + atributos como chips (corajosa, calorosa, etc).
+- Personas: extraia perfis com dor + motivação se mencionados.
+- Para acessibilidade e padrões UX: só preencha se o manual mencionar.
+- IMPORTANTE: Em "textos_referencia", capture TODOS os exemplos de TEXTO LONGO que o manual mostrar — e-mails completos, posts de blog, posts de LinkedIn, anúncios, releases, newsletters. Cole o texto INTEGRAL. Isso é crítico pro RAG conseguir replicar a voz.`
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
@@ -94,8 +166,9 @@ export const handler = async (event) => {
   const arrayBuffer = await fileData.arrayBuffer()
   const base64 = Buffer.from(arrayBuffer).toString('base64')
 
-  // Call Claude with PDF beta
-  const model = isDev() ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+  // Call Claude with PDF beta — usa Opus pra máxima qualidade na extração
+  // (manual de marca é a base do RAG, então vale o custo extra)
+  const model = MODELS.opus
 
   let claudeResp
   try {
@@ -109,7 +182,7 @@ export const handler = async (event) => {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: 16000,
         messages: [{
           role: 'user',
           content: [
@@ -135,34 +208,50 @@ export const handler = async (event) => {
 
   const claudeData = await claudeResp.json()
   const text = claudeData.content?.find(b => b.type === 'text')?.text || ''
+
+  console.log(`[brand-manual] Claude usage:`, JSON.stringify(claudeData.usage || {}))
+  console.log(`[brand-manual] Resposta crua (primeiros 500 chars):`, text.slice(0, 500))
+  console.log(`[brand-manual] Resposta crua (últimos 500 chars):`, text.slice(-500))
+
   const extracted = extractJSON(text)
 
   if (!extracted) {
+    console.log(`[brand-manual] extractJSON falhou. Texto completo:`, text)
     await markError('Não foi possível extrair dados estruturados do manual')
     return { statusCode: 200 }
   }
 
-  // Upsert brand_book
-  const { data: existingBook } = await supabase
-    .from('brand_books').select('id, version').eq('brand_id', brand_id).maybeSingle()
+  console.log(`[brand-manual] Chaves no JSON:`, Object.keys(extracted))
+  console.log(`[brand-manual] verbal_identity tem ${Object.keys(extracted.verbal_identity || {}).length} chaves`)
+  console.log(`[brand-manual] visual_identity tem ${Object.keys(extracted.visual_identity || {}).length} chaves`)
+  console.log(`[brand-manual] design_system tem ${Object.keys(extracted.design_system || {}).length} chaves`)
+
+  // Busca a row mais recente (não maybeSingle, que falha com duplicatas)
+  const { data: existingBooks } = await supabase
+    .from('brand_books').select('id, version').eq('brand_id', brand_id)
+    .order('created_at', { ascending: false }).limit(1)
+  const existingBook = existingBooks?.[0] || null
+  console.log(`[brand-manual] Existing book:`, existingBook?.id, 'version:', existingBook?.version)
 
   if (existingBook?.id) {
-    await supabase.from('brand_books').update({
-      identity:      extracted.identity      || {},
-      positioning:   extracted.positioning   || {},
-      design_system: extracted.design_system || {},
-      references:    extracted.references    || {},
-      version:       (existingBook.version || 1) + 1,
-      updated_at:    new Date().toISOString(),
+    const { error: upErr } = await supabase.from('brand_books').update({
+      verbal_identity: extracted.verbal_identity || {},
+      visual_identity: extracted.visual_identity || {},
+      design_system:   extracted.design_system   || {},
+      version:         (existingBook.version || 1) + 1,
+      updated_at:      new Date().toISOString(),
     }).eq('id', existingBook.id)
+    if (upErr) console.error(`[brand-manual] UPDATE falhou:`, upErr.message)
+    else       console.log(`[brand-manual] UPDATE concluído em ${existingBook.id}`)
   } else {
-    await supabase.from('brand_books').insert({
+    const { data: newBook, error: insErr } = await supabase.from('brand_books').insert({
       brand_id,
-      identity:      extracted.identity      || {},
-      positioning:   extracted.positioning   || {},
-      design_system: extracted.design_system || {},
-      references:    extracted.references    || {},
-    })
+      verbal_identity: extracted.verbal_identity || {},
+      visual_identity: extracted.visual_identity || {},
+      design_system:   extracted.design_system   || {},
+    }).select('id').single()
+    if (insErr) console.error(`[brand-manual] INSERT falhou:`, insErr.message)
+    else        console.log(`[brand-manual] INSERT criou:`, newBook?.id)
   }
 
   // Replace assets

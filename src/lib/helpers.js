@@ -15,12 +15,20 @@ export function getRoute() {
   if (h === '#/app/listening')       return 'listening';
   if (h === '#/app/content-hub')     return 'content-hub';
   if (h === '#/app/workspace')       return 'workspace';
+  if (h === '#/app/conta')           return 'conta';
+  if (h === '#/app/time')            return 'time';
+  if (h === '#/app/plano')           return 'plano';
+  if (h === '#/app/alertas')         return 'alertas';
   if (h === '#/app/brands')                                        return 'brands-list';
   if (h === '#/app/brands/new')                                    return 'brands-new';
   if (h.match(/^#\/app\/brands\/[^/]+\/assistant/))               return 'brands-assistant';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/new/))          return 'brands-campaign-new';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/campanhas/))       return 'brands-studio-campaigns';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow/))        return 'brands-studio-workflow';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio/))                  return 'brands-studio';
   if (h.startsWith('#/app/brands/'))                               return 'brands-detail';
   if (h === '#/admin')               return 'admin';
   if (h === '#/admin/historico')     return 'admin-historico';
@@ -42,6 +50,12 @@ export function getCampaignId() {
 export function getBrandSection() {
   const h = window.location.hash;
   const m = h.match(/^#\/app\/brands\/[^/]+\/([^/]+)/)
+  return m ? m[1] : null
+}
+
+export function getWorkflowId() {
+  const h = window.location.hash;
+  const m = h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow\/([^/]+)/)
   return m ? m[1] : null
 }
 

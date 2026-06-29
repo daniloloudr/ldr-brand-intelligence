@@ -8,6 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
+import { PageHeader } from '../../components/shell/PageHeader'
 
 const DIMENSOES = [
   { key: 'tom_voz',        label: 'Tom de voz'         },
@@ -97,17 +98,20 @@ export function CampaignDetail({ brandId, campaignId }) {
   const content = campaign.content || {}
 
   return (
+    <Box>
+      <PageHeader
+        title={campaign.title}
+        subtitle={`Submetida em ${fmtDate(campaign.created_at)}`}
+        action={
+          <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            Campanhas
+          </Button>
+        }
+      />
     <Box sx={{ display: 'flex', gap: 3, p: 4, alignItems: 'flex-start' }}>
 
       {/* ── Esquerda: conteúdo ── */}
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <Button startIcon={<ArrowBackIcon />} onClick={goBack}
-            sx={{ color: 'text.secondary', fontWeight: 700, minWidth: 0 }}>
-            Campanhas
-          </Button>
-          <Typography variant="h6" fontWeight={900}>{campaign.title}</Typography>
-        </Box>
 
         <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 2 }}>
           <CardContent>
@@ -235,6 +239,7 @@ export function CampaignDetail({ brandId, campaignId }) {
           </Card>
         )}
       </Box>
+    </Box>
     </Box>
   )
 }

@@ -1,10 +1,29 @@
 import { useState, useRef } from 'react'
-import { Box, Typography, Chip, IconButton, Tooltip, Button } from '@mui/material'
+import {
+  Box, Typography, Chip, IconButton, Tooltip, Button,
+  TextField, MenuItem, LinearProgress, Alert,
+} from '@mui/material'
 import DeleteOutlineIcon  from '@mui/icons-material/DeleteOutline'
 import ContentCopyIcon    from '@mui/icons-material/ContentCopy'
 import CheckIcon          from '@mui/icons-material/Check'
 import UploadFileIcon     from '@mui/icons-material/UploadFile'
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
+import OpenInNewIcon      from '@mui/icons-material/OpenInNew'
 import { supabase }       from '../../lib/supabase'
+
+const STORAGE_BUCKET = 'brand-assets'
+
+const TIPO_OPCOES = [
+  { value: 'logo',         label: 'Logo' },
+  { value: 'foto',         label: 'Foto de referência' },
+  { value: 'ilustracao',   label: 'Ilustração' },
+  { value: 'icone',        label: 'Ícone' },
+  { value: 'padrao',       label: 'Padrão / textura' },
+  { value: 'mockup',       label: 'Mockup / aplicação' },
+  { value: 'tipografia',   label: 'Tipografia (arquivo)' },
+  { value: 'documento',    label: 'Documento' },
+  { value: 'outro',        label: 'Outro' },
+]
 
 /* ─── helpers ──────────────────────────────────────────────────────── */
 
@@ -272,25 +291,208 @@ const TIPO_COR = { icone: '#4A9ECC', padrao: '#E8185A', outro: '#8A9AB0' }
 
 function OtherCard({ asset, onDelete }) {
   const cor = TIPO_COR[asset.tipo] || TIPO_COR.outro
+  const isImg = asset.mime_type?.startsWith('image/')
+  const isPdf = asset.mime_type === 'application/pdf'
+  const isUrl = asset.valor && /^https?:\/\//.test(asset.valor)
   return (
     <Box sx={{
-      border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2.5,
-      borderTop: `3px solid ${cor}`, '&:hover .del': { opacity: 1 },
-      display: 'flex', flexDirection: 'column', gap: 1,
+      border: '1px solid', borderColor: 'divider', borderRadius: 2,
+      borderTop: `3px solid ${cor}`, overflow: 'hidden',
+      '&:hover .del': { opacity: 1 },
+      display: 'flex', flexDirection: 'column',
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Chip label={asset.tipo} size="small"
-          sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800,
-            bgcolor: cor + '18', color: cor }} />
-        <IconButton className="del" size="small" onClick={() => onDelete(asset.id)}
-          sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-            '&:hover': { color: '#E8185A' } }}>
-          <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-        </IconButton>
+      {isImg && isUrl && (
+        <Box sx={{ aspectRatio: '4 / 3', bgcolor: 'background.default',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <Box component="img" src={asset.valor} alt={asset.nome}
+            sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+        </Box>
+      )}
+      {isPdf && isUrl && (
+        <Box sx={{ aspectRatio: '4 / 3', bgcolor: 'background.default',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1 }}>
+          <Typography sx={{ fontSize: 32, fontWeight: 900, color: 'text.disabled' }}>PDF</Typography>
+          <Button size="small" href={asset.valor} target="_blank" startIcon={<OpenInNewIcon fontSize="small" />}
+            sx={{ textTransform: 'none', fontSize: 11 }}>
+            Abrir
+          </Button>
+        </Box>
+      )}
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Chip label={TIPO_OPCOES.find(t => t.value === asset.tipo)?.label || asset.tipo} size="small"
+            sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800,
+              bgcolor: cor + '18', color: cor }} />
+          <IconButton className="del" size="small" onClick={() => onDelete(asset.id)}
+            sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
+              '&:hover': { color: '#E8185A' } }}>
+            <DeleteOutlineIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Box>
+        <Typography sx={{ fontSize: 13, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {asset.nome}
+        </Typography>
+        {asset.descricao && (
+          <Typography variant="caption" color="text.disabled">{asset.descricao}</Typography>
+        )}
       </Box>
-      <Typography sx={{ fontSize: 13, fontWeight: 800 }}>{asset.nome}</Typography>
-      {asset.descricao && (
-        <Typography variant="caption" color="text.disabled">{asset.descricao}</Typography>
+    </Box>
+  )
+}
+
+/* ─── Upload de arquivos ────────────────────────────────────────────── */
+
+function UploadPanel({ brandId, onUploaded }) {
+  const [files, setFiles]       = useState([]) // [{ file, tipo, nome, descricao, progress, status, error }]
+  const [dragOver, setDragOver] = useState(false)
+  const fileRef = useRef()
+
+  function addFiles(list) {
+    const arr = Array.from(list).map(f => ({
+      file: f,
+      tipo: f.type === 'image/svg+xml' ? 'logo' : (f.type?.startsWith('image/') ? 'foto' : 'documento'),
+      nome: f.name.replace(/\.[^.]+$/, ''),
+      descricao: '',
+      progress: 0,
+      status: 'pending', // pending | uploading | done | error
+      error: null,
+    }))
+    setFiles(prev => [...prev, ...arr])
+  }
+
+  function onPick(e) {
+    if (e.target.files?.length) addFiles(e.target.files)
+    e.target.value = ''
+  }
+
+  function onDrop(e) {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files)
+  }
+
+  function updateAt(idx, patch) {
+    setFiles(prev => prev.map((f, i) => i === idx ? { ...f, ...patch } : f))
+  }
+
+  function removeAt(idx) {
+    setFiles(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function uploadAll() {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]
+      if (f.status !== 'pending') continue
+      updateAt(i, { status: 'uploading', progress: 10, error: null })
+      try {
+        const ext = f.file.name.split('.').pop()
+        const path = `${brandId}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(path, f.file, { contentType: f.file.type, upsert: false })
+        if (upErr) throw upErr
+        const { data: { publicUrl } } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
+
+        // Se for SVG, armazenamos também o conteúdo de texto pra preview inline
+        let valor = publicUrl
+        if (f.file.type === 'image/svg+xml') {
+          try { valor = await f.file.text() } catch { valor = publicUrl }
+        }
+
+        await onUploaded({
+          tipo:       f.tipo,
+          nome:       f.nome || f.file.name,
+          descricao:  f.descricao || '',
+          valor,
+          file_path:  path,
+          mime_type:  f.file.type,
+          size_bytes: f.file.size,
+        })
+        updateAt(i, { status: 'done', progress: 100 })
+      } catch (e) {
+        updateAt(i, { status: 'error', error: e.message || 'Falha no upload' })
+      }
+    }
+    // limpa concluídos depois de 1.5s
+    setTimeout(() => {
+      setFiles(prev => prev.filter(f => f.status !== 'done'))
+    }, 1500)
+  }
+
+  const pending = files.filter(f => f.status === 'pending').length
+
+  return (
+    <Box sx={{ mb: 5 }}>
+      <SectionLabel label="Upload de arquivos" color="#0D9E7A" count={files.length} />
+
+      <Box
+        onClick={() => fileRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        sx={{
+          mt: 2, p: 4, borderRadius: 2, textAlign: 'center', cursor: 'pointer',
+          border: '2px dashed', borderColor: dragOver ? 'primary.main' : 'divider',
+          bgcolor: dragOver ? 'rgba(13,158,122,0.06)' : 'transparent',
+          transition: 'all 0.15s',
+          '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(13,158,122,0.04)' },
+        }}>
+        <CloudUploadOutlinedIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.5 }}>
+          Arraste arquivos aqui ou clique para selecionar
+        </Typography>
+        <Typography variant="caption" color="text.disabled">
+          SVG, PNG, JPG, WEBP, PDF — até 20MB cada
+        </Typography>
+        <input ref={fileRef} type="file" multiple
+          accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp,image/gif,application/pdf"
+          style={{ display: 'none' }} onChange={onPick} />
+      </Box>
+
+      {files.length > 0 && (
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {files.map((f, idx) => (
+            <Box key={idx} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px 1fr 30px' }, gap: 1.5, alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {f.file.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    {(f.file.size / 1024).toFixed(1)} KB · {f.file.type || '—'}
+                  </Typography>
+                </Box>
+                <TextField select size="small" label="Tipo"
+                  value={f.tipo} onChange={e => updateAt(idx, { tipo: e.target.value })}
+                  disabled={f.status === 'uploading' || f.status === 'done'}>
+                  {TIPO_OPCOES.map(t => <MenuItem key={t.value} value={t.value} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
+                </TextField>
+                <TextField size="small" label="Nome"
+                  value={f.nome} onChange={e => updateAt(idx, { nome: e.target.value })}
+                  disabled={f.status === 'uploading' || f.status === 'done'} />
+                <IconButton size="small" onClick={() => removeAt(idx)}
+                  disabled={f.status === 'uploading'}
+                  sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Box>
+              {(f.status === 'uploading' || f.status === 'done') && (
+                <LinearProgress variant="determinate" value={f.progress}
+                  sx={{ mt: 1.5, height: 4, borderRadius: 2 }}
+                  color={f.status === 'done' ? 'success' : 'primary'} />
+              )}
+              {f.status === 'error' && (
+                <Alert severity="error" sx={{ mt: 1.5, fontSize: 12 }}>{f.error}</Alert>
+              )}
+            </Box>
+          ))}
+          {pending > 0 && (
+            <Button onClick={uploadAll} variant="contained" sx={{ alignSelf: 'flex-end', fontWeight: 800 }}
+              startIcon={<UploadFileIcon />}>
+              Enviar {pending} arquivo{pending !== 1 ? 's' : ''}
+            </Button>
+          )}
+        </Box>
       )}
     </Box>
   )
@@ -319,16 +521,25 @@ function SectionLabel({ label, color, count }) {
 /* ─── Main export ───────────────────────────────────────────────────── */
 
 export function BrandAssetsSection({ assets, brandId, onDelete, onSave }) {
-  const logos   = assets.filter(a => a.tipo === 'logo')
-  const cores   = assets.filter(a => a.tipo === 'cor')
-  const tipos   = assets.filter(a => a.tipo === 'tipografia')
-  const outros  = assets.filter(a => !['logo','cor','tipografia'].includes(a.tipo))
+  // Logo principal: o primeiro asset 'logo' que tenha SVG inline (não file_path)
+  // Os demais 'logo' (versões adicionais via upload) caem na galeria abaixo
+  const logoPrincipal = assets.find(a => a.tipo === 'logo' && a.valor?.includes('<svg'))
+  const cores         = assets.filter(a => a.tipo === 'cor')
+  const tipos         = assets.filter(a => a.tipo === 'tipografia' && !a.file_path)
+  const galeria       = assets.filter(a =>
+    a !== logoPrincipal &&
+    !['cor'].includes(a.tipo) &&
+    !(a.tipo === 'tipografia' && !a.file_path)
+  )
 
   return (
     <Box>
-      {/* Logo */}
+      {/* Upload de arquivos */}
+      <UploadPanel brandId={brandId} onUploaded={onSave} />
+
+      {/* Logo principal (SVG via legacy flow) */}
       <LogoPanel
-        asset={logos[0] || null}
+        asset={logoPrincipal || null}
         brandId={brandId}
         onSave={onSave}
         onDelete={onDelete}
@@ -347,23 +558,23 @@ export function BrandAssetsSection({ assets, brandId, onDelete, onSave }) {
         </Box>
       )}
 
-      {/* Outros */}
-      {outros.length > 0 && (
+      {/* Galeria (todos os arquivos uploadados, agrupados por tipo) */}
+      {galeria.length > 0 && (
         <Box sx={{ mb: 4 }}>
-          <SectionLabel label="Outros assets" color="#8A9AB0" count={outros.length} />
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2, mt: 2 }}>
-            {outros.map(a => <OtherCard key={a.id} asset={a} onDelete={onDelete} />)}
+          <SectionLabel label="Galeria de assets" color="#8A9AB0" count={galeria.length} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2, mt: 2 }}>
+            {galeria.map(a => <OtherCard key={a.id} asset={a} onDelete={onDelete} />)}
           </Box>
         </Box>
       )}
 
       {!assets.length && (
-        <Box sx={{ py: 8, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+        <Box sx={{ py: 6, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
           <Typography fontWeight={700} color="text.secondary" mb={0.5}>
             Nenhum asset cadastrado
           </Typography>
           <Typography variant="caption" color="text.disabled">
-            Importe um brand manual ou faça upload do SVG da marca acima.
+            Use o upload acima ou importe um brand manual.
           </Typography>
         </Box>
       )}

@@ -1,107 +1,74 @@
-import { useState, useEffect }        from 'react'
-import { Box, CircularProgress, Typography, Button } from '@mui/material'
-import { styled, useTheme }            from '@mui/material/styles'
-import { ThemeProvider, CssBaseline }  from '@mui/material'
+import { useState, useEffect } from 'react'
+import { Box, CircularProgress, Typography, Button, Stack, Divider } from '@mui/material'
+import { ThemeProvider, CssBaseline } from '@mui/material'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { theme as themeDark, themeLight } from '../../lib/theme'
-import { getRoute }                    from '../../lib/helpers'
-import { PLANOS }                      from '../../lib/constants'
+import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, fmtDate } from '../../lib/helpers'
+import { supabase } from '../../lib/supabase'
+import { PLANOS } from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
-import { Home }             from './Home'
-import { Posicionamento }   from './Posicionamento'
-import { SocialListening }  from './SocialListening'
-import { BrandList }        from './BrandList'
-import { BrandOnboarding }  from './BrandOnboarding'
-import { BrandBook }        from './BrandBook'
-import { BrandAssistant }   from './BrandAssistant'
-import { Campaigns }        from './Campaigns'
-import { CampaignNew }      from './CampaignNew'
-import { CampaignDetail }   from './CampaignDetail'
-import { WorkspacePage }    from './WorkspacePage'
-import { ContentHub }       from './ContentHub'
-import { UpgradeGate }      from '../../components/UpgradeGate'
-import { ErrorBoundary }   from '../../components/ErrorBoundary'
-import { getBrandId, getCampaignId } from '../../lib/helpers'
-import logoNegativa      from '../../assets/negativa.svg'
-import logoPositivo      from '../../assets/logo-positivo-200px.png'
+import { useBrandManualJobs } from '../../lib/useBrandManualJobs'
+import { AppLayout } from '../../components/shell/AppLayout'
+import { Home } from './Home'
+import { Posicionamento } from './Posicionamento'
+import { SocialListening } from './SocialListening'
+import { BrandList } from './BrandList'
+import { BrandOnboarding } from './BrandOnboarding'
+import { BrandBook } from './BrandBook'
+import { BrandAssistant } from './BrandAssistant'
+import { Campaigns } from './Campaigns'
+import { CampaignNew } from './CampaignNew'
+import { CampaignDetail } from './CampaignDetail'
+import { WorkspacePage, ContaPage, TimePage, PlanoPage, AlertasPage } from './WorkspacePage'
+import { ContentHub } from './ContentHub'
+import { StudioImage } from './StudioImage'
+import { StudioWorkflows } from './StudioWorkflows'
+import { StudioCanvas } from './StudioCanvas'
+import { StudioCampaigns } from './StudioCampaigns'
+import { StudioVideo } from './StudioVideo'
+import { UpgradeGate } from '../../components/UpgradeGate'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
+import logoNegativa from '../../assets/negativa.svg'
+import logoPositivo from '../../assets/logo-positivo-200px.png'
 
-/* ─── styled sidebar ────────────────────────────────────────────── */
+/* ─── icons ──────────────────────────────────────────────────────── */
+const IcoHome    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+const IcoDiag    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+const IcoSocial  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+const IcoContent = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+const IcoBrand   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+const IcoStudio  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+const IcoAssist  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.4L12 15l-1.9-4.6L5.5 9l4.6-1.4z"/></svg>
 
-const NAV_W = 216
-
-const SidebarRoot = styled('aside')(({ theme }) => ({
-  width: NAV_W,
-  flexShrink: 0,
-  display: 'flex',
-  flexDirection: 'column',
-  background: theme.palette.background.paper,
-  borderRight: `1px solid ${theme.palette.divider}`,
-  position: 'fixed',
-  top: 0,
-  bottom: 0,
-  left: 0,
-  zIndex: 20,
-  overflowY: 'auto',
-}))
-
-const NavItem = styled('button')(({ active, theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  width: '100%',
-  padding: '9px 16px',
-  background: 'none',
-  border: 'none',
-  borderLeft: active ? '3px solid #0D9E7A' : '3px solid transparent',
-  cursor: 'pointer',
-  fontFamily: "'Cairo', sans-serif",
-  fontSize: 13,
-  fontWeight: active ? 800 : 500,
-  color: active ? theme.palette.text.primary : theme.palette.text.secondary,
-  letterSpacing: active ? '-0.01em' : 0,
-  textAlign: 'left',
-  transition: 'all 0.15s',
-  '&:hover': {
-    color: theme.palette.text.primary,
-    background: theme.palette.action?.hover || 'rgba(13,158,122,0.06)',
-  },
-}))
-
-/* ─── svg icons (defined before NAV to avoid reference issues) ─── */
-
-function IcoHome()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> }
-function IcoDiag()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> }
-function IcoEvo()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> }
-function IcoSocial() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> }
-function IcoContent(){ return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> }
-function IcoComp()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg> }
-function IcoSet()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg> }
-function IcoBrand()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> }
-function IcoLogout() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> }
-function IcoSun()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> }
-function IcoMoon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg> }
-
-/* ─── nav config ─────────────────────────────────────────────────── */
-
-const NAV = [
-  { route: 'app-home',       hash: '#/app',                   label: 'Home',             icon: IcoHome,   group: 'intelligence' },
-  { route: 'posicionamento', hash: '#/app/posicionamento',    label: 'Posicionamento',   icon: IcoDiag,   group: 'intelligence' },
-  { route: 'listening',      hash: '#/app/listening',         label: 'Social Listening', icon: IcoSocial,  group: 'intelligence', pro: true },
-  { route: 'content-hub',   hash: '#/app/content-hub',       label: 'Content Hub',      icon: IcoContent, group: 'intelligence', pro: true },
-  { route: 'brands-list',   hash: '#/app/brands',       label: 'Brand OS',         icon: IcoBrand,  group: 'brandos' },
-  { route: 'workspace',     hash: '#/app/workspace',    label: 'Workspace',        icon: IcoSet,    group: 'settings' },
+const USER_MENU = [
+  { label: 'Configurações da conta', hash: '#/app/conta' },
+  { label: 'Gestão de time',         hash: '#/app/time' },
+  { label: 'Plano e cobrança',       hash: '#/app/plano' },
+  { label: 'Alertas',                hash: '#/app/alertas' },
 ]
-
-/* ─── shell inner ─────────────────────────────────────────────────── */
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const { workspace, loading, user, onLogout } = useWorkspace()
-  const muiTheme = useTheme()
   const [route, setRoute] = useState(getRoute)
+  const [, setHashTick] = useState(0)   // força re-render mesmo quando a rota-id não muda (ex. seções do Brand Book)
+  const { jobs, processing } = useBrandManualJobs(workspace?.id)
+
   useEffect(() => {
-    const onHash = () => setRoute(getRoute())
+    const onHash = () => { setRoute(getRoute()); setHashTick(t => t + 1) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  // Um acesso = uma marca → resolve a marca única do workspace para a nav
+  const [brandId, setBrandId] = useState(null)
+  useEffect(() => {
+    if (!workspace?.id) return
+    supabase.from('brands').select('id').eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: true }).limit(1).maybeSingle()
+      .then(({ data }) => setBrandId(data?.id || null))
+  }, [workspace?.id])
 
   if (loading) return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -117,16 +84,12 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   if (workspace.ativo === false) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, p: 4 }}>
-        <img src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" style={{ height: 28, marginBottom: 8 }} />
-        <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">
-          Workspace inativo
-        </Typography>
+        <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 28, mb: 1 }} />
+        <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">Workspace inativo</Typography>
         <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={380}>
           Este workspace está temporariamente inativo. Entre em contato com o suporte para reativar o acesso.
         </Typography>
-        <Button variant="outlined" size="small" onClick={onLogout} sx={{ mt: 1, fontWeight: 700 }}>
-          Sair
-        </Button>
+        <Button variant="outlined" size="small" onClick={onLogout} sx={{ mt: 1, fontWeight: 700 }}>Sair</Button>
       </Box>
     )
   }
@@ -134,141 +97,165 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const plano    = PLANOS[workspace.plano] || PLANOS.trial
   const uso      = workspace.diagnosticos_mes || 0
   const limite   = plano.diagnosticos_mes === Infinity ? null : plano.diagnosticos_mes
-  const usoPct   = limite ? Math.min((uso / limite) * 100, 100) : 0
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '?'
-  const initial  = userName.charAt(0).toUpperCase()
 
-  const textPri  = muiTheme.palette.text.primary
-  const textSec  = muiTheme.palette.text.secondary
-  const textDis  = muiTheme.palette.text.disabled
-  const divider  = muiTheme.palette.divider
-  const bgDef    = muiTheme.palette.background.default
-  const teal     = '#0D9E7A'
-  const pink     = '#E8185A'
+  function handleNavigate(hash) { if (hash) window.location.hash = hash }
+
+  const isPro     = ['pro', 'enterprise'].includes(workspace.plano)
+  const brandPath = brandId ? `#/app/brands/${brandId}` : '#/app/brands'
+  const section   = getBrandSection()
+
+  const nav = [
+    { type: 'item', label: 'Home', icon: IcoHome, hash: '#/app', active: route === 'app-home' },
+    { type: 'group', label: 'Brand Book', icon: IcoBrand, active: route === 'brands-detail', children: [
+      { label: 'Identidade Verbal', hash: `${brandPath}/verbal`,        active: route === 'brands-detail' && section === 'verbal' },
+      { label: 'Identidade Visual', hash: `${brandPath}/visual`,        active: route === 'brands-detail' && section === 'visual' },
+      { label: 'Design System',     hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },
+    ] },
+    { type: 'group', label: 'Brand Positioning', icon: IcoDiag, children: [
+      { label: 'Posicionamento',   hash: '#/app/posicionamento', active: route === 'posicionamento' },
+      { label: 'Social Listening', hash: '#/app/listening',      active: route === 'listening',   locked: !isPro },
+      { label: 'Content Hub',      hash: '#/app/content-hub',    active: route === 'content-hub', locked: !isPro },
+    ] },
+    { type: 'group', label: 'Brand Studio', icon: IcoStudio, children: [
+      { label: 'Imagem',   hash: `${brandPath}/studio`,          active: route === 'brands-studio',          locked: !isPro },
+      { label: 'Vídeos',   hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video',    locked: !isPro },
+      { label: 'Workflow', hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow', locked: !isPro },
+    ] },
+    { type: 'item', label: 'Brand Assistant', icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
+  ]
 
   function renderPage() {
-    if (route === 'app-home')      return <Home />
-    if (route === 'posicionamento') return <Posicionamento />
-    if (route === 'workspace')     return <WorkspacePage />
-    if (route === 'listening')     return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
-    if (route === 'content-hub')  return <UpgradeGate planoNecessario="pro" workspace={workspace}><ContentHub /></UpgradeGate>
+    if (route === 'app-home')              return <Home />
+    if (route === 'posicionamento')        return <Posicionamento />
+    if (route === 'workspace')             return <WorkspacePage />
+    if (route === 'conta')                 return <ContaPage />
+    if (route === 'time')                  return <TimePage />
+    if (route === 'plano')                 return <PlanoPage />
+    if (route === 'alertas')               return <AlertasPage />
+    if (route === 'listening')             return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
+    if (route === 'content-hub')           return <UpgradeGate planoNecessario="pro" workspace={workspace}><ContentHub /></UpgradeGate>
     if (route === 'brands-list')           return <BrandList />
     if (route === 'brands-new')            return <BrandOnboarding />
     if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />
     if (route === 'brands-campaigns')      return <UpgradeGate planoNecessario="pro" workspace={workspace}><Campaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
+    if (route === 'brands-studio')         return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioImage brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'brands-studio-workflow') {
+      const wf = getWorkflowId()
+      return <UpgradeGate planoNecessario="pro" workspace={workspace}>{wf ? <StudioCanvas brandId={getBrandId()} workflowId={wf} /> : <StudioWorkflows brandId={getBrandId()} />}</UpgradeGate>
+    }
+    if (route === 'brands-studio-video')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioVideo brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'brands-studio-campaigns') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCampaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
   }
 
+  const topBanner = impersonating ? (
+    <Box sx={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      bgcolor: '#EF9F27', color: '#0D1B2A',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
+      px: 2, py: 1, fontSize: 13, fontWeight: 700,
+    }}>
+      <span>Você está no ambiente de <strong>{impersonating.workspaceName}</strong></span>
+      <Box component="button" onClick={onStopImpersonating} sx={{
+        bgcolor: '#0D1B2A', color: '#EF9F27', border: 'none', borderRadius: 0.5,
+        px: 1.5, py: 0.5, fontWeight: 800, fontSize: 12, cursor: 'pointer',
+      }}>Sair</Box>
+    </Box>
+  ) : null
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: bgDef, fontFamily: "'Cairo', sans-serif" }}>
+    <AppLayout
+      isDark={isDark}
+      onToggleTheme={onToggleTheme}
+      nav={nav}
+      currentRoute={route}
+      onNavigate={handleNavigate}
+      user={user}
+      userName={userName}
+      workspace={workspace}
+      planoLabel={plano.nome}
+      planoUsoText={limite ? `${uso}/${limite} diagn./mês` : null}
+      onLogout={onLogout}
+      userMenu={USER_MENU}
+      topBanner={topBanner}
+      bellCount={processing}
+      bellContent={({ close }) => renderBellContent(jobs, close)}
+    >
+      <ErrorBoundary key={route}>
+        {renderPage()}
+      </ErrorBoundary>
+    </AppLayout>
+  )
+}
 
-      {/* ── Banner de impersonation ── */}
-      {impersonating && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#EF9F27', color: '#0D1B2A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '8px 16px', fontSize: 13, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-          <span>Você está no ambiente de <strong>{impersonating.workspaceName}</strong></span>
-          <button onClick={onStopImpersonating} style={{ background: '#0D1B2A', color: '#EF9F27', border: 'none', borderRadius: 4, padding: '4px 12px', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Cairo', sans-serif" }}>
-            Sair
-          </button>
-        </div>
-      )}
-
-      {/* ── Sidebar ── */}
-      <SidebarRoot style={impersonating ? { top: 37 } : {}}>
-
-        {/* Logo */}
-        <div style={{ padding: '22px 20px 16px', borderBottom: `1px solid ${divider}` }}>
-          <img src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" style={{ height: 26, display: 'block' }} />
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: textDis, marginTop: 6, fontFamily: "'Cairo', sans-serif" }}>
-            Brand Intelligence
-          </div>
-        </div>
-
-        {/* Workspace name */}
-        <div style={{ padding: '12px 16px 8px', borderBottom: `1px solid ${divider}` }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: textDis, marginBottom: 4, fontFamily: "'Cairo', sans-serif" }}>Workspace</div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: textPri, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'Cairo', sans-serif" }}>
-            {workspace.nome}
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: '8px 0' }}>
-          {NAV.map(({ route: r, hash, label, icon: Icon, pro }) => {
-            const active = route === r || (r === 'brands-list' && ['brands-list','brands-new','brands-detail'].includes(route))
-            const locked = pro && !['pro', 'enterprise'].includes(workspace.plano)
+function renderBellContent(jobs, close) {
+  return (
+    <Box>
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography sx={{ fontWeight: 900, fontSize: 14 }}>Notificações</Typography>
+        {jobs.length > 0 && (
+          <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 700 }}>{jobs.length}</Typography>
+        )}
+      </Box>
+      {jobs.length === 0 ? (
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Sem notificações.</Typography>
+        </Box>
+      ) : (
+        <Box sx={{ overflowY: 'auto', maxHeight: 420 }}>
+          {jobs.map((j, i) => {
+            const isProcessing = j.status === 'processing'
+            const isDone       = j.status === 'done'
+            const isError      = j.status === 'error'
+            const color = isError ? '#E8185A' : isDone ? '#0D9E7A' : '#EF9F27'
+            const Icon  = isError ? ErrorOutlineIcon : isDone ? CheckCircleOutlineIcon : AutoAwesomeIcon
+            const titulo = isProcessing ? 'Analisando manual de marca…'
+                         : isDone       ? 'Manual de marca analisado'
+                         : 'Falha ao analisar manual'
+            const sub = j.brand_nome ? `Marca: ${j.brand_nome}` : null
             return (
-              <NavItem key={r} active={active ? 1 : 0} onClick={() => { window.location.hash = hash }} style={{ opacity: locked ? 0.5 : 1 }}>
-                <span style={{ opacity: active ? 1 : 0.6, display: 'flex', color: active ? teal : 'currentColor' }}>
-                  <Icon />
-                </span>
-                <span style={{ flex: 1 }}>{label}</span>
-                {pro && !['pro', 'enterprise'].includes(workspace.plano) && (
-                  <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', color: pink, border: `1px solid ${pink}33`, padding: '1px 5px', textTransform: 'uppercase', fontFamily: "'Cairo', sans-serif" }}>
-                    Pro
-                  </span>
+              <Box key={j.id}
+                onClick={() => {
+                  if (isDone && j.brand_id) {
+                    window.location.hash = `#/app/brands/${j.brand_id}`
+                    close()
+                  }
+                }}
+                sx={{
+                  p: 2, borderBottom: i < jobs.length - 1 ? 1 : 0, borderColor: 'divider',
+                  cursor: isDone ? 'pointer' : 'default',
+                  '&:hover': isDone ? { bgcolor: 'action.hover' } : {},
+                  display: 'flex', alignItems: 'flex-start', gap: 1.5,
+                }}>
+                {isProcessing ? (
+                  <CircularProgress size={18} thickness={5} sx={{ color, mt: 0.25 }} />
+                ) : (
+                  <Icon sx={{ color, fontSize: 20, mt: 0.25 }} />
                 )}
-              </NavItem>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 800 }}>{titulo}</Typography>
+                  {sub && (
+                    <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{sub}</Typography>
+                  )}
+                  {isError && j.error && (
+                    <Typography sx={{ fontSize: 11, color: 'error.main', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {j.error}
+                    </Typography>
+                  )}
+                  <Typography sx={{ fontSize: 10, color: 'text.disabled', mt: 0.5 }}>
+                    {fmtDate(j.created_at)}
+                  </Typography>
+                </Box>
+              </Box>
             )
           })}
-        </nav>
-
-        {/* Plano + uso */}
-        <div style={{ padding: '12px 16px', borderTop: `1px solid ${divider}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: textDis, fontFamily: "'Cairo', sans-serif" }}>
-              {plano.nome}
-            </span>
-            {limite && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: usoPct >= 100 ? pink : textSec, fontFamily: "'Cairo', sans-serif" }}>
-                {uso}/{limite}
-              </span>
-            )}
-          </div>
-          {limite && (
-            <div style={{ height: 3, background: divider, borderRadius: 0 }}>
-              <div style={{ height: '100%', width: `${usoPct}%`, background: usoPct >= 100 ? pink : teal, transition: 'width 0.6s ease' }} />
-            </div>
-          )}
-          <div style={{ fontSize: 10, color: textDis, marginTop: 4, fontFamily: "'Cairo', sans-serif" }}>diagnósticos / mês</div>
-        </div>
-
-        {/* User + theme toggle + logout */}
-        <div style={{ padding: '10px 16px 16px', borderTop: `1px solid ${divider}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 30, height: 30, background: teal, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
-            {initial}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: textPri, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'Cairo', sans-serif" }}>{userName}</div>
-            <div style={{ fontSize: 10, color: textDis, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'Cairo', sans-serif" }}>{user?.email}</div>
-          </div>
-          <button
-            onClick={onToggleTheme}
-            title={isDark ? 'Modo claro' : 'Modo escuro'}
-            style={{ background: 'none', border: `1px solid ${divider}`, borderRadius: 6, cursor: 'pointer', color: textSec, display: 'flex', alignItems: 'center', padding: 5, transition: 'color 0.15s', flexShrink: 0 }}
-            onMouseEnter={e => { e.currentTarget.style.color = teal; e.currentTarget.style.borderColor = teal; }}
-            onMouseLeave={e => { e.currentTarget.style.color = textSec; e.currentTarget.style.borderColor = divider; }}
-          >
-            {isDark ? <IcoSun /> : <IcoMoon />}
-          </button>
-          <button onClick={onLogout} title="Sair" style={{ background: 'none', border: 'none', cursor: 'pointer', color: textDis, display: 'flex', alignItems: 'center', padding: 4, transition: 'color 0.15s' }}
-            onMouseEnter={e => e.currentTarget.style.color = pink}
-            onMouseLeave={e => e.currentTarget.style.color = textDis}>
-            <IcoLogout />
-          </button>
-        </div>
-
-      </SidebarRoot>
-
-      {/* ── Main content ── */}
-      <main style={{ flex: 1, marginLeft: NAV_W, minWidth: 0, overflowY: 'auto', minHeight: '100vh', marginTop: impersonating ? 37 : 0 }}>
-        <ErrorBoundary key={route}>
-          {renderPage()}
-        </ErrorBoundary>
-      </main>
-    </div>
+        </Box>
+      )}
+    </Box>
   )
 }
 

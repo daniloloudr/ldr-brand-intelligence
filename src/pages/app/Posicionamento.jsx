@@ -32,6 +32,7 @@ import { PLANOS }            from '../../lib/constants'
 import { fmtDate, sc, checkPlano } from '../../lib/helpers'
 import { RelatorioCompleto }  from '../../components/RelatorioCompleto'
 import { IdentityGapCard }    from '../../components/intelligence/IdentityGapCard'
+import { PageHeader }         from '../../components/shell/PageHeader'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -809,22 +810,19 @@ export function Posicionamento() {
   const restante = diagnosticos.slice(1)
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', px: { xs: 2, md: 4 }, py: 4 }}>
-
-      {/* ── Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-        <Box>
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 0.5 }}>Posicionamento</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {plano.diagnosticos_mes === Infinity
-              ? `${workspace?.diagnosticos_mes ?? 0} diagnósticos gerados este mês · ilimitado`
-              : `${workspace?.diagnosticos_mes ?? 0} de ${plano.diagnosticos_mes} usados este mês · plano ${plano.nome}`}
-          </Typography>
-        </Box>
-        <Button variant="contained" color="primary" startIcon={<AddIcon />} endIcon={<ArrowForwardIcon />} onClick={abrirForm}>
-          Gerar novo diagnóstico
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Posicionamento"
+        subtitle={plano.diagnosticos_mes === Infinity
+          ? `${workspace?.diagnosticos_mes ?? 0} diagnósticos gerados este mês · ilimitado`
+          : `${workspace?.diagnosticos_mes ?? 0} de ${plano.diagnosticos_mes} usados este mês · plano ${plano.nome}`}
+        action={
+          <Button variant="contained" color="primary" startIcon={<AddIcon />} endIcon={<ArrowForwardIcon />} onClick={abrirForm} sx={{ fontWeight: 800 }}>
+            Gerar novo diagnóstico
+          </Button>
+        }
+      />
+      <Box sx={{ maxWidth: 900, mx: 'auto', px: { xs: 2, md: 4 }, py: 4 }}>
 
       {error && (
         <Alert severity="warning" icon={<WarningAmberOutlinedIcon fontSize="small" />} onClose={() => setError('')} sx={{ mb: 3, borderRadius: 2 }}>
@@ -957,6 +955,7 @@ export function Posicionamento() {
       {/* ── Form dialog ── */}
       <FormDialog open={formOpen} onClose={() => setFormOpen(false)} onStart={iniciar} workspace={workspace} />
 
+      </Box>
     </Box>
   )
 }

@@ -1,35 +1,95 @@
 import { createClient } from '@supabase/supabase-js'
 
-function extractChunks(book) {
-  const chunks = []
+const arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
+const joinArr = x => arr(x)
+  .map(v => typeof v === 'object' ? (v.hex || v.valor || v.nome || v.termo || '') : v)
+  .filter(Boolean).join(', ')
 
+// Estrutura nova (v5.8): verbal_identity + visual_identity.
+// Fallback para o legado (identity/positioning/design_system/references).
+export function extractChunks(book) {
+  const chunks = []
+  const v  = book.verbal_identity || {}
+  const vi = book.visual_identity || {}
+
+  // ── Identidade Verbal ──────────────────────────────────────────────
+  const essencia = [
+    v.tagline   && `Tagline: ${v.tagline}`,
+    v.proposito && `Propósito: ${v.proposito}`,
+    v.manifesto && `Manifesto: ${v.manifesto}`,
+  ].filter(Boolean)
+  if (essencia.length) chunks.push({ section: 'verbal', text: essencia.join('\n') })
+
+  if (v.missao)             chunks.push({ section: 'verbal', text: `Missão: ${v.missao}` })
+  if (v.visao)              chunks.push({ section: 'verbal', text: `Visão: ${v.visao}` })
+  if (arr(v.valores).length) chunks.push({ section: 'verbal', text: `Valores da marca: ${joinArr(v.valores)}` })
+  if (v.arquetipo)          chunks.push({ section: 'verbal', text: `Arquétipo de marca: ${v.arquetipo}` })
+
+  const pers = [...new Set([...arr(v.personalidade), ...arr(v.tom_atributos)])]
+  if (pers.length)          chunks.push({ section: 'verbal', text: `Personalidade e atributos de tom: ${pers.join(', ')}` })
+  if (v.tom_voz)            chunks.push({ section: 'verbal', text: `Tom de voz: ${v.tom_voz}` })
+  if (v.tom_evitar)         chunks.push({ section: 'verbal', text: `No tom de voz, evitar: ${v.tom_evitar}` })
+
+  const posChunk = [
+    v.posicionamento  && `Posicionamento: ${v.posicionamento}`,
+    v.proposta_valor  && `Proposta de valor: ${v.proposta_valor}`,
+    v.mensagem_central && `Mensagem central: ${v.mensagem_central}`,
+  ].filter(Boolean)
+  if (posChunk.length)      chunks.push({ section: 'verbal', text: posChunk.join('\n') })
+
+  if (v.publico_alvo)       chunks.push({ section: 'verbal', text: `Público-alvo: ${v.publico_alvo}` })
+  if (arr(v.vocabulario_aprovado).length) chunks.push({ section: 'verbal', text: `Vocabulário on-brand (usar): ${joinArr(v.vocabulario_aprovado)}` })
+  if (arr(v.vocabulario_proibido).length) chunks.push({ section: 'verbal', text: `Vocabulário proibido (evitar): ${joinArr(v.vocabulario_proibido)}` })
+  if (arr(v.termos_proprios).length)      chunks.push({ section: 'verbal', text: `Termos próprios da marca: ${joinArr(v.termos_proprios)}` })
+  if (v.narrativa_origem)   chunks.push({ section: 'verbal', text: `Narrativa de origem: ${v.narrativa_origem}` })
+  if (v.boilerplate)        chunks.push({ section: 'verbal', text: `Boilerplate institucional: ${v.boilerplate}` })
+
+  // ── Identidade Visual ──────────────────────────────────────────────
+  if (arr(vi.paleta).length) chunks.push({ section: 'visual', text: `Paleta de cores da marca: ${joinArr(vi.paleta)}` })
+
+  const tipo = [
+    vi.tipo_principal_nome  && `Principal: ${vi.tipo_principal_nome}${vi.tipo_principal_uso ? ` (${vi.tipo_principal_uso})` : ''}`,
+    vi.tipo_secundario_nome && `Secundária: ${vi.tipo_secundario_nome}`,
+    vi.tipo_display         && `Display: ${vi.tipo_display}`,
+  ].filter(Boolean)
+  if (tipo.length)          chunks.push({ section: 'visual', text: `Tipografia — ${tipo.join(' · ')}` })
+
+  const foto = [
+    vi.foto_mood          && `Mood: ${vi.foto_mood}`,
+    vi.foto_luz_edicao    && `Luz e edição: ${vi.foto_luz_edicao}`,
+    vi.foto_enquadramento && `Enquadramento: ${vi.foto_enquadramento}`,
+  ].filter(Boolean)
+  if (foto.length)          chunks.push({ section: 'visual', text: `Direção de fotografia — ${foto.join(' · ')}` })
+
+  if (vi.ilustracao_estilo) chunks.push({ section: 'visual', text: `Estilo de ilustração: ${vi.ilustracao_estilo}` })
+  if (vi.icone_estilo)      chunks.push({ section: 'visual', text: `Estilo de ícones: ${vi.icone_estilo}` })
+
+  const naoVisual = [
+    arr(vi.usos_proibidos).length && `Usos proibidos da marca: ${joinArr(vi.usos_proibidos)}`,
+    arr(vi.foto_dont).length      && `Em fotografia, evitar: ${joinArr(vi.foto_dont)}`,
+  ].filter(Boolean)
+  if (naoVisual.length)     chunks.push({ section: 'visual', text: naoVisual.join('\n') })
+
+  if (chunks.length) return chunks
+
+  // ── Fallback: brand books antigos (estrutura legada) ───────────────
   const id = book.identity || {}
-  if (id.missao)                chunks.push({ section: 'identity',    text: `Missão: ${id.missao}` })
-  if (id.visao)                 chunks.push({ section: 'identity',    text: `Visão: ${id.visao}` })
-  if (id.valores?.length)       chunks.push({ section: 'identity',    text: `Valores da marca: ${id.valores.join(', ')}` })
-  if (id.arquetipo)             chunks.push({ section: 'identity',    text: `Arquétipo de marca: ${id.arquetipo}` })
-  if (id.tom_voz)               chunks.push({ section: 'identity',    text: `Tom de voz: ${id.tom_voz}` })
-  if (id.publico_alvo)          chunks.push({ section: 'identity',    text: `Público-alvo: ${id.publico_alvo}` })
-  if (id.vocabulario_proibido?.length)
-    chunks.push({ section: 'identity', text: `Vocabulário proibido: ${id.vocabulario_proibido.join(', ')}` })
+  if (id.missao)          chunks.push({ section: 'identity', text: `Missão: ${id.missao}` })
+  if (id.visao)           chunks.push({ section: 'identity', text: `Visão: ${id.visao}` })
+  if (arr(id.valores).length) chunks.push({ section: 'identity', text: `Valores da marca: ${joinArr(id.valores)}` })
+  if (id.arquetipo)       chunks.push({ section: 'identity', text: `Arquétipo de marca: ${id.arquetipo}` })
+  if (id.tom_voz)         chunks.push({ section: 'identity', text: `Tom de voz: ${id.tom_voz}` })
+  if (id.publico_alvo)    chunks.push({ section: 'identity', text: `Público-alvo: ${id.publico_alvo}` })
+  if (arr(id.vocabulario_proibido).length) chunks.push({ section: 'identity', text: `Vocabulário proibido: ${joinArr(id.vocabulario_proibido)}` })
 
   const pos = book.positioning || {}
   if (pos.posicionamento)  chunks.push({ section: 'positioning', text: `Posicionamento: ${pos.posicionamento}` })
   if (pos.proposta_valor)  chunks.push({ section: 'positioning', text: `Proposta de valor: ${pos.proposta_valor}` })
   if (pos.mensagem_central) chunks.push({ section: 'positioning', text: `Mensagem central: ${pos.mensagem_central}` })
 
-  const ds = book.design_system || {}
-  const dsParts = []
-  if (ds.typography?.font_primary)   dsParts.push(`Fonte primária: ${ds.typography.font_primary}`)
-  if (ds.typography?.font_secondary) dsParts.push(`Fonte secundária: ${ds.typography.font_secondary}`)
-  if (ds.colors?.primary?.main)      dsParts.push(`Cor primária: ${ds.colors.primary.main}`)
-  if (ds.colors?.secondary?.main)    dsParts.push(`Cor secundária: ${ds.colors.secondary.main}`)
-  if (dsParts.length) chunks.push({ section: 'design_system', text: `Design System — ${dsParts.join(' · ')}` })
-
   const ref = book.references || {}
-  if (ref.brands?.length)       chunks.push({ section: 'references', text: `Marcas de referência: ${ref.brands.join(', ')}` })
-  if (ref.differentiation)      chunks.push({ section: 'references', text: `Diferenciação: ${ref.differentiation}` })
-  if (ref.anti_referencias)     chunks.push({ section: 'references', text: `O que a marca NÃO é: ${ref.anti_referencias}` })
+  if (ref.differentiation)  chunks.push({ section: 'references', text: `Diferenciação: ${ref.differentiation}` })
+  if (ref.anti_referencias) chunks.push({ section: 'references', text: `O que a marca NÃO é: ${ref.anti_referencias}` })
 
   return chunks
 }
@@ -63,8 +123,11 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403 }
 
-  const { data: book } = await supabase
-    .from('brand_books').select('*').eq('brand_id', brand_id).maybeSingle()
+  // Linha de brand_book MAIS RECENTE — resiliente a duplicatas de brand_id
+  const { data: bookRows } = await supabase
+    .from('brand_books').select('*').eq('brand_id', brand_id)
+    .order('updated_at', { ascending: false }).limit(1)
+  const book = bookRows?.[0]
   if (!book) return { statusCode: 200 }
 
   const chunks = extractChunks(book)
@@ -76,10 +139,7 @@ export const handler = async (event) => {
       'Authorization': `Bearer ${process.env.VOYAGE_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'voyage-3',
-      input: chunks.map(c => c.text),
-    }),
+    body: JSON.stringify({ model: 'voyage-3', input: chunks.map(c => c.text) }),
   })
 
   if (!voyageRes.ok) {
@@ -90,7 +150,6 @@ export const handler = async (event) => {
   const voyageData = await voyageRes.json()
 
   await supabase.from('brand_book_chunks').delete().eq('brand_id', brand_id)
-
   await supabase.from('brand_book_chunks').insert(
     chunks.map((c, i) => ({
       brand_id,
