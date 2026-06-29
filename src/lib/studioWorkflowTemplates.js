@@ -14,8 +14,8 @@ function tpl(id, nome, categoria, descricao, builder) {
   _list.push({ id, nome, categoria, descricao, nodes, edges })
 }
 
-const BV = { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' }
-const BVZ = { title: 'Brand Voice', desc: 'Tom de voz, personalidade e vocabulário' }
+const BV = { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' }
+const BVZ = { title: 'Voz da marca', desc: 'Tom de voz, personalidade e vocabulário' }
 const GEN = { status: 'idle', model: 'auto' }
 
 // ── Social ───────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ tpl('variacoes', 'Variações de uma peça', 'Social', 'Gera uma peça e cria va
   N('bv', 'brandContext', 0, 1, BV)
   N('g', 'generate', 1, 0, { ...GEN })
   N('pv', 'preview', 2, 0, { imageUrl: null })
-  N('var', 'app', 2, 1, { op: 'variation', label: 'Variation', status: 'idle' })
+  N('var', 'app', 2, 1, { op: 'variation', label: 'Variação', status: 'idle' })
   E('p', 'g'); E('bv', 'g'); E('g', 'pv'); E('g', 'var')
 })
 
@@ -71,7 +71,7 @@ tpl('reshoot-produto', 'Reshoot de produto', 'Advertising', 'Recoloca seu produt
   N('img', 'imageInput', 0, 0, {})
   N('p', 'prompt', 0, 1, { text: 'Recoloque o produto em uma nova cena premium, mantendo o produto fiel, iluminação editorial.' })
   N('g', 'generate', 1, 0, { ...GEN })
-  N('up', 'app', 2, 0, { op: 'upscale', label: 'Upscale', status: 'idle' })
+  N('up', 'app', 2, 0, { op: 'upscale', label: 'Ampliar', status: 'idle' })
   E('img', 'g'); E('p', 'g'); E('g', 'up')
 })
 
@@ -129,7 +129,7 @@ tpl('mockup-produto', 'Mockup de produto', 'Mockup', 'Aplica seu produto em um m
 
 tpl('trocar-fundo', 'Trocar o fundo', 'Mockup', 'Remove o fundo e recoloca a cena nova.', ({ N, E }) => {
   N('img', 'imageInput', 0, 0, {})
-  N('rb', 'app', 1, 0, { op: 'removebg', label: 'Remove BG', status: 'idle' })
+  N('rb', 'app', 1, 0, { op: 'removebg', label: 'Remover fundo', status: 'idle' })
   N('p', 'prompt', 0, 1, { text: 'Novo fundo on-brand para o objeto recortado, integrando luz e sombra de forma realista.' })
   N('g', 'generate', 2, 0, { ...GEN })
   N('pv', 'preview', 3, 0, { imageUrl: null })

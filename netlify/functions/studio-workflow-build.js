@@ -15,6 +15,7 @@ const headers = {
 const NODE_TYPES = ['prompt', 'formato', 'generate', 'preview', 'app', 'imageInput', 'brandContext']
 const FORMATOS = ['1:1', '9:16', '16:9', '4:5']
 const APP_OPS = ['upscale', 'removebg', 'variation']
+const APP_LABELS = { upscale: 'Ampliar', removebg: 'Remover fundo', variation: 'Variação' }
 const POS = (col, row) => ({ x: 40 + col * 250, y: 40 + row * 185 })
 
 const SYSTEM = [
@@ -23,7 +24,7 @@ const SYSTEM = [
   'Tipos de nó disponíveis (use só estes):',
   '- "prompt": data.text (descrição da cena). Alimenta um generate.',
   '- "formato": data.formato em ["1:1","9:16","16:9","4:5"]. Alimenta um generate.',
-  '- "brandContext": data.title "Brand Voice" (verbal) ou "Brand Visual" (estética). Alimenta um generate quando a peça deve ser on-brand.',
+  '- "brandContext": data.title "Voz da marca" (verbal) ou "Visual da marca" (estética). Alimenta um generate quando a peça deve ser on-brand.',
   '- "imageInput": imagem que o usuário vai subir (referência/produto). Alimenta generate (image-to-image) ou um app.',
   '- "generate": cria a imagem a partir das entradas conectadas. data: {"status":"idle","model":"auto"}.',
   '- "preview": exibe a saída de um generate/app. data: {"imageUrl":null}.',
@@ -45,12 +46,12 @@ function coerceNode(n, i) {
   else if (type === 'formato')  data = { formato: FORMATOS.includes(d.formato) ? d.formato : '1:1' }
   else if (type === 'generate') data = { status: 'idle', model: 'auto' }
   else if (type === 'preview')  data = { imageUrl: null }
-  else if (type === 'app')      data = { op: APP_OPS.includes(d.op) ? d.op : 'upscale', label: String(d.label || (d.op || 'app')), status: 'idle' }
+  else if (type === 'app')      data = { op: APP_OPS.includes(d.op) ? d.op : 'upscale', label: APP_LABELS[APP_OPS.includes(d.op) ? d.op : 'upscale'], status: 'idle' }
   else if (type === 'imageInput') data = {}
   else if (type === 'brandContext') {
     const visual = !/voice|voz|verbal/i.test(String(d.title || ''))
-    data = visual ? { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' }
-                  : { title: 'Brand Voice', desc: 'Tom de voz, personalidade e vocabulário' }
+    data = visual ? { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' }
+                  : { title: 'Voz da marca', desc: 'Tom de voz, personalidade e vocabulário' }
   }
   return { id, type, position: POS(col, row), data }
 }
@@ -103,7 +104,7 @@ export const handler = async (event) => {
       nome: 'Workflow',
       nodes: [
         { id: 'p1', type: 'prompt', col: 0, row: 0, data: { text: prompt.trim() } },
-        { id: 'bv', type: 'brandContext', col: 0, row: 1, data: { title: 'Brand Visual' } },
+        { id: 'bv', type: 'brandContext', col: 0, row: 1, data: { title: 'Visual da marca' } },
         { id: 'g1', type: 'generate', col: 1, row: 0, data: {} },
         { id: 'pv', type: 'preview', col: 2, row: 0, data: {} },
       ],

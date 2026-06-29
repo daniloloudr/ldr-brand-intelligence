@@ -57,11 +57,11 @@ const FORMATOS = [
 function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected }) {
   return (
     <Paper elevation={0} sx={{
-      width: '100%', height: '100%', minWidth: 160, minHeight: 120, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
+      width: '100%', height: '100%', minWidth: 160, minHeight: 100, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
       borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
-      <NodeResizer color={color} isVisible={selected} minWidth={160} minHeight={120} onResizeEnd={() => onResize?.()} />
+      <NodeResizer color={color} isVisible={selected} minWidth={160} minHeight={100} onResizeEnd={() => onResize?.()} />
       {(onDelete || onDuplicate || onRun || onRegen) && (
         <NodeToolbar position={Position.Top} offset={6}>
           <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
@@ -93,11 +93,11 @@ const BrandContextNode = memo(({ id, data, selected }) => (
 
 const PromptNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={GRAY} title="Prompt" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
-    <Stack spacing={0.25} className="nodrag">
+    <Stack spacing={0.25} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
       <TextField
         value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
-        placeholder="O que criar…" multiline minRows={2} maxRows={5} fullWidth size="small"
-        sx={{ '& .MuiInputBase-input': { fontSize: 12 } }}
+        placeholder="O que criar…" multiline fullWidth size="small"
+        sx={{ flex: 1, minHeight: 0, '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' }, '& textarea': { height: '100% !important', fontSize: 12, overflow: 'auto !important' } }}
       />
       <Button size="small" disabled={data.improving || !(data.text || '').trim()}
         startIcon={data.improving ? <CircularProgress size={11} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 14 }} />}
@@ -121,7 +121,7 @@ const FormatoNode = memo(({ id, data, selected }) => (
 ))
 
 const GenerateNode = memo(({ id, data, selected }) => (
-  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
+  <NodeShell id={id} color={TEAL} title="Gerar" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
     <Stack spacing={0.5} className="nodrag">
       <Select value={(data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL}
         onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -138,7 +138,7 @@ const GenerateNode = memo(({ id, data, selected }) => (
 ))
 
 const PreviewNode = memo(({ id, data, selected }) => (
-  <NodeShell id={id} color={CORAL} title="Preview" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
+  <NodeShell id={id} color={CORAL} title="Prévia" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
     {data.imageUrl ? (
       <>
         <Box className="nodrag" onClick={() => data.onOpen?.(data.imageUrl)}
@@ -279,6 +279,9 @@ const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato:
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
 const MAX_REF = 5
 const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
+// Formato e Gerar têm pouco conteúdo → altura fixa compacta p/ não ficar feio
+const NODE_SIZE = { formato: { width: 250, height: 116 }, generate: { width: 250, height: 140 } }
+const sizeFor = type => NODE_SIZE[type] || { width: DEFAULT_NODE, height: DEFAULT_NODE }
 // Normaliza a saída de um nó em lista de URLs (imageInput pode ter várias)
 const toUrls = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
 const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url] : [])
@@ -287,14 +290,14 @@ const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url]
 const NODE_TEMPLATES = [
   { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
-  { type: 'generate',     label: 'Generate',     data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
-  { type: 'preview',      label: 'Preview',      data: { imageUrl: null } },
+  { type: 'generate',     label: 'Gerar',        data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
+  { type: 'preview',      label: 'Prévia',       data: { imageUrl: null } },
   { type: 'imageInput',   label: 'Imagem (upload)', data: {} },
-  { type: 'brandContext', label: 'Brand Voice',  data: { title: 'Brand Voice', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
-  { type: 'brandContext', label: 'Brand Visual', data: { title: 'Brand Visual', desc: 'Paleta, tipografia e estética' } },
-  { type: 'app',          label: 'Upscale',      data: { op: 'upscale',   label: 'Upscale',   status: 'idle' } },
-  { type: 'app',          label: 'Remove BG',    data: { op: 'removebg',  label: 'Remove BG', status: 'idle' } },
-  { type: 'app',          label: 'Variation',    data: { op: 'variation', label: 'Variation', status: 'idle' } },
+  { type: 'brandContext', label: 'Voz da marca',    data: { title: 'Voz da marca', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
+  { type: 'brandContext', label: 'Visual da marca', data: { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' } },
+  { type: 'app',          label: 'Ampliar',         data: { op: 'upscale',   label: 'Ampliar',        status: 'idle' } },
+  { type: 'app',          label: 'Remover fundo',   data: { op: 'removebg',  label: 'Remover fundo',  status: 'idle' } },
+  { type: 'app',          label: 'Variação',        data: { op: 'variation', label: 'Variação',       status: 'idle' } },
   { type: 'note',         label: 'Nota (sticky)', data: { text: '' }, style: { width: 250, height: 250 } },
 ]
 
@@ -447,7 +450,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const attachHandlers = useCallback(n => {
     const data = { ...n.data }
     // tamanho padrão uniforme (250×250) p/ nós sem tamanho salvo — não toca grupos
-    const style = (n.type !== 'group' && !n.style?.width) ? { width: DEFAULT_NODE, height: DEFAULT_NODE, ...(n.style || {}) } : n.style
+    const style = (n.type !== 'group' && !n.style?.width) ? { ...sizeFor(n.type), ...(n.style || {}) } : n.style
     if (n.type === 'group') { data.onChange = updateNodeData; data.onUngroup = ungroup; data.onDelete = deleteGroup; data.onResize = markDirty; return { ...n, data } }
     data.onDelete = deleteNode; data.onDuplicate = duplicateNode; data.onResize = markDirty
     if (['prompt', 'formato', 'generate', 'note'].includes(n.type)) data.onChange = updateNodeData
@@ -477,7 +480,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const newNode = attachHandlers({
       id: `${tpl.type}-${Date.now()}`, type: tpl.type,
       position: { x: c.x - 110 + j(), y: c.y - 70 + j() },   // centraliza o nó no viewport
-      data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: DEFAULT_NODE, height: DEFAULT_NODE },
+      data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : sizeFor(tpl.type),
     })
     // notas ficam atrás dos demais nós (são fundo organizacional)
     setNodes(ns => tpl.type === 'note' ? [newNode, ...ns] : [...ns, newNode])
@@ -536,7 +539,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   function addNodeFromConnect(tpl) {
     const { source, flowPos } = connectMenu
     setConnectMenu(null)
-    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: DEFAULT_NODE, height: DEFAULT_NODE } })
+    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : sizeFor(tpl.type) })
     setNodes(ns => [...ns, newNode])
     setEdges(es => addEdge({ id: `e-${Date.now()}`, source, target: newNode.id }, es))
     setDirty(true)
@@ -863,7 +866,7 @@ export function StudioCanvas({ brandId, workflowId }) {
           </Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
           <Tooltip title="Prompt" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'prompt'))}><TextFieldsIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
-          <Tooltip title="Generate" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'generate'))}><AutoFixHighOutlinedIcon sx={{ fontSize: 19, color: TEAL }} /></IconButton></Tooltip>
+          <Tooltip title="Gerar" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'generate'))}><AutoFixHighOutlinedIcon sx={{ fontSize: 19, color: TEAL }} /></IconButton></Tooltip>
           <Tooltip title="Imagem (upload)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'imageInput'))}><ImageOutlinedIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
           <Tooltip title="Nota (sticky)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'note'))}><StickyNote2OutlinedIcon sx={{ fontSize: 19, color: '#E0B33A' }} /></IconButton></Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
