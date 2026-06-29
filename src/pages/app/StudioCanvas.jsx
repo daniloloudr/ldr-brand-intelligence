@@ -495,10 +495,37 @@ export function StudioCanvas({ brandId, workflowId }) {
         const { data } = await supabase.from('studio_workflows').select('nome, nodes, edges').eq('id', wfId).maybeSingle()
         if (active && data) {
           if (data.nome) setNome(data.nome)
-          const loaded = (data.nodes || []).map(attachHandlers)
+          const edgesLoaded = data.edges || []
+          // Fonte de verdade das imagens = studio_generations (recupera mesmo se o
+          // node data não tinha sido salvo com a imagem final).
+          const { data: gens } = await supabase.from('studio_generations')
+            .select('id, node_id, image_url, created_at')
+            .eq('workflow_id', wfId).eq('status', 'done').not('image_url', 'is', null)
+            .order('created_at', { ascending: true })
+          const byNode = {}
+          for (const g of gens || []) if (g.node_id) byNode[g.node_id] = { url: g.image_url, id: g.id }
+
+          const loaded = (data.nodes || []).map(attachHandlers).map(n => {
+            const d = { ...n.data }
+            if (d.status === 'running') d.status = 'idle'   // limpa estados transitórios
+            if (d.loading) d.loading = false
+            const hit = byNode[n.id]
+            if (hit) {
+              if (n.type === 'generate') { d.outputUrl = d.outputUrl || hit.url; d.status = 'done' }
+              if (n.type === 'app') { d.outputUrl = d.outputUrl || hit.url; d.genId = d.genId || hit.id; d.status = 'done' }
+            }
+            return { ...n, data: d }
+          })
+          // prévias recebem a imagem do generate conectado
+          for (const n of loaded) {
+            if (n.type !== 'generate') continue
+            const hit = byNode[n.id]; if (!hit) continue
+            const pv = loaded.find(x => x.type === 'preview' && edgesLoaded.some(e => e.source === n.id && e.target === x.id))
+            if (pv && !pv.data.imageUrl) { pv.data = { ...pv.data, imageUrl: hit.url, genId: hit.id, loading: false } }
+          }
           loaded.sort((a, b) => (a.type === 'group' ? -1 : 0) - (b.type === 'group' ? -1 : 0))  // grupos antes dos filhos
           setNodes(loaded)
-          setEdges(data.edges || [])
+          setEdges(edgesLoaded)
           setDirty(false)
           return
         }
@@ -548,6 +575,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   function serializableNodes() {
     return nodes.map(({ id, type, position, data, style, parentId, extent, width, height }) => {
       const rest = Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v !== 'function'))
+      delete rest.loading; delete rest.improving; delete rest.uploading   // estados transitórios não persistem
+      if (rest.status === 'running') rest.status = 'idle'
       const out = { id, type, position, data: rest }
       // tamanho de notas/grupos (NodeResizer) + vínculo de grupo
       const w = width || style?.width, h = height || style?.height
