@@ -222,7 +222,7 @@ const ImageInputNode = memo(({ id, data, selected }) => {
         {urls.map(u => (
           <Box key={u} sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
             <Box component="img" src={u} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            <IconButton size="small" onClick={() => data.onRemoveImg?.(id, u)} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.2, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+            <IconButton size="small" onClick={() => data.onRemoveImg?.(id, u)} sx={{ position: 'absolute', top: 2, right: 2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.2, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
               <CloseIcon sx={{ fontSize: 11 }} />
             </IconButton>
           </Box>
