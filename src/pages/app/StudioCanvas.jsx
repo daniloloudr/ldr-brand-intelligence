@@ -130,7 +130,7 @@ const GenerateNode = memo(({ id, data, selected }) => (
           ...IMAGE_MODELS.filter(m => m.group === g).map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>),
         ])}
       </Select>
-      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL }}>gerando…</Typography></Stack>}
+      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
       {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>✓ concluído</Typography>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
     </Stack>
@@ -170,7 +170,7 @@ const PreviewNode = memo(({ id, data, selected }) => (
     ) : (
       <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'center', justifyContent: 'center' }}>
         {data.loading
-          ? <><CircularProgress size={20} sx={{ color: CORAL }} /><Typography sx={{ fontSize: 10, color: CORAL, fontWeight: 700 }}>gerando…</Typography></>
+          ? <><CircularProgress size={20} sx={{ color: CORAL }} /><Typography sx={{ fontSize: 10, color: CORAL, fontWeight: 700 }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></>
           : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>}
       </Box>
     )}
@@ -207,7 +207,7 @@ const AppNode = memo(({ id, data, selected }) => (
       ) : (
         <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{APP_DESC[data.op] || ''}</Typography>
       )}
-      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: GRAY }} /><Typography sx={{ fontSize: 10, color: 'text.secondary' }}>processando…</Typography></Stack>}
+      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: GRAY }} /><Typography sx={{ fontSize: 10, color: 'text.secondary' }}>processando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
     </Stack>
   </NodeShell>
@@ -282,6 +282,7 @@ const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
 // Formato e Gerar têm pouco conteúdo → altura fixa compacta p/ não ficar feio
 const NODE_SIZE = { formato: { width: 250, height: 116 }, generate: { width: 250, height: 140 } }
 const sizeFor = type => NODE_SIZE[type] || { width: DEFAULT_NODE, height: DEFAULT_NODE }
+const fmtElapsed = s => s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`
 // Normaliza a saída de um nó em lista de URLs (imageInput pode ter várias)
 const toUrls = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
 const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url] : [])
@@ -313,6 +314,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [lightbox, setLightbox] = useState(null)   // url aberta em tela cheia
   const [running, setRunning] = useState(false)    // execução em andamento
   const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [elapsed, setElapsed] = useState(0)        // segundos desde o início do run
   const pollRef = useRef(null)
   const rfRef = useRef(null)
   const flowWrapRef = useRef(null)
@@ -575,7 +577,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   function serializableNodes() {
     return nodes.map(({ id, type, position, data, style, parentId, extent, width, height }) => {
       const rest = Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v !== 'function'))
-      delete rest.loading; delete rest.improving; delete rest.uploading   // estados transitórios não persistem
+      delete rest.loading; delete rest.improving; delete rest.uploading; delete rest.elapsed   // estados transitórios não persistem
       if (rest.status === 'running') rest.status = 'idle'
       const out = { id, type, position, data: rest }
       // tamanho de notas/grupos (NodeResizer) + vínculo de grupo
@@ -752,14 +754,25 @@ export function StudioCanvas({ brandId, workflowId }) {
     const jobs = [...initialJobs]
     const pending = new Set(jobs.map(j => j.genId))
     const start = Date.now()
-    setRunning(true); setProgress({ done: 0, total: jobs.length })
+    setRunning(true); setProgress({ done: 0, total: jobs.length }); setElapsed(0)
     const stop = () => {
-      clearInterval(pollRef.current); pollRef.current = null; setRunning(false)
+      clearInterval(pollRef.current); pollRef.current = null; setRunning(false); setElapsed(0)
       if (wfId) saveRef.current?.()   // autosave após cada run
     }
     pollRef.current = setInterval(async () => {
-      if (Date.now() - start > 300_000) {                 // timeout de segurança (5 min)
-        for (const id of pending) { const j = jobs.find(x => x.genId === id); if (j?.previewNodeId) updateNodeData(j.previewNodeId, { loading: false }) }
+      const secs = Math.floor((Date.now() - start) / 1000)
+      setElapsed(secs)
+      // tempo decorrido por nó vivo (atualização "silenciosa" — não marca não-salvo)
+      const liveIds = new Set()
+      for (const id of pending) { const j = jobs.find(x => x.genId === id); if (j) { liveIds.add(j.nodeId); if (j.previewNodeId) liveIds.add(j.previewNodeId) } }
+      setNodes(ns => ns.map(n => (liveIds.has(n.id) && (n.data.status === 'running' || n.data.loading)) ? { ...n, data: { ...n.data, elapsed: secs } } : n))
+
+      if (Date.now() - start > 600_000) {                 // timeout de segurança (10 min)
+        for (const id of pending) {
+          const j = jobs.find(x => x.genId === id); if (!j) continue
+          updateNodeData(j.nodeId, { status: 'error', error: 'tempo esgotado (10 min)' })
+          if (j.previewNodeId) updateNodeData(j.previewNodeId, { loading: false })
+        }
         return stop()
       }
       if (!pending.size) return stop()
@@ -875,6 +888,11 @@ export function StudioCanvas({ brandId, workflowId }) {
         subtitle="Studio · Workflow"
         action={
           <Stack direction="row" spacing={1} alignItems="center">
+            {running && (
+              <Typography sx={{ fontSize: 12, color: elapsed >= 90 ? '#EF9F27' : 'text.secondary' }}>
+                {fmtElapsed(elapsed)}{elapsed >= 90 ? ' · modelos lentos podem levar alguns min' : ''}
+              </Typography>
+            )}
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
             <Button size="small" variant="contained" disabled={running} onClick={() => run()}

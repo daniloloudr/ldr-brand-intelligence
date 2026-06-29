@@ -22,7 +22,7 @@ export const handler = async (event) => {
     .select('id, workspace_id, brand_id, campaign_id, status').eq('id', generation_id).single()
   if (!gen) return { statusCode: 404 }
 
-  const MAX_WAIT = 180_000
+  const MAX_WAIT = 600_000   // 10 min — GPT Image / Seedream podem demorar bastante
   const start = Date.now()
   try {
     while (Date.now() - start < MAX_WAIT) {
