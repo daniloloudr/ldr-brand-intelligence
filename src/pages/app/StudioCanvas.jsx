@@ -54,12 +54,13 @@ const FORMATOS = [
 ]
 
 // ── Shell visual de um nó ────────────────────────────────────────────
-function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen }) {
+function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected }) {
   return (
     <Paper elevation={0} sx={{
-      minWidth: 200, maxWidth: 240, border: '1px solid', borderColor: 'divider',
+      width: '100%', height: '100%', minWidth: 200, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
       borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
     }}>
+      <NodeResizer color={color} isVisible={selected} minWidth={200} minHeight={70} onResizeEnd={() => onResize?.()} />
       {(onDelete || onDuplicate || onRun || onRegen) && (
         <NodeToolbar position={Position.Top} offset={6}>
           <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
@@ -83,14 +84,14 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
 }
 
 // ── Nós customizados ─────────────────────────────────────────────────
-const BrandContextNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={PURPLE} title={data.title} inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+const BrandContextNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={PURPLE} title={data.title} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
     <Typography sx={{ fontSize: 11, color: 'text.secondary', lineHeight: 1.4 }}>{data.desc}</Typography>
   </NodeShell>
 ))
 
-const PromptNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={GRAY} title="Prompt" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+const PromptNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={GRAY} title="Prompt" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
     <Stack spacing={0.25} className="nodrag">
       <TextField
         value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
@@ -107,8 +108,8 @@ const PromptNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const FormatoNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={GRAY} title="Formato" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+const FormatoNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={GRAY} title="Formato" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
     <Select
       value={data.formato || '1:1'} onChange={e => data.onChange(id, { formato: e.target.value })}
       fullWidth size="small" className="nodrag" sx={{ fontSize: 12 }}
@@ -118,8 +119,8 @@ const FormatoNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const GenerateNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen}>
+const GenerateNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
     <Stack spacing={0.5} className="nodrag">
       <Select value={(data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL}
         onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -135,8 +136,8 @@ const GenerateNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-const PreviewNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={CORAL} title="Preview" onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+const PreviewNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={CORAL} title="Preview" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
     {data.imageUrl ? (
       <>
         <Box component="img" src={data.imageUrl} alt="" className="nodrag" onClick={() => data.onOpen?.(data.imageUrl)}
@@ -175,8 +176,8 @@ const PreviewNode = memo(({ id, data }) => (
 
 const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem' }
 
-const AppNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen}>
+const AppNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
     <Stack spacing={0.5} className="nodrag">
       {data.outputUrl ? (
         <>
@@ -208,10 +209,10 @@ const AppNode = memo(({ id, data }) => (
 ))
 
 // Imagem externa (upload) — até MAX_REF referências para compor o workflow
-const ImageInputNode = memo(({ id, data }) => {
+const ImageInputNode = memo(({ id, data, selected }) => {
   const urls = imgUrls(data)
   return (
-    <NodeShell id={id} color={GRAY} title={`Imagem${urls.length ? ` (${urls.length}/${MAX_REF})` : ''}`} inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+    <NodeShell id={id} color={GRAY} title={`Imagem${urls.length ? ` (${urls.length}/${MAX_REF})` : ''}`} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
       <Box className="nodrag" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.5 }}>
         {urls.map(u => (
           <Box key={u} sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
@@ -440,9 +441,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   const attachHandlers = useCallback(n => {
     const data = { ...n.data }
     if (n.type === 'group') { data.onChange = updateNodeData; data.onUngroup = ungroup; data.onDelete = deleteGroup; data.onResize = markDirty; return { ...n, data } }
-    data.onDelete = deleteNode; data.onDuplicate = duplicateNode
+    data.onDelete = deleteNode; data.onDuplicate = duplicateNode; data.onResize = markDirty
     if (['prompt', 'formato', 'generate', 'note'].includes(n.type)) data.onChange = updateNodeData
-    if (n.type === 'note') data.onResize = markDirty
     if (n.type === 'prompt') data.onImprove = improvePrompt
     if (['generate', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
@@ -469,7 +469,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const newNode = attachHandlers({
       id: `${tpl.type}-${Date.now()}`, type: tpl.type,
       position: { x: c.x - 110 + j(), y: c.y - 70 + j() },   // centraliza o nó no viewport
-      data: { ...tpl.data }, ...(tpl.style ? { style: { ...tpl.style } } : {}),
+      data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: 220 },
     })
     // notas ficam atrás dos demais nós (são fundo organizacional)
     setNodes(ns => tpl.type === 'note' ? [newNode, ...ns] : [...ns, newNode])
@@ -528,7 +528,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   function addNodeFromConnect(tpl) {
     const { source, flowPos } = connectMenu
     setConnectMenu(null)
-    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data } })
+    const newNode = attachHandlers({ id: `${tpl.type}-${Date.now()}`, type: tpl.type, position: flowPos || { x: 300, y: 200 }, data: { ...tpl.data }, style: tpl.style ? { ...tpl.style } : { width: 220 } })
     setNodes(ns => [...ns, newNode])
     setEdges(es => addEdge({ id: `e-${Date.now()}`, source, target: newNode.id }, es))
     setDirty(true)
