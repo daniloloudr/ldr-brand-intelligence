@@ -154,8 +154,10 @@ const PreviewNode = memo(({ id, data }) => (
         </Stack>
       </>
     ) : (
-      <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>
+      <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'center', justifyContent: 'center' }}>
+        {data.loading
+          ? <><CircularProgress size={20} sx={{ color: CORAL }} /><Typography sx={{ fontSize: 10, color: CORAL, fontWeight: 700 }}>gerando…</Typography></>
+          : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>}
       </Box>
     )}
   </NodeShell>
@@ -243,6 +245,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg]     = useState('')
   const [lightbox, setLightbox] = useState(null)   // url aberta em tela cheia
+  const [running, setRunning] = useState(false)    // execução em andamento
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
   const pollRef = useRef(null)
   const rfRef = useRef(null)
   const connectSrcRef = useRef(null)
@@ -506,7 +510,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
       const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
       updateNodeData(g.id, { status: 'running', error: null })
-      if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null })
+      if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
       try {
         const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
           body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
@@ -555,8 +559,14 @@ export function StudioCanvas({ brandId, workflowId }) {
     const jobs = [...initialJobs]
     const pending = new Set(jobs.map(j => j.genId))
     const start = Date.now()
+    setRunning(true); setProgress({ done: 0, total: jobs.length })
+    const stop = () => { clearInterval(pollRef.current); pollRef.current = null; setRunning(false) }
     pollRef.current = setInterval(async () => {
-      if (!pending.size || Date.now() - start > 300_000) { clearInterval(pollRef.current); return }
+      if (Date.now() - start > 300_000) {                 // timeout de segurança (5 min)
+        for (const id of pending) { const j = jobs.find(x => x.genId === id); if (j?.previewNodeId) updateNodeData(j.previewNodeId, { loading: false }) }
+        return stop()
+      }
+      if (!pending.size) return stop()
       const { data } = await supabase.from('studio_generations').select('id, status, image_url, error').in('id', [...pending])
       const settled = []
       for (const row of data || []) {
@@ -565,15 +575,17 @@ export function StudioCanvas({ brandId, workflowId }) {
           pending.delete(row.id); settled.push(job); outputs[job.nodeId] = row.image_url
           if (job.kind === 'generate') {
             updateNodeData(job.nodeId, { status: 'done' })
-            if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false })
+            if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false, loading: false })
           } else {
             updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url, genId: row.id, saved: false })
           }
         } else if (row.status === 'error') {
           pending.delete(row.id)
           updateNodeData(job.nodeId, { status: 'error', error: row.error || 'erro na geração' })
+          if (job.previewNodeId) updateNodeData(job.previewNodeId, { loading: false })
         }
       }
+      setProgress({ done: jobs.length - pending.size, total: jobs.length })
       // encadeamento: dispara apps e generates cujo upstream acabou de concluir
       for (const job of settled) {
         const readyApps = appNodes.filter(a => !dispatched.has(a.id) && imageUpstreamOf(a.id)?.id === job.nodeId)
@@ -589,7 +601,8 @@ export function StudioCanvas({ brandId, workflowId }) {
           if (newJob) { jobs.push(newJob); pending.add(newJob.genId) }
         }
       }
-      if (!pending.size) clearInterval(pollRef.current)
+      setProgress({ done: jobs.length - pending.size, total: jobs.length })
+      if (!pending.size) stop()
     }, 3000)
   }
 
@@ -611,7 +624,11 @@ export function StudioCanvas({ brandId, workflowId }) {
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
-            <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={() => run()} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
+            <Button size="small" variant="contained" disabled={running} onClick={() => run()}
+              startIcon={running ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
+              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, minWidth: 104 }}>
+              {running ? (progress.total ? `Gerando… ${progress.done}/${progress.total}` : 'Gerando…') : 'Gerar'}
+            </Button>
           </Stack>
         }
       />
