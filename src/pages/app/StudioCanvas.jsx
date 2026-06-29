@@ -19,6 +19,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ReplayIcon from '@mui/icons-material/Replay'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined'
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined'
 import TextFieldsIcon from '@mui/icons-material/TextFields'
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined'
@@ -206,24 +207,30 @@ const AppNode = memo(({ id, data }) => (
   </NodeShell>
 ))
 
-// Imagem externa (upload) — traz arquivos para compor o workflow
-const ImageInputNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={GRAY} title="Imagem" inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
-    {data.url ? (
-      <Box component="img" src={data.url} alt="" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
-    ) : (
-      <Box component="label" className="nodrag" sx={{
-        aspectRatio: '4 / 3', border: '1px dashed', borderColor: 'divider', borderRadius: 1,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.5, cursor: 'pointer',
-      }}>
-        {data.uploading
-          ? <CircularProgress size={16} />
-          : <><ImageOutlinedIcon sx={{ fontSize: 22, color: 'text.disabled' }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Subir imagem</Typography></>}
-        <input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) data.onUpload?.(id, f) }} />
+// Imagem externa (upload) — até MAX_REF referências para compor o workflow
+const ImageInputNode = memo(({ id, data }) => {
+  const urls = imgUrls(data)
+  return (
+    <NodeShell id={id} color={GRAY} title={`Imagem${urls.length ? ` (${urls.length}/${MAX_REF})` : ''}`} inputs={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+      <Box className="nodrag" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.5 }}>
+        {urls.map(u => (
+          <Box key={u} sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+            <Box component="img" src={u} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <IconButton size="small" onClick={() => data.onRemoveImg?.(id, u)} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.2, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+              <CloseIcon sx={{ fontSize: 11 }} />
+            </IconButton>
+          </Box>
+        ))}
+        {urls.length < MAX_REF && (
+          <Box component="label" sx={{ aspectRatio: '1 / 1', border: '1px dashed', borderColor: 'divider', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { borderColor: TEAL } }}>
+            {data.uploading ? <CircularProgress size={14} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />}
+            <input type="file" accept="image/*" multiple hidden onChange={e => { if (e.target.files?.length) data.onUpload?.(id, e.target.files); e.target.value = '' }} />
+          </Box>
+        )}
       </Box>
-    )}
-  </NodeShell>
-))
+    </NodeShell>
+  )
+})
 
 // Sticky note — organização visual (não entra na execução). Redimensionável.
 const NoteNode = memo(({ id, data, selected }) => (
@@ -264,6 +271,10 @@ const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato:
 
 // Nós que produzem imagem (podem alimentar apps/generates a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
+const MAX_REF = 5
+// Normaliza a saída de um nó em lista de URLs (imageInput pode ter várias)
+const toUrls = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
+const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url] : [])
 
 // Paleta de nós que podem ser adicionados ao canvas (novo workflow = canvas em branco)
 const NODE_TEMPLATES = [
@@ -328,14 +339,28 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (!error) updateNodeData(nodeId, { saved: true })
   }, [brandId, updateNodeData])
 
-  const uploadImageInput = useCallback(async (id, file) => {
+  const uploadImageInput = useCallback(async (id, fileList) => {
+    const files = Array.from(fileList || [])
+    if (!files.length) return
+    const node = nodesRef.current.find(n => n.id === id)
+    const current = imgUrls(node?.data)
+    const livres = MAX_REF - current.length
+    if (livres <= 0) return
     updateNodeData(id, { uploading: true })
-    const path = `${brandId}/workflow/${Date.now()}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
-    const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
-    if (error) { updateNodeData(id, { uploading: false }); return }
-    const { data } = supabase.storage.from('brand-assets').getPublicUrl(path)
-    updateNodeData(id, { url: data.publicUrl, uploading: false })
+    const novas = []
+    for (const file of files.slice(0, livres)) {
+      const path = `${brandId}/workflow/${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
+      const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+      if (error) continue
+      novas.push(supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl)
+    }
+    updateNodeData(id, { urls: [...current, ...novas].slice(0, MAX_REF), url: undefined, uploading: false })
   }, [brandId, updateNodeData])
+
+  const removeImageInput = useCallback((id, url) => {
+    const node = nodesRef.current.find(n => n.id === id)
+    updateNodeData(id, { urls: imgUrls(node?.data).filter(u => u !== url), url: undefined })
+  }, [updateNodeData])
 
   // Melhorar o prompt do nó (Sonnet 4.6 via studio-prompt.js). Marca como on-brand
   // se houver algum nó de marca no grafo.
@@ -421,9 +446,9 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (n.type === 'prompt') data.onImprove = improvePrompt
     if (['generate', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
-    if (n.type === 'imageInput') data.onUpload = uploadImageInput
+    if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput }
     return { ...n, data }
-  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece, runNode, regenNodeCb, ungroup, deleteGroup, markDirty])
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, removeImageInput, improvePrompt, openLightbox, votePiece, runNode, regenNodeCb, ungroup, deleteGroup, markDirty])
   attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
@@ -524,7 +549,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   async function save() {
     setSaving(true); setMsg('')
     // thumbnail = 1ª imagem produzida no grafo (preview/app/imageInput)
-    const thumb = nodes.map(n => n.data?.imageUrl || n.data?.outputUrl || n.data?.url).find(Boolean) || null
+    const thumb = nodes.map(n => n.data?.imageUrl || n.data?.outputUrl || n.data?.url || n.data?.urls?.[0]).find(Boolean) || null
     const payload = {
       workspace_id: workspace?.id, brand_id: brandId,
       nome: (nome || 'Novo workflow').trim(), nodes: serializableNodes(), edges,
@@ -591,7 +616,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const { outputs, auth, dispatched } = ctx
     const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
     if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
-    const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
+    const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
     updateNodeData(g.id, { status: 'running', error: null })
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
@@ -607,7 +632,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   async function dispatchAppNode(a, ctx) {
     const { outputs, auth, dispatched } = ctx
     const up = imageUpstreamOf(a.id)
-    const imageUrl = outputs[up?.id]
+    const imageUrl = toUrls(outputs[up?.id])[0]
     if (!imageUrl) { updateNodeData(a.id, { status: 'error', error: 'conecte uma imagem de entrada' }); return null }
     updateNodeData(a.id, { status: 'running', error: null, outputUrl: null })
     try {
@@ -624,7 +649,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   function seedExistingOutputs() {
     const out = {}
     for (const n of nodes) {
-      if (n.type === 'imageInput' && n.data?.url) out[n.id] = n.data.url
+      if (n.type === 'imageInput' && imgUrls(n.data).length) out[n.id] = imgUrls(n.data)
       else if (n.type === 'preview' && n.data?.imageUrl) out[n.id] = n.data.imageUrl
       else if ((n.type === 'app' || n.type === 'generate') && n.data?.outputUrl) out[n.id] = n.data.outputUrl
     }
@@ -648,18 +673,18 @@ export function StudioCanvas({ brandId, workflowId }) {
     const ctx = { outputs, auth, dispatched }
 
     // imageInput já tem a imagem pronta → semeia outputs (alimenta apps/refs a jusante)
-    for (const n of nodes.filter(n => n.type === 'imageInput' && n.data?.url)) outputs[n.id] = n.data.url
+    for (const n of nodes.filter(n => n.type === 'imageInput' && imgUrls(n.data).length)) outputs[n.id] = imgUrls(n.data)
     // Run seletivo: reusa imagens já produzidas a montante (apps/generates) sem reprocessar
     if (rootId) for (const [nid, url] of Object.entries(seedExistingOutputs())) { const node = nodes.find(n => n.id === nid); if (node && !genNodes.includes(node) && !appNodes.includes(node)) outputs[nid] = url }
     // Generate só dispara quando todas as referências de imagem conectadas estão prontas
-    const genReady = g => imageUpstreamsOf(g.id).every(u => outputs[u.id])
+    const genReady = g => imageUpstreamsOf(g.id).every(u => toUrls(outputs[u.id]).length > 0)
 
     const jobs = []
     for (const g of genNodes) { if (genReady(g)) { const job = await dispatchGenerateNode(g, ctx); if (job) jobs.push(job) } }
     for (const a of appNodes) {
       if (dispatched.has(a.id)) continue
       const up = imageUpstreamOf(a.id)
-      if (up && outputs[up.id]) { const job = await dispatchAppNode(a, ctx); if (job) jobs.push(job) }
+      if (up && toUrls(outputs[up.id]).length) { const job = await dispatchAppNode(a, ctx); if (job) jobs.push(job) }
     }
     if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate ou conecte uma imagem a um app.')
     pollEngine(jobs, { outputs, dispatched, genNodes, appNodes,
@@ -720,7 +745,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       for (const a of appNodes) {
         if (dispatched.has(a.id)) continue
         const up = imageUpstreamOf(a.id)
-        if (up && outputs[up.id]) { const nj = await dispatchApp(a); if (nj) { jobs.push(nj); pending.add(nj.genId) } }
+        if (up && toUrls(outputs[up.id]).length) { const nj = await dispatchApp(a); if (nj) { jobs.push(nj); pending.add(nj.genId) } }
       }
       for (const g of genNodes) {
         if (dispatched.has(g.id) || !imageUpstreamsOf(g.id).length) continue
