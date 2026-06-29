@@ -19,6 +19,10 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ReplayIcon from '@mui/icons-material/Replay'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined'
+import TextFieldsIcon from '@mui/icons-material/TextFields'
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined'
+import FitScreenIcon from '@mui/icons-material/FitScreen'
 import AlignHorizontalLeftIcon from '@mui/icons-material/AlignHorizontalLeft'
 import AlignHorizontalCenterIcon from '@mui/icons-material/AlignHorizontalCenter'
 import AlignHorizontalRightIcon from '@mui/icons-material/AlignHorizontalRight'
@@ -813,13 +817,25 @@ export function StudioCanvas({ brandId, workflowId }) {
         }
       />
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        {/* Toolbar lateral de controle */}
-        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', gap: 0.5, p: 0.5, borderRadius: 2 }}>
+        {/* Rail vertical de ações do workflow */}
+        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 3 }}>
           <Tooltip title="Adicionar nó" placement="right">
-            <IconButton onClick={e => setAddAnchor(e.currentTarget)} sx={{ bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }}>
+            <IconButton onClick={e => setAddAnchor(e.currentTarget)} sx={{ bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' }, mb: 0.25 }}>
               <AddIcon />
             </IconButton>
           </Tooltip>
+          <Divider flexItem sx={{ my: 0.25 }} />
+          <Tooltip title="Prompt" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'prompt'))}><TextFieldsIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
+          <Tooltip title="Generate" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'generate'))}><AutoFixHighOutlinedIcon sx={{ fontSize: 19, color: TEAL }} /></IconButton></Tooltip>
+          <Tooltip title="Imagem (upload)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'imageInput'))}><ImageOutlinedIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
+          <Tooltip title="Nota (sticky)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'note'))}><StickyNote2OutlinedIcon sx={{ fontSize: 19, color: '#E0B33A' }} /></IconButton></Tooltip>
+          <Divider flexItem sx={{ my: 0.25 }} />
+          <Tooltip title="Rodar tudo" placement="right">
+            <span><IconButton size="small" onClick={() => run()} disabled={running}>
+              {running ? <CircularProgress size={18} sx={{ color: TEAL }} /> : <PlayArrowIcon sx={{ fontSize: 21, color: TEAL }} />}
+            </IconButton></span>
+          </Tooltip>
+          <Tooltip title="Ajustar à tela" placement="right"><IconButton size="small" onClick={() => rfRef.current?.fitView({ padding: 0.2, duration: 300 })}><FitScreenIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
         </Paper>
         <Menu anchorEl={addAnchor} open={!!addAnchor} onClose={() => setAddAnchor(null)}
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }}>
