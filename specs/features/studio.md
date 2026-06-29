@@ -1,8 +1,9 @@
 # LOUDR Studio — Plataforma Generativa de Marca
-**Versão:** 2.0 · Junho 2026
+**Versão:** 2.1 · Junho 2026
 **Status:** Especificação de novo módulo — controle de versão próprio
 **Owner:** Danilo Silva · LOUDR
 **Relação com o SPECS principal:** complementa o LOUDR OS (SPECS v5.8). Herda stack, padrões e regras. Evolui de forma independente.
+**Changelog v2.1 (2026-06-28) — Bloco Workflow maduro + refinos do Bloco Imagem.** Ver seção "Workflow — implementado (v2.1)" e "Modelos — referência (i2i) por modelo". Resumo: canvas nodal robusto (nome persistente, autosave pós-run, dirty-state, thumbnail, run seletivo, regerar 1 nó estilo n8n, sticky notes, grupos, alinhar/distribuir, resize em todos os nós, entrada+saída em todos, continuar a partir do Preview, feedback de tempo, nós em PT, boxes 250×250); 12 templates prontos + "criar workflow por prompt" (Sonnet 4.6); referência image-to-image roteada para o endpoint de edição **de cada modelo** do fal; nó Imagem com até 5 referências; reidratação de imagens da fonte de verdade ao reabrir; upload R2 resiliente a TLS; default Nano Banana (sem Auto/ID custom na UI do nó).
 **Changelog v2.0:** Repensado como **plataforma de criação visual generativa** em **3 blocos — Imagem · Vídeo · Workflow** (sem bloco de Áudio). Benchmark: mescla de **Magnific** (geração com seletor de modelo, referências e templates) + **Runway** (workflow nodal com apps e encadeamento), com o **DNA LOUDR** (brand intelligence) costurado em qualquer ponto. **Mudança de princípio:** a **marca é referência OPCIONAL**, não um gate — gera-se com ou sem a base da marca. **Dois paradigmas** convivem: *geração autônoma* (rápida, 1 clique) e *workflow estruturado* (vários inputs → um ou vários outputs). **Seletor de modelo** de imagem (Auto + escolher). Bloco Imagem ganha referências (Style/Character/Add) + galeria de templates on-brand. Bloco Vídeo (image/text-to-video) entra por último. O que foi construído (Fases A/B/Format Adapter/fechar-o-ciclo) vira a fundação do bloco Workflow + motor de geração.
 **Changelog v1.1:** Escopo por-marca; gateway fal.ai; Arquitetura de Escala (fila+webhook, fan-out, Realtime, R2); imprecisões de schema corrigidas.
 **Changelog v1.0:** Spec inicial do módulo (canvas nodal on-brand).
@@ -122,6 +123,18 @@ Canvas nodal (React Flow) estilo Runway/ComfyUI. O que já existe (`StudioCanvas
 
 **Workflows como Apps/Templates:** salvar um workflow on-brand como **template reutilizável** (`is_template`) → vira "App" de 1 clique para a equipe (estilo Runway Apps / Starter Kits).
 
+### Workflow — implementado (v2.1, `StudioCanvas.jsx`)
+
+**Nós (todos em PT, todos com entrada+saída, todos redimensionáveis):** Prompt (textarea preenche o box; botão "Melhorar" via Sonnet 4.6), Formato (altura fixa 250×116), Gerar (seletor de modelo segmentado, default **Nano Banana**, sem Auto/ID custom na UI; altura 250×140), Prévia (clique abre lightbox do R2; 👍/👎 grava `studio_generations.feedback`), Imagem (upload de **até 5 referências**), Voz da marca / Visual da marca (injetam facetas distintas via `brand_facets`), Apps Ampliar/Remover fundo/Variação. Tamanho padrão **250×250**; cantos 5px.
+
+**Organização visual:** Sticky notes (atrás dos nós), Grupos (container que move os filhos juntos — parentId do React Flow; desagrupar/excluir), alinhar (esq/centro/dir, topo/meio/base) e distribuir (H/V) com toolbar contextual ao selecionar 2+ nós. Rail vertical de ações à esquerda (estilo Runway). Nome do workflow como título da página, editável.
+
+**Execução:** **Gerar** (tudo), **Rodar este** (nó + jusante) e **Regerar** (só este nó, reusando o que já veio antes — estilo n8n). Motor: dispatch + encadeamento (apps e generates a jusante disparam quando o upstream conclui), poll concorrente com **feedback de tempo** ("gerando… 1:23") e aviso após 90s; **continuar a partir de um Preview** (handle de saída + `PRODUCES_IMAGE` inclui preview). **Autosave após cada run.**
+
+**Persistência:** nome, posições, tamanho (`style`), vínculo de grupo (`parentId`/`extent`) salvos; estados transitórios (running/loading/elapsed) **não** persistem. Ao reabrir, imagens são **reidratadas da fonte de verdade** (`studio_generations` por `workflow_id`+`node_id`) e estados presos viram idle.
+
+**Criação rápida:** **12 templates prontos** (`studioWorkflowTemplates.js`, grade 4 col: Social/Advertising/Branding/Mockup) que clonam o grafo num novo workflow; e **"Criar workflow por prompt"** (`studio-workflow-build.js`, Sonnet 4.6) que monta o grafo a partir da intenção, validado contra o schema (tipos/formatos/ops) com fallback seguro.
+
 ---
 
 ## Modelos & Provider — catálogo aberto
@@ -146,7 +159,23 @@ export const IMAGE_MODELS = [
 // submitImageJob({ model, prompt, references, format, extra }) — model = endpoint exato
 ```
 
-**Payload tolerante (compatível com modelos diversos):** sempre envia `prompt`; `image_urls` quando há referências; `aspect_ratio` best-effort; mescla `extra` (JSON) por cima. Modelo que não aceita um param ignora ou erra — esse é o tradeoff aceito para "testar tudo".
+**Payload tolerante (compatível com modelos diversos):** sempre envia `prompt`; imagem de referência quando há; `aspect_ratio` best-effort (omitido no modo edição — o tamanho herda da imagem); mescla `extra` (JSON) por cima. Modelo que não aceita um param ignora ou erra — tradeoff aceito para "testar tudo".
+
+**Referência (image-to-image) por modelo — `modelFor`/`imageField` em `_image.js` (v2.1):** com referência, o text-to-image **ignora a imagem**; por isso cada modelo é roteado para o seu endpoint de edição/i2i, com o campo de imagem correto. Mapa `I2I`:
+
+| Modelo | Endpoint com referência | Campo |
+|---|---|---|
+| Nano Banana | `…/gemini-25-flash-image/edit` | `image_urls` |
+| GPT Image 2 | `openai/gpt-image-2/edit` | `image_urls` |
+| Seedream 4.0 / 4.5 | `…/bytedance/seedream/v4(.5)/edit` | `image_urls` |
+| Flux.1 dev | `…/flux/dev/image-to-image` | `image_url` |
+| Flux Pro 1.1 / Ultra | `…/flux-pro/v1.1(-ultra)/redux` | `image_url` |
+| Ideogram v2 | `…/ideogram/v2/remix` | `image_url` |
+| Recraft v3 | `…/recraft/v3/image-to-image` | `image_url` |
+
+Ressalvas: **Flux Pro (Redux)** é variação, não edição por instrução (para edição guiada no Flux usar **FLUX Kontext**, ainda fora do catálogo). Edição guiada por prompt funciona bem em Nano Banana, GPT Image 2 e Seedream.
+
+**Dev poll (`studio-poll-background.js`):** fallback de localhost (webhook não chega no dev). Limite **10 min** — GPT Image/Seedream passam de 3 min. Em produção o webhook resolve sem esse limite. Usa a `status_url`/`response_url` que o fal devolve no submit (evita 405 em endpoints multi-path). **Upload R2 resiliente a TLS** (`bad record mac`): `putObject` tenta 3× descartando a conexão a cada falha.
 
 - O `model` é threaded: frontend → `studio-generate`/`studio-campaign`/nó → `submitGeneration` → `submitImageJob`.
 - Cada geração grava `provider` (model id usado) + `custo_estimado` → dashboard de custos.
