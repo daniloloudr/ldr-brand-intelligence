@@ -42,11 +42,9 @@ import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { IMAGE_MODELS, resolveModel } from '../../lib/studioModels'
+import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel } from '../../lib/studioModels'
 
 const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A'
-// Grupos do catálogo (inclui 'Automático') p/ o seletor do nó Generate.
-const MODEL_GROUPS = [...new Set(IMAGE_MODELS.map(m => m.group))]
 const FORMATOS = [
   { v: '1:1',  label: 'Feed 1:1' },
   { v: '9:16', label: 'Story 9:16' },
@@ -122,18 +120,13 @@ const FormatoNode = memo(({ id, data }) => (
 const GenerateNode = memo(({ id, data }) => (
   <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen}>
     <Stack spacing={0.5} className="nodrag">
-      <Select value={data.model || 'auto'} onChange={e => data.onChange(id, { model: e.target.value })}
-        size="small" fullWidth sx={{ fontSize: 11 }}>
-        {MODEL_GROUPS.flatMap(g => [
+      <Select value={(data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL}
+        onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11 }}>
+        {IMAGE_MODEL_GROUPS.flatMap(g => [
           <ListSubheader key={g} sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 2.2, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
           ...IMAGE_MODELS.filter(m => m.group === g).map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>),
         ])}
-        <MenuItem value="custom" sx={{ fontSize: 11 }}>ID custom…</MenuItem>
       </Select>
-      {data.model === 'custom' && (
-        <TextField value={data.customModel || ''} onChange={e => data.onChange(id, { customModel: e.target.value })}
-          placeholder="fal-ai/…" size="small" fullWidth sx={{ '& .MuiInputBase-input': { fontSize: 11 } }} />
-      )}
       {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL }}>gerando…</Typography></Stack>}
       {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>✓ concluído</Typography>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
@@ -142,7 +135,7 @@ const GenerateNode = memo(({ id, data }) => (
 ))
 
 const PreviewNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={CORAL} title="Preview" output={false} onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
+  <NodeShell id={id} color={CORAL} title="Preview" onDelete={data.onDelete} onDuplicate={data.onDuplicate}>
     {data.imageUrl ? (
       <>
         <Box component="img" src={data.imageUrl} alt="" className="nodrag" onClick={() => data.onOpen?.(data.imageUrl)}
@@ -269,14 +262,14 @@ const GroupNode = memo(({ id, data, selected }) => (
 
 const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, note: NoteNode, group: GroupNode }
 
-// Nós que produzem imagem (podem alimentar apps a jusante)
-const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput'])
+// Nós que produzem imagem (podem alimentar apps/generates a jusante)
+const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
 
 // Paleta de nós que podem ser adicionados ao canvas (novo workflow = canvas em branco)
 const NODE_TEMPLATES = [
   { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
-  { type: 'generate',     label: 'Generate',     data: { status: 'idle', model: 'auto' } },
+  { type: 'generate',     label: 'Generate',     data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
   { type: 'preview',      label: 'Preview',      data: { imageUrl: null } },
   { type: 'imageInput',   label: 'Imagem (upload)', data: {} },
   { type: 'brandContext', label: 'Brand Voice',  data: { title: 'Brand Voice', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
@@ -301,6 +294,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const pollRef = useRef(null)
   const rfRef = useRef(null)
+  const flowWrapRef = useRef(null)
   const connectSrcRef = useRef(null)
   const nodesRef = useRef(nodes)
   useEffect(() => { nodesRef.current = nodes }, [nodes])
@@ -309,6 +303,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const runNode = useCallback(id => runRef.current?.(id), [])
   const regenRef = useRef(null)                     // regenNode() estável p/ os nós
   const regenNodeCb = useCallback(id => regenRef.current?.(id), [])
+  const saveRef = useRef(null)                       // save() atual p/ autosave pós-run
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -433,11 +428,22 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   const [addAnchor, setAddAnchor] = useState(null)
   const [connectMenu, setConnectMenu] = useState(null)
+  // Centro do viewport atual (em coordenadas do grafo) — nó nasce visível
+  function centerPos() {
+    const el = flowWrapRef.current, inst = rfRef.current
+    if (el && inst?.screenToFlowPosition) {
+      const r = el.getBoundingClientRect()
+      return inst.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+    }
+    return { x: 300, y: 200 }
+  }
+
   function addNode(tpl) {
     setAddAnchor(null)
+    const c = centerPos(); const j = () => (Math.random() - 0.5) * 60
     const newNode = attachHandlers({
       id: `${tpl.type}-${Date.now()}`, type: tpl.type,
-      position: { x: 260 + Math.random() * 120, y: 120 + Math.random() * 220 },
+      position: { x: c.x - 110 + j(), y: c.y - 70 + j() },   // centraliza o nó no viewport
       data: { ...tpl.data }, ...(tpl.style ? { style: { ...tpl.style } } : {}),
     })
     // notas ficam atrás dos demais nós (são fundo organizacional)
@@ -584,7 +590,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   async function dispatchGenerateNode(g, ctx) {
     const { outputs, auth, dispatched } = ctx
     const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
-    if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); return null }
+    if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
     const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
     updateNodeData(g.id, { status: 'running', error: null })
@@ -619,6 +625,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const out = {}
     for (const n of nodes) {
       if (n.type === 'imageInput' && n.data?.url) out[n.id] = n.data.url
+      else if (n.type === 'preview' && n.data?.imageUrl) out[n.id] = n.data.imageUrl
       else if ((n.type === 'app' || n.type === 'generate') && n.data?.outputUrl) out[n.id] = n.data.outputUrl
     }
     return out
@@ -643,7 +650,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     // imageInput já tem a imagem pronta → semeia outputs (alimenta apps/refs a jusante)
     for (const n of nodes.filter(n => n.type === 'imageInput' && n.data?.url)) outputs[n.id] = n.data.url
     // Run seletivo: reusa imagens já produzidas a montante (apps/generates) sem reprocessar
-    if (rootId) for (const n of nodes.filter(n => (n.type === 'app' || n.type === 'generate') && n.data?.outputUrl)) { if (!genNodes.includes(n) && !appNodes.includes(n)) outputs[n.id] = n.data.outputUrl }
+    if (rootId) for (const [nid, url] of Object.entries(seedExistingOutputs())) { const node = nodes.find(n => n.id === nid); if (node && !genNodes.includes(node) && !appNodes.includes(node)) outputs[nid] = url }
     // Generate só dispara quando todas as referências de imagem conectadas estão prontas
     const genReady = g => imageUpstreamsOf(g.id).every(u => outputs[u.id])
 
@@ -681,7 +688,10 @@ export function StudioCanvas({ brandId, workflowId }) {
     const pending = new Set(jobs.map(j => j.genId))
     const start = Date.now()
     setRunning(true); setProgress({ done: 0, total: jobs.length })
-    const stop = () => { clearInterval(pollRef.current); pollRef.current = null; setRunning(false) }
+    const stop = () => {
+      clearInterval(pollRef.current); pollRef.current = null; setRunning(false)
+      if (wfId) saveRef.current?.()   // autosave após cada run
+    }
     pollRef.current = setInterval(async () => {
       if (Date.now() - start > 300_000) {                 // timeout de segurança (5 min)
         for (const id of pending) { const j = jobs.find(x => x.genId === id); if (j?.previewNodeId) updateNodeData(j.previewNodeId, { loading: false }) }
@@ -689,14 +699,13 @@ export function StudioCanvas({ brandId, workflowId }) {
       }
       if (!pending.size) return stop()
       const { data } = await supabase.from('studio_generations').select('id, status, image_url, error').in('id', [...pending])
-      const settled = []
       for (const row of data || []) {
         const job = jobs.find(j => j.genId === row.id); if (!job) continue
         if (row.status === 'done') {
-          pending.delete(row.id); settled.push(job); outputs[job.nodeId] = row.image_url
+          pending.delete(row.id); outputs[job.nodeId] = row.image_url
           if (job.kind === 'generate') {
             updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url })
-            if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false, loading: false })
+            if (job.previewNodeId) { outputs[job.previewNodeId] = row.image_url; updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false, loading: false }) }
           } else {
             updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url, genId: row.id, saved: false })
           }
@@ -706,21 +715,16 @@ export function StudioCanvas({ brandId, workflowId }) {
           if (job.previewNodeId) updateNodeData(job.previewNodeId, { loading: false })
         }
       }
-      setProgress({ done: jobs.length - pending.size, total: jobs.length })
-      // encadeamento: dispara apps e generates cujo upstream acabou de concluir
-      for (const job of settled) {
-        const readyApps = appNodes.filter(a => !dispatched.has(a.id) && imageUpstreamOf(a.id)?.id === job.nodeId)
-        for (const a of readyApps) {
-          const newJob = await dispatchApp(a)
-          if (newJob) { jobs.push(newJob); pending.add(newJob.genId) }
-        }
-        // generates que usam a saída deste nó como referência (image-to-image)
-        const readyGens = genNodes.filter(g => !dispatched.has(g.id)
-          && imageUpstreamsOf(g.id).some(u => u.id === job.nodeId) && genReady(g))
-        for (const g of readyGens) {
-          const newJob = await dispatchGenerate(g)
-          if (newJob) { jobs.push(newJob); pending.add(newJob.genId) }
-        }
+      // encadeamento: re-varre tudo que ainda não rodou e cujas entradas já estão prontas
+      // (cobre app←imagem, generate←referência e continuar a partir de um Preview)
+      for (const a of appNodes) {
+        if (dispatched.has(a.id)) continue
+        const up = imageUpstreamOf(a.id)
+        if (up && outputs[up.id]) { const nj = await dispatchApp(a); if (nj) { jobs.push(nj); pending.add(nj.genId) } }
+      }
+      for (const g of genNodes) {
+        if (dispatched.has(g.id) || !imageUpstreamsOf(g.id).length) continue
+        if (genReady(g)) { const nj = await dispatchGenerate(g); if (nj) { jobs.push(nj); pending.add(nj.genId) } }
       }
       setProgress({ done: jobs.length - pending.size, total: jobs.length })
       if (!pending.size) stop()
@@ -788,6 +792,7 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   runRef.current = run       // mantém as referências estáveis apontando p/ as versões atuais
   regenRef.current = regenNode
+  saveRef.current = save
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
@@ -806,7 +811,6 @@ export function StudioCanvas({ brandId, workflowId }) {
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
-            <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
             <Button size="small" variant="contained" disabled={running} onClick={() => run()}
               startIcon={running ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
@@ -816,7 +820,7 @@ export function StudioCanvas({ brandId, workflowId }) {
           </Stack>
         }
       />
-      <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      <Box ref={flowWrapRef} sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {/* Rail vertical de ações do workflow */}
         <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 3 }}>
           <Tooltip title="Adicionar nó" placement="right">
