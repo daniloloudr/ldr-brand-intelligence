@@ -17,6 +17,7 @@ import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import ReplayIcon from '@mui/icons-material/Replay'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import AlignHorizontalLeftIcon from '@mui/icons-material/AlignHorizontalLeft'
 import AlignHorizontalCenterIcon from '@mui/icons-material/AlignHorizontalCenter'
@@ -50,16 +51,17 @@ const FORMATOS = [
 ]
 
 // ── Shell visual de um nó ────────────────────────────────────────────
-function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun }) {
+function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen }) {
   return (
     <Paper elevation={0} sx={{
       minWidth: 200, maxWidth: 240, border: '1px solid', borderColor: 'divider',
       borderTop: `3px solid ${color}`, borderRadius: 2, bgcolor: 'background.paper', overflow: 'hidden',
     }}>
-      {(onDelete || onDuplicate || onRun) && (
+      {(onDelete || onDuplicate || onRun || onRegen) && (
         <NodeToolbar position={Position.Top} offset={6}>
           <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
-            {onRun && <Tooltip title="Rodar este"><IconButton size="small" onClick={() => onRun(id)}><PlayArrowIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton></Tooltip>}
+            {onRun && <Tooltip title="Rodar este + jusante"><IconButton size="small" onClick={() => onRun(id)}><PlayArrowIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton></Tooltip>}
+            {onRegen && <Tooltip title="Regerar só este (usa o que já veio antes)"><IconButton size="small" onClick={() => onRegen(id)}><ReplayIcon sx={{ fontSize: 15, color: TEAL }} /></IconButton></Tooltip>}
             {onDuplicate && <Tooltip title="Duplicar"><IconButton size="small" onClick={() => onDuplicate(id)}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>}
             {onDelete && <Tooltip title="Excluir"><IconButton size="small" onClick={() => onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>}
           </Paper>
@@ -114,7 +116,7 @@ const FormatoNode = memo(({ id, data }) => (
 ))
 
 const GenerateNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun}>
+  <NodeShell id={id} color={TEAL} title="Generate" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen}>
     <Stack spacing={0.5} className="nodrag">
       <Select value={data.model || 'auto'} onChange={e => data.onChange(id, { model: e.target.value })}
         size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -176,7 +178,7 @@ const PreviewNode = memo(({ id, data }) => (
 const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem' }
 
 const AppNode = memo(({ id, data }) => (
-  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun}>
+  <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen}>
     <Stack spacing={0.5} className="nodrag">
       {data.outputUrl ? (
         <>
@@ -301,6 +303,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   const markDirty = useCallback(() => setDirty(true), [])
   const runRef = useRef(null)                       // run() estável p/ os nós (run seletivo)
   const runNode = useCallback(id => runRef.current?.(id), [])
+  const regenRef = useRef(null)                     // regenNode() estável p/ os nós
+  const regenNodeCb = useCallback(id => regenRef.current?.(id), [])
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -416,11 +420,11 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (['prompt', 'formato', 'generate', 'note'].includes(n.type)) data.onChange = updateNodeData
     if (n.type === 'note') data.onResize = markDirty
     if (n.type === 'prompt') data.onImprove = improvePrompt
-    if (['generate', 'app'].includes(n.type)) data.onRun = runNode
+    if (['generate', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
     if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') data.onUpload = uploadImageInput
     return { ...n, data }
-  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece, runNode, ungroup, deleteGroup, markDirty])
+  }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, improvePrompt, openLightbox, votePiece, runNode, regenNodeCb, ungroup, deleteGroup, markDirty])
   attachHandlersRef.current = attachHandlers
 
   const [addAnchor, setAddAnchor] = useState(null)
@@ -566,6 +570,56 @@ export function StudioCanvas({ brandId, workflowId }) {
     return keep
   }
 
+  async function authHeaders() {
+    const session = (await supabase.auth.getSession()).data.session
+    return { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }
+  }
+
+  // Dispatchers reutilizáveis (run completo, run seletivo e regerar 1 nó).
+  // ctx = { outputs, auth, dispatched }
+  async function dispatchGenerateNode(g, ctx) {
+    const { outputs, auth, dispatched } = ctx
+    const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
+    if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); return null }
+    const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
+    const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
+    updateNodeData(g.id, { status: 'running', error: null })
+    if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
+    try {
+      const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+      dispatched.add(g.id)
+      return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
+    } catch (e) { updateNodeData(g.id, { status: 'error', error: e.message }); return null }
+  }
+
+  async function dispatchAppNode(a, ctx) {
+    const { outputs, auth, dispatched } = ctx
+    const up = imageUpstreamOf(a.id)
+    const imageUrl = outputs[up?.id]
+    if (!imageUrl) { updateNodeData(a.id, { status: 'error', error: 'conecte uma imagem de entrada' }); return null }
+    updateNodeData(a.id, { status: 'running', error: null, outputUrl: null })
+    try {
+      const res = await fetch('/.netlify/functions/studio-edit', { method: 'POST', headers: auth,
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl }) })
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+      dispatched.add(a.id)
+      return { genId: j.generation_id, nodeId: a.id, kind: 'app' }
+    } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
+  }
+
+  // Semeia tudo que já foi produzido no grafo (imageInput, app, generate) — base
+  // para regerar 1 nó usando as infos anteriores (estilo n8n).
+  function seedExistingOutputs() {
+    const out = {}
+    for (const n of nodes) {
+      if (n.type === 'imageInput' && n.data?.url) out[n.id] = n.data.url
+      else if ((n.type === 'app' || n.type === 'generate') && n.data?.outputUrl) out[n.id] = n.data.outputUrl
+    }
+    return out
+  }
+
   async function run(rootId = null) {
     let genNodes = nodes.filter(n => n.type === 'generate')
     let appNodes = nodes.filter(n => n.type === 'app')
@@ -577,57 +631,42 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (!genNodes.length && !appNodes.length) return setMsg('Adicione nós ao canvas.')
     setMsg('')
 
-    const session = (await supabase.auth.getSession()).data.session
-    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }
+    const auth = await authHeaders()
     const outputs = {}            // nodeId -> image_url pronto (encadeamento)
     const dispatched = new Set()
-
-    async function dispatchGenerate(g) {
-      const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
-      if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); return null }
-      const references = imageUpstreamsOf(g.id).map(u => outputs[u.id]).filter(Boolean)
-      const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
-      updateNodeData(g.id, { status: 'running', error: null })
-      if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
-      try {
-        const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
-        const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
-        dispatched.add(g.id)
-        return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
-      } catch (e) { updateNodeData(g.id, { status: 'error', error: e.message }); return null }
-    }
-
-    async function dispatchApp(a) {
-      const up = imageUpstreamOf(a.id)
-      const imageUrl = outputs[up?.id]
-      if (!imageUrl) { updateNodeData(a.id, { status: 'error', error: 'conecte uma imagem de entrada' }); return null }
-      updateNodeData(a.id, { status: 'running', error: null, outputUrl: null })
-      try {
-        const res = await fetch('/.netlify/functions/studio-edit', { method: 'POST', headers: auth,
-          body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl }) })
-        const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
-        dispatched.add(a.id)
-        return { genId: j.generation_id, nodeId: a.id, kind: 'app' }
-      } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
-    }
+    const ctx = { outputs, auth, dispatched }
 
     // imageInput já tem a imagem pronta → semeia outputs (alimenta apps/refs a jusante)
     for (const n of nodes.filter(n => n.type === 'imageInput' && n.data?.url)) outputs[n.id] = n.data.url
-    // Run seletivo: reusa imagens já produzidas a montante (apps) sem reprocessar
-    if (rootId) for (const n of nodes.filter(n => n.type === 'app' && n.data?.outputUrl && !appNodes.includes(n))) outputs[n.id] = n.data.outputUrl
+    // Run seletivo: reusa imagens já produzidas a montante (apps/generates) sem reprocessar
+    if (rootId) for (const n of nodes.filter(n => (n.type === 'app' || n.type === 'generate') && n.data?.outputUrl)) { if (!genNodes.includes(n) && !appNodes.includes(n)) outputs[n.id] = n.data.outputUrl }
     // Generate só dispara quando todas as referências de imagem conectadas estão prontas
     const genReady = g => imageUpstreamsOf(g.id).every(u => outputs[u.id])
 
     const jobs = []
-    for (const g of genNodes) { if (genReady(g)) { const job = await dispatchGenerate(g); if (job) jobs.push(job) } }
+    for (const g of genNodes) { if (genReady(g)) { const job = await dispatchGenerateNode(g, ctx); if (job) jobs.push(job) } }
     for (const a of appNodes) {
       if (dispatched.has(a.id)) continue
       const up = imageUpstreamOf(a.id)
-      if (up && outputs[up.id]) { const job = await dispatchApp(a); if (job) jobs.push(job) }
+      if (up && outputs[up.id]) { const job = await dispatchAppNode(a, ctx); if (job) jobs.push(job) }
     }
     if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate ou conecte uma imagem a um app.')
-    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, dispatchGenerate, dispatchApp, genReady })
+    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes,
+      dispatchGenerate: g => dispatchGenerateNode(g, ctx), dispatchApp: a => dispatchAppNode(a, ctx), genReady })
+  }
+
+  // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante)
+  async function regenNode(nodeId) {
+    const node = nodesRef.current.find(n => n.id === nodeId)
+    if (!node || !['generate', 'app'].includes(node.type)) return
+    setMsg('')
+    const auth = await authHeaders()
+    const outputs = seedExistingOutputs()
+    const ctx = { outputs, auth, dispatched: new Set() }
+    const job = node.type === 'generate' ? await dispatchGenerateNode(node, ctx) : await dispatchAppNode(node, ctx)
+    if (!job) return
+    pollEngine([job], { outputs, dispatched: ctx.dispatched, genNodes: [], appNodes: [],
+      dispatchGenerate: () => null, dispatchApp: () => null, genReady: () => false })
   }
 
   // Poll concorrente + dispara apps/generates a jusante quando o upstream conclui
@@ -652,7 +691,7 @@ export function StudioCanvas({ brandId, workflowId }) {
         if (row.status === 'done') {
           pending.delete(row.id); settled.push(job); outputs[job.nodeId] = row.image_url
           if (job.kind === 'generate') {
-            updateNodeData(job.nodeId, { status: 'done' })
+            updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url })
             if (job.previewNodeId) updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false, loading: false })
           } else {
             updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url, genId: row.id, saved: false })
@@ -743,21 +782,25 @@ export function StudioCanvas({ brandId, workflowId }) {
     setDirty(true); setMsg('')
   }
 
-  runRef.current = run   // mantém a referência estável apontando p/ o run atual
+  runRef.current = run       // mantém as referências estáveis apontando p/ as versões atuais
+  regenRef.current = regenNode
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
       <PageHeader
-        title="Studio"
-        subtitle="Geração visual on-brand"
-        action={
-          <Stack direction="row" spacing={1} alignItems="center">
+        title={
+          <Stack direction="row" alignItems="center" spacing={1}>
             <Tooltip title="Renomear workflow">
               <TextField value={nome} onChange={e => { setNome(e.target.value); setDirty(true) }}
-                variant="standard" placeholder="Nome do workflow"
-                sx={{ minWidth: 220, maxWidth: 360, '& .MuiInputBase-input': { fontSize: 14, fontWeight: 800, py: 0.25 } }} />
+                variant="standard" placeholder="Nome do workflow" InputProps={{ disableUnderline: true }}
+                sx={{ minWidth: 200, maxWidth: 460, '& input': { fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', py: 0 } }} />
             </Tooltip>
             {dirty && <Tooltip title="Alterações não salvas"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#EF9F27', flexShrink: 0 }} /></Tooltip>}
+          </Stack>
+        }
+        subtitle="Studio · Workflow"
+        action={
+          <Stack direction="row" spacing={1} alignItems="center">
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>

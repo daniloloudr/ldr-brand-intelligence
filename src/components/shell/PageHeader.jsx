@@ -9,9 +9,11 @@ export function PageHeader({ title, subtitle, action }) {
       display: "flex", alignItems: "center", gap: 2,
     }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-          {title}
-        </Typography>
+        {typeof title === "string" ? (
+          <Typography sx={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+            {title}
+          </Typography>
+        ) : title}
         {subtitle && (
           <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>
             {subtitle}
