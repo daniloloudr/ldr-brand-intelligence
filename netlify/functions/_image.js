@@ -27,15 +27,21 @@ function authHeaders() {
 }
 
 /**
- * Resolve o endpoint efetivo. Gemini/Nano Banana usa /edit quando há
- * referência (image-to-image). Outros modelos: usa o id como veio — escolha
- * um modelo i2i específico se precisar de referência.
+ * Resolve o endpoint efetivo. Quando há referência (image-to-image), roteia para
+ * o endpoint de EDIÇÃO do modelo — senão o text-to-image ignora a imagem.
+ * - Nano Banana (Gemini) → `${base}/edit`
+ * - GPT Image 2 (openai/gpt-image-2) → openai/gpt-image-2/edit
+ * - Seedream e afins (`.../text-to-image`) → `.../edit`
+ * Demais modelos: usa o id como veio (podem não aceitar referência).
  */
 export function modelFor(model, { references = [], mode } = {}) {
   const base = model || DEFAULT_MODEL
-  const isNano = /gemini-25-flash-image|nano-banana/.test(base) && !/\/edit$/.test(base)
   const wantsEdit = (references && references.length > 0) || ['edit', 'variation', 'adapt'].includes(mode)
-  return (isNano && wantsEdit) ? `${base}/edit` : base
+  if (!wantsEdit || /\/edit$/.test(base)) return base
+  if (/gemini-25-flash-image|nano-banana/.test(base)) return `${base}/edit`
+  if (/^openai\/gpt-image-2$/.test(base))             return 'openai/gpt-image-2/edit'
+  if (/\/text-to-image$/.test(base))                  return base.replace(/\/text-to-image$/, '/edit')
+  return base
 }
 
 /**
