@@ -9,7 +9,6 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { StudioTabs } from './StudioTabs'
 import { WORKFLOW_TEMPLATES, TEMPLATE_CAT_COLOR } from '../../lib/studioWorkflowTemplates'
 
 const TEAL = '#0D9E7A'
@@ -164,13 +163,10 @@ export function StudioWorkflows({ brandId }) {
         title="Workflow"
         subtitle="Pipelines nodais de geração — construa em pedaços"
         action={
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <StudioTabs brandId={brandId} active="workflow" />
-            <Button variant="contained" startIcon={<AddIcon />} onClick={novo}
-              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
-              Novo workflow
-            </Button>
-          </Stack>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={novo}
+            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+            Novo workflow
+          </Button>
         }
       />
 

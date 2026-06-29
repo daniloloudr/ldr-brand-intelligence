@@ -19,7 +19,6 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { StudioTabs } from './StudioTabs'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A'
@@ -219,7 +218,7 @@ export function StudioImage({ brandId }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Studio" subtitle="Geração de imagem" action={<StudioTabs brandId={brandId} active="image" />} />
+      <PageHeader title="Studio" subtitle="Geração de imagem" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>

@@ -27,7 +27,6 @@ import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { StudioTabs } from './StudioTabs'
 import { IMAGE_MODELS, resolveModel } from '../../lib/studioModels'
 
 const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A'
@@ -603,16 +602,16 @@ export function StudioCanvas({ brandId, workflowId }) {
         subtitle="Geração visual on-brand"
         action={
           <Stack direction="row" spacing={1} alignItems="center">
-            <StudioTabs brandId={brandId} active="workflow" />
-            <TextField value={nome} onChange={e => { setNome(e.target.value); setDirty(true) }}
-              variant="standard" placeholder="Nome do workflow"
-              sx={{ minWidth: 140, '& .MuiInputBase-input': { fontSize: 13, fontWeight: 700 } }}
-              InputProps={{ disableUnderline: true }} />
+            <Tooltip title="Renomear workflow">
+              <TextField value={nome} onChange={e => { setNome(e.target.value); setDirty(true) }}
+                variant="standard" placeholder="Nome do workflow"
+                sx={{ minWidth: 220, maxWidth: 360, '& .MuiInputBase-input': { fontSize: 14, fontWeight: 800, py: 0.25 } }} />
+            </Tooltip>
             {dirty && <Tooltip title="Alterações não salvas"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#EF9F27', flexShrink: 0 }} /></Tooltip>}
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <Button size="small" onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }} sx={{ color: 'text.secondary' }}>Campanhas</Button>
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
-            <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={run} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
+            <Button size="small" variant="contained" startIcon={<AutoAwesomeIcon />} onClick={() => run()} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>Gerar</Button>
           </Stack>
         }
       />

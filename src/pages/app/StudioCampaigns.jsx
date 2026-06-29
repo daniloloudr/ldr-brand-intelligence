@@ -8,7 +8,6 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { StudioTabs } from './StudioTabs'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A'
 const FORMATOS = [
@@ -121,7 +120,6 @@ export function StudioCampaigns({ brandId }) {
       <PageHeader
         title="Studio · Campanhas"
         subtitle="Um conceito, várias peças coerentes"
-        action={<StudioTabs brandId={brandId} active="image" />}
       />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
