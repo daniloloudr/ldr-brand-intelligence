@@ -26,22 +26,38 @@ function authHeaders() {
   return { 'Authorization': `Key ${FAL_KEY}`, 'Content-Type': 'application/json' }
 }
 
+// Mapa de image-to-image por modelo: cada um tem seu endpoint e campo de imagem.
+// `field: 'image_url'` = singular (usa só a 1ª referência); 'image_urls' = array.
+const I2I = {
+  'fal-ai/gemini-25-flash-image':                 { endpoint: 'fal-ai/gemini-25-flash-image/edit',          field: 'image_urls' },
+  'openai/gpt-image-2':                           { endpoint: 'openai/gpt-image-2/edit',                    field: 'image_urls' },
+  'fal-ai/bytedance/seedream/v4/text-to-image':   { endpoint: 'fal-ai/bytedance/seedream/v4/edit',          field: 'image_urls' },
+  'fal-ai/bytedance/seedream/v4.5/text-to-image': { endpoint: 'fal-ai/bytedance/seedream/v4.5/edit',        field: 'image_urls' },
+  'fal-ai/flux/dev':                              { endpoint: 'fal-ai/flux/dev/image-to-image',             field: 'image_url'  },
+  'fal-ai/flux-pro/v1.1':                         { endpoint: 'fal-ai/flux-pro/v1.1/redux',                 field: 'image_url'  },
+  'fal-ai/flux-pro/v1.1-ultra':                   { endpoint: 'fal-ai/flux-pro/v1.1-ultra/redux',           field: 'image_url'  },
+  'fal-ai/ideogram/v2':                           { endpoint: 'fal-ai/ideogram/v2/remix',                   field: 'image_url'  },
+  'fal-ai/recraft-v3':                            { endpoint: 'fal-ai/recraft/v3/image-to-image',           field: 'image_url'  },
+}
+
+const wantsEditMode = (references, mode) => (references && references.length > 0) || ['edit', 'variation', 'adapt'].includes(mode)
+const ALREADY_I2I = /\/(edit|image-to-image|redux|remix)$/
+
 /**
- * Resolve o endpoint efetivo. Quando há referência (image-to-image), roteia para
- * o endpoint de EDIÇÃO do modelo — senão o text-to-image ignora a imagem.
- * - Nano Banana (Gemini) → `${base}/edit`
- * - GPT Image 2 (openai/gpt-image-2) → openai/gpt-image-2/edit
- * - Seedream e afins (`.../text-to-image`) → `.../edit`
- * Demais modelos: usa o id como veio (podem não aceitar referência).
+ * Resolve o endpoint efetivo. Com referência (image-to-image), roteia para o
+ * endpoint de edição/i2i do modelo (mapa I2I) — senão o text-to-image ignora a
+ * imagem. Sem mapa conhecido, mantém o id como veio.
  */
 export function modelFor(model, { references = [], mode } = {}) {
   const base = model || DEFAULT_MODEL
-  const wantsEdit = (references && references.length > 0) || ['edit', 'variation', 'adapt'].includes(mode)
-  if (!wantsEdit || /\/edit$/.test(base)) return base
-  if (/gemini-25-flash-image|nano-banana/.test(base)) return `${base}/edit`
-  if (/^openai\/gpt-image-2$/.test(base))             return 'openai/gpt-image-2/edit'
-  if (/\/text-to-image$/.test(base))                  return base.replace(/\/text-to-image$/, '/edit')
-  return base
+  if (!wantsEditMode(references, mode) || ALREADY_I2I.test(base)) return base
+  return I2I[base]?.endpoint || base
+}
+
+// Campo de imagem que o endpoint i2i do modelo espera (image_url | image_urls)
+export function imageField(model) {
+  const base = model || DEFAULT_MODEL
+  return I2I[base]?.field || 'image_urls'
 }
 
 /**
@@ -57,9 +73,15 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   if (input) {
     body = input
   } else {
+    const hasRefs = references?.length > 0
     body = { prompt, num_images: 1 }
-    if (format)             body.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
-    if (references?.length) body.image_urls   = references
+    // No modo edição o tamanho é inferido da imagem de entrada → não força aspect_ratio
+    if (format && !hasRefs) body.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
+    if (hasRefs) {
+      const field = imageField(model)
+      if (field === 'image_url') body.image_url = references[0]   // endpoint singular
+      else                       body.image_urls = references     // endpoint em array
+    }
     if (extra && typeof extra === 'object') Object.assign(body, extra)
   }
 
