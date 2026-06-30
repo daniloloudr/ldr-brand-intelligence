@@ -1,7 +1,17 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const PLANO_ORDER = { starter: 1, pro: 2, enterprise: 3 }
+// Recompõe o pool de créditos do plano e estende o ciclo (1º dia do próximo mês).
+// Idempotente: seta o saldo para o pool (não soma). Loga uma transação de refill.
+async function refillCredits(supabase, workspaceId, plano) {
+  const { data: pool } = await supabase.rpc('plano_creditos', { p_plano: plano })
+  const reset = new Date(); reset.setUTCMonth(reset.getUTCMonth() + 1, 1); reset.setUTCHours(0, 0, 0, 0)
+  await supabase.from('workspaces')
+    .update({ creditos_saldo: pool, creditos_ciclo_reset: reset.toISOString() })
+    .eq('id', workspaceId)
+  await supabase.from('credit_transactions')
+    .insert({ workspace_id: workspaceId, delta: pool, saldo_after: pool, tipo: 'refill', operacao: 'assinatura' })
+}
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -38,8 +48,20 @@ export async function handler(event) {
           stripe_customer_id: session.customer,
           stripe_subscription_id: session.subscription,
         }).eq('id', workspaceId)
+        // libera o pool de créditos do plano na ativação
+        await refillCredits(supabase, workspaceId, plano)
+        console.log(`[stripe-webhook] Workspace ${workspaceId} ativado no plano ${plano} + créditos liberados`)
+      }
+    }
 
-        console.log(`[stripe-webhook] Workspace ${workspaceId} atualizado para plano ${plano}`)
+    // Renovação mensal paga → recarrega os créditos do ciclo
+    if (stripeEvent.type === 'invoice.paid' && stripeEvent.data.object.billing_reason === 'subscription_cycle') {
+      const invoice = stripeEvent.data.object
+      const { data: ws } = await supabase.from('workspaces')
+        .select('id, plano').eq('stripe_subscription_id', invoice.subscription).maybeSingle()
+      if (ws) {
+        await refillCredits(supabase, ws.id, ws.plano)
+        console.log(`[stripe-webhook] Renovação — créditos recarregados p/ workspace ${ws.id} (${ws.plano})`)
       }
     }
 
@@ -65,7 +87,7 @@ export async function handler(event) {
           plano: 'trial',
           plano_status: 'canceled',
         }).eq('id', workspaceId)
-
+        await refillCredits(supabase, workspaceId, 'trial')   // rebaixa pro pool do trial
         console.log(`[stripe-webhook] Workspace ${workspaceId} revertido para trial (cancelamento)`)
       }
     }
