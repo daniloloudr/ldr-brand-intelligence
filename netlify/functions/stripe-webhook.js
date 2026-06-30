@@ -57,8 +57,13 @@ export async function handler(event) {
     // Renovação mensal paga → recarrega os créditos do ciclo
     if (stripeEvent.type === 'invoice.paid' && stripeEvent.data.object.billing_reason === 'subscription_cycle') {
       const invoice = stripeEvent.data.object
-      const { data: ws } = await supabase.from('workspaces')
-        .select('id, plano').eq('stripe_subscription_id', invoice.subscription).maybeSingle()
+      // a referência da assinatura mudou de lugar entre versões da API — cobre ambas
+      const subId = invoice.subscription
+        || invoice.parent?.subscription_details?.subscription
+        || invoice.lines?.data?.[0]?.subscription
+        || null
+      const { data: ws } = subId ? await supabase.from('workspaces')
+        .select('id, plano').eq('stripe_subscription_id', subId).maybeSingle() : { data: null }
       if (ws) {
         await refillCredits(supabase, ws.id, ws.plano)
         console.log(`[stripe-webhook] Renovação — créditos recarregados p/ workspace ${ws.id} (${ws.plano})`)
