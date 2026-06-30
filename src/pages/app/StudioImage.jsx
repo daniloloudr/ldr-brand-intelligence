@@ -19,6 +19,8 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { CreditBadge } from '../../components/CreditBadge'
+import { useWorkspace } from '../../lib/WorkspaceContext'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A'
@@ -32,6 +34,7 @@ const APP_ACTIONS = [
 ]
 
 export function StudioImage({ brandId }) {
+  const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState(DEFAULT_IMAGE_MODEL)
   const [useBrand, setUseBrand] = useState(true)
@@ -116,6 +119,7 @@ export function StudioImage({ brandId }) {
     if (!ids.length) return
     setItems(prev => [...ids.map(id => ({ id, status: 'processing', image_url: null, formato })), ...prev])
     ensurePolling()
+    reloadWorkspace?.()   // atualiza o saldo de créditos (débito já ocorreu no submit)
   }
 
   // ── Ação inline (upscale/removebg/variação) sobre uma peça pronta ──
@@ -309,6 +313,7 @@ export function StudioImage({ brandId }) {
               label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
             <Box sx={{ flex: 1 }} />
             {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
+            <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
               {generating ? 'Gerando…' : 'Gerar'}

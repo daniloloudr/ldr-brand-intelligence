@@ -47,6 +47,7 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
+import { CreditBadge } from '../../components/CreditBadge'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel } from '../../lib/studioModels'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
@@ -429,7 +430,7 @@ const NODE_TEMPLATES = [
 ]
 
 export function StudioCanvas({ brandId, workflowId }) {
-  const { workspace } = useWorkspace()
+  const { workspace, reload: reloadWorkspace } = useWorkspace()
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([])
   const [wfId, setWfId]   = useState(workflowId || null)
@@ -914,6 +915,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate/Vídeo ou conecte uma imagem a um app.')
     pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, vidNodes,
       dispatchGenerate: g => dispatchGenerateNode(g, ctx), dispatchApp: a => dispatchAppNode(a, ctx), dispatchVideo: v => dispatchVideoNode(v, ctx), genReady })
+    reloadWorkspace?.()   // saldo cai assim que os jobs são submetidos (débito já ocorreu)
   }
 
   // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante)
@@ -943,6 +945,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const stop = () => {
       clearInterval(pollRef.current); pollRef.current = null; setRunning(false); setElapsed(0)
       if (wfId) saveRef.current?.()   // autosave após cada run
+      reloadWorkspace?.()             // atualiza saldo de créditos ao fim do run
     }
     pollRef.current = setInterval(async () => {
       const secs = Math.floor((Date.now() - start) / 1000)
@@ -1083,6 +1086,7 @@ export function StudioCanvas({ brandId, workflowId }) {
               </Typography>
             )}
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
+            <CreditBadge />
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
             <Button size="small" variant="contained" disabled={running} onClick={() => run()}
               startIcon={running ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}

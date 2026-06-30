@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
+import { creditsForOp, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -102,6 +103,15 @@ export const handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Configure o domínio do workspace antes de analisar.' }) }
   }
 
+  // Débito de crédito (Content Hub = 2). Admin bypassa. Estorna se a análise falhar.
+  const amount = creditsForOp('content')
+  if (!platformAdmin) {
+    const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'content', user_id: user.id })
+    if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para gerar conteúdo.', need: amount }) }
+    if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }
+  }
+  const estorna = async () => { if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'content' }) }
+
   const { data: diag } = await supabase
     .from('diagnosticos').select('data').eq('workspace_id', workspace_id)
     .order('created_at', { ascending: false }).limit(1).single()
@@ -145,10 +155,12 @@ export const handler = async (event) => {
       ideias = extractJSON(resI.text)?.ideias
     }
   } catch (e) {
+    await estorna()
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) }
   }
 
   if (!clusters?.length || !ideias?.length) {
+    await estorna()
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Análise inválida retornada pela IA' }) }
   }
 
@@ -159,7 +171,7 @@ export const handler = async (event) => {
     .insert({ workspace_id, dados: parsed })
     .select().single()
 
-  if (insertErr) return { statusCode: 500, headers, body: JSON.stringify({ error: insertErr.message }) }
+  if (insertErr) { await estorna(); return { statusCode: 500, headers, body: JSON.stringify({ error: insertErr.message }) } }
 
   return {
     statusCode: 200,

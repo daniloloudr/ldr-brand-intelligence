@@ -18,12 +18,15 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { CreditBadge } from '../../components/CreditBadge'
+import { useWorkspace } from '../../lib/WorkspaceContext'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A', AMBER = '#E0B33A'
 const ARMAP = { '16:9': '16 / 9', '9:16': '9 / 16', '1:1': '1 / 1', '4:5': '4 / 5' }
 
 export function StudioVideo({ brandId }) {
+  const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [modelKey, setModelKey] = useState(DEFAULT_VIDEO_MODEL)
   const [useBrand, setUseBrand] = useState(true)
@@ -131,6 +134,7 @@ export function StudioVideo({ brandId }) {
       if (!res.ok) { setMsg(j.error || `Erro ${res.status}`); setGenerating(false); return }
       setItems(prev => [{ id: j.generation_id, status: 'processing', image_url: null, formato: aspect, params }, ...prev])
       ensurePolling()
+      reloadWorkspace?.()
     } catch (e) { setMsg(e.message) }
     setGenerating(false)
   }
@@ -161,6 +165,7 @@ export function StudioVideo({ brandId }) {
       setItems(prev => [{ id: j.generation_id, status: 'processing', image_url: null, formato: p.aspect, params: p }, ...prev])
       setAdjOpen(o => ({ ...o, [item.id]: false }))
       ensurePolling()
+      reloadWorkspace?.()
     } catch (e) { setMsg(e.message) }
     setAdjusting(a => ({ ...a, [item.id]: false }))
   }
@@ -318,6 +323,7 @@ export function StudioVideo({ brandId }) {
               label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
             <Box sx={{ flex: 1 }} />
             {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
+            <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
               {generating ? 'Enviando…' : 'Gerar vídeo'}
