@@ -3,26 +3,33 @@
 // Os melhores/mais usados da geração de imagem em 2026 (benchmark fal.ai).
 export const IMAGE_MODELS = [
   // ── Mais usados ──
-  { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini)', group: 'Mais usados',          refs: true  },
-  { id: 'openai/gpt-image-2',                           label: 'GPT Image 2 (OpenAI)', group: 'Mais usados',          refs: true  },
-  { id: 'fal-ai/bytedance/seedream/v4/text-to-image',   label: 'Seedream 4.0',         group: 'Mais usados',          refs: true  },
-  { id: 'fal-ai/flux-pro/v1.1',                         label: 'Flux Pro 1.1',         group: 'Mais usados',          refs: false },
-  // ── Fotorrealismo ──
-  { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'Flux Pro 1.1 Ultra',   group: 'Fotorrealismo',        refs: false },
-  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',         group: 'Fotorrealismo',        refs: true  },
-  { id: 'fal-ai/flux/dev',                              label: 'Flux.1 dev',           group: 'Fotorrealismo',        refs: false },
+  { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro (Gemini)', group: 'Mais usados',           refs: true  },
+  { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', group: 'Mais usados',           refs: true  },
+  { id: 'openai/gpt-image-2',                           label: 'GPT Image 2 (OpenAI)',     group: 'Mais usados',           refs: true  },
+  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             group: 'Mais usados',           refs: true  },
+  { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             group: 'Mais usados',           refs: true  },
+  // ── Fotorrealismo & edição ──
+  { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'FLUX Pro 1.1 Ultra',       group: 'Fotorrealismo & edição', refs: false },
+  { id: 'fal-ai/flux-pro/v1.1',                         label: 'FLUX Pro 1.1',             group: 'Fotorrealismo & edição', refs: false },
+  { id: 'fal-ai/flux-pro/kontext',                      label: 'FLUX.1 Kontext [pro]',     group: 'Fotorrealismo & edição', refs: true  },
+  { id: 'fal-ai/bytedance/seedream/v4/text-to-image',   label: 'Seedream 4.0',             group: 'Fotorrealismo & edição', refs: true  },
+  // ── Rápidos & open ──
+  { id: 'fal-ai/flux/dev',                              label: 'FLUX.1 dev',               group: 'Rápidos & open',         refs: false },
+  { id: 'fal-ai/flux/schnell',                          label: 'FLUX.1 schnell (rápido)',  group: 'Rápidos & open',         refs: false },
+  { id: 'fal-ai/qwen-image',                            label: 'Qwen Image',               group: 'Rápidos & open',         refs: true  },
   // ── Design & tipografia ──
-  { id: 'fal-ai/ideogram/v2',                           label: 'Ideogram v2',          group: 'Design & tipografia',  refs: false },
-  { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',           group: 'Design & tipografia',  refs: false },
+  { id: 'fal-ai/ideogram/v3',                           label: 'Ideogram v3',              group: 'Design & tipografia',    refs: false },
+  { id: 'fal-ai/ideogram/v2',                           label: 'Ideogram v2',              group: 'Design & tipografia',    refs: false },
+  { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               group: 'Design & tipografia',    refs: false },
   // ── Automático (usado pelo Workflow) ──
-  { id: 'auto',                                         label: 'Auto (LOUDR escolhe)', group: 'Automático',           refs: true  },
+  { id: 'auto',                                         label: 'Auto (LOUDR escolhe)',     group: 'Automático',             refs: true  },
 ]
 
 // Default da tela de Imagem.
 export const DEFAULT_IMAGE_MODEL = 'fal-ai/gemini-25-flash-image'
 
 // Ordem das seções no seletor (sem 'Automático' — só faz sentido no Workflow).
-export const IMAGE_MODEL_GROUPS = ['Mais usados', 'Fotorrealismo', 'Design & tipografia']
+export const IMAGE_MODEL_GROUPS = ['Mais usados', 'Fotorrealismo & edição', 'Rápidos & open', 'Design & tipografia']
 
 // 'auto' resolve no servidor (DEFAULT_MODEL). Enviamos null para o backend decidir.
 export const resolveModel = m => (m && m !== 'auto' ? m : null)

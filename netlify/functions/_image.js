@@ -10,15 +10,9 @@ const FAL_BASE = 'https://queue.fal.run'
 
 export const DEFAULT_MODEL = process.env.FAL_IMAGE_MODEL || 'fal-ai/gemini-25-flash-image'
 
-// Catálogo curado — só para UX (nomes amigáveis + quais aceitam referência).
-// Qualquer id do fal funciona via "ID custom" no frontend.
-export const IMAGE_MODELS = [
-  { id: 'fal-ai/gemini-25-flash-image', label: 'Nano Banana (Gemini)', refs: true  },
-  { id: 'fal-ai/flux/dev',              label: 'Flux dev',             refs: false },
-  { id: 'fal-ai/flux-pro/v1.1',         label: 'Flux Pro 1.1',         refs: false },
-  { id: 'fal-ai/ideogram/v2',           label: 'Ideogram v2 (texto)',  refs: false },
-  { id: 'fal-ai/recraft-v3',            label: 'Recraft v3 (design)',  refs: false },
-]
+// Catálogo curado de UX vive em src/lib/studioModels.js (fonte única do seletor).
+// Qualquer id do fal funciona via "ID custom" no frontend — este arquivo só cuida
+// do roteamento de endpoint (text-to-image vs. edição/i2i no mapa I2I abaixo).
 
 export const falConfigured = () => !!FAL_KEY
 
@@ -29,13 +23,23 @@ function authHeaders() {
 // Mapa de image-to-image por modelo: cada um tem seu endpoint e campo de imagem.
 // `field: 'image_url'` = singular (usa só a 1ª referência); 'image_urls' = array.
 const I2I = {
+  // Google / Gemini (Nano Banana) — endpoints de edição dedicados, multi-referência
+  'fal-ai/nano-banana-pro':                       { endpoint: 'fal-ai/nano-banana-pro/edit',                field: 'image_urls' },
   'fal-ai/gemini-25-flash-image':                 { endpoint: 'fal-ai/gemini-25-flash-image/edit',          field: 'image_urls' },
+  // OpenAI
   'openai/gpt-image-2':                           { endpoint: 'openai/gpt-image-2/edit',                    field: 'image_urls' },
+  // ByteDance Seedream
   'fal-ai/bytedance/seedream/v4/text-to-image':   { endpoint: 'fal-ai/bytedance/seedream/v4/edit',          field: 'image_urls' },
   'fal-ai/bytedance/seedream/v4.5/text-to-image': { endpoint: 'fal-ai/bytedance/seedream/v4.5/edit',        field: 'image_urls' },
+  // FLUX — kontext e flux-2-pro já aceitam imagem no mesmo endpoint (mapeia p/ si)
+  'fal-ai/flux-2-pro':                            { endpoint: 'fal-ai/flux-2-pro',                          field: 'image_urls' },
+  'fal-ai/flux-pro/kontext':                      { endpoint: 'fal-ai/flux-pro/kontext',                    field: 'image_url'  },
   'fal-ai/flux/dev':                              { endpoint: 'fal-ai/flux/dev/image-to-image',             field: 'image_url'  },
   'fal-ai/flux-pro/v1.1':                         { endpoint: 'fal-ai/flux-pro/v1.1/redux',                 field: 'image_url'  },
   'fal-ai/flux-pro/v1.1-ultra':                   { endpoint: 'fal-ai/flux-pro/v1.1-ultra/redux',           field: 'image_url'  },
+  // Qwen
+  'fal-ai/qwen-image':                            { endpoint: 'fal-ai/qwen-image-edit',                     field: 'image_url'  },
+  // Design & tipografia
   'fal-ai/ideogram/v2':                           { endpoint: 'fal-ai/ideogram/v2/remix',                   field: 'image_url'  },
   'fal-ai/recraft-v3':                            { endpoint: 'fal-ai/recraft/v3/image-to-image',           field: 'image_url'  },
 }

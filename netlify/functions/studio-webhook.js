@@ -4,8 +4,7 @@
 // Idempotente por provider_request_id. Spec: studio.md §1
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
-import { firstImageUrl } from './_image.js'
-import { finalizeGeneration, failGeneration, findGenerationByRequest } from './_studio.js'
+import { finalizeGeneration, failGeneration, findGenerationByRequest, extractMediaUrl } from './_studio.js'
 
 const ok = { statusCode: 200, body: 'ok' }
 
@@ -32,7 +31,7 @@ export const handler = async (event) => {
     return ok
   }
 
-  const imageUrl = firstImageUrl(body.payload)
-  await finalizeGeneration(supabase, gen, imageUrl)
+  const mediaUrl = extractMediaUrl(body.payload, gen.media_type)
+  await finalizeGeneration(supabase, gen, mediaUrl)
   return ok
 }
