@@ -36,6 +36,8 @@ import GroupWorkOutlinedIcon from '@mui/icons-material/GroupWorkOutlined'
 import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
+import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
@@ -49,7 +51,7 @@ import { PageHeader } from '../../components/shell/PageHeader'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel } from '../../lib/studioModels'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 
-const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A', INDIGO = '#6C4BE0'
+const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A', INDIGO = '#6C4BE0', AMBER = '#E0B33A'
 const isVideoUrl = u => /\.(mp4|webm|mov)(\?|$)/i.test(u || '')
 const FORMATOS = [
   { v: '1:1',  label: 'Feed 1:1' },
@@ -111,6 +113,19 @@ const PromptNode = memo(({ id, data, selected }) => (
         {data.improving ? 'Melhorando…' : 'Melhorar'}
       </Button>
     </Stack>
+  </NodeShell>
+))
+
+// Contexto — texto longo livre que complementa o prompt (tema, briefing, referências
+// conceituais). Conectado a um Gerar/Vídeo, entra como [CONTEXTO ADICIONAL] no prompt.
+const ContextNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={AMBER} title="Contexto" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
+    <TextField
+      value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
+      placeholder="Contexto extra para compor o prompt: tema, briefing, público, restrições, referências conceituais…"
+      multiline fullWidth size="small" className="nodrag"
+      sx={{ flex: 1, minHeight: 0, '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' }, '& textarea': { height: '100% !important', fontSize: 12, overflow: 'auto !important' } }}
+    />
   </NodeShell>
 ))
 
@@ -299,6 +314,8 @@ const GroupNode = memo(({ id, data, selected }) => (
 const VideoGenNode = memo(({ id, data, selected }) => {
   const mk = data.model || DEFAULT_VIDEO_MODEL
   const m  = videoModelByKey(mk)
+  const [adjOpen, setAdjOpen] = useState(false)
+  const adjusting = data.status === 'running'
   return (
     <NodeShell id={id} color={INDIGO} title="Vídeo" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
       <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
@@ -340,6 +357,9 @@ const VideoGenNode = memo(({ id, data, selected }) => {
               <Tooltip title="Reprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'down')}>
                 {data.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 14, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />}
               </IconButton></Tooltip>
+              <Tooltip title="Ajustar (retoque sutil + reajustar)"><IconButton size="small" onClick={() => setAdjOpen(o => !o)}>
+                <TuneOutlinedIcon sx={{ fontSize: 15, color: adjOpen || data.adjust ? AMBER : 'inherit' }} />
+              </IconButton></Tooltip>
               <Box sx={{ flex: 1 }} />
               <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}><DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
               <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
@@ -348,6 +368,20 @@ const VideoGenNode = memo(({ id, data, selected }) => {
                 </IconButton></span>
               </Tooltip>
             </Stack>
+            {adjOpen && (
+              <Stack spacing={0.5} className="nodrag" sx={{ flexShrink: 0, pt: 0.25 }}>
+                <TextField value={data.adjust || ''} onChange={e => data.onChange(id, { adjust: e.target.value })}
+                  placeholder="Ajuste pontual: ex. 'luz um pouco mais quente', 'movimento mais lento'…"
+                  multiline minRows={2} maxRows={4} fullWidth size="small"
+                  sx={{ '& textarea': { fontSize: 11 } }} />
+                <Button size="small" variant="contained" disabled={adjusting || !(data.adjust || '').trim()}
+                  startIcon={adjusting ? <CircularProgress size={11} sx={{ color: '#fff' }} /> : <ReplayIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => data.onRegen?.(id)}
+                  sx={{ alignSelf: 'flex-end', fontSize: 10, fontWeight: 700, bgcolor: AMBER, color: '#000', py: 0.25, '&:hover': { bgcolor: '#CDA02F' } }}>
+                  {adjusting ? 'Reajustando…' : 'Reajustar'}
+                </Button>
+              </Stack>
+            )}
           </>
         ) : (
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 1 }}>
@@ -363,7 +397,7 @@ const VideoGenNode = memo(({ id, data, selected }) => {
   )
 })
 
-const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, videoGen: VideoGenNode, note: NoteNode, group: GroupNode }
+const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, context: ContextNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, videoGen: VideoGenNode, note: NoteNode, group: GroupNode }
 
 // Nós que produzem imagem (podem alimentar apps/generates a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
@@ -380,6 +414,7 @@ const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url]
 // Paleta de nós que podem ser adicionados ao canvas (novo workflow = canvas em branco)
 const NODE_TEMPLATES = [
   { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
+  { type: 'context',      label: 'Contexto',     data: { text: '' }, style: { width: 280, height: 220 } },
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
   { type: 'generate',     label: 'Gerar',        data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
   { type: 'videoGen',     label: 'Vídeo',        data: { status: 'idle', model: DEFAULT_VIDEO_MODEL, duration: videoModelByKey(DEFAULT_VIDEO_MODEL)?.defaultDuration } },
@@ -479,12 +514,13 @@ export function StudioCanvas({ brandId, workflowId }) {
       const session = (await supabase.auth.getSession()).data.session
       const res = await fetch('/.netlify/functions/studio-prompt', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ brand_id: brandId, idea, use_brand: useBrand }),
+        body: JSON.stringify({ brand_id: brandId, idea, use_brand: useBrand, model: 'haiku', max_chars: 250 }),
       })
       const j = await res.json()
       updateNodeData(id, { improving: false, ...(res.ok && j.prompt ? { text: j.prompt } : {}) })
+      if (res.ok && j.prompt) setMsg('Prompt melhorado — confira se faz sentido com o direcionamento da peça.')
     } catch { updateNodeData(id, { improving: false }) }
-  }, [brandId, updateNodeData])
+  }, [brandId, updateNodeData, setMsg])
 
   // Votação/aprovação da peça do nó → studio_generations.feedback (RLS for all).
   const votePiece = useCallback(async (id, genId, voto) => {
@@ -567,7 +603,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const style = (n.type !== 'group' && !n.style?.width) ? { ...sizeFor(n.type), ...(n.style || {}) } : n.style
     if (n.type === 'group') { data.onChange = updateNodeData; data.onUngroup = ungroup; data.onDelete = deleteGroup; data.onResize = markDirty; return { ...n, data } }
     data.onDelete = deleteNode; data.onDuplicate = duplicateNode; data.onResize = markDirty
-    if (['prompt', 'formato', 'generate', 'videoGen', 'note'].includes(n.type)) data.onChange = updateNodeData
+    if (['prompt', 'context', 'formato', 'generate', 'videoGen', 'note'].includes(n.type)) data.onChange = updateNodeData
     if (n.type === 'prompt') data.onImprove = improvePrompt
     if (['generate', 'videoGen', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
     if (['preview', 'app', 'videoGen'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
@@ -727,6 +763,8 @@ export function StudioCanvas({ brandId, workflowId }) {
     const promptNode  = ins.find(n => n.type === 'prompt')
     const formatoNode = ins.find(n => n.type === 'formato')
     const brandNodes  = ins.filter(n => n.type === 'brandContext')
+    const contextNodes = ins.filter(n => n.type === 'context')
+    const context = contextNodes.map(n => (n.data?.text || '').trim()).filter(Boolean).join('\n\n')
     const previewNode = nodes.find(n => n.type === 'preview' && edges.some(e => e.source === genId && e.target === n.id))
     // Faceta da marca por nó conectado (Brand Voice → verbal, Brand Visual → visual)
     const brandFacets = []
@@ -735,9 +773,15 @@ export function StudioCanvas({ brandId, workflowId }) {
     return {
       prompt: (promptNode?.data?.text || '').trim(),
       formato: formatoNode?.data?.formato || '1:1',
-      hasBrand: brandNodes.length > 0, brandFacets, previewNodeId: previewNode?.id,
+      hasBrand: brandNodes.length > 0, brandFacets, context, previewNodeId: previewNode?.id,
     }
   }
+  // Junta prompt + contexto extra (nós Contexto) num único texto para o backend
+  const withContext = (prompt, context) => context ? `${prompt}\n\n[CONTEXTO ADICIONAL]\n${context}` : prompt
+  // Ajuste fino do vídeo: reaproveita os mesmos inputs e pede só o retoque pontual
+  const withAdjust = (prompt, adjust) => adjust
+    ? `${prompt}\n\n[AJUSTE FINO]\nMantenha o vídeo praticamente igual (mesma cena, composição e movimento); ajuste apenas, de forma sutil: ${adjust}`
+    : prompt
 
   // Nó produtor de imagem conectado à entrada de um nó (encadeamento)
   function imageUpstreamOf(nodeId) {
@@ -768,7 +812,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   // ctx = { outputs, auth, dispatched }
   async function dispatchGenerateNode(g, ctx) {
     const { outputs, auth, dispatched } = ctx
-    const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
+    const { prompt, formato, hasBrand, brandFacets, context, previewNodeId } = inputsFor(g.id)
     if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
     const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
@@ -776,7 +820,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: withContext(prompt, context), formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
@@ -800,7 +844,7 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   async function dispatchVideoNode(v, ctx) {
     const { outputs, auth, dispatched } = ctx
-    const { prompt, hasBrand, brandFacets } = inputsFor(v.id)
+    const { prompt, hasBrand, brandFacets, context } = inputsFor(v.id)
     if (!prompt) { updateNodeData(v.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(v.id); return null }
     const mk = v.data?.model || DEFAULT_VIDEO_MODEL
     const m = videoModelByKey(mk)
@@ -814,7 +858,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     updateNodeData(v.id, { status: 'running', error: null, outputUrl: null })
     try {
       const res = await fetch('/.netlify/functions/studio-generate-video', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: v.id, prompt, model: mk, use_brand: hasBrand, brand_facets: brandFacets,
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: v.id, prompt: withAdjust(withContext(prompt, context), (v.data?.adjust || '').trim()), model: mk, use_brand: hasBrand, brand_facets: brandFacets,
           image_url: m?.modes.includes('i2v') ? imageUrl : null, duration: m?.durations ? duration : undefined }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(v.id)
@@ -1058,6 +1102,7 @@ export function StudioCanvas({ brandId, workflowId }) {
           </Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
           <Tooltip title="Prompt" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'prompt'))}><TextFieldsIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
+          <Tooltip title="Contexto" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'context'))}><NotesOutlinedIcon sx={{ fontSize: 19, color: AMBER }} /></IconButton></Tooltip>
           <Tooltip title="Gerar" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'generate'))}><AutoFixHighOutlinedIcon sx={{ fontSize: 19, color: TEAL }} /></IconButton></Tooltip>
           <Tooltip title="Vídeo" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'videoGen'))}><MovieOutlinedIcon sx={{ fontSize: 19, color: INDIGO }} /></IconButton></Tooltip>
           <Tooltip title="Imagem (upload)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'imageInput'))}><ImageOutlinedIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>

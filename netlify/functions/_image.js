@@ -44,6 +44,15 @@ const I2I = {
   'fal-ai/recraft-v3':                            { endpoint: 'fal-ai/recraft/v3/image-to-image',           field: 'image_url'  },
 }
 
+// Endpoints de edição (i2i) que aceitam `aspect_ratio` no modo edição (família
+// Gemini/Nano Banana — verificado: respeita 16:9 mesmo com referência). Os demais
+// modelos inferem o tamanho da imagem de entrada (Seedream/GPT/Qwen/Flux usam
+// `image_size`, e mandar aspect_ratio neles daria 422).
+const EDIT_ACCEPTS_ASPECT = new Set([
+  'fal-ai/gemini-25-flash-image',
+  'fal-ai/nano-banana-pro',
+])
+
 const wantsEditMode = (references, mode) => (references && references.length > 0) || ['edit', 'variation', 'adapt'].includes(mode)
 const ALREADY_I2I = /\/(edit|image-to-image|redux|remix)$/
 
@@ -79,8 +88,10 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   } else {
     const hasRefs = references?.length > 0
     body = { prompt, num_images: 1 }
-    // No modo edição o tamanho é inferido da imagem de entrada → não força aspect_ratio
-    if (format && !hasRefs) body.aspect_ratio = format       // "1:1" | "9:16" | "16:9"
+    // Em t2i sempre envia aspect_ratio. Em edição (com referência), só para os
+    // modelos que aceitam — senão o tamanho é inferido da imagem de entrada.
+    const sendAspect = format && (!hasRefs || EDIT_ACCEPTS_ASPECT.has(model || DEFAULT_MODEL))
+    if (sendAspect) body.aspect_ratio = format               // "1:1" | "9:16" | "16:9"
     if (hasRefs) {
       const field = imageField(model)
       if (field === 'image_url') body.image_url = references[0]   // endpoint singular

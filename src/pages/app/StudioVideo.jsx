@@ -8,6 +8,8 @@ import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import ReplayIcon from '@mui/icons-material/Replay'
 import CloseIcon from '@mui/icons-material/Close'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
 import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined'
@@ -18,7 +20,7 @@ import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A'
+const TEAL = '#0D9E7A', CORAL = '#E8185A', AMBER = '#E0B33A'
 const ARMAP = { '16:9': '16 / 9', '9:16': '9 / 16', '1:1': '1 / 1', '4:5': '4 / 5' }
 
 export function StudioVideo({ brandId }) {
@@ -33,6 +35,9 @@ export function StudioVideo({ brandId }) {
   const [saved, setSaved] = useState({})
   const [saving, setSaving] = useState({})
   const [voting, setVoting] = useState({})
+  const [adjOpen, setAdjOpen] = useState({})      // id -> campo de ajuste aberto
+  const [adjText, setAdjText] = useState({})      // id -> texto do ajuste
+  const [adjusting, setAdjusting] = useState({})  // id -> reajuste em andamento
   const [generating, setGenerating] = useState(false)
   const [improving, setImproving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -100,24 +105,55 @@ export function StudioVideo({ brandId }) {
     if (!prompt.trim()) return setMsg('Escreva um prompt.')
     if (i2vOnly && !srcUrl) return setMsg('Este modelo precisa de uma imagem de origem (image-to-video).')
     setMsg(''); setGenerating(true)
+    // params usados — guardados no item p/ permitir reajuste fiel depois
+    const params = { model: modelKey, prompt: prompt.trim(), srcUrl: supportsI2V ? srcUrl : null, duration: model?.durations ? duration : null, aspect, useBrand }
     const { data: { session } } = await supabase.auth.getSession()
     try {
       const res = await fetch('/.netlify/functions/studio-generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
-          brand_id: brandId, prompt: prompt.trim(), model: modelKey, use_brand: useBrand,
-          image_url: supportsI2V ? srcUrl : null,
+          brand_id: brandId, prompt: params.prompt, model: modelKey, use_brand: useBrand,
+          image_url: params.srcUrl,
           duration: model?.durations ? duration : undefined,
           aspect_ratio: model?.aspects && !srcUrl ? aspect : undefined,
         }),
       })
       const j = await res.json()
       if (!res.ok) { setMsg(j.error || `Erro ${res.status}`); setGenerating(false); return }
-      setItems(prev => [{ id: j.generation_id, status: 'processing', image_url: null, formato: aspect }, ...prev])
+      setItems(prev => [{ id: j.generation_id, status: 'processing', image_url: null, formato: aspect, params }, ...prev])
       ensurePolling()
     } catch (e) { setMsg(e.message) }
     setGenerating(false)
+  }
+
+  // Reajuste fino: re-roda com os MESMOS params do item + instrução de retoque sutil
+  async function reajustar(item) {
+    const txt = (adjText[item.id] || '').trim()
+    if (!txt || !item.params) return
+    setAdjusting(a => ({ ...a, [item.id]: true })); setMsg('')
+    const p = item.params
+    const m = videoModelByKey(p.model)
+    const promptFinal = `${p.prompt}\n\n[AJUSTE FINO]\nMantenha o vídeo praticamente igual (mesma cena, composição e movimento); ajuste apenas, de forma sutil: ${txt}`
+    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const res = await fetch('/.netlify/functions/studio-generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          brand_id: brandId, prompt: promptFinal, model: p.model, use_brand: p.useBrand,
+          image_url: m?.modes.includes('i2v') ? p.srcUrl : null,
+          duration: m?.durations ? p.duration : undefined,
+          aspect_ratio: m?.aspects && !p.srcUrl ? p.aspect : undefined,
+        }),
+      })
+      const j = await res.json()
+      if (!res.ok) { setMsg(j.error || `Erro ${res.status}`); setAdjusting(a => ({ ...a, [item.id]: false })); return }
+      setItems(prev => [{ id: j.generation_id, status: 'processing', image_url: null, formato: p.aspect, params: p }, ...prev])
+      setAdjOpen(o => ({ ...o, [item.id]: false }))
+      ensurePolling()
+    } catch (e) { setMsg(e.message) }
+    setAdjusting(a => ({ ...a, [item.id]: false }))
   }
 
   async function melhorarPrompt() {
@@ -131,7 +167,8 @@ export function StudioVideo({ brandId }) {
         body: JSON.stringify({ brand_id: brandId, idea: prompt.trim(), use_brand: useBrand }),
       })
       const j = await res.json()
-      if (res.ok && j.prompt) setPrompt(j.prompt); else setMsg(j.error || `Erro ${res.status}`)
+      if (res.ok && j.prompt) { setPrompt(j.prompt); setMsg('Prompt melhorado — confira se faz sentido com o direcionamento da peça.') }
+      else setMsg(j.error || `Erro ${res.status}`)
     } catch (e) { setMsg(e.message) }
     setImproving(false)
   }
@@ -254,7 +291,7 @@ export function StudioVideo({ brandId }) {
               control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
               label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
             <Box sx={{ flex: 1 }} />
-            {msg && <Typography sx={{ fontSize: 13, color: CORAL }}>{msg}</Typography>}
+            {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
               {generating ? 'Enviando…' : 'Gerar vídeo'}
@@ -298,6 +335,11 @@ export function StudioVideo({ brandId }) {
                       <Tooltip title="Reprovar"><span><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'down')}>
                         {p.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 16, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 16 }} />}
                       </IconButton></span></Tooltip>
+                      {p.params && (
+                        <Tooltip title="Ajustar (retoque sutil + reajustar)"><IconButton size="small" onClick={() => setAdjOpen(o => ({ ...o, [p.id]: !o[p.id] }))}>
+                          <TuneOutlinedIcon sx={{ fontSize: 16, color: adjOpen[p.id] || adjText[p.id] ? AMBER : 'inherit' }} />
+                        </IconButton></Tooltip>
+                      )}
                       <Box sx={{ flex: 1 }} />
                       <Tooltip title="Baixar"><IconButton size="small" onClick={() => downloadVideo(p.image_url)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                       <Tooltip title={saved[p.id] ? 'Salvo nos assets' : 'Salvar nos assets'}>
@@ -306,6 +348,19 @@ export function StudioVideo({ brandId }) {
                         </IconButton></span>
                       </Tooltip>
                     </Box>
+                  )}
+                  {done && p.params && adjOpen[p.id] && (
+                    <Stack spacing={0.75} sx={{ px: 1, pb: 1 }}>
+                      <TextField value={adjText[p.id] || ''} onChange={e => setAdjText(t => ({ ...t, [p.id]: e.target.value }))}
+                        placeholder="Ajuste pontual: ex. 'luz mais quente', 'movimento mais lento no fim'…"
+                        multiline minRows={2} maxRows={4} fullWidth size="small" sx={{ '& .MuiInputBase-input': { fontSize: 12 } }} />
+                      <Button size="small" variant="contained" disabled={adjusting[p.id] || !(adjText[p.id] || '').trim()}
+                        startIcon={adjusting[p.id] ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <ReplayIcon sx={{ fontSize: 15 }} />}
+                        onClick={() => reajustar(p)}
+                        sx={{ alignSelf: 'flex-end', fontWeight: 800, bgcolor: AMBER, color: '#000', '&:hover': { bgcolor: '#CDA02F' } }}>
+                        {adjusting[p.id] ? 'Reajustando…' : 'Reajustar'}
+                      </Button>
+                    </Stack>
                   )}
                 </Paper>
               )

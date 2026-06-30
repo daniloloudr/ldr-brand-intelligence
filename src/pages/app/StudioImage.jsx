@@ -170,7 +170,7 @@ export function StudioImage({ brandId }) {
         body: JSON.stringify({ brand_id: brandId, idea: prompt.trim(), use_brand: useBrand }),
       })
       const j = await res.json()
-      if (res.ok && j.prompt) setPrompt(j.prompt)
+      if (res.ok && j.prompt) { setPrompt(j.prompt); setMsg('Prompt melhorado — confira se faz sentido com o direcionamento da peça.') }
       else setMsg(j.error || `Erro ${res.status}`)
     } catch (e) { setMsg(e.message) }
     setImproving(false)
@@ -304,7 +304,7 @@ export function StudioImage({ brandId }) {
               control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
               label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
             <Box sx={{ flex: 1 }} />
-            {msg && <Typography sx={{ fontSize: 13, color: CORAL }}>{msg}</Typography>}
+            {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
               {generating ? 'Gerando…' : 'Gerar'}
