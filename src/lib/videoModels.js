@@ -8,10 +8,10 @@ export const VIDEO_MODELS = [
   { key: 'veo3',          label: 'Google Veo 3',        group: 'Premium',  modes: ['t2v'],        durations: ['4s', '6s', '8s'], defaultDuration: '8s', aspects: ['16:9', '9:16'], nota: 'Topo de qualidade, áudio nativo — o mais caro' },
   { key: 'veo3-fast',     label: 'Veo 3 Fast',          group: 'Premium',  modes: ['t2v'],        durations: ['4s', '6s', '8s'], defaultDuration: '6s', aspects: ['16:9', '9:16'], nota: 'Veo 3 mais rápido e barato' },
   // ── Popular ──
-  { key: 'kling-25-turbo', label: 'Kling 2.5 Turbo Pro', group: 'Popular', modes: ['i2v'],        durations: ['5', '10'], defaultDuration: '5', aspects: null, nota: 'Imagem→vídeo de alta qualidade' },
-  { key: 'hailuo-02',     label: 'Hailuo 02',           group: 'Popular',  modes: ['t2v', 'i2v'], durations: ['6', '10'], defaultDuration: '6', aspects: null, nota: 'Movimento expressivo, bom custo' },
+  { key: 'kling-25-turbo', label: 'Kling 2.5 Turbo Pro', group: 'Popular', modes: ['i2v'],        durations: ['5', '10'], defaultDuration: '5', aspects: null, endFrame: true, nota: 'Imagem→vídeo de alta qualidade · suporta frame final' },
+  { key: 'hailuo-02',     label: 'Hailuo 02',           group: 'Popular',  modes: ['t2v', 'i2v'], durations: ['6', '10'], defaultDuration: '6', aspects: null, endFrame: true, nota: 'Movimento expressivo, bom custo · suporta frame final' },
   // ── Versátil ──
-  { key: 'seedance-1-pro', label: 'Seedance 1.0 Pro',   group: 'Versátil', modes: ['t2v', 'i2v'], durations: ['5', '10'], defaultDuration: '5', aspects: ['16:9', '9:16', '1:1'], nota: 'Rápido e econômico, t2v e i2v' },
+  { key: 'seedance-1-pro', label: 'Seedance 1.0 Pro',   group: 'Versátil', modes: ['t2v', 'i2v'], durations: ['5', '10'], defaultDuration: '5', aspects: ['16:9', '9:16', '1:1'], endFrame: true, nota: 'Rápido e econômico · suporta frame final' },
   { key: 'wan-22',        label: 'Wan 2.2',             group: 'Versátil', modes: ['t2v', 'i2v'], durations: null, defaultDuration: null, aspects: ['16:9', '9:16', '1:1'], nota: 'Open, duração padrão (~5s)' },
 ]
 

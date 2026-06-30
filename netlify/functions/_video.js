@@ -23,17 +23,17 @@ export const VIDEO_MODELS = {
   },
   'kling-25-turbo': {
     i2v: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video',
-    durations: ['5', '10'], aspects: null,
+    durations: ['5', '10'], aspects: null, endField: 'tail_image_url',   // frame final
   },
   'hailuo-02': {
     t2v: 'fal-ai/minimax/hailuo-02/standard/text-to-video',
     i2v: 'fal-ai/minimax/hailuo-02/standard/image-to-video',
-    durations: ['6', '10'], aspects: null,
+    durations: ['6', '10'], aspects: null, endField: 'end_image_url',
   },
   'seedance-1-pro': {
     t2v: 'fal-ai/bytedance/seedance/v1/pro/text-to-video',
     i2v: 'fal-ai/bytedance/seedance/v1/pro/image-to-video',
-    durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'],
+    durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'], endField: 'end_image_url',
   },
   'wan-22': {
     t2v: 'fal-ai/wan/v2.2-a14b/text-to-video',
@@ -43,6 +43,7 @@ export const VIDEO_MODELS = {
 }
 
 export const falVideoConfigured = () => !!FAL_KEY
+export const videoSupportsEndFrame = modelKey => !!VIDEO_MODELS[modelKey]?.endField
 
 function authHeaders() {
   return { 'Authorization': `Key ${FAL_KEY}`, 'Content-Type': 'application/json' }
@@ -57,10 +58,12 @@ export function videoEndpoint(modelKey, { hasImage } = {}) {
 }
 
 /** Monta o input adaptado aos params que cada família aceita. */
-function buildVideoInput(modelKey, { prompt, imageUrl, duration, aspectRatio }) {
+function buildVideoInput(modelKey, { prompt, imageUrl, endImageUrl, duration, aspectRatio }) {
   const m = VIDEO_MODELS[modelKey] || {}
   const input = { prompt }
   if (imageUrl) input.image_url = imageUrl
+  // frame final (interpolação início→fim) — só se o modelo suporta E há frame inicial
+  if (endImageUrl && imageUrl && m.endField) input[m.endField] = endImageUrl
   // só envia duration se o modelo declara valores e o pedido bate com um deles
   if (m.durations && duration && m.durations.includes(String(duration))) input.duration = String(duration)
   // aspect_ratio só quando o modelo suporta e não há imagem ditando o enquadramento
@@ -72,11 +75,11 @@ function buildVideoInput(modelKey, { prompt, imageUrl, duration, aspectRatio }) 
  * Submete um job de vídeo na fila do fal (mesma mecânica do _image.js).
  * Retorna { request_id, status_url, response_url, model (endpoint) }.
  */
-export async function submitVideoJob({ modelKey, prompt, imageUrl, duration, aspectRatio, webhookUrl }) {
+export async function submitVideoJob({ modelKey, prompt, imageUrl, endImageUrl, duration, aspectRatio, webhookUrl }) {
   const endpoint = videoEndpoint(modelKey, { hasImage: !!imageUrl })
   if (!endpoint) throw new Error(`Modelo de vídeo desconhecido ou modo não suportado: ${modelKey}`)
 
-  const body = buildVideoInput(modelKey, { prompt, imageUrl, duration, aspectRatio })
+  const body = buildVideoInput(modelKey, { prompt, imageUrl, endImageUrl, duration, aspectRatio })
   const url = webhookUrl
     ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`
     : `${FAL_BASE}/${endpoint}`

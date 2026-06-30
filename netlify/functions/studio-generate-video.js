@@ -4,7 +4,7 @@
 // para os modelos de vídeo (t2v/i2v) via _video.js. Spec: studio.md §Vídeo
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
-import { falVideoConfigured, VIDEO_MODELS } from './_video.js'
+import { falVideoConfigured, VIDEO_MODELS, videoSupportsEndFrame } from './_video.js'
 import { resolveBrandContext, submitVideoGeneration } from './_studio.js'
 
 const headers = {
@@ -32,7 +32,7 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, workflow_id, node_id, prompt, model, image_url = null, duration, aspect_ratio, brand_facets } = body
+  const { brand_id, workflow_id, node_id, prompt, model, image_url = null, end_image_url = null, duration, aspect_ratio, brand_facets } = body
   const useBrand = body.use_brand !== false
   const facets = Array.isArray(brand_facets) && brand_facets.length
     ? { verbal: brand_facets.includes('verbal'), visual: brand_facets.includes('visual') }
@@ -46,6 +46,9 @@ export const handler = async (event) => {
   const m = VIDEO_MODELS[model]
   if (image_url && !m.i2v) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Este modelo não aceita imagem de origem (image-to-video)' }) }
   if (!image_url && !m.t2v) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Este modelo exige uma imagem de origem (image-to-video)' }) }
+  // frame final: exige modelo compatível + frame inicial
+  const endImageUrl = end_image_url && image_url && videoSupportsEndFrame(model) ? end_image_url : null
+  if (end_image_url && !endImageUrl) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Frame final requer um modelo compatível (Kling/Hailuo/Seedance) e um frame inicial' }) }
 
   // Brand → workspace (fonte autoritativa)
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
@@ -78,7 +81,7 @@ export const handler = async (event) => {
 
   const { gen, request_id, error } = await submitVideoGeneration(supabase, {
     workspace_id, brand_id, workflow_id, node_id,
-    promptFinal, snapshot, modelKey: model, imageUrl: image_url, duration, aspectRatio: aspect_ratio,
+    promptFinal, snapshot, modelKey: model, imageUrl: image_url, endImageUrl, duration, aspectRatio: aspect_ratio,
   })
   if (error) return { statusCode: 502, headers, body: JSON.stringify({ error }) }
 

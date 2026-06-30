@@ -49,6 +49,7 @@ export function StudioImage({ brandId }) {
   const [improving, setImproving] = useState(false)
   const [voting, setVoting] = useState({})        // id -> bool
   const [lightbox, setLightbox] = useState(null)  // url da imagem aberta em tela cheia
+  const [broken, setBroken] = useState({})        // ids de imagens que falharam ao carregar (404) → ocultas
 
   const fileRef = useRef(null)
   const pollRef = useRef(null)
@@ -216,6 +217,9 @@ export function StudioImage({ brandId }) {
     if (!error) setSaved(s => ({ ...s, [p.id]: true }))
   }
 
+  // Galeria visível: oculta gerações com erro e imagens que não carregam (404)
+  const visibleItems = items.filter(p => p.status !== 'error' && !broken[p.id])
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
       <PageHeader title="Studio" subtitle="Geração de imagem" />
@@ -315,7 +319,7 @@ export function StudioImage({ brandId }) {
         {/* Galeria persistente */}
         {loading ? (
           <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
             <ImageOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
             <Typography variant="h6" fontWeight={900}>Nenhuma imagem ainda</Typography>
@@ -325,7 +329,7 @@ export function StudioImage({ brandId }) {
           </Stack>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
-            {items.map(p => {
+            {visibleItems.map(p => {
               const done = p.status === 'done' && p.image_url
               return (
               <Paper key={p.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
@@ -334,9 +338,9 @@ export function StudioImage({ brandId }) {
                   onClick={() => done && setLightbox(p.image_url)}
                   sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: done ? 'zoom-in' : 'default' }}>
                   {done
-                    ? <Box component="img" src={p.image_url} alt="" loading="lazy" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    : p.status === 'error'
-                    ? <Typography sx={{ fontSize: 11, color: CORAL, px: 2, textAlign: 'center' }}>{p.error || 'erro'}</Typography>
+                    ? <Box component="img" src={p.image_url} alt="" loading="lazy"
+                        onError={() => setBroken(b => ({ ...b, [p.id]: true }))}
+                        sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
                 </Box>
                 {done && (

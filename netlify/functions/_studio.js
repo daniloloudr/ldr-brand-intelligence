@@ -112,12 +112,12 @@ export async function submitGeneration(supabase, {
 // ── Submissão de geração de VÍDEO (fal + insert + poll dev) ──────────
 export async function submitVideoGeneration(supabase, {
   workspace_id, brand_id, workflow_id = null, node_id = null,
-  promptFinal, snapshot, modelKey, imageUrl = null, duration, aspectRatio,
+  promptFinal, snapshot, modelKey, imageUrl = null, endImageUrl = null, duration, aspectRatio,
 }) {
   const webhookUrl = isDev() ? null : `${siteBase()}/.netlify/functions/studio-webhook`
   let job
   try {
-    job = await submitVideoJob({ modelKey, prompt: promptFinal, imageUrl, duration, aspectRatio, webhookUrl })
+    job = await submitVideoJob({ modelKey, prompt: promptFinal, imageUrl, endImageUrl, duration, aspectRatio, webhookUrl })
   } catch (e) {
     return { error: `Falha ao submeter vídeo no fal: ${e.message}` }
   }

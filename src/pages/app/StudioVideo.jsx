@@ -29,8 +29,10 @@ export function StudioVideo({ brandId }) {
   const [useBrand, setUseBrand] = useState(true)
   const [duration, setDuration] = useState(videoModelByKey(DEFAULT_VIDEO_MODEL)?.defaultDuration || null)
   const [aspect, setAspect] = useState(videoModelByKey(DEFAULT_VIDEO_MODEL)?.aspects?.[0] || null)
-  const [srcUrl, setSrcUrl] = useState(null)          // imagem de origem (i2v)
+  const [srcUrl, setSrcUrl] = useState(null)          // 1º frame (i2v)
   const [srcUploading, setSrcUploading] = useState(false)
+  const [endUrl, setEndUrl] = useState(null)          // último frame (interpolação início→fim)
+  const [endUploading, setEndUploading] = useState(false)
   const [items, setItems] = useState([])
   const [saved, setSaved] = useState({})
   const [saving, setSaving] = useState({})
@@ -43,8 +45,10 @@ export function StudioVideo({ brandId }) {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
   const [lightbox, setLightbox] = useState(null)
+  const [broken, setBroken] = useState({})        // ids de vídeos que falharam ao carregar → ocultos
 
   const fileRef = useRef(null)
+  const endFileRef = useRef(null)
   const pollRef = useRef(null)
   const itemsRef = useRef(items)
   useEffect(() => { itemsRef.current = items }, [items])
@@ -55,6 +59,7 @@ export function StudioVideo({ brandId }) {
   const supportsI2V = model?.modes.includes('i2v')
   const supportsT2V = model?.modes.includes('t2v')
   const i2vOnly = supportsI2V && !supportsT2V
+  const supportsEnd = supportsI2V && model?.endFrame   // frame final (início→fim)
 
   // Troca de modelo: ajusta duração/formato e limpa a origem se incompatível
   function changeModel(k) {
@@ -63,6 +68,7 @@ export function StudioVideo({ brandId }) {
     setDuration(m?.defaultDuration || null)
     setAspect(m?.aspects?.[0] || null)
     if (!m?.modes.includes('i2v')) setSrcUrl(null)
+    if (!(m?.modes.includes('i2v') && m?.endFrame)) setEndUrl(null)   // frame final não suportado
     setMsg('')
   }
 
@@ -90,15 +96,17 @@ export function StudioVideo({ brandId }) {
     }, 4000)
   }
 
-  async function uploadSrc(fileList) {
+  async function uploadImg(fileList, which) {   // which: 'src' (1º frame) | 'end' (último frame)
     const file = Array.from(fileList || [])[0]
     if (!file) return
-    setSrcUploading(true)
-    const path = `${brandId}/studio-video-src/${Date.now()}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
+    const setU = which === 'end' ? setEndUploading : setSrcUploading
+    const setV = which === 'end' ? setEndUrl : setSrcUrl
+    setU(true)
+    const path = `${brandId}/studio-video-src/${Date.now()}-${which}-${(file.name || 'img').replace(/[^\w.\-]/g, '_')}`
     const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
-    if (error) setMsg('Falha no upload da imagem de origem.')
-    else setSrcUrl(supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl)
-    setSrcUploading(false)
+    if (error) setMsg('Falha no upload da imagem.')
+    else setV(supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl)
+    setU(false)
   }
 
   async function gerar() {
@@ -106,7 +114,7 @@ export function StudioVideo({ brandId }) {
     if (i2vOnly && !srcUrl) return setMsg('Este modelo precisa de uma imagem de origem (image-to-video).')
     setMsg(''); setGenerating(true)
     // params usados — guardados no item p/ permitir reajuste fiel depois
-    const params = { model: modelKey, prompt: prompt.trim(), srcUrl: supportsI2V ? srcUrl : null, duration: model?.durations ? duration : null, aspect, useBrand }
+    const params = { model: modelKey, prompt: prompt.trim(), srcUrl: supportsI2V ? srcUrl : null, endUrl: supportsEnd ? endUrl : null, duration: model?.durations ? duration : null, aspect, useBrand }
     const { data: { session } } = await supabase.auth.getSession()
     try {
       const res = await fetch('/.netlify/functions/studio-generate-video', {
@@ -114,7 +122,7 @@ export function StudioVideo({ brandId }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           brand_id: brandId, prompt: params.prompt, model: modelKey, use_brand: useBrand,
-          image_url: params.srcUrl,
+          image_url: params.srcUrl, end_image_url: params.endUrl,
           duration: model?.durations ? duration : undefined,
           aspect_ratio: model?.aspects && !srcUrl ? aspect : undefined,
         }),
@@ -143,6 +151,7 @@ export function StudioVideo({ brandId }) {
         body: JSON.stringify({
           brand_id: brandId, prompt: promptFinal, model: p.model, use_brand: p.useBrand,
           image_url: m?.modes.includes('i2v') ? p.srcUrl : null,
+          end_image_url: m?.endFrame ? p.endUrl : null,
           duration: m?.durations ? p.duration : undefined,
           aspect_ratio: m?.aspects && !p.srcUrl ? p.aspect : undefined,
         }),
@@ -205,6 +214,8 @@ export function StudioVideo({ brandId }) {
   }
 
   const inpLabel = { fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }
+  // Galeria visível: oculta gerações com erro e vídeos que não carregam
+  const visibleItems = items.filter(p => p.status !== 'error' && !broken[p.id])
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
@@ -240,31 +251,46 @@ export function StudioVideo({ brandId }) {
           </Stack>
           <TextField value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Descreva o movimento, a cena, a câmera…" multiline minRows={2} maxRows={6} fullWidth disabled={generating} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }} />
 
-          {/* Imagem de origem (i2v) */}
-          {supportsI2V && (
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-              <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { uploadSrc(e.target.files); e.target.value = '' }} />
-              {srcUrl ? (
-                <Box sx={{ position: 'relative', width: 64, height: 64, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                  <Box component="img" src={srcUrl} alt="origem" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <IconButton size="small" onClick={() => setSrcUrl(null)} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
-                    <CloseIcon sx={{ fontSize: 13 }} />
-                  </IconButton>
-                </Box>
-              ) : (
-                <Tooltip title="Imagem de origem (image-to-video)">
-                  <Box onClick={() => !generating && !srcUploading && fileRef.current?.click()}
-                    sx={{ width: 64, height: 64, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: generating || srcUploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: TEAL, color: TEAL } }}>
-                    {srcUploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
+          {/* Imagem(ns) de origem (i2v) — 1º frame, e opcionalmente o último (início→fim) */}
+          {supportsI2V && (() => {
+            const slot = (url, uploading, onPick, onClear, ref, caption) => (
+              <Stack spacing={0.5} alignItems="center">
+                {url ? (
+                  <Box sx={{ position: 'relative', width: 72, height: 72, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                    <Box component="img" src={url} alt={caption} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <IconButton size="small" onClick={onClear} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+                      <CloseIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
                   </Box>
-                </Tooltip>
-              )}
-              <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>
-                {i2vOnly ? 'Obrigatório — este modelo anima a partir de uma imagem.' : 'Opcional — anexe para animar uma imagem (image-to-video).'}
-              </Typography>
-            </Stack>
-          )}
+                ) : (
+                  <Box onClick={() => !generating && !uploading && ref.current?.click()}
+                    sx={{ width: 72, height: 72, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: generating || uploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: TEAL, color: TEAL } }}>
+                    {uploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
+                  </Box>
+                )}
+                {caption && <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary' }}>{caption}</Typography>}
+              </Stack>
+            )
+            return (
+              <Box sx={{ mb: 2 }}>
+                {supportsEnd && <Typography sx={{ ...inpLabel, mb: 0.75 }}>Início → Fim (avançado)</Typography>}
+                <Stack direction="row" spacing={2} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+                  <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { uploadImg(e.target.files, 'src'); e.target.value = '' }} />
+                  {slot(srcUrl, srcUploading, null, () => setSrcUrl(null), fileRef, supportsEnd ? 'Primeiro frame' : null)}
+                  {supportsEnd && <>
+                    <input ref={endFileRef} type="file" accept="image/*" hidden onChange={e => { uploadImg(e.target.files, 'end'); e.target.value = '' }} />
+                    {slot(endUrl, endUploading, null, () => setEndUrl(null), endFileRef, 'Último frame (opcional)')}
+                  </>}
+                  <Typography sx={{ fontSize: 11, color: 'text.disabled', maxWidth: 220, mt: supportsEnd ? 0.5 : 2.5 }}>
+                    {supportsEnd
+                      ? 'O vídeo interpola do primeiro ao último frame. O frame final é opcional.'
+                      : i2vOnly ? 'Obrigatório — este modelo anima a partir de uma imagem.' : 'Opcional — anexe para animar uma imagem (image-to-video).'}
+                  </Typography>
+                </Stack>
+              </Box>
+            )
+          })()}
 
           {/* Duração + Formato */}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>
@@ -302,7 +328,7 @@ export function StudioVideo({ brandId }) {
         {/* Galeria */}
         {loading ? (
           <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
             <MovieOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
             <Typography variant="h6" fontWeight={900}>Nenhum vídeo ainda</Typography>
@@ -312,7 +338,7 @@ export function StudioVideo({ brandId }) {
           </Stack>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 2 }}>
-            {items.map(p => {
+            {visibleItems.map(p => {
               const done = p.status === 'done' && p.image_url
               const ar = ARMAP[p.formato] || '16 / 9'
               return (
@@ -321,10 +347,9 @@ export function StudioVideo({ brandId }) {
                     sx={{ aspectRatio: ar, bgcolor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: done ? 'zoom-in' : 'default' }}>
                     {done
                       ? <Box component="video" src={p.image_url} muted loop playsInline preload="metadata"
+                          onError={() => setBroken(b => ({ ...b, [p.id]: true }))}
                           onMouseEnter={e => e.currentTarget.play?.().catch(() => {})} onMouseLeave={e => e.currentTarget.pause?.()}
                           sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                      : p.status === 'error'
-                      ? <Typography sx={{ fontSize: 11, color: CORAL, px: 2, textAlign: 'center' }}>{p.error || 'erro'}</Typography>
                       : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: '#bbb' }}>gerando vídeo…</Typography></Stack>}
                   </Box>
                   {done && (
