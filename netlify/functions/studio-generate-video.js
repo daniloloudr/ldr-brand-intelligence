@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { falVideoConfigured, VIDEO_MODELS, videoSupportsEndFrame } from './_video.js'
 import { resolveBrandContext, submitVideoGeneration } from './_studio.js'
+import { creditsForVideo, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -13,8 +14,6 @@ const headers = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
-const STUDIO_PLANS  = ['pro', 'enterprise']
-const MONTHLY_LIMIT = parseInt(process.env.STUDIO_MONTHLY_LIMIT || '1000', 10)
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers }
@@ -62,16 +61,12 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  // Gate de plano (Studio = Pro+) + quota mensal — admin bypassa
+  // Débito de crédito (vídeo escala com a duração). Admin bypassa.
+  const amount = creditsForVideo(model, duration)
   if (!platformAdmin) {
-    const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
-    if (!STUDIO_PLANS.includes(ws?.plano)) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Studio requer plano Pro ou superior' }) }
-
-    const inicioMes = new Date(); inicioMes.setUTCDate(1); inicioMes.setUTCHours(0, 0, 0, 0)
-    const { count } = await supabase.from('studio_generations')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspace_id).gte('created_at', inicioMes.toISOString())
-    if ((count || 0) >= MONTHLY_LIMIT) return { statusCode: 429, headers, body: JSON.stringify({ error: 'Limite mensal de gerações atingido' }) }
+    const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'video', modelo: model, user_id: user.id })
+    if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para este vídeo.', need: amount }) }
+    if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }
   }
 
   // Marca como referência OPCIONAL
@@ -83,7 +78,10 @@ export const handler = async (event) => {
     workspace_id, brand_id, workflow_id, node_id,
     promptFinal, snapshot, modelKey: model, imageUrl: image_url, endImageUrl, duration, aspectRatio: aspect_ratio,
   })
-  if (error) return { statusCode: 502, headers, body: JSON.stringify({ error }) }
+  if (error) {
+    if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'video' })
+    return { statusCode: 502, headers, body: JSON.stringify({ error }) }
+  }
 
   return { statusCode: 200, headers, body: JSON.stringify({ generation_id: gen.id, request_id, status: 'processing' }) }
 }

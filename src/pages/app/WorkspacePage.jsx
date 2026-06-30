@@ -13,6 +13,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { useWorkspace }    from '../../lib/WorkspaceContext'
 import { supabase }        from '../../lib/supabase'
 import { PLANOS }          from '../../lib/constants'
+import {
+  IMAGE_GUIDE, VIDEO_GUIDE, OP_GUIDE, PLAN_LABEL, planoLiberado,
+  creditsForImage, creditsForVideo, creditsForOp,
+} from '../../lib/credits'
+import { durLabel } from '../../lib/videoModels'
 import { redirectToCheckout } from '../../lib/stripe'
 import { PageHeader }     from '../../components/shell/PageHeader'
 
@@ -259,87 +264,264 @@ function TabEquipe({ workspace }) {
   )
 }
 
+const PLANO_CHIP = { pro: { label: 'Pro', color: '#9B6DFF' }, enterprise: { label: 'Premium', color: '#0D9E7A' } }
+
+function PlanoBadge({ minPlano, planoWorkspace }) {
+  const meta = PLANO_CHIP[minPlano]
+  if (!meta) return <Chip label="Incluído" size="small" variant="outlined" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
+  const liberado = planoLiberado(planoWorkspace, minPlano)
+  return <Chip label={liberado ? meta.label : `${meta.label}+`} size="small"
+    sx={{ height: 20, fontSize: 10, fontWeight: 800, color: '#fff', bgcolor: meta.color, opacity: liberado ? 1 : 0.55 }} />
+}
+
+function CreditRow({ label, beneficio, creditos, minPlano, planoWorkspace }) {
+  return (
+    <TableRow>
+      <TableCell sx={{ py: 1 }}>
+        <Typography fontSize={13} fontWeight={700}>{label}</Typography>
+        {beneficio && <Typography fontSize={11} color="text.secondary">{beneficio}</Typography>}
+      </TableCell>
+      <TableCell align="right" sx={{ py: 1, whiteSpace: 'nowrap' }}>
+        <Typography fontSize={13} fontWeight={800} sx={{ color: 'primary.main' }}>{creditos}</Typography>
+      </TableCell>
+      <TableCell align="right" sx={{ py: 1 }}>
+        <PlanoBadge minPlano={minPlano || 'starter'} planoWorkspace={planoWorkspace} />
+      </TableCell>
+    </TableRow>
+  )
+}
+
+const OP_LABEL = { image: 'Imagem', video: 'Vídeo', content: 'Conteúdo', campaign: 'Campanha', upscale: 'Ampliar', removebg: 'Remover fundo', variation: 'Variação', ciclo: 'Recarga mensal' }
+const TIPO_LABEL = { refill: 'Recarga', refund: 'Estorno', grant: 'Bônus' }
+
 function TabPlano({ workspace }) {
   const [loadingUpgrade, setLoadingUpgrade] = useState(null)
-  const planoAtual = PLANOS[workspace.plano] || PLANOS.trial
-  const uso        = workspace.diagnosticos_mes || 0
-  const limite     = planoAtual.diagnosticos_mes === Infinity ? null : planoAtual.diagnosticos_mes
-  const usoPct     = limite ? Math.min((uso / limite) * 100, 100) : 0
+  const [saldo, setSaldo]     = useState(null)   // null = ainda não inicializado (pool cheio)
+  const [reset, setReset]     = useState(null)
+  const [txs, setTxs]         = useState(null)
+  const planoKey   = PLANOS[workspace.plano] ? workspace.plano : 'trial'
+  const planoAtual = PLANOS[planoKey]
+
+  useEffect(() => {
+    let on = true
+    ;(async () => {
+      const [{ data: ws }, { data: log }] = await Promise.all([
+        supabase.from('workspaces').select('creditos_saldo, creditos_ciclo_reset').eq('id', workspace.id).maybeSingle(),
+        supabase.from('credit_transactions').select('id, created_at, delta, saldo_after, tipo, operacao, modelo')
+          .eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(50),
+      ])
+      if (!on) return
+      setSaldo(ws?.creditos_saldo ?? null)
+      setReset(ws?.creditos_ciclo_reset ?? null)
+      setTxs(log || [])
+    })()
+    return () => { on = false }
+  }, [workspace.id])
 
   async function upgrade(plano) {
     setLoadingUpgrade(plano)
-    try {
-      await redirectToCheckout(workspace.id, plano)
-    } catch (e) {
-      setLoadingUpgrade(null)
-    }
+    try { await redirectToCheckout(workspace.id, plano) }
+    catch { setLoadingUpgrade(null) }
   }
 
-  const OPCOES = [
-    { key: 'starter',    destaque: false },
-    { key: 'pro',        destaque: true  },
-    { key: 'enterprise', destaque: false },
-  ]
+  const COMPARE = ['starter', 'pro', 'enterprise']
+  const fmt = n => `R$${n.toLocaleString('pt-BR')}`
+
+  // Saldo do ciclo (null = pool cheio, ainda não consumido)
+  const cMes       = planoAtual.creditos_mes
+  const saldoAtual = saldo == null ? cMes : saldo
+  const saldoPct   = cMes ? Math.min((saldoAtual / cMes) * 100, 100) : 0
+  const saldoBaixo = saldoPct <= 15
 
   return (
-    <Box sx={{ maxWidth: 700 }}>
-      {/* Uso atual */}
-      <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+    <Box sx={{ maxWidth: 760 }}>
+      {/* 1 ─ Plano atual: preço, crédito, benefícios */}
+      <Paper sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Typography variant="body2" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" mb={1}>
           Plano atual: {planoAtual.nome}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: limite ? 1 : 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
           <Typography fontWeight={900} fontSize={28} sx={{ color: 'primary.main' }}>
-            {planoAtual.preco === 0 ? 'Grátis' : `R$${planoAtual.preco.toLocaleString('pt-BR')}/mês`}
+            {planoAtual.preco === 0 ? 'Grátis' : `${fmt(planoAtual.preco)}/mês`}
           </Typography>
+          <Typography fontWeight={800} fontSize={15}>· {planoAtual.creditos_mes.toLocaleString('pt-BR')} créditos/mês</Typography>
+          {planoAtual.preco_credito > 0 && (
+            <Typography fontSize={12} color="text.secondary">
+              (R${planoAtual.preco_credito.toFixed(2).replace('.', ',')}/crédito)
+            </Typography>
+          )}
         </Box>
-        {limite && (
-          <>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Diagnósticos este mês</Typography>
-              <Typography variant="caption" fontWeight={700}>{uso}/{limite}</Typography>
-            </Box>
-            <LinearProgress variant="determinate" value={usoPct} color={usoPct >= 100 ? 'secondary' : 'primary'} sx={{ height: 6, borderRadius: 3, bgcolor: 'divider' }} />
-          </>
+        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
+          {planoAtual.studio && <Chip label="LOUDR Studio" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
+          <Chip label="Brand Intelligence · fair-use" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+          {planoAtual.social_listening && <Chip label="Social Listening" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
+          <Chip label={`${planoAtual.membros === Infinity ? '∞' : planoAtual.membros} membros`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+          <Chip label={`${planoAtual.concorrentes} concorrentes`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+        </Box>
+        <Typography fontSize={11} color="text.secondary" mt={1.5}>
+          Diagnóstico, social listening e Brand Assistant não consomem crédito (fair-use).
+        </Typography>
+      </Paper>
+
+      {/* 1b ─ Saldo do ciclo */}
+      <Paper sx={{ p: 3, mb: 3, border: '1px solid', borderColor: saldoBaixo ? 'secondary.main' : 'divider', borderRadius: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+          <Typography variant="body2" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em">
+            Saldo do ciclo
+          </Typography>
+          {reset && <Typography fontSize={11} color="text.secondary">renova em {new Date(reset).toLocaleDateString('pt-BR')}</Typography>}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
+          <Typography fontWeight={900} fontSize={26} sx={{ color: saldoBaixo ? 'secondary.main' : 'primary.main' }}>
+            {saldoAtual.toLocaleString('pt-BR')}
+          </Typography>
+          <Typography fontSize={14} color="text.secondary">de {cMes.toLocaleString('pt-BR')} créditos</Typography>
+        </Box>
+        <LinearProgress variant="determinate" value={saldoPct} color={saldoBaixo ? 'secondary' : 'primary'} sx={{ height: 6, borderRadius: 3, bgcolor: 'divider' }} />
+        {saldoBaixo && (
+          <Typography fontSize={11} sx={{ color: 'secondary.main', mt: 1, fontWeight: 700 }}>
+            Saldo baixo — considere fazer upgrade para não interromper as gerações.
+          </Typography>
         )}
       </Paper>
 
-      {/* Opções de upgrade */}
-      {workspace.plano !== 'enterprise' && (
-        <>
-          <Typography variant="body2" color="text.secondary" fontWeight={700} mb={2} textTransform="uppercase" letterSpacing="0.08em">
-            Fazer upgrade
-          </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-            {OPCOES.filter(o => o.key !== workspace.plano).map(({ key, destaque }) => {
-              const p = PLANOS[key]
+      {/* 2 ─ Comparativo de planos */}
+      <Typography variant="body2" color="text.secondary" fontWeight={700} mb={1.5} textTransform="uppercase" letterSpacing="0.08em">
+        Planos
+      </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2, mb: 4 }}>
+        {COMPARE.map(key => {
+          const p = PLANOS[key]
+          const atual = key === planoKey
+          const destaque = key === 'pro'
+          return (
+            <Card key={key} sx={{ border: '2px solid', borderColor: atual ? 'primary.main' : destaque ? 'secondary.main' : 'divider', borderRadius: 3, position: 'relative' }}>
+              {(atual || destaque) && (
+                <Chip label={atual ? 'Seu plano' : 'Recomendado'} color={atual ? 'primary' : 'secondary'} size="small"
+                  sx={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', fontWeight: 700, fontSize: 10 }} />
+              )}
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography fontWeight={900} fontSize={13} textTransform="uppercase" letterSpacing="0.1em">{p.nome}</Typography>
+                <Typography fontWeight={900} fontSize={24} letterSpacing="-0.02em" my={0.25}>
+                  {fmt(p.preco)}<Typography component="span" fontSize={11} color="text.secondary">/mês</Typography>
+                </Typography>
+                <Typography fontSize={13} fontWeight={800} sx={{ color: 'primary.main' }}>{p.creditos_mes.toLocaleString('pt-BR')} créditos</Typography>
+                <Typography fontSize={11} color="text.secondary" mb={1.5}>R${p.preco_credito.toFixed(2).replace('.', ',')}/crédito</Typography>
+                {atual
+                  ? <Button fullWidth variant="outlined" disabled sx={{ fontWeight: 800, fontSize: 12, py: 1 }}>Plano atual</Button>
+                  : <Button fullWidth variant={destaque ? 'contained' : 'outlined'} color={destaque ? 'secondary' : 'primary'}
+                      onClick={() => upgrade(key)} disabled={loadingUpgrade === key} sx={{ fontWeight: 800, fontSize: 12, py: 1 }}>
+                      {loadingUpgrade === key ? <CircularProgress size={14} color="inherit" /> : `Mudar p/ ${p.nome}`}
+                    </Button>}
+              </CardContent>
+            </Card>
+          )
+        })}
+      </Box>
+
+      {/* 3 ─ Custo em créditos por modelo */}
+      <Typography variant="body2" color="text.secondary" fontWeight={700} mb={0.5} textTransform="uppercase" letterSpacing="0.08em">
+        Custo em créditos por modelo
+      </Typography>
+      <Typography fontSize={12} color="text.secondary" mb={2}>
+        Modelos mais caros custam mais créditos — você escolhe o equilíbrio entre qualidade e custo.
+      </Typography>
+
+      <Table size="small" sx={{ mb: 3 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Imagem</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Plano</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {IMAGE_GUIDE.map(m => (
+            <CreditRow key={m.id} label={m.label} beneficio={m.beneficio} creditos={creditsForImage(m.id)} minPlano={m.minPlano} planoWorkspace={planoKey} />
+          ))}
+        </TableBody>
+      </Table>
+
+      <Table size="small" sx={{ mb: 3 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Vídeo</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Plano</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {VIDEO_GUIDE.map(m => {
+            const cr = m.durations.length
+              ? m.durations.map(d => `${creditsForVideo(m.key, d)} (${durLabel(d)})`).join(' · ')
+              : `${creditsForVideo(m.key)}`
+            return <CreditRow key={m.key} label={m.label} beneficio={m.beneficio} creditos={cr} minPlano={m.minPlano} planoWorkspace={planoKey} />
+          })}
+        </TableBody>
+      </Table>
+
+      <Table size="small" sx={{ mb: 2 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Outras operações</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Plano</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {OP_GUIDE.map(o => (
+            <CreditRow key={o.op} label={o.label} creditos={creditsForOp(o.op)} minPlano="starter" planoWorkspace={planoKey} />
+          ))}
+        </TableBody>
+      </Table>
+
+      <Typography fontSize={11} color="text.secondary" mb={4}>
+        <strong>Fair-use (0 crédito):</strong> Brand Intelligence — diagnóstico, social listening e Brand Assistant.
+        Vídeos com áudio (Veo) e modelos premium consomem mais créditos por serem mais caros de gerar.
+      </Typography>
+
+      {/* 4 ─ Extrato / auditoria de consumo */}
+      <Typography variant="body2" color="text.secondary" fontWeight={700} mb={1.5} textTransform="uppercase" letterSpacing="0.08em">
+        Extrato de uso
+      </Typography>
+      {txs == null ? (
+        <Box sx={{ py: 3, textAlign: 'center' }}><CircularProgress size={18} /></Box>
+      ) : txs.length === 0 ? (
+        <Typography fontSize={13} color="text.secondary" sx={{ py: 2 }}>Nenhum consumo de crédito ainda.</Typography>
+      ) : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 800, fontSize: 11 }}>Data</TableCell>
+              <TableCell sx={{ fontWeight: 800, fontSize: 11 }}>Operação</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Saldo</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {txs.map(t => {
+              const desc = TIPO_LABEL[t.tipo] || OP_LABEL[t.operacao] || t.operacao || '—'
+              const pos = t.delta > 0
               return (
-                <Card key={key} sx={{ border: '2px solid', borderColor: destaque ? 'secondary.main' : 'divider', borderRadius: 3, position: 'relative' }}>
-                  {destaque && (
-                    <Chip label="Recomendado" color="secondary" size="small"
-                      sx={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', fontWeight: 700, fontSize: 10 }} />
-                  )}
-                  <CardContent sx={{ p: 2.5 }}>
-                    <Typography fontWeight={900} fontSize={13} textTransform="uppercase" letterSpacing="0.1em">{p.nome}</Typography>
-                    <Typography fontWeight={900} fontSize={24} letterSpacing="-0.02em" my={0.5}>
-                      R${p.preco.toLocaleString('pt-BR')}
-                      <Typography component="span" fontSize={11} color="text.secondary">/mês</Typography>
+                <TableRow key={t.id}>
+                  <TableCell sx={{ py: 0.75, fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                    {new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </TableCell>
+                  <TableCell sx={{ py: 0.75 }}>
+                    <Typography fontSize={13} fontWeight={700}>{desc}</Typography>
+                    {t.modelo && t.modelo !== 'auto' && <Typography fontSize={10} color="text.secondary">{t.modelo}</Typography>}
+                  </TableCell>
+                  <TableCell align="right" sx={{ py: 0.75, whiteSpace: 'nowrap' }}>
+                    <Typography fontSize={13} fontWeight={800} sx={{ color: pos ? 'primary.main' : 'text.primary' }}>
+                      {pos ? '+' : ''}{t.delta}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-                      {p.diagnosticos_mes === Infinity ? 'Diagnósticos ilimitados' : `${p.diagnosticos_mes} diagnóstico${p.diagnosticos_mes > 1 ? 's' : ''}/mês`}
-                    </Typography>
-                    <Button fullWidth variant={destaque ? 'contained' : 'outlined'} color={destaque ? 'secondary' : 'primary'}
-                      onClick={() => upgrade(key)}
-                      disabled={loadingUpgrade === key}
-                      sx={{ fontWeight: 800, fontSize: 12, py: 1 }}>
-                      {loadingUpgrade === key ? <CircularProgress size={14} color="inherit" /> : `Assinar ${p.nome}`}
-                    </Button>
-                  </CardContent>
-                </Card>
+                  </TableCell>
+                  <TableCell align="right" sx={{ py: 0.75, fontSize: 12, color: 'text.secondary' }}>{t.saldo_after}</TableCell>
+                </TableRow>
               )
             })}
-          </Box>
-        </>
+          </TableBody>
+        </Table>
       )}
     </Box>
   )
