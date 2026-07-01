@@ -282,7 +282,7 @@ export async function gerarPPT(data, meta) {
       { label: "Cultura & Pessoas",      text: data.sinais_cultura },
       { label: "Direção do Investimento", text: data.sinais_investimento },
       { label: "Evolução de Marca",       text: data.evolucao_marca },
-      { label: "Território Inexplorado",  text: data.territorio_inexplorado },
+      { label: "Território Possível",     text: data.territorios_possiveis?.[0]?.tese || data.territorio_inexplorado },
     ];
 
     signals.forEach((sig, i) => {
@@ -335,34 +335,55 @@ export async function gerarPPT(data, meta) {
     });
   }
 
-  // ─── Slide 11: Oportunidades ─────────────────────────────────────
-  if (data.oportunidades?.length) {
-    const s = prs.addSlide();
-    whiteHeader(s, prs, "OPORTUNIDADES ESTRATÉGICAS");
+  // ─── Slide 11: Territórios possíveis (fallback: oportunidades legadas) ─
+  {
+    const cards = data.territorios_possiveis?.length
+      ? data.territorios_possiveis.slice(0, 3).map(t => ({
+          titulo: t.nome,
+          tag: (t.confianca || "").toUpperCase(),
+          color: C.green,
+          descricao: [
+            t.tese,
+            t.sustenta && `Sustenta: ${t.sustenta}`,
+            t.diferencia && `Diferencia: ${t.diferencia}`,
+            t.fit_publico && `Público: ${t.fit_publico}`,
+            t.tensao && `Tensão: ${t.tensao}`,
+            t.exploracao && `A explorar: ${t.exploracao}`,
+          ].filter(Boolean).join("\n\n"),
+        }))
+      : (data.oportunidades?.length ? data.oportunidades.slice(0, 3).map(op => ({
+          titulo: op.titulo,
+          tag: `${(op.impacto || "—").toUpperCase()}  ·  ${op.prazo || "—"}`,
+          color: PRATICA_COLOR[op.pratica_loudr] || C.green,
+          descricao: op.descricao,
+        })) : []);
 
-    data.oportunidades.slice(0, 3).forEach((op, i) => {
-      const x = 0.4 + i * 4.28;
-      const color = PRATICA_COLOR[op.pratica_loudr] || C.green;
-      const cardW = 4.05;
+    if (cards.length) {
+      const s = prs.addSlide();
+      whiteHeader(s, prs, data.territorios_possiveis?.length ? "TERRITÓRIOS POSSÍVEIS" : "OPORTUNIDADES ESTRATÉGICAS");
 
-      s.addShape(prs.ShapeType.rect, { x, y: 1.12, w: cardW, h: 5.9, fill: { color: C.offwhite }, line: { color: C.border, pt: 1 } });
-      s.addShape(prs.ShapeType.rect, { x, y: 1.12, w: cardW, h: 0.1, fill: { color }, line: { type: "none" } });
+      cards.forEach((op, i) => {
+        const x = 0.4 + i * 4.28;
+        const cardW = 4.05;
 
-      const impactColor = op.impacto === "alto" ? C.green : op.impacto === "medio" ? C.amber : C.gray;
-      s.addText(`${(op.impacto || "—").toUpperCase()}  ·  ${op.prazo || "—"}`, {
-        x: x + 0.2, y: 1.32, w: cardW - 0.3, h: 0.25,
-        fontSize: 8, bold: true, color: impactColor, fontFace: "Arial", charSpacing: 1,
+        s.addShape(prs.ShapeType.rect, { x, y: 1.12, w: cardW, h: 5.9, fill: { color: C.offwhite }, line: { color: C.border, pt: 1 } });
+        s.addShape(prs.ShapeType.rect, { x, y: 1.12, w: cardW, h: 0.1, fill: { color: op.color }, line: { type: "none" } });
+
+        s.addText(op.tag || "", {
+          x: x + 0.2, y: 1.32, w: cardW - 0.3, h: 0.25,
+          fontSize: 8, bold: true, color: C.green, fontFace: "Arial", charSpacing: 1,
+        });
+        s.addText(op.titulo || "", {
+          x: x + 0.2, y: 1.65, w: cardW - 0.3, h: 0.85,
+          fontSize: 14, bold: true, color: C.navy, fontFace: "Arial", breakLine: true,
+        });
+        s.addText(cut(op.descricao, 520), {
+          x: x + 0.2, y: 2.58, w: cardW - 0.3, h: 4.1,
+          fontSize: 10, color: C.textMid, fontFace: "Arial",
+          lineSpacingMultiple: 1.3, valign: "top", breakLine: true,
+        });
       });
-      s.addText(op.titulo || "", {
-        x: x + 0.2, y: 1.65, w: cardW - 0.3, h: 0.85,
-        fontSize: 14, bold: true, color: C.navy, fontFace: "Arial", breakLine: true,
-      });
-      s.addText(cut(op.descricao, 380), {
-        x: x + 0.2, y: 2.58, w: cardW - 0.3, h: 4.1,
-        fontSize: 11, color: C.textMid, fontFace: "Arial",
-        lineSpacingMultiple: 1.45, valign: "top", breakLine: true,
-      });
-    });
+    }
   }
 
   // ─── Slide 12: Quick Wins ────────────────────────────────────────
@@ -396,7 +417,7 @@ export async function gerarPPT(data, meta) {
     navyAccentLeft(s, prs);
 
     lbl(s, "PRÓXIMO PASSO", 0.55, 0.38);
-    s.addText("Porta de entrada com a LOUDR", {
+    s.addText("Por onde começar a explorar", {
       x: 0.55, y: 0.73, w: 11, h: 0.5,
       fontSize: 22, bold: true, color: C.white, fontFace: "Arial",
     });

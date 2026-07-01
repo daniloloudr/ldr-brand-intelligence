@@ -249,7 +249,11 @@ export function Home() {
 
   const planoNome     = PLANOS[workspace?.plano]?.nome ?? 'Trial'
   const dados         = diag ? { ...diag, ...(diag.dados || diag.data || {}) } : null
-  const oportunidades = Array.isArray(dados?.oportunidades) ? dados.oportunidades.slice(0, 3) : []
+  const CONF_CHIP = { alta: { l: 'Sólido', c: '#0D9E7A' }, media: { l: 'Promissor', c: '#EF9F27' }, hipotese: { l: 'Hipótese', c: '#7A8899' } }
+  const territorios   = Array.isArray(dados?.territorios_possiveis) ? dados.territorios_possiveis : []
+  const oportunidades = territorios.length
+    ? territorios.slice(0, 3).map(t => ({ titulo: t.nome, descricao: t.tese, confianca: t.confianca }))
+    : (Array.isArray(dados?.oportunidades) ? dados.oportunidades.slice(0, 3) : [])
 
   return (
     <Box>
@@ -328,7 +332,7 @@ export function Home() {
           {/* ── Oportunidades ── */}
           {oportunidades.length > 0 && (
             <>
-              <SectionTitle>Top 3 oportunidades</SectionTitle>
+              <SectionTitle>{territorios.length ? 'Territórios para explorar' : 'Top 3 oportunidades'}</SectionTitle>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                 {oportunidades.map((op, i) => {
                   const pratica = PRATICAS.find(p => p.key === op.pratica_loudr)
@@ -359,6 +363,10 @@ export function Home() {
                           {op.descricao}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                          {op.confianca && CONF_CHIP[op.confianca] && (
+                            <Chip label={CONF_CHIP[op.confianca].l} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700,
+                              bgcolor: CONF_CHIP[op.confianca].c + '18', color: CONF_CHIP[op.confianca].c }} />
+                          )}
                           {op.impacto && (
                             <Chip label={`Impacto ${op.impacto}`} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700,
                               bgcolor: op.impacto === 'alto' ? 'rgba(232,24,90,0.1)' : op.impacto === 'medio' ? 'rgba(239,159,39,0.1)' : 'rgba(122,136,153,0.1)',

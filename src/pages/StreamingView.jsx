@@ -27,7 +27,7 @@ const GENERATING_MSGS = [
   "Aplicando framework Smart Branding...",
   "Calculando scores das 4 práticas...",
   "Mapeando gaps de identidade...",
-  "Identificando oportunidades estratégicas...",
+  "Mapeando territórios possíveis...",
   "Finalizando o diagnóstico...",
 ];
 

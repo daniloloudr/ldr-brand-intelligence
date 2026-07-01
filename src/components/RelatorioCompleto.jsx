@@ -14,6 +14,21 @@ import { Pill, ipill, apill, ppill } from './Pill'
 import { Lbl }                 from './Lbl'
 import { Card }                from './Card'
 
+// Território (novo schema): rótulos de confiança + micro-campo de evidência
+const CONF_LABEL = { alta: 'Território sólido', media: 'Território promissor', hipotese: 'Hipótese a validar' }
+const CONF_BG    = { alta: 'rgba(13,158,122,0.12)', media: 'rgba(239,159,39,0.12)', hipotese: 'rgba(122,136,153,0.14)' }
+const CONF_COLOR = { alta: '#0D9E7A', media: '#EF9F27', hipotese: '#7A8899' }
+
+function MicroField({ label, val }) {
+  if (!val) return null
+  return (
+    <Box>
+      <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.25 }}>{label}</Typography>
+      <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.55 }}>{val}</Typography>
+    </Box>
+  )
+}
+
 function SharePanel({ meta, data }) {
   const [copied, setCopied]         = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -208,7 +223,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
                 {pr.oportunidade && (
                   <Box sx={{ borderLeft: `2px solid ${p.color}`, pl: 1.25 }}>
                     <Typography sx={{ fontSize: 10, fontWeight: 700, color: p.color, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', mb: 0.375 }}>
-                      O que a LOUDR faria
+                      Caminho a explorar
                     </Typography>
                     <Typography sx={{ fontSize: 12, color: 'text.secondary', fontStyle: 'italic' }}>{pr.oportunidade}</Typography>
                   </Box>
@@ -253,13 +268,48 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
         <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>{data.gap_identidade}</Typography>
       </Box>
 
-      {/* Território inexplorado */}
-      <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '20px 24px', mb: '14px' }}>
-        <Lbl>Território inexplorado</Lbl>
-        <Typography sx={{ fontSize: 14, color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.7 }}>
-          {data.territorio_inexplorado}
-        </Typography>
-      </Box>
+      {/* Territórios possíveis (novo) — fallback pro território único (legado) */}
+      {data.territorios_possiveis?.length > 0 ? (
+        <Box sx={{ mb: '14px' }}>
+          <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1.5 }}>
+            Territórios possíveis para explorar
+          </Typography>
+          {data.territorios_possiveis.map((t, i) => (
+            <Box key={i} sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '18px 22px', mb: '10px' }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 0.75 }}>
+                <Typography sx={{ fontSize: 15, fontWeight: 900, color: 'text.primary' }}>{t.nome}</Typography>
+                {t.confianca && (
+                  <Pill bg={CONF_BG[t.confianca] || CONF_BG.hipotese} color={CONF_COLOR[t.confianca] || CONF_COLOR.hipotese}>
+                    {CONF_LABEL[t.confianca] || t.confianca}
+                  </Pill>
+                )}
+              </Box>
+              {t.tese && (
+                <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7, mb: 1.25 }}>{t.tese}</Typography>
+              )}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '10px 24px' }}>
+                <MicroField label="Sustenta" val={t.sustenta} />
+                <MicroField label="Diferencia porque" val={t.diferencia} />
+                <MicroField label="Fit com o público" val={t.fit_publico} />
+                <MicroField label="Tensão / trade-off" val={t.tensao} />
+              </Box>
+              {t.exploracao && (
+                <Box sx={{ borderLeft: '2px solid', borderLeftColor: 'primary.main', pl: 1.5, mt: 1.25 }}>
+                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.375 }}>A explorar</Typography>
+                  <Typography sx={{ fontSize: 13, color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.6 }}>{t.exploracao}</Typography>
+                </Box>
+              )}
+            </Box>
+          ))}
+        </Box>
+      ) : data.territorio_inexplorado ? (
+        <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '20px 24px', mb: '14px' }}>
+          <Lbl>Território inexplorado</Lbl>
+          <Typography sx={{ fontSize: 14, color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.7 }}>
+            {data.territorio_inexplorado}
+          </Typography>
+        </Box>
+      ) : null}
 
       {/* Pergunta provocativa */}
       {data.pergunta_provocativa && (
@@ -333,10 +383,10 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
         </Box>
       )}
 
-      {/* Porta de entrada */}
+      {/* Por onde começar a explorar */}
       {data.porta_entrada_loudr && (
         <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '16px 20px', mb: '14px' }}>
-          <Lbl>Porta de entrada LOUDR</Lbl>
+          <Lbl>Por onde começar a explorar</Lbl>
           <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>
             {data.porta_entrada_loudr}
           </Typography>

@@ -131,7 +131,7 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 |---|---|---|
 | `trg_signal_image_vote` | `studio_generations` (feedback) | `image_vote` (peso 2) |
 | `trg_signal_campaign_verdict` | `studio_campaigns` (status) | `campaign_verdict` (aprovada=3) |
-| `trg_signal_diagnostic` | `diagnosticos` | `diagnostic` |
+| `trg_signal_diagnostic` | `diagnosticos` | `diagnostic` (migration 027: captura `territorios_possiveis` + emite na conclusão `status='done'`) |
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
 

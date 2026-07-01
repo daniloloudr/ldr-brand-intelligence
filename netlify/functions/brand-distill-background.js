@@ -30,8 +30,12 @@ function fmtSignalBody(s) {
     return `[voto ${p.voto === 'up' ? '👍 APROVADO' : '👎 REPROVADO'}] provider=${p.provider || '?'} formato=${p.formato || '?'} tipo=${p.media_type || 'image'} prompt="${(p.prompt || '').slice(0, 400)}" (ref:${s.ref_id})`
   if (s.tipo === 'campaign_verdict')
     return `[campanha ${p.status}] conceito="${(p.conceito || '').slice(0, 400)}" formatos=${JSON.stringify(p.formatos || [])}`
-  if (s.tipo === 'diagnostic')
-    return `[diagnóstico] singularidade=${p.score_singularidade} consistencia=${p.score_consistencia} posicionamento=${p.score_posicionamento} "${(p.frase || '').slice(0, 300)}"`
+  if (s.tipo === 'diagnostic') {
+    const terr = Array.isArray(p.territorios) && p.territorios.length
+      ? ' · territórios possíveis: ' + p.territorios.map(t => `${t.nome}${t.confianca ? ` (${t.confianca})` : ''} — ${(t.tese || '').slice(0, 160)}`).join(' | ')
+      : (p.territorio_legado ? ` · território: ${p.territorio_legado}` : '')
+    return `[diagnóstico] singularidade=${p.score_singularidade} consistencia=${p.score_consistencia} posicionamento=${p.score_posicionamento} "${(p.frase || '').slice(0, 300)}"${terr}`
+  }
   if (s.tipo === 'listening_sentiment')
     return `[sentimento] +${p.avg_positivo} =${p.avg_neutro} -${p.avg_negativo} (${p.total_mencoes} menções, ${p.periodo || ''})`
   if (s.tipo === 'brandbook_edit')
