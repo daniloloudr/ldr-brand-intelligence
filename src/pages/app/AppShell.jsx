@@ -48,6 +48,7 @@ const USER_MENU = [
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Plano e cobrança',       hash: '#/app/plano' },
   { label: 'Alertas',                hash: '#/app/alertas' },
+  { label: 'IA LOUDR',               hash: '#/app/ia-loudr' },
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
@@ -124,7 +125,6 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: 'Workflow', hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow', locked: !isPro },
     ] },
     { type: 'item', label: 'Brand Assistant', icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
-    { type: 'item', label: 'Inteligência da Marca', icon: IcoDiag, hash: `${brandPath}/intelligence`, active: route === 'brands-intelligence' },
   ]
 
   function renderPage() {
@@ -140,7 +140,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-list')           return <BrandList />
     if (route === 'brands-new')            return <BrandOnboarding />
     if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />
-    if (route === 'brands-intelligence')   return <BrandIntelligence brandId={getBrandId()} />
+    if (route === 'ia-loudr')              return <BrandIntelligence />
     if (route === 'brands-campaigns')      return <UpgradeGate planoNecessario="pro" workspace={workspace}><Campaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />

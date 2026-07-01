@@ -19,10 +19,10 @@ export function getRoute() {
   if (h === '#/app/time')            return 'time';
   if (h === '#/app/plano')           return 'plano';
   if (h === '#/app/alertas')         return 'alertas';
+  if (h === '#/app/ia-loudr')        return 'ia-loudr';
   if (h === '#/app/brands')                                        return 'brands-list';
   if (h === '#/app/brands/new')                                    return 'brands-new';
   if (h.match(/^#\/app\/brands\/[^/]+\/assistant/))               return 'brands-assistant';
-  if (h.match(/^#\/app\/brands\/[^/]+\/intelligence/))            return 'brands-intelligence';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/new/))          return 'brands-campaign-new';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
   if (h.match(/^#\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
