@@ -99,7 +99,7 @@ Aqui **não tem recuperação — tem aprendizado por comportamento**, cumulativ
 
 - **RAG** = memória do que foi **dito**. **Inteligência Viva** = memória do que a marca **é na prática**.
 - Convergem no Assistant (chunks do brand book **+** bloco do modelo vivo). A Inteligência Viva já governa o Studio.
-- **Evolução natural:** re-derivar os chunks a partir do modelo vivo — o RAG passa a indexar não só o digitado, mas o **aprendido**. Os dois cérebros viram um só.
+- **Os dois cérebros viraram um só ✅:** o RAG agora indexa **também o modelo vivo** — cada item destilado (posicionamento, voz, visual aprovado/reprovado, do/dont, fatos) é embeddado no mesmo índice (`section` prefixada `intel:`, sem sobrescrever o brand book). Uma pergunta ao Assistant recupera semanticamente o que a marca **declarou e o que aprendeu** de uma vez. *(Validado: pergunta de voz retorna o tom escrito no brand book **e** a voz reescrita pelo uso; "qual modelo performa melhor?" só o aprendido responde.)*
 
 ---
 
@@ -143,8 +143,10 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
 - **Studio** (Imagem · Vídeo · Workflow) — ✅ maduro, catálogo amplo de modelos de borda.
 - **Sistema de créditos + cobrança (Stripe)** — ✅ implementado e validado.
 - **Camada de Inteligência da Marca (Fases 0–3)** — ✅ ciclo fechado: avaliar → destilar → aprender → realimentar → provar.
-- **Aprofundamento do núcleo:** ✅ **`assistant_correction`** — o Brand Assistant virou superfície de **ensino** ("Ensinar a marca"); a correção humana é sinal de altíssima prioridade que reescreve o modelo vivo.
-- **Próximos:** RAG re-derivado do modelo vivo · destilador mais esperto (recência/contradição) · diff entre versões · Stripe live · recarga avulsa de créditos.
+- **Aprofundamento do núcleo:**
+  - ✅ **`assistant_correction`** — o Brand Assistant virou superfície de **ensino** ("Ensinar a marca"); a correção humana é sinal de altíssima prioridade que reescreve o modelo vivo.
+  - ✅ **RAG re-derivado do modelo vivo** — os dois cérebros viraram um só: o RAG do Assistant recupera semanticamente não só o brand book digitado, mas o modelo **aprendido** (re-embeddado a cada nova versão destilada).
+- **Próximos:** destilador mais esperto (recência/contradição/confiança por faceta) · diff entre versões · Stripe live · recarga avulsa de créditos.
 
 ---
 

@@ -103,7 +103,7 @@ Esboço de `modelo` (jsonb):
 ### 4. Porta de saída única — `resolveBrandIntelligence()`
 Evolução do `resolveBrandContext` atual. **A única** função que qualquer IA de borda chama para obter contexto de marca. Imagem, Assistente, diagnóstico, conteúdo — todos passam por aqui. Trocar modelo de borda nunca toca nisso.
 - Retorna o contexto destilado **+** (opcional) os trechos crus ainda relevantes, no formato que cada consumidor precisa (prefixo de prompt, chunks de RAG, etc.).
-- O **RAG do Brand Assistant** (`brand_book_chunks`) passa a ser **re-derivado a partir do modelo vivo**, não só do brand book digitado.
+- O **RAG do Brand Assistant** (`brand_book_chunks`) passa a ser **re-derivado a partir do modelo vivo**, não só do brand book digitado. ✅ Implementado (trilho B) — ver abaixo.
 
 ### 5. Métrica de evolução (assertividade)
 Como o modelo é **versionado** e os votos viram **approval-rate**, a evolução é demonstrável:
@@ -138,8 +138,18 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 ### `assistant_correction` — o Assistant como superfície de ensino ✅ (2026-07-01)
 Aprofundamento do núcleo (trilho "A"). No `BrandAssistant.jsx`, cada resposta tem um botão **"Ensinar a marca"** → o time corrige/ensina em texto → emite um sinal `assistant_correction` (insert direto em `brand_signals` via RLS do membro; `fonte='assistant'`, `ref_id`=conversa, payload `{pergunta, resposta, correcao}`, **peso 3**). O destilador trata como **ensino humano explícito de altíssima prioridade** (sobrepõe inferências fracas). Validado end-to-end: correção de tom → v2 com a voz reescrita, confiança 0.77→0.79. O Assistant deixa de ser só consumidor e vira **produtor** de inteligência.
 
-### Próximos (trilhos B/C/D do aprofundamento)
-- **B — RAG re-derivado do modelo vivo** (embeddings do destilado; unir os dois cérebros).
+### RAG re-derivado do modelo vivo — os dois cérebros viram um só ✅ (2026-07-01)
+Aprofundamento do núcleo (trilho "B"). O RAG semântico do Brand Assistant deixava de fora tudo que a marca **aprendeu**: `brand_book_chunks` indexava só o brand book **digitado**. Agora o **modelo vivo destilado** também é chunked + embeddado, no mesmo índice, e recuperado por similaridade — o Assistant puxa o que a marca **demonstrou e foi ensinada**, não só o que escreveu.
+
+- **Módulo compartilhado `_embed.js`** (os dois cérebros): `voyageEmbed()` (voyage-3, 1024d) + `intelChunks(modelo)` (transforma cada item acionável do modelo vivo — posicionamento, voz, cada visual aprovado/reprovado, modelo preferido, do/dont, cada fato — em uma **unidade de sentido auto-descritiva**) + `embedIntelChunks()` (re-deriva: limpa os `intel:` antigos e re-embeda, idempotente).
+- **Convivência sem clobber:** os chunks do modelo vivo usam `section` com prefixo **`intel:`** (`intel:aprovado`, `intel:voz`, `intel:modelo`, `intel:fato`…). O embed do brand book passou a deletar **só os não-`intel:`**; o destilador deleta **só os `intel:`**. Cada cérebro tem ciclo de vida próprio no mesmo índice.
+- **Gatilho automático:** ao gravar uma nova versão em `brand_intelligence`, o `brand-distill-background.js` re-deriva o RAG (não-fatal se o embed falhar — a destilação já está gravada).
+- **Recuperação unificada:** `match_brand_book_chunks` (sem mudança de schema/RPC) já retorna o top-5 por similaridade cobrindo os dois cérebros; o Assistant injeta só `chunk_text` (auto-descritivo).
+- **Validado end-to-end:** modelo v2 → 41 chunks `intel:` convivendo com 16 do brand book. Pergunta visual → 5/5 do modelo vivo; pergunta de voz → **mistura** o declarado (brand book) + o aprendido (`intel:voz`); "qual modelo performa melhor?" → só o modelo vivo responde (win-rate) e o RAG recupera.
+
+*Stack:* `_embed.js` (novo) · `brand-distill-background.js` (passo 5: `embedIntelChunks`) · `brand-book-embed-background.js` (delete preserva `intel:`, usa `voyageEmbed`).
+
+### Próximos (trilhos C/D do aprofundamento)
 - **C — Destilador mais esperto** (contradições, peso por recência, confiança por faceta).
 - **D — Diff entre versões** no painel.
 

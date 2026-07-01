@@ -8,6 +8,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, MODELS, isDev, extractJSON } from './_ai.js'
 import { resolveBrandContext } from './_studio.js'
+import { embedIntelChunks } from './_embed.js'
 
 const MAX_SIGNALS = 150   // teto de sinais por destilação
 
@@ -111,6 +112,16 @@ export const handler = async (event) => {
 
   // 4. marca sinais consumidos (idempotência)
   await supabase.from('brand_signals').update({ consumido_em: new Date().toISOString() }).in('id', signalIds)
+
+  // 5. RAG re-derivado do modelo vivo (trilho B): o Assistant passa a recuperar
+  //    semanticamente o que a marca APRENDEU, não só o brand book digitado.
+  //    Falha aqui não invalida a destilação já gravada.
+  try {
+    const n = await embedIntelChunks(supabase, brand_id, modelo)
+    console.log(`[distill] RAG re-derivado: ${n} chunks do modelo vivo`)
+  } catch (e) {
+    console.error('[distill] embed do modelo vivo falhou (não-fatal):', e.message)
+  }
 
   console.log(`[distill] marca ${brand_id} → v${versao} (${signals.length} sinais, conf ${avgConfianca(modelo)?.toFixed(2)})`)
   return { statusCode: 200, body: JSON.stringify({ versao, sinais: signals.length }) }
