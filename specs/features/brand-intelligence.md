@@ -1,6 +1,6 @@
 # LOUDR Brand Intelligence — Camada de Inteligência da Marca
-**Versão:** 0.1 (especificação inicial) · Junho 2026
-**Status:** Especificação aprovada em direção — **execução adiada**. Construir **depois** das features de produto (Studio: Imagem → Vídeo → Workflow). Só então olhamos para esta camada.
+**Versão:** 1.0 · Junho–Julho 2026
+**Status:** ✅ **IMPLEMENTADA (Fases 0–3)** em 2026-07-01. O ciclo de aprendizado está fechado: avaliar → destilar → aprender → realimentar (Studio + Assistant) → medir. Validada com dado real (v1 de 19 sinais, confiança 0.77). Migrations 025 (`brand_signals`) e 026 (`brand_intelligence`) aplicadas.
 **Owner:** Danilo Silva · LOUDR
 **Relação com o SPECS principal:** é o **núcleo** do LOUDR OS — o que dá nome ao produto. As demais features (Studio, Assistant, Posicionamento, Listening) são *produtoras e consumidoras* desta camada.
 
@@ -115,14 +115,28 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 
 ---
 
-## Faseamento (executar nesta ordem, **após** o produto)
+## Faseamento — status de implementação (2026-07-01)
 
-> **Pré-requisito de produto:** concluir Studio — **Imagem → Vídeo → Workflow** — antes de iniciar qualquer fase abaixo. A camada de inteligência vem **depois**.
+- **Fase 0 — Espinha dorsal ✅** `brand_signals` (append-only, RLS) + emissão via **triggers no banco** (image_vote, campaign_verdict, diagnostic, listening_sentiment, brandbook_edit) + backfill dos votos/campanhas existentes. Porta única `resolveBrandIntelligence()` em `_studio.js`; generate/video/campaign/prompt roteados por ela. Migration `025_brand_signals.sql`.
+- **Fase 1 — Modelo vivo + destilador ✅** `brand_intelligence` versionado (migration `026`). Destilador `brand-distill-background.js` (Sonnet, idempotente via `consumido_em`). `resolveBrandIntelligence` realimenta a geração com o modelo destilado. Automação: `brand-distill-cron.js` (netlify.toml `0 7 * * *`, limiar `BRAND_DISTILL_THRESHOLD`).
+- **Fase 2 — Realimentar o Assistente ✅** `BrandAssistant.jsx` carrega a última versão e injeta o bloco "Inteligência da marca (aprendido com o uso)" no system prompt (preferências visuais, do/don't, win-rate por provider, fatos). *(RAG re-derivado dos chunks fica como aprofundamento opcional — o modelo destilado é compacto e vai direto no contexto.)*
+- **Fase 3 — Métricas e proveniência ✅** Painel `BrandIntelligence.jsx` (`#/app/brands/:id/intelligence`): confiança média + evolução por versão (recharts), approval-rate, win-rate por provider, modelo vivo legível, proveniência por tipo de sinal.
 
-- **Fase 0 — Espinha dorsal (sem cérebro):** criar `brand_signals`; fazer features existentes **emitir** sinais; introduzir `resolveBrandIntelligence()` como porta única (no início só repassa o brand book). Objetivo: **acumular massa de sinal** em produção. *Construir o cérebro antes do fluxo de dados é construir no vazio.*
-- **Fase 1 — Modelo vivo + destilador:** `brand_intelligence`, destilador LLM, gatilho por cron + volume. Primeira realimentação real (preferências visuais → geração de imagem).
-- **Fase 2 — Realimentar o Assistente:** RAG re-derivado do modelo vivo; bloco `visual_preferences`/`do_dont` no contexto do Assistente.
-- **Fase 3 — Métricas e proveniência expostas:** painel de assertividade (confiança/approval-rate/win-rate por versão), diff entre versões, auditoria de proveniência.
+### Emissores implementados (triggers, Fase 0)
+| trigger | tabela | sinal |
+|---|---|---|
+| `trg_signal_image_vote` | `studio_generations` (feedback) | `image_vote` (peso 2) |
+| `trg_signal_campaign_verdict` | `studio_campaigns` (status) | `campaign_verdict` (aprovada=3) |
+| `trg_signal_diagnostic` | `diagnosticos` | `diagnostic` |
+| `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
+| `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
+
+`assistant_correction` (não é evento de tabela) fica como emissão explícita futura.
+
+### Próximos (opcionais)
+- RAG do Assistant re-derivado do modelo vivo (embeddings do destilado).
+- Diff visual entre versões no painel.
+- `assistant_correction` explícito no chat.
 
 ---
 

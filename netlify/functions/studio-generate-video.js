@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falVideoConfigured, VIDEO_MODELS, videoSupportsEndFrame } from './_video.js'
-import { resolveBrandContext, submitVideoGeneration } from './_studio.js'
+import { resolveBrandIntelligence, submitVideoGeneration } from './_studio.js'
 import { creditsForVideo, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
 
 const headers = {
@@ -76,7 +76,7 @@ export const handler = async (event) => {
 
   // Marca como referência OPCIONAL
   let snapshot = null, prefix = ''
-  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome, facets))
+  if (useBrand) ({ prefix, snapshot } = await resolveBrandIntelligence(supabase, brand_id, brand.nome, facets))
   const promptFinal = useBrand ? `${prefix}\n\n[PEDIDO — VÍDEO]\n${prompt}` : prompt
 
   const { gen, request_id, error } = await submitVideoGeneration(supabase, {

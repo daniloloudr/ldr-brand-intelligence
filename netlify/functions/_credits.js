@@ -15,6 +15,8 @@ export const VIDEO_CREDITS = {
   'hailuo-02':      { 6: 5, 10: 9 },
   'kling-25-turbo': { 5: 7, 10: 13 },
   'seedance-1-pro': { 5: 14, 10: 27 },
+  'seedance-2-fast': { 5: 22, 10: 44 },
+  'seedance-2-pro':  { 5: 28, 10: 55 },
   'veo3-fast':      { 4: 29, 6: 44, 8: 58 },
   'veo3':           { 4: 54, 6: 81, 8: 108 },
   'wan-22':         { default: 4 },
@@ -40,6 +42,8 @@ export const PLAN_ORDER  = ['trial', 'starter', 'pro', 'enterprise']
 export const PLAN_LABEL  = { trial: 'Trial', starter: 'Essencial', pro: 'Pro', enterprise: 'Premium' }
 export const MODEL_MIN_PLAN = {
   'fal-ai/nano-banana-pro': 'pro',
+  'seedance-2-fast':        'pro',
+  'seedance-2-pro':         'pro',
   'veo3-fast':              'pro',
   'veo3':                   'enterprise',
 }

@@ -35,6 +35,16 @@ export const VIDEO_MODELS = {
     i2v: 'fal-ai/bytedance/seedance/v1/pro/image-to-video',
     durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'], endField: 'end_image_url',
   },
+  'seedance-2-pro': {
+    t2v: 'bytedance/seedance-2.0/text-to-video',
+    i2v: 'bytedance/seedance-2.0/image-to-video',
+    durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'], endField: 'end_image_url',
+  },
+  'seedance-2-fast': {
+    t2v: 'bytedance/seedance-2.0/fast/text-to-video',
+    i2v: 'bytedance/seedance-2.0/fast/image-to-video',
+    durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'], endField: 'end_image_url',
+  },
   'wan-22': {
     t2v: 'fal-ai/wan/v2.2-a14b/text-to-video',
     i2v: 'fal-ai/wan/v2.2-a14b/image-to-video',

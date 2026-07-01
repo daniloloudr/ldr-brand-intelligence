@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig } from './_ai.js'
-import { resolveBrandContext } from './_studio.js'
+import { resolveBrandIntelligence } from './_studio.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ export const handler = async (event) => {
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
   let prefix = ''
-  if (useBrand) ({ prefix } = await resolveBrandContext(supabase, brand_id, brand.nome))
+  if (useBrand) ({ prefix } = await resolveBrandIntelligence(supabase, brand_id, brand.nome))
 
   const system = [
     'Você é um diretor de arte sênior que escreve prompts para geração de imagem por IA.',

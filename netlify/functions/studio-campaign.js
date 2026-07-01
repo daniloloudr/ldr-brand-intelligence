@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
-import { resolveBrandContext, submitGeneration } from './_studio.js'
+import { resolveBrandIntelligence, submitGeneration } from './_studio.js'
 import { creditsForImage, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
 
 const headers = {
@@ -68,7 +68,7 @@ export const handler = async (event) => {
 
   // Brand context único (opcional) — coerência da campanha vem daqui
   let snapshot = null, prefix = ''
-  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome))
+  if (useBrand) ({ prefix, snapshot } = await resolveBrandIntelligence(supabase, brand_id, brand.nome))
 
   // Cria a campanha (status gerando)
   const { data: campaign, error: campErr } = await supabase.from('studio_campaigns').insert({

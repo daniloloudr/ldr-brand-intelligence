@@ -16,6 +16,9 @@
 [functions."cron-monitor"]
   schedule = "0 8 * * 1"
 
+[functions."brand-distill-cron"]
+  schedule = "0 7 * * *"
+
 [functions."diagnostico-gerar"]
   timeout = 120
 
