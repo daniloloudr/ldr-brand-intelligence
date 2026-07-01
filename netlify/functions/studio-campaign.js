@@ -7,7 +7,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
 import { resolveBrandIntelligence, submitGeneration } from './_studio.js'
-import { creditsForImage, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
+import { creditsForImage, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -53,14 +53,9 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  // Gating + débito = nº de formatos × crédito/imagem do modelo. Admin bypassa.
+  // Débito = nº de formatos × crédito/imagem do modelo (todo modelo é acessível). Admin bypassa.
   const amount = formatos.length * creditsForImage(model)
   if (!platformAdmin) {
-    const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
-    const minP = minPlanoModelo(model)
-    if (!planoPermite(ws?.plano, minP)) {
-      return { statusCode: 403, headers, body: JSON.stringify({ error: `Este modelo requer o plano ${PLAN_LABEL[minP]} ou superior.`, minPlano: minP }) }
-    }
     const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'campaign', modelo: model || 'auto', user_id: user.id })
     if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para esta campanha.', need: amount }) }
     if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }

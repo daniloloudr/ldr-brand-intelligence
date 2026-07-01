@@ -23,16 +23,19 @@ de margem) × 6,00 (câmbio com colchão) ÷ 0,73 (crédito mais barato) → gar
 | Preço/mês | **R$1.500** | **R$3.000** | **R$5.000** | a negociar |
 | Créditos | 750 | 2.000 | 5.000 | negociável |
 | R$/crédito | R$2,00 | R$1,50 | R$1,00 | ~R$0,73 piso |
+| Modelos e funcionalidades | **todos** | **todos** | **todos** | **todos** |
 | Brand Intelligence | incluída | incluída | incluída | incluída |
+
+> A única diferença entre planos é a **quantidade de créditos**. Todo modelo (imagem/vídeo) e toda funcionalidade (Studio, Workflow, Campanhas, Listening, Content Hub) estão disponíveis em qualquer plano.
 
 Código: `constants.js PLANOS` mantém as CHAVES `trial/starter/pro/enterprise`
 (starter=Essencial, pro=Pro, enterprise=Premium) p/ não quebrar banco/admin.
 Todos os planos pagos têm `studio:true`.
 
+- **Sem gating (2026-07-01):** TODO plano acessa TODOS os modelos e TODAS as funcionalidades. A **única** diferença entre planos é a **quantidade de créditos**. Não há mais `MODEL_MIN_PLAN` nem `UpgradeGate` — o acesso é universal; o que limita o uso é o saldo.
 - **Cap rígido**: saldo zerado → bloqueia geração (402) até o próximo ciclo (refill
   mensal automático). Recarga avulsa (overage) = pendente (depende do Stripe).
-- **Gating por modelo** (`MODEL_MIN_PLAN`): Nano Banana Pro + Veo 3 Fast + Seedance 2 = **Pro+**; Veo 3 = **Premium**. Enforçado no backend (403).
-- **platform_admin bypassa** o débito e o gating (gera de graça p/ suporte/teste).
+- **platform_admin bypassa** o débito (gera de graça p/ suporte/teste).
 
 ## Custo de crédito por operação (regra ×18, custos fal reais jun/2026)
 

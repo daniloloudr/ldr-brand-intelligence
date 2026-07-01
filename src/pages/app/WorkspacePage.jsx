@@ -14,7 +14,7 @@ import { useWorkspace }    from '../../lib/WorkspaceContext'
 import { supabase }        from '../../lib/supabase'
 import { PLANOS }          from '../../lib/constants'
 import {
-  IMAGE_GUIDE, VIDEO_GUIDE, OP_GUIDE, PLAN_LABEL, planoLiberado,
+  IMAGE_GUIDE, VIDEO_GUIDE, OP_GUIDE,
   creditsForImage, creditsForVideo, creditsForOp,
 } from '../../lib/credits'
 import { durLabel } from '../../lib/videoModels'
@@ -264,17 +264,7 @@ function TabEquipe({ workspace }) {
   )
 }
 
-const PLANO_CHIP = { pro: { label: 'Pro', color: '#9B6DFF' }, enterprise: { label: 'Premium', color: '#0D9E7A' } }
-
-function PlanoBadge({ minPlano, planoWorkspace }) {
-  const meta = PLANO_CHIP[minPlano]
-  if (!meta) return <Chip label="Incluído" size="small" variant="outlined" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
-  const liberado = planoLiberado(planoWorkspace, minPlano)
-  return <Chip label={liberado ? meta.label : `${meta.label}+`} size="small"
-    sx={{ height: 20, fontSize: 10, fontWeight: 800, color: '#fff', bgcolor: meta.color, opacity: liberado ? 1 : 0.55 }} />
-}
-
-function CreditRow({ label, beneficio, creditos, minPlano, planoWorkspace }) {
+function CreditRow({ label, beneficio, creditos }) {
   return (
     <TableRow>
       <TableCell sx={{ py: 1 }}>
@@ -283,9 +273,6 @@ function CreditRow({ label, beneficio, creditos, minPlano, planoWorkspace }) {
       </TableCell>
       <TableCell align="right" sx={{ py: 1, whiteSpace: 'nowrap' }}>
         <Typography fontSize={13} fontWeight={800} sx={{ color: 'primary.main' }}>{creditos}</Typography>
-      </TableCell>
-      <TableCell align="right" sx={{ py: 1 }}>
-        <PlanoBadge minPlano={minPlano || 'starter'} planoWorkspace={planoWorkspace} />
       </TableCell>
     </TableRow>
   )
@@ -432,12 +419,11 @@ function TabPlano({ workspace }) {
           <TableRow>
             <TableCell sx={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Imagem</TableCell>
             <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Plano</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {IMAGE_GUIDE.map(m => (
-            <CreditRow key={m.id} label={m.label} beneficio={m.beneficio} creditos={creditsForImage(m.id)} minPlano={m.minPlano} planoWorkspace={planoKey} />
+            <CreditRow key={m.id} label={m.label} beneficio={m.beneficio} creditos={creditsForImage(m.id)} />
           ))}
         </TableBody>
       </Table>
@@ -447,7 +433,6 @@ function TabPlano({ workspace }) {
           <TableRow>
             <TableCell sx={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Vídeo</TableCell>
             <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Plano</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -455,7 +440,7 @@ function TabPlano({ workspace }) {
             const cr = m.durations.length
               ? m.durations.map(d => `${creditsForVideo(m.key, d)} (${durLabel(d)})`).join(' · ')
               : `${creditsForVideo(m.key)}`
-            return <CreditRow key={m.key} label={m.label} beneficio={m.beneficio} creditos={cr} minPlano={m.minPlano} planoWorkspace={planoKey} />
+            return <CreditRow key={m.key} label={m.label} beneficio={m.beneficio} creditos={cr} />
           })}
         </TableBody>
       </Table>
@@ -465,12 +450,11 @@ function TabPlano({ workspace }) {
           <TableRow>
             <TableCell sx={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Outras operações</TableCell>
             <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Créditos</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 800, fontSize: 11 }}>Plano</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {OP_GUIDE.map(o => (
-            <CreditRow key={o.op} label={o.label} creditos={creditsForOp(o.op)} minPlano="starter" planoWorkspace={planoKey} />
+            <CreditRow key={o.op} label={o.label} creditos={creditsForOp(o.op)} />
           ))}
         </TableBody>
       </Table>

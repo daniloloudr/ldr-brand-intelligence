@@ -36,20 +36,8 @@ export const creditsForVideo = (key, duration) =>
   VIDEO_CREDITS[key]?.[Number(duration)] ?? VIDEO_CREDITS[key]?.default ?? 8
 export const creditsForOp = op => OP_CREDITS[op] ?? 1
 
-// ── Gating por modelo (qual plano libera) ────────────────────────────
-// ESPELHA o minPlano dos GUIDEs em src/lib/credits.js — sincronizar.
-export const PLAN_ORDER  = ['trial', 'starter', 'pro', 'enterprise']
-export const PLAN_LABEL  = { trial: 'Trial', starter: 'Essencial', pro: 'Pro', enterprise: 'Premium' }
-export const MODEL_MIN_PLAN = {
-  'fal-ai/nano-banana-pro': 'pro',
-  'seedance-2-fast':        'pro',
-  'seedance-2-pro':         'pro',
-  'veo3-fast':              'pro',
-  'veo3':                   'enterprise',
-}
-export const minPlanoModelo = idOrKey => MODEL_MIN_PLAN[idOrKey] || 'starter'
-export const planoPermite = (planoWorkspace, minPlano) =>
-  PLAN_ORDER.indexOf(planoWorkspace) >= PLAN_ORDER.indexOf(minPlano || 'starter')
+// Sem gating por plano: TODO modelo é acessível a todos os planos.
+// O que difere entre planos é a QUANTIDADE de créditos, não o acesso.
 
 // ── Débito / estorno via RPC atômica (migration 023) ─────────────────
 // Retorna { ok, saldo } | { ok:false, insufficient } | { ok:false, error }
