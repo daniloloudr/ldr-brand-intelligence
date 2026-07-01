@@ -34,23 +34,76 @@ function isDark(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 < 128
 }
 
-/* ─── Logo / SVG upload ─────────────────────────────────────────────── */
+/* ─── Brand Marks (múltiplos SVGs — variações da marca) ─────────────── */
 
-function LogoPanel({ asset, brandId, onSave, onDelete }) {
-  const [dark, setDark]       = useState(false)
-  const [copied, setCopied]   = useState(false)
+const MARK_BGS = [
+  { bg: '#FFFFFF', label: 'Light' },
+  { bg: '#F3F4F6', label: 'Light Gray' },
+  { bg: '#111827', label: 'Dark' },
+]
+
+function BrandMarksPanel({ marks, onSave, onDelete }) {
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef()
 
   async function handleSVG(e) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    if (!f.name.endsWith('.svg') && f.type !== 'image/svg+xml') return
+    const files = Array.from(e.target.files || [])
+      .filter(f => f.name.endsWith('.svg') || f.type === 'image/svg+xml')
+    if (!files.length) return
     setUploading(true)
-    const svgText = await f.text()
-    await onSave({ tipo: 'logo', nome: f.name.replace('.svg',''), descricao: 'Logo principal', valor: svgText })
+    for (const f of files) {
+      const svgText = await f.text()
+      await onSave({ tipo: 'logo', nome: f.name.replace('.svg', ''), descricao: 'Brand mark', valor: svgText })
+    }
     setUploading(false)
+    e.target.value = ''
   }
+
+  return (
+    <Box sx={{ mb: 6 }}>
+      <SectionLabel label="Brand Mark" color="#7F77DD" count={marks.length} />
+      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.25 }}>
+        Variações da marca em SVG — logo principal, símbolo, versões horizontais/reduzidas. Clique no preview para alternar o fundo.
+      </Typography>
+
+      {marks.length > 0 && (
+        <Box sx={{ display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+          gap: 2, mt: 2 }}>
+          {marks.map(m => <BrandMarkCard key={m.id} asset={m} onDelete={onDelete} />)}
+        </Box>
+      )}
+
+      <Box sx={{ mt: 2 }}>
+        <Button
+          size="small" variant="outlined" color="inherit"
+          startIcon={<UploadFileIcon />}
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}
+        >
+          {uploading ? 'Enviando...' : marks.length ? 'Adicionar SVG' : 'Upload SVG'}
+        </Button>
+      </Box>
+      <input ref={fileRef} type="file" accept=".svg,image/svg+xml" multiple
+        style={{ display: 'none' }} onChange={handleSVG} />
+
+      {marks.length === 0 && (
+        <Box sx={{ mt: 2, py: 4, textAlign: 'center', border: '1px dashed',
+          borderColor: 'divider', borderRadius: 2 }}>
+          <Typography variant="caption" color="text.disabled">
+            Nenhuma brand mark. Envie um ou mais SVGs — a marca pode ter várias variações.
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+function BrandMarkCard({ asset, onDelete }) {
+  const [bgIdx, setBgIdx]   = useState(0)
+  const [copied, setCopied] = useState(false)
+  const { bg, label } = MARK_BGS[bgIdx]
 
   function copyValue() {
     if (!asset?.valor) return
@@ -60,83 +113,45 @@ function LogoPanel({ asset, brandId, onSave, onDelete }) {
   }
 
   return (
-    <Box sx={{ mb: 6 }}>
-      <SectionLabel label="Brand Mark" color="#7F77DD" count={asset ? 1 : 0} />
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mt: 2 }}>
-        {/* Preview fundo claro */}
-        <PreviewFrame bg={dark ? '#111827' : '#FFFFFF'} label={dark ? 'Dark' : 'Light'}
-          onToggle={() => setDark(d => !d)} asset={asset} />
-        {/* Preview fundo cinza */}
-        <PreviewFrame bg={dark ? '#1F2937' : '#F3F4F6'} label={dark ? 'Dark Gray' : 'Light Gray'}
-          onToggle={() => setDark(d => !d)} asset={asset} />
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+      <Box
+        onClick={() => setBgIdx(i => (i + 1) % MARK_BGS.length)}
+        sx={{ bgcolor: bg, height: 150, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', p: 3, cursor: 'pointer', overflow: 'hidden',
+          transition: 'background 0.2s' }}
+      >
+        <Box component="div"
+          sx={{ width: '100%', height: '100%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            '& svg': { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', display: 'block' } }}
+          dangerouslySetInnerHTML={{ __html: asset.valor }} />
       </Box>
-
-      <Box sx={{ mt: 2, display: 'flex', gap: 1.5, alignItems: 'center' }}>
-        <Button
-          size="small" variant="outlined" color="inherit"
-          startIcon={<UploadFileIcon />}
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}
-        >
-          {uploading ? 'Enviando...' : asset ? 'Substituir SVG' : 'Upload SVG'}
-        </Button>
-        {asset && (
-          <>
-            <Tooltip title={copied ? 'Copiado!' : 'Copiar SVG'}>
-              <IconButton size="small" onClick={copyValue}
-                sx={{ color: copied ? '#0D9E7A' : 'text.disabled' }}>
-                {copied ? <CheckIcon sx={{ fontSize: 16 }} /> : <ContentCopyIcon sx={{ fontSize: 16 }} />}
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Remover logo">
-              <IconButton size="small" onClick={() => onDelete(asset.id)}
-                sx={{ color: 'text.disabled', '&:hover': { color: '#E8185A' } }}>
-                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          </>
-        )}
-      </Box>
-      <input ref={fileRef} type="file" accept=".svg,image/svg+xml" style={{ display: 'none' }}
-        onChange={handleSVG} />
-    </Box>
-  )
-}
-
-function PreviewFrame({ bg, label, asset, onToggle }) {
-  return (
-    <Box sx={{
-      border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden',
-    }}>
-      <Box sx={{
-        bgcolor: bg, minHeight: 140,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4,
-        cursor: 'pointer', transition: 'background 0.2s',
-      }} onClick={onToggle}>
-        {asset?.valor ? (
-          <Box
-            component="div"
-            sx={{ maxWidth: 200, maxHeight: 100, '& svg': { width: '100%', height: 'auto' } }}
-            dangerouslySetInnerHTML={{ __html: asset.valor }}
-          />
-        ) : (
-          <Box sx={{ textAlign: 'center', opacity: 0.3 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 700,
-              color: bg === '#FFFFFF' || bg === '#F3F4F6' ? '#111' : '#fff' }}>
-              Sem logo
-            </Typography>
-          </Box>
-        )}
-      </Box>
-      <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="caption" color="text.disabled" fontWeight={700}
-          textTransform="uppercase" letterSpacing="0.08em">{label}</Typography>
-        <Typography variant="caption" color="text.disabled" fontSize="0.58rem">
-          Clique para alternar
-        </Typography>
+      <Box sx={{ px: 1.5, py: 1, borderTop: '1px solid', borderColor: 'divider',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: 12, fontWeight: 800, overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {asset.nome || 'Brand mark'}
+          </Typography>
+          <Typography variant="caption" color="text.disabled"
+            sx={{ fontSize: '0.56rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {label} · clique p/ alternar
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexShrink: 0 }}>
+          <Tooltip title={copied ? 'Copiado!' : 'Copiar SVG'}>
+            <IconButton size="small" onClick={copyValue}
+              sx={{ color: copied ? '#0D9E7A' : 'text.disabled' }}>
+              {copied ? <CheckIcon sx={{ fontSize: 15 }} /> : <ContentCopyIcon sx={{ fontSize: 15 }} />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Remover">
+            <IconButton size="small" onClick={() => onDelete(asset.id)}
+              sx={{ color: 'text.disabled', '&:hover': { color: '#E8185A' } }}>
+              <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   )
@@ -521,13 +536,12 @@ function SectionLabel({ label, color, count }) {
 /* ─── Main export ───────────────────────────────────────────────────── */
 
 export function BrandAssetsSection({ assets, brandId, onDelete, onSave }) {
-  // Logo principal: o primeiro asset 'logo' que tenha SVG inline (não file_path)
-  // Os demais 'logo' (versões adicionais via upload) caem na galeria abaixo
-  const logoPrincipal = assets.find(a => a.tipo === 'logo' && a.valor?.includes('<svg'))
-  const cores         = assets.filter(a => a.tipo === 'cor')
-  const tipos         = assets.filter(a => a.tipo === 'tipografia' && !a.file_path)
-  const galeria       = assets.filter(a =>
-    a !== logoPrincipal &&
+  // Brand marks: TODOS os assets 'logo' com SVG inline (a marca pode ter várias variações)
+  const brandMarks = assets.filter(a => a.tipo === 'logo' && a.valor?.includes('<svg'))
+  const cores       = assets.filter(a => a.tipo === 'cor')
+  const tipos       = assets.filter(a => a.tipo === 'tipografia' && !a.file_path)
+  const galeria     = assets.filter(a =>
+    !brandMarks.includes(a) &&
     !['cor'].includes(a.tipo) &&
     !(a.tipo === 'tipografia' && !a.file_path)
   )
@@ -537,10 +551,9 @@ export function BrandAssetsSection({ assets, brandId, onDelete, onSave }) {
       {/* Upload de arquivos */}
       <UploadPanel brandId={brandId} onUploaded={onSave} />
 
-      {/* Logo principal (SVG via legacy flow) */}
-      <LogoPanel
-        asset={logoPrincipal || null}
-        brandId={brandId}
+      {/* Brand marks (múltiplos SVGs — variações da marca) */}
+      <BrandMarksPanel
+        marks={brandMarks}
         onSave={onSave}
         onDelete={onDelete}
       />
