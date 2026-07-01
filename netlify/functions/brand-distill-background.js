@@ -23,8 +23,8 @@ function avgConfianca(obj, acc = []) {
   return acc.length ? acc.reduce((a, b) => a + b, 0) / acc.length : null
 }
 
-// Texto compacto de um sinal para o LLM
-function fmtSignal(s) {
+// Corpo compacto de um sinal para o LLM (sem os metadados de recência/peso)
+function fmtSignalBody(s) {
   const p = s.payload || {}
   if (s.tipo === 'image_vote')
     return `[voto ${p.voto === 'up' ? '👍 APROVADO' : '👎 REPROVADO'}] provider=${p.provider || '?'} formato=${p.formato || '?'} tipo=${p.media_type || 'image'} prompt="${(p.prompt || '').slice(0, 400)}" (ref:${s.ref_id})`
@@ -41,15 +41,26 @@ function fmtSignal(s) {
   return `[${s.tipo}] ${JSON.stringify(p).slice(0, 300)}`
 }
 
+// Anota cada sinal com RECÊNCIA + PESO para o destilador ponderar (trilho C).
+function fmtSignal(s, now) {
+  const dias = s.created_at ? Math.max(0, Math.round((now - new Date(s.created_at)) / 86400000)) : null
+  const quando = dias === null ? 'há ?d' : dias === 0 ? 'hoje' : `há ${dias}d`
+  return `{${quando}, peso ${s.peso ?? 1}} ${fmtSignalBody(s)}`
+}
+
 const SYSTEM = [
   'Você é o DESTILADOR de inteligência de marca do LOUDR. Você mantém um MODELO VIVO, estruturado, de uma marca — que fica mais assertivo conforme evidências se acumulam.',
   'Recebe: (a) o MODELO ATUAL (pode estar vazio) e (b) SINAIS NOVOS (votos em peças geradas, veredictos de campanha, diagnósticos, sentimento, edições do brand book).',
   'Produz a PRÓXIMA versão do modelo. Regras:',
-  '- Aumente a confiança (0 a 1) quando vários sinais se corroboram; diminua/remova quando se contradizem.',
-  '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider).',
+  '- CONFIANÇA POR FACETA: cada faceta (posicionamento, voz, cada preferência visual, cada do/dont, cada fato) tem confiança PRÓPRIA (0 a 1). Calibre uma a uma pela força, quantidade e recência das evidências DAQUELA faceta — nunca um número global chutado.',
+  '- Aumente a confiança quando vários sinais se corroboram; diminua quando se contradizem.',
+  '- RECÊNCIA: cada sinal vem anotado com {quando, peso}. Sinais mais RECENTES e de MAIOR peso têm precedência. Ao ponderar evidências, combine recência × peso.',
+  '- CONTRADIÇÃO: quando sinais se contradizem entre si OU contradizem o MODELO ATUAL, NÃO faça média cega. Prevalece o lado mais recente + de maior peso + ensino explícito. Ao lado perdedor, NÃO apague conhecimento útil — rebaixe a confiança e, se relevante, registre a ressalva no próprio "valor"/"fato".',
+  '- DECAIMENTO: se o MODELO ATUAL afirma algo que os sinais novos contradizem, ou que já não é corroborado, REDUZA sua confiança em vez de mantê-la. Só permanece alta a confiança do que é recente e reforçado.',
+  '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider). Votos recentes pesam mais que antigos.',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
-  '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas.',
-  '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido.',
+  '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas e vence empates de recência.',
+  '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido (com sua confiança recalibrada).',
   'Responda APENAS com JSON estrito neste schema (sem markdown, sem comentário):',
   '{"posicionamento":{"valor":"","confianca":0,"fontes":[]},"voz":{"valor":"","confianca":0,"fontes":[]},"preferencias_visuais":{"aprovado":[{"padrao":"","confianca":0,"exemplos":[]}],"reprovado":[{"padrao":"","confianca":0}],"modelo_preferido":{"provider":"","win_rate":0}},"do_dont":{"do":[],"dont":[]},"fatos":[{"fato":"","confianca":0,"fontes":[]}]}',
 ].join('\n')
@@ -65,7 +76,7 @@ export const handler = async (event) => {
 
   // 1. sinais não-consumidos + versão atual + brand book (grounding)
   const [{ data: signals }, { data: brand }, { data: atual }] = await Promise.all([
-    supabase.from('brand_signals').select('id, tipo, ref_id, payload, peso, workspace_id')
+    supabase.from('brand_signals').select('id, tipo, ref_id, payload, peso, created_at, workspace_id')
       .eq('brand_id', brand_id).is('consumido_em', null).order('created_at', { ascending: true }).limit(MAX_SIGNALS),
     supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single(),
     supabase.from('brand_intelligence').select('versao, modelo').eq('brand_id', brand_id).order('versao', { ascending: false }).limit(1).maybeSingle(),
@@ -76,13 +87,14 @@ export const handler = async (event) => {
   const { prefix: brandBook } = await resolveBrandContext(supabase, brand_id, brand.nome)
 
   // 2. destila
+  const now = Date.now()
   const tipos = {}
   for (const s of signals) tipos[s.tipo] = (tipos[s.tipo] || 0) + 1
   const content = [
     `[BRAND BOOK — base estática]\n${brandBook}`,
     `\n[MODELO ATUAL v${atual?.versao || 0}]\n${JSON.stringify(atual?.modelo || {}, null, 0)}`,
-    `\n[SINAIS NOVOS — ${signals.length}]\n${signals.map(fmtSignal).join('\n')}`,
-    '\nDestile a próxima versão do modelo (JSON estrito).',
+    `\n[SINAIS NOVOS — ${signals.length}, do mais antigo ao mais recente; {quando, peso} anota recência e força]\n${signals.map(s => fmtSignal(s, now)).join('\n')}`,
+    '\nDestile a próxima versão do modelo (JSON estrito), aplicando recência, resolução de contradição e confiança por faceta.',
   ].join('\n')
 
   let modelo

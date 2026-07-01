@@ -149,9 +149,22 @@ Aprofundamento do núcleo (trilho "B"). O RAG semântico do Brand Assistant deix
 
 *Stack:* `_embed.js` (novo) · `brand-distill-background.js` (passo 5: `embedIntelChunks`) · `brand-book-embed-background.js` (delete preserva `intel:`, usa `voyageEmbed`).
 
-### Próximos (trilhos C/D do aprofundamento)
-- **C — Destilador mais esperto** (contradições, peso por recência, confiança por faceta).
-- **D — Diff entre versões** no painel.
+### Destilador mais esperto — recência, contradição e confiança por faceta ✅ (2026-07-01)
+Aprofundamento do núcleo (trilho "C"). O destilador deixava as evidências "achatadas": não sabia qual sinal era mais novo nem mais forte, e a confiança tendia a um número global. Agora ele **pondera o tempo e resolve conflitos**.
+
+- **Recência + peso na entrada:** cada sinal é anotado com `{quando, peso}` (idade em dias calculada no envio + `brand_signals.peso`). Os sinais vão do mais antigo ao mais recente, e o cabeçalho explica a anotação. `fmtSignal(s, now)` embrulha o corpo (`fmtSignalBody`) com esses metadados.
+- **Regras novas no SYSTEM:**
+  - *Confiança por faceta* — cada faceta (posicionamento, voz, cada preferência visual, cada do/dont, cada fato) tem confiança **própria**, calibrada pela força/quantidade/recência das evidências daquela faceta (nunca um número global).
+  - *Recência* — sinais mais recentes e de maior peso têm precedência; pondera-se recência × peso.
+  - *Contradição* — quando sinais se contradizem (ou contradizem o modelo atual), sem média cega: vence o mais recente + de maior peso + ensino explícito; ao lado perdedor, **rebaixa a confiança** e registra a ressalva, sem apagar conhecimento útil.
+  - *Decaimento* — o que o modelo afirma mas os sinais novos contradizem (ou já não corroboram) tem a confiança **reduzida**; só permanece alta a confiança do recente e reforçado.
+  - `assistant_correction` continua como ensino de altíssima prioridade e **vence empates de recência**.
+- **Validado end-to-end (revertido):** correção recente (peso 3) contradizendo um fato antigo ("gpt-image-2 reprovado", conf 0.75) → o fato foi **atualizado** ("retestado com prompt bem especificado", conf 0.9) e o `dont` genérico foi **refinado** ("não usar *com prompt genérico/sem estrutura*") em vez de apagado. Recência venceu, contradição resolvida com nuance, conhecimento preservado.
+
+*Stack:* `brand-distill-background.js` (`fmtSignalBody`/`fmtSignal(s, now)`, `created_at` no select, `now` no content, SYSTEM enriquecido).
+
+### Próximos (trilho D do aprofundamento)
+- **D — Diff entre versões** no painel (o que a versão N aprendeu/mudou em relação à N-1).
 
 ---
 

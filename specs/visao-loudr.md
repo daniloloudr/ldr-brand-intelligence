@@ -146,7 +146,8 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
 - **Aprofundamento do núcleo:**
   - ✅ **`assistant_correction`** — o Brand Assistant virou superfície de **ensino** ("Ensinar a marca"); a correção humana é sinal de altíssima prioridade que reescreve o modelo vivo.
   - ✅ **RAG re-derivado do modelo vivo** — os dois cérebros viraram um só: o RAG do Assistant recupera semanticamente não só o brand book digitado, mas o modelo **aprendido** (re-embeddado a cada nova versão destilada).
-- **Próximos:** destilador mais esperto (recência/contradição/confiança por faceta) · diff entre versões · Stripe live · recarga avulsa de créditos.
+  - ✅ **Destilador mais esperto** — pondera **recência × peso**, resolve **contradições** sem apagar conhecimento (rebaixa a confiança do lado vencido) e calibra **confiança por faceta**. *(Validado: uma correção recente do time reverteu um "reprovado" antigo e refinou a regra em vez de apagá-la.)*
+- **Próximos:** diff entre versões no painel · Stripe live · recarga avulsa de créditos.
 
 ---
 
