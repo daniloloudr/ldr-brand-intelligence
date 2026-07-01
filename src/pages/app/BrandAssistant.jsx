@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box, Typography, IconButton, TextField, Button, CircularProgress,
-  Paper, Chip, Divider, Avatar, Tooltip,
+  Paper, Chip, Divider, Avatar, Tooltip, Stack,
 } from '@mui/material'
 import SendIcon from '@mui/icons-material/Send'
 import AddIcon from '@mui/icons-material/Add'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
@@ -191,8 +192,22 @@ async function runAssistantStream({ messages, systemPrompt, onText, onDone, onEr
   }
 }
 
-function ChatBubble({ msg }) {
+function ChatBubble({ msg, question, onTeach }) {
   const isUser = msg.role === 'user'
+  const [teaching, setTeaching] = useState(false)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [done, setDone] = useState(false)
+  const canTeach = !isUser && onTeach && !String(msg.content || '').startsWith('Erro')
+
+  async function submit() {
+    if (!text.trim()) return
+    setSending(true)
+    const ok = await onTeach({ pergunta: question, resposta: msg.content, correcao: text.trim() })
+    setSending(false)
+    if (ok) { setDone(true); setTeaching(false); setText('') }
+  }
+
   return (
     <Box sx={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', mb: 2 }}>
       {!isUser && (
@@ -200,18 +215,49 @@ function ChatBubble({ msg }) {
           <AutoAwesomeIcon sx={{ fontSize: 14 }} />
         </Avatar>
       )}
-      <Paper sx={{
-        maxWidth: '72%', p: '10px 14px',
-        bgcolor: isUser ? 'primary.main' : 'background.paper',
-        color: isUser ? '#fff' : 'text.primary',
-        border: isUser ? 'none' : '1px solid',
-        borderColor: 'divider',
-        borderRadius: isUser ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
-      }}>
-        <Typography sx={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-          {msg.content}
-        </Typography>
-      </Paper>
+      <Box sx={{ maxWidth: '72%' }}>
+        <Paper sx={{
+          p: '10px 14px',
+          bgcolor: isUser ? 'primary.main' : 'background.paper',
+          color: isUser ? '#fff' : 'text.primary',
+          border: isUser ? 'none' : '1px solid',
+          borderColor: 'divider',
+          borderRadius: isUser ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
+        }}>
+          <Typography sx={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {msg.content}
+          </Typography>
+        </Paper>
+        {/* Ensinar a marca — vira sinal assistant_correction p/ a Camada de Inteligência */}
+        {canTeach && (
+          <Box sx={{ mt: 0.5 }}>
+            {done ? (
+              <Typography sx={{ fontSize: 11, color: 'primary.main', fontWeight: 700 }}>✓ Ensinado — a marca vai aprender com isso.</Typography>
+            ) : teaching ? (
+              <Stack spacing={0.75} sx={{ maxWidth: 420 }}>
+                <TextField value={text} onChange={e => setText(e.target.value)} autoFocus
+                  placeholder="Corrija ou ensine algo sobre a marca a partir desta resposta…"
+                  multiline minRows={2} maxRows={5} size="small" sx={{ '& .MuiInputBase-input': { fontSize: 13 } }} />
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button size="small" onClick={() => { setTeaching(false); setText('') }} sx={{ fontSize: 11 }}>Cancelar</Button>
+                  <Button size="small" variant="contained" disabled={sending || !text.trim()} onClick={submit}
+                    startIcon={sending ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <SchoolOutlinedIcon sx={{ fontSize: 15 }} />}
+                    sx={{ fontSize: 11, fontWeight: 700 }}>
+                    {sending ? 'Ensinando…' : 'Ensinar a marca'}
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : (
+              <Tooltip title="Corrija ou ensine algo — a marca aprende com isso">
+                <Button size="small" startIcon={<SchoolOutlinedIcon sx={{ fontSize: 15 }} />} onClick={() => setTeaching(true)}
+                  sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', px: 0.75, minWidth: 0 }}>
+                  Ensinar a marca
+                </Button>
+              </Tooltip>
+            )}
+          </Box>
+        )}
+      </Box>
       {isUser && (
         <Avatar sx={{ width: 28, height: 28, bgcolor: '#0D9E7A', ml: 1, mt: 0.5, flexShrink: 0, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
           U
@@ -291,6 +337,23 @@ export function BrandAssistant({ brandId }) {
   async function selectConv(conv) {
     setActiveConv(conv)
     await loadMessages(conv.id)
+  }
+
+  // "Ensinar a marca" — correção humana vira sinal (assistant_correction) de alto
+  // valor para a Camada de Inteligência. Peso alto: é ensino explícito.
+  async function ensinarMarca({ pergunta, resposta, correcao }) {
+    if (!brand?.id || !workspace?.id) return false
+    const { error } = await supabase.from('brand_signals').insert({
+      brand_id: brand.id, workspace_id: workspace.id,
+      tipo: 'assistant_correction', fonte: 'assistant', ref_id: activeConv?.id || null,
+      payload: {
+        pergunta: (pergunta || '').slice(0, 1000),
+        resposta: (resposta || '').slice(0, 2000),
+        correcao: (correcao || '').slice(0, 2000),
+      },
+      peso: 3,
+    })
+    return !error
   }
 
   async function newConversation() {
@@ -497,7 +560,9 @@ export function BrandAssistant({ brandId }) {
           )}
 
           {messages.map((msg, i) => (
-            <ChatBubble key={i} msg={msg} />
+            <ChatBubble key={i} msg={msg}
+              question={messages[i - 1]?.role === 'user' ? messages[i - 1].content : ''}
+              onTeach={msg.role === 'assistant' ? ensinarMarca : undefined} />
           ))}
 
           {streaming && streamText && (

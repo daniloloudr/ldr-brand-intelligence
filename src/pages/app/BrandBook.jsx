@@ -151,20 +151,11 @@ export function BrandBook({ brandId }) {
   }
 
   async function saveAsset(data) {
-    // Legacy: logo SVG inline (sem file_path) — substitui o anterior, mantém um único.
-    // Uploads de arquivos (com file_path) sempre criam nova entrada.
-    const isLegacyLogo = data.tipo === 'logo' && !data.file_path
-    const existing = isLegacyLogo
-      ? assets.find(a => a.tipo === 'logo' && !a.file_path)
-      : null
-    if (existing) {
-      await supabase.from('brand_assets').update(data).eq('id', existing.id)
-      setAssets(prev => prev.map(a => a.id === existing.id ? { ...a, ...data } : a))
-    } else {
-      const { data: novo } = await supabase.from('brand_assets')
-        .insert({ brand_id: brandId, ...data }).select().single()
-      if (novo) setAssets(prev => [...prev, novo])
-    }
+    // Todo asset cria uma nova entrada — inclusive brand marks SVG inline:
+    // a marca pode ter VÁRIAS variações (logo principal, símbolo, versões alternativas).
+    const { data: novo } = await supabase.from('brand_assets')
+      .insert({ brand_id: brandId, ...data }).select().single()
+    if (novo) setAssets(prev => [...prev, novo])
   }
 
   async function deleteToken(id) {

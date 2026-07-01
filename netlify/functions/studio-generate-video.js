@@ -6,7 +6,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { falVideoConfigured, VIDEO_MODELS, videoSupportsEndFrame } from './_video.js'
 import { resolveBrandIntelligence, submitVideoGeneration } from './_studio.js'
-import { creditsForVideo, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
+import { creditsForVideo, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -61,14 +61,9 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  // Gating + débito (vídeo escala com a duração). Admin bypassa ambos.
+  // Débito (vídeo escala com a duração; todo modelo é acessível). Admin bypassa o débito.
   const amount = creditsForVideo(model, duration)
   if (!platformAdmin) {
-    const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
-    const minP = minPlanoModelo(model)
-    if (!planoPermite(ws?.plano, minP)) {
-      return { statusCode: 403, headers, body: JSON.stringify({ error: `Este modelo de vídeo requer o plano ${PLAN_LABEL[minP]} ou superior.`, minPlano: minP }) }
-    }
     const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'video', modelo: model, user_id: user.id })
     if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para este vídeo.', need: amount }) }
     if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }

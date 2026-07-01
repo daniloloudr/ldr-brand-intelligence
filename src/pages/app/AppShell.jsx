@@ -29,7 +29,6 @@ import { StudioWorkflows } from './StudioWorkflows'
 import { StudioCanvas } from './StudioCanvas'
 import { StudioCampaigns } from './StudioCampaigns'
 import { StudioVideo } from './StudioVideo'
-import { UpgradeGate } from '../../components/UpgradeGate'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import logoNegativa from '../../assets/negativa.svg'
 import logoPositivo from '../../assets/logo-positivo-200px.png'
@@ -48,6 +47,7 @@ const USER_MENU = [
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Plano e cobrança',       hash: '#/app/plano' },
   { label: 'Alertas',                hash: '#/app/alertas' },
+  { label: 'IA LOUDR',               hash: '#/app/ia-loudr' },
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
@@ -102,7 +102,6 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
 
   function handleNavigate(hash) { if (hash) window.location.hash = hash }
 
-  const isPro     = ['pro', 'enterprise'].includes(workspace.plano)
   const brandPath = brandId ? `#/app/brands/${brandId}` : '#/app/brands'
   const section   = getBrandSection()
 
@@ -115,16 +114,15 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     ] },
     { type: 'group', label: 'Brand Positioning', icon: IcoDiag, children: [
       { label: 'Posicionamento',   hash: '#/app/posicionamento', active: route === 'posicionamento' },
-      { label: 'Social Listening', hash: '#/app/listening',      active: route === 'listening',   locked: !isPro },
-      { label: 'Content Hub',      hash: '#/app/content-hub',    active: route === 'content-hub', locked: !isPro },
+      { label: 'Social Listening', hash: '#/app/listening',      active: route === 'listening' },
+      { label: 'Content Hub',      hash: '#/app/content-hub',    active: route === 'content-hub' },
     ] },
     { type: 'group', label: 'Brand Studio', icon: IcoStudio, children: [
-      { label: 'Imagem',   hash: `${brandPath}/studio`,          active: route === 'brands-studio',          locked: !isPro },
-      { label: 'Vídeos',   hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video',    locked: !isPro },
-      { label: 'Workflow', hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow', locked: !isPro },
+      { label: 'Imagem',   hash: `${brandPath}/studio`,          active: route === 'brands-studio' },
+      { label: 'Vídeos',   hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
+      { label: 'Workflow', hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
     ] },
     { type: 'item', label: 'Brand Assistant', icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
-    { type: 'item', label: 'Inteligência da Marca', icon: IcoDiag, hash: `${brandPath}/intelligence`, active: route === 'brands-intelligence' },
   ]
 
   function renderPage() {
@@ -135,22 +133,22 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'time')                  return <TimePage />
     if (route === 'plano')                 return <PlanoPage />
     if (route === 'alertas')               return <AlertasPage />
-    if (route === 'listening')             return <UpgradeGate planoNecessario="pro" workspace={workspace}><SocialListening /></UpgradeGate>
-    if (route === 'content-hub')           return <UpgradeGate planoNecessario="pro" workspace={workspace}><ContentHub /></UpgradeGate>
+    if (route === 'listening')             return <SocialListening />
+    if (route === 'content-hub')           return <ContentHub />
     if (route === 'brands-list')           return <BrandList />
     if (route === 'brands-new')            return <BrandOnboarding />
     if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />
-    if (route === 'brands-intelligence')   return <BrandIntelligence brandId={getBrandId()} />
-    if (route === 'brands-campaigns')      return <UpgradeGate planoNecessario="pro" workspace={workspace}><Campaigns brandId={getBrandId()} /></UpgradeGate>
-    if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'ia-loudr')              return <BrandIntelligence />
+    if (route === 'brands-campaigns')      return <Campaigns brandId={getBrandId()} />
+    if (route === 'brands-campaign-new')   return <CampaignNew brandId={getBrandId()} />
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
-    if (route === 'brands-studio')         return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioImage brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'brands-studio')         return <StudioImage brandId={getBrandId()} />
     if (route === 'brands-studio-workflow') {
       const wf = getWorkflowId()
-      return <UpgradeGate planoNecessario="pro" workspace={workspace}>{wf ? <StudioCanvas brandId={getBrandId()} workflowId={wf} /> : <StudioWorkflows brandId={getBrandId()} />}</UpgradeGate>
+      return wf ? <StudioCanvas brandId={getBrandId()} workflowId={wf} /> : <StudioWorkflows brandId={getBrandId()} />
     }
-    if (route === 'brands-studio-video')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioVideo brandId={getBrandId()} /></UpgradeGate>
-    if (route === 'brands-studio-campaigns') return <UpgradeGate planoNecessario="pro" workspace={workspace}><StudioCampaigns brandId={getBrandId()} /></UpgradeGate>
+    if (route === 'brands-studio-video')   return <StudioVideo brandId={getBrandId()} />
+    if (route === 'brands-studio-campaigns') return <StudioCampaigns brandId={getBrandId()} />
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
   }

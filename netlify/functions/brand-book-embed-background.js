@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { voyageEmbed, INTEL_PREFIX } from './_embed.js'
 
 const arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
 const joinArr = x => arr(x)
@@ -133,30 +134,25 @@ export const handler = async (event) => {
   const chunks = extractChunks(book)
   if (!chunks.length) return { statusCode: 200 }
 
-  const voyageRes = await fetch('https://api.voyageai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.VOYAGE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model: 'voyage-3', input: chunks.map(c => c.text) }),
-  })
-
-  if (!voyageRes.ok) {
-    console.error('[embed] Voyage API error:', voyageRes.status, await voyageRes.text())
+  let embeddings
+  try {
+    embeddings = await voyageEmbed(chunks.map(c => c.text))
+  } catch (e) {
+    console.error('[embed] Voyage API error:', e.message)
     return { statusCode: 200 }
   }
 
-  const voyageData = await voyageRes.json()
-
-  await supabase.from('brand_book_chunks').delete().eq('brand_id', brand_id)
+  // Remove só os chunks do BRAND BOOK — preserva os "intel:" (modelo vivo, trilho B),
+  // que têm ciclo de vida próprio (re-derivados pelo destilador).
+  await supabase.from('brand_book_chunks').delete()
+    .eq('brand_id', brand_id).not('section', 'like', `${INTEL_PREFIX}%`)
   await supabase.from('brand_book_chunks').insert(
     chunks.map((c, i) => ({
       brand_id,
       brand_book_id: book.id,
       section:       c.section,
       chunk_text:    c.text,
-      embedding:     voyageData.data[i].embedding,
+      embedding:     embeddings[i],
     }))
   )
 

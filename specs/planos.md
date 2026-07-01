@@ -1,50 +1,62 @@
 # LOUDR — Modelo de Precificação (créditos)
 
-> Definido em jun/2026. Custos de insumos em `specs/custos.csv`.
-> Câmbio de referência: R$5,50/USD. Custo variável: **~R$0,22/crédito** (~$0.04).
+> Definido jun/2026, revisto e IMPLEMENTADO jul/2026. Custos de insumos em `specs/custos.csv`.
+> Câmbio de referência: R$5,50/USD (colchão R$6,00 na regra). Custo por crédito
+> **varia por modelo** (ver regra ×18 abaixo) — não é mais um valor fixo.
 
-## Princípio
+> **Status: IMPLEMENTADO (2026-07-01).** Ledger + débito nas functions + página
+> de cobrança + Stripe validado (test mode). Mapa de crédito: `src/lib/credits.js`
+> + `netlify/functions/_credits.js` (manter sincronizados). Ledger: migration 023.
 
-**1 crédito = 1 imagem = ancoragem de R$1,00** (no plano topo). O crédito foi
-desenhado pra custar **~$0.04 em qualquer operação** — imagem, app, diagnóstico,
-listening, etc. caem todos em ~$0.04/crédito.
+## Princípio (regra travada)
 
-Modelo de **desconto por volume**: planos menores pagam o crédito mais caro;
-planos maiores ganham desconto. Margem maior nos pequenos, escala nos grandes.
+**Crédito varia por modelo** — quanto mais caro o modelo de borda, mais créditos
+custa. Regra: **créditos = arredonda↑(18 × custo_USD)**. O ×18 = 2 (dobro, p/ 50%
+de margem) × 6,00 (câmbio com colchão) ÷ 0,73 (crédito mais barato) → garante
+**≥50% de margem de contribuição LÍQUIDA de Stripe** no pior caso. Custo fixo
+(dev) NÃO entra no crédito — vive no break-even.
 
-## Planos
+## Planos (REVISTO)
 
 | | Essencial | Pro | Premium | Custom |
 |---|---|---|---|---|
-| Preço/mês | R$1.000 | R$3.000 | R$5.000 | a negociar |
-| Créditos | 650 | 2.400 | 5.000 | 10.000+ |
-| R$/crédito | R$1,54 | R$1,25 | R$1,00 | negociável |
-| ~Imagens | ~650 | ~2.400 | ~5.000 | sob medida |
-| ~Vídeos básicos | ~80 | ~300 | ~625 | sob medida |
-| ~Campanhas | ~160 | ~600 | ~1.250 | sob medida |
+| Preço/mês | **R$1.500** | **R$3.000** | **R$5.000** | a negociar |
+| Créditos | 750 | 2.000 | 5.000 | negociável |
+| R$/crédito | R$2,00 | R$1,50 | R$1,00 | ~R$0,73 piso |
+| Modelos e funcionalidades | **todos** | **todos** | **todos** | **todos** |
 | Brand Intelligence | incluída | incluída | incluída | incluída |
 
-- **Cap rígido**: ao zerar os créditos, bloqueia a geração até o próximo ciclo
-  (reset mensal) ou compra de pacote avulso. Reaproveita `STUDIO_MONTHLY_LIMIT`
-  (trocar contagem de gerações por contagem de créditos).
-- **Brand Intelligence** (diagnóstico, assistant, listening) entra **incluída
-  com fair-use** — não consome crédito, só evita abuso.
+> A única diferença entre planos é a **quantidade de créditos**. Todo modelo (imagem/vídeo) e toda funcionalidade (Studio, Workflow, Campanhas, Listening, Content Hub) estão disponíveis em qualquer plano.
 
-## Custo de crédito por operação
+Código: `constants.js PLANOS` mantém as CHAVES `trial/starter/pro/enterprise`
+(starter=Essencial, pro=Pro, enterprise=Premium) p/ não quebrar banco/admin.
+Todos os planos pagos têm `studio:true`.
 
-| Operação | Créditos |
+- **Sem gating (2026-07-01):** TODO plano acessa TODOS os modelos e TODAS as funcionalidades. A **única** diferença entre planos é a **quantidade de créditos**. Não há mais `MODEL_MIN_PLAN` nem `UpgradeGate` — o acesso é universal; o que limita o uso é o saldo.
+- **Cap rígido**: saldo zerado → bloqueia geração (402) até o próximo ciclo (refill
+  mensal automático). Recarga avulsa (overage) = pendente (depende do Stripe).
+- **platform_admin bypassa** o débito (gera de graça p/ suporte/teste).
+
+## Custo de crédito por operação (regra ×18, custos fal reais jun/2026)
+
+**Imagem** — 1 crédito (Nano Banana, GPT Image 2, Seedream, FLUX dev/.2/Pro1.1,
+Recraft, Qwen) · 2 (FLUX Ultra, Ideogram v3) · **3 (Nano Banana Pro)**.
+
+**Vídeo** (escala com duração, 5s/10s salvo indicado):
+| Modelo | Créditos |
 |---|---|
-| Imagem (Nano Banana / Flux) | 1 |
-| Upscale / Variação | 1 |
-| Remove BG | 1 |
-| Content Hub (geração) | 2 |
-| Campanha (4 formatos) | 4 |
-| Diagnóstico | 5 |
-| Social Listening (coleta) | 9 |
-| Msg Brand Assistant | 1 |
-| Vídeo — Kling/Seedance básico | 8 |
-| Vídeo — qualidade média | 13 |
-| Vídeo — premium (Veo) | 30 |
+| Hailuo 02 | 5 / 9 |
+| Kling 2.5 Turbo | 7 / 13 |
+| Seedance 1.0 Pro | 14 / 27 |
+| Seedance 2.0 Fast | 22 / 44 |
+| Seedance 2.0 | 28 / 55 |
+| Veo 3 Fast (4/6/8s) | 29 / 44 / 58 |
+| Veo 3 (4/6/8s) | 54 / 81 / 108 |
+
+**Outras:** Content Hub = 2 · Campanha = nº formatos × crédito/imagem · Upscale/Variação/Remove BG = 1.
+
+**FAIR-USE (0 crédito):** Brand Intelligence inteira — diagnóstico, social listening
+e Brand Assistant não consomem crédito.
 
 > Vídeo é o risco de margem — tabelar crédito por modelo e travar quais entram por plano.
 

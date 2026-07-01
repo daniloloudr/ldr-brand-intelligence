@@ -45,34 +45,32 @@ export const creditsForVideo = (key, duration) =>
 export const creditsForOp = op => OP_CREDITS[op] ?? 1
 
 // ── Guia de exibição (página Planos & Créditos) ──────────────────────
-// minPlano = chave do plano que libera o modelo (starter=Essencial · pro · enterprise=Premium)
+// Sem gating: todo modelo é acessível a todos os planos — o que varia é a
+// quantidade de créditos. O guia mostra só benefício e custo em créditos.
 export const PLAN_LABEL = { trial: 'Trial', starter: 'Essencial', pro: 'Pro', enterprise: 'Premium' }
-export const PLAN_ORDER = ['trial', 'starter', 'pro', 'enterprise']
-export const planoLiberado = (planoWorkspace, minPlano) =>
-  PLAN_ORDER.indexOf(planoWorkspace) >= PLAN_ORDER.indexOf(minPlano)
 
 export const IMAGE_GUIDE = [
-  { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', beneficio: 'Versátil e rápido, ótimo com referências. Padrão.', minPlano: 'starter' },
-  { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro',          beneficio: 'Máxima qualidade Gemini, edição avançada, até 4K.', minPlano: 'pro' },
-  { id: 'openai/gpt-image-2',                           label: 'GPT Image 2',              beneficio: 'Forte em coerência, composição e instruções.', minPlano: 'starter' },
-  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             beneficio: 'Fotorrealismo de alto nível.', minPlano: 'starter' },
-  { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             beneficio: 'Flagship FLUX, multi-referência.', minPlano: 'starter' },
-  { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'FLUX Pro 1.1 Ultra',       beneficio: 'Fotorrealismo premium, alta resolução.', minPlano: 'starter' },
-  { id: 'fal-ai/ideogram/v3',                           label: 'Ideogram v3',              beneficio: 'Tipografia e texto dentro da imagem.', minPlano: 'starter' },
-  { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               beneficio: 'Design, vetor e logotipo.', minPlano: 'starter' },
-  { id: 'fal-ai/flux/dev',                              label: 'FLUX.1 dev',               beneficio: 'Rápido e econômico.', minPlano: 'starter' },
-  { id: 'fal-ai/qwen-image',                            label: 'Qwen Image',               beneficio: 'Open, bom em renderizar texto.', minPlano: 'starter' },
+  { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', beneficio: 'Versátil e rápido, ótimo com referências. Padrão.' },
+  { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro',          beneficio: 'Máxima qualidade Gemini, edição avançada, até 4K.' },
+  { id: 'openai/gpt-image-2',                           label: 'GPT Image 2',              beneficio: 'Forte em coerência, composição e instruções.' },
+  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             beneficio: 'Fotorrealismo de alto nível.' },
+  { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             beneficio: 'Flagship FLUX, multi-referência.' },
+  { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'FLUX Pro 1.1 Ultra',       beneficio: 'Fotorrealismo premium, alta resolução.' },
+  { id: 'fal-ai/ideogram/v3',                           label: 'Ideogram v3',              beneficio: 'Tipografia e texto dentro da imagem.' },
+  { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               beneficio: 'Design, vetor e logotipo.' },
+  { id: 'fal-ai/flux/dev',                              label: 'FLUX.1 dev',               beneficio: 'Rápido e econômico.' },
+  { id: 'fal-ai/qwen-image',                            label: 'Qwen Image',               beneficio: 'Open, bom em renderizar texto.' },
 ]
 
 export const VIDEO_GUIDE = [
-  { key: 'seedance-1-pro',  label: 'Seedance 1.0 Pro',   beneficio: 'Rápido e econômico, texto e imagem→vídeo.', durations: [5, 10], minPlano: 'starter' },
-  { key: 'seedance-2-fast', label: 'Seedance 2.0 Fast',  beneficio: 'Seedance 2.0 mais rápido e barato, áudio nativo.', durations: [5, 10], minPlano: 'pro' },
-  { key: 'seedance-2-pro',  label: 'Seedance 2.0',       beneficio: 'Nova geração ByteDance, áudio nativo, alta qualidade.', durations: [5, 10], minPlano: 'pro' },
-  { key: 'kling-25-turbo',  label: 'Kling 2.5 Turbo Pro', beneficio: 'Imagem→vídeo de alta qualidade, com frame final.', durations: [5, 10], minPlano: 'starter' },
-  { key: 'hailuo-02',       label: 'Hailuo 02',          beneficio: 'Movimento expressivo, bom custo.', durations: [6, 10], minPlano: 'starter' },
-  { key: 'wan-22',          label: 'Wan 2.2',            beneficio: 'Open, econômico.', durations: [], minPlano: 'starter' },
-  { key: 'veo3-fast',       label: 'Veo 3 Fast',         beneficio: 'Veo com áudio nativo, mais rápido e barato.', durations: [4, 6, 8], minPlano: 'pro' },
-  { key: 'veo3',            label: 'Veo 3',              beneficio: 'Topo de qualidade, áudio nativo.', durations: [4, 6, 8], minPlano: 'enterprise' },
+  { key: 'seedance-1-pro',  label: 'Seedance 1.0 Pro',   beneficio: 'Rápido e econômico, texto e imagem→vídeo.', durations: [5, 10] },
+  { key: 'seedance-2-fast', label: 'Seedance 2.0 Fast',  beneficio: 'Seedance 2.0 mais rápido e barato, áudio nativo.', durations: [5, 10] },
+  { key: 'seedance-2-pro',  label: 'Seedance 2.0',       beneficio: 'Nova geração ByteDance, áudio nativo, alta qualidade.', durations: [5, 10] },
+  { key: 'kling-25-turbo',  label: 'Kling 2.5 Turbo Pro', beneficio: 'Imagem→vídeo de alta qualidade, com frame final.', durations: [5, 10] },
+  { key: 'hailuo-02',       label: 'Hailuo 02',          beneficio: 'Movimento expressivo, bom custo.', durations: [6, 10] },
+  { key: 'wan-22',          label: 'Wan 2.2',            beneficio: 'Open, econômico.', durations: [] },
+  { key: 'veo3-fast',       label: 'Veo 3 Fast',         beneficio: 'Veo com áudio nativo, mais rápido e barato.', durations: [4, 6, 8] },
+  { key: 'veo3',            label: 'Veo 3',              beneficio: 'Topo de qualidade, áudio nativo.', durations: [4, 6, 8] },
 ]
 
 export const OP_GUIDE = [
