@@ -7,15 +7,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
 import { submitGeneration } from './_studio.js'
+import { creditsForOp, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
-
-const STUDIO_PLANS  = ['pro', 'enterprise']
-const MONTHLY_LIMIT = parseInt(process.env.STUDIO_MONTHLY_LIMIT || '1000', 10)
 
 // op → { model (endpoint exato do fal), input(url) }
 const OPS = {
@@ -56,14 +54,11 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
+  const amount = creditsForOp(op)
   if (!platformAdmin) {
-    const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
-    if (!STUDIO_PLANS.includes(ws?.plano)) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Studio requer plano Pro ou superior' }) }
-    const inicioMes = new Date(); inicioMes.setUTCDate(1); inicioMes.setUTCHours(0, 0, 0, 0)
-    const { count } = await supabase.from('studio_generations')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspace_id).gte('created_at', inicioMes.toISOString())
-    if ((count || 0) >= MONTHLY_LIMIT) return { statusCode: 429, headers, body: JSON.stringify({ error: 'Limite mensal atingido' }) }
+    const r = await debitCredits(supabase, { workspace_id, amount, operacao: op, modelo: cfg.model, user_id: user.id })
+    if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para esta operação.', need: amount }) }
+    if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }
   }
 
   const { gen, request_id, error } = await submitGeneration(supabase, {
@@ -71,7 +66,10 @@ export const handler = async (event) => {
     promptFinal: `[${op}]`, snapshot: null, formato: null,
     model: cfg.model, input: cfg.input(image_url),
   })
-  if (error) return { statusCode: 502, headers, body: JSON.stringify({ error }) }
+  if (error) {
+    if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: op })
+    return { statusCode: 502, headers, body: JSON.stringify({ error }) }
+  }
 
   return { statusCode: 200, headers, body: JSON.stringify({ generation_id: gen.id, request_id, status: 'processing' }) }
 }

@@ -40,9 +40,11 @@ export async function handler(event) {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/#/app/workspace?checkout=success`,
-      cancel_url:  `${origin}/#/onboarding`,
+      success_url: `${origin}/#/app/plano?checkout=success`,
+      cancel_url:  `${origin}/#/app/plano?checkout=cancel`,
       metadata: { workspaceId, plano },
+      // metadata também na subscription → eventos de renovação/cancelamento acham o workspace
+      subscription_data: { metadata: { workspaceId, plano } },
     })
 
     return {

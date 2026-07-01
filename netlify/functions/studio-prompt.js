@@ -28,9 +28,13 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, idea = '' } = body
+  const { brand_id, idea = '', model: modelReq, max_chars } = body
   const useBrand = body.use_brand !== false
   if (!brand_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
+
+  // Default: Sonnet 4.6 (qualidade de direção de arte). Workflow pede Haiku + curto.
+  const MODEL = modelReq === 'haiku' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+  const limit = Number.isFinite(max_chars) && max_chars > 0 ? Math.min(max_chars, 2000) : null
 
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
   if (!brand) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Marca não encontrada' }) }
@@ -49,8 +53,9 @@ export const handler = async (event) => {
     'Sua tarefa é MELHORAR o prompt recebido: torná-lo vívido e específico em cena, sujeito, composição, enquadramento, iluminação, paleta, mood e nível de detalhe — sem trair a intenção original.',
     'Se houver contexto de marca, respeite paleta, personalidade e estética.',
     'Escreva UM único prompt em português.',
+    limit ? `Seja conciso e direto: no MÁXIMO ${limit} caracteres na resposta.` : '',
     'Responda APENAS com o prompt — sem aspas, sem títulos, sem explicação, sem preâmbulo.',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 
   const userMsg = idea?.trim()
     ? `Melhore e enriqueça este prompt de imagem, preservando a intenção:\n${idea.trim()}`
@@ -61,12 +66,19 @@ export const handler = async (event) => {
   try {
     const { text } = await callAI({
       ...aiConfig('fast'),
-      model: 'claude-sonnet-4-6',   // qualidade de direção de arte (pedido do produto)
-      maxTokens: 400,
+      model: MODEL,
+      maxTokens: limit ? Math.ceil(limit / 2) + 60 : 400,
       system,
       messages: [{ role: 'user', content }],
     })
-    const promptOut = (text || '').trim().replace(/^["“']|["”']$/g, '')
+    let promptOut = (text || '').trim().replace(/^["“']|["”']$/g, '')
+    // Garantia dura do limite (corta no último espaço antes do teto p/ não cortar palavra)
+    if (limit && promptOut.length > limit) {
+      promptOut = promptOut.slice(0, limit)
+      const lastSpace = promptOut.lastIndexOf(' ')
+      if (lastSpace > limit * 0.6) promptOut = promptOut.slice(0, lastSpace)
+      promptOut = promptOut.trim()
+    }
     if (!promptOut) return { statusCode: 502, headers, body: JSON.stringify({ error: 'Sem sugestão' }) }
     return { statusCode: 200, headers, body: JSON.stringify({ prompt: promptOut }) }
   } catch (e) {

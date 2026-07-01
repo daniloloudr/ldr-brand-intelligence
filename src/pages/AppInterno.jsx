@@ -888,6 +888,10 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   const [error, setError]                 = useState('');
   const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '' });
   const [inviteEmail, setInviteEmail]     = useState('');
+  const [showCreateUser, setShowCreateUser] = useState(null);
+  const [creatingUser, setCreatingUser]   = useState(false);
+  const [userForm, setUserForm]           = useState({ nome: '', email: '', password: '', role: 'member' });
+  const [userOk, setUserOk]               = useState('');
   const [expandedId, setExpandedId]       = useState(null);
   const [membersMap, setMembersMap]       = useState({});
   const [loadingMembers, setLoadingMembers] = useState({});
@@ -984,6 +988,32 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     alert(`Convite enviado para ${inviteEmail}`);
   }
 
+  function genPassword() {
+    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let p = '';
+    for (let i = 0; i < 12; i++) p += chars[Math.floor(Math.random() * chars.length)];
+    setUserForm(f => ({ ...f, password: p }));
+  }
+
+  async function handleCreateUser(e) {
+    e.preventDefault();
+    setError(''); setUserOk('');
+    if (!userForm.email.trim()) { setError('E-mail obrigatório'); return; }
+    if (userForm.password.length < 8) { setError('Senha de pelo menos 8 caracteres'); return; }
+    setCreatingUser(true);
+    const token = await getToken();
+    const res = await fetch('/.netlify/functions/admin-create-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ ...userForm, workspace_id: showCreateUser.id }),
+    });
+    const json = await res.json();
+    setCreatingUser(false);
+    if (!res.ok) { setError(json.error || 'Erro ao criar acesso'); return; }
+    setUserOk(`Acesso criado: ${userForm.email} / senha: ${userForm.password}`);
+    if (membersMap[showCreateUser.id]) { setMembersMap(m => ({ ...m, [showCreateUser.id]: undefined })); }
+  }
+
   const inp      = { fontSize: 13, fontFamily: F, color: C.text, background: C.paper, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
   const inpSm    = { ...inp, padding: '4px 8px', width: 'auto', fontSize: 11 };
   const btn      = (color = DS.green) => ({ background: color, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: F });
@@ -1048,6 +1078,9 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button style={btnGhost} onClick={() => toggleExpanded(ws.id)}>
                   {expanded ? '▲' : '▼'} Membros {expanded && members.length ? `(${members.length})` : ''}
+                </button>
+                <button style={btnGhost} onClick={() => { setShowCreateUser(ws); setUserForm({ nome: '', email: '', password: '', role: 'member' }); setUserOk(''); setError(''); }}>
+                  Criar acesso
                 </button>
                 <button style={btnGhost} onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>
                   Convidar
@@ -1147,6 +1180,43 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                 <button type="submit" style={btn()} disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal criar acesso (nome + email + senha) */}
+      {showCreateUser && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 6 }}>Criar acesso · {showCreateUser.nome}</div>
+            <div style={{ fontSize: 13, color: C.textDis, fontFamily: F, marginBottom: 20 }}>Cria o login direto, com senha temporária. Sem email de confirmação — entregue as credenciais ao cliente. No primeiro acesso ele será obrigado a definir a senha pessoal.</div>
+            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
+            {userOk ? (
+              <div>
+                <div style={{ marginBottom: 16, padding: '12px 14px', background: DS.green + '22', color: DS.green, borderRadius: 8, fontSize: 13, fontFamily: F, fontWeight: 600, wordBreak: 'break-all' }}>{userOk}</div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button type="button" style={btnGhost} onClick={() => { navigator.clipboard?.writeText(userOk); }}>Copiar</button>
+                  <button type="button" style={btn()} onClick={() => { setShowCreateUser(null); setUserOk(''); }}>Fechar</button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <input style={inp} placeholder="Nome do usuário" value={userForm.nome} onChange={e => setUserForm(f => ({ ...f, nome: e.target.value }))} />
+                <input style={inp} type="email" placeholder="E-mail (login) *" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} required />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={{ ...inp, flex: 1 }} placeholder="Senha (mín. 8) *" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} required />
+                  <button type="button" style={btnGhost} onClick={genPassword}>Gerar</button>
+                </div>
+                <select style={inp} value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
+                  <option value="member">member</option>
+                  <option value="admin">admin</option>
+                </select>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                  <button type="button" style={btnGhost} onClick={() => { setShowCreateUser(null); setError(''); }}>Cancelar</button>
+                  <button type="submit" style={btn()} disabled={creatingUser}>{creatingUser ? 'Criando...' : 'Criar acesso'}</button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

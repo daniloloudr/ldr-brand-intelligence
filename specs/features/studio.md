@@ -91,17 +91,32 @@ Estilo Magnific. Painel de geração + galeria de templates.
 
 ---
 
-## 🎬 Bloco Vídeo (fase final)
+## 🎬 Bloco Vídeo — implementado (2026-06-30)
 
-Estilo Runway. Geração de vídeo curto a partir de imagem ou texto.
+Estilo Runway. Geração de vídeo curto a partir de imagem ou texto, sobre a **mesma fundação async da Imagem** (fila fal + webhook/poll-dev + R2 + `studio_generations`).
 
-- **Image-to-video** — a partir de uma peça gerada/asset da marca → vídeo
-- **Text-to-video** — prompt → vídeo
-- Modelos via gateway (Veo, Kling, Seedance — a confirmar)
-- Mesma fundação: fila + webhook + R2 (vídeo é arquivo maior; mesma entrega por CDN)
-- `studio_generations.media_type = 'video'`, `media_url` no R2
+- **Text-to-video (t2v)** — prompt → vídeo.
+- **Image-to-video (i2v)** — imagem de origem (upload na tela, ou nó upstream no Workflow) → vídeo.
+- **Entregue em dois lugares:**
+  - **Página standalone** `#/app/brands/:id/studio/video` (`StudioVideo.jsx`): seletor de modelo (com rótulo do modo: *texto+imagem / só imagem / só texto*), prompt + "Melhorar", origem i2v opcional, duração e formato dependentes do modelo, galeria com player `<video>` + lightbox, votação 👍/👎, baixar, salvar nos assets.
+  - **Nó `videoGen` no Workflow** (`StudioCanvas.jsx`, cor índigo): recebe imagem de um nó upstream (PRODUCES_IMAGE) como origem i2v, ou faz t2v só com o Prompt; player inline; integrado ao executor (`dispatchVideoNode`, `run`/`pollEngine`, regenerar 1 nó, reidratação ao reabrir). Vídeo é saída terminal (não vira referência de imagem a jusante).
 
-Bloco mais caro e novo (modelos de vídeo custam mais e demoram). **Entra por último**, depois de Imagem e Workflow sólidos.
+**Modelos (fal, verificados jun/2026) — `videoModels.js` (UX) + `_video.js` (endpoints + adaptador de params por família, pois divergem):**
+
+| key | Modelo | Modos | Notas de param |
+|-----|--------|-------|----------------|
+| `veo3` / `veo3-fast` | Google Veo 3 / Fast | t2v | `duration` `4s/6s/8s`, `aspect_ratio` 16:9·9:16 |
+| `kling-25-turbo` | Kling 2.5 Turbo Pro | i2v | `duration` `5/10`, enquadramento da imagem |
+| `hailuo-02` | Minimax Hailuo 02 | t2v+i2v | `duration` `6/10` |
+| `seedance-1-pro` | Seedance 1.0 Pro | t2v+i2v | `duration` `5/10`, `aspect_ratio` |
+| `wan-22` | Wan 2.2 | t2v+i2v | usa `num_frames` (sem duração em s) |
+
+- Fundação compartilhada: `submitVideoGeneration` insere `media_type='video'`; `image_url`/`thumbnail_url` reusados como URL da mídia; `extractMediaUrl` escolhe vídeo×imagem no webhook/poll; EXT ganhou mp4/webm/mov.
+- Backend: `studio-generate-video.js` (auth + gate Pro/enterprise + quota), valida modo i2v/t2v vs imagem de origem.
+- Schema: migration `022_studio_video.sql` adiciona `studio_generations.media_type` (default `'image'`).
+- **Teste real OK:** Seedance i2v gerou vídeo (~64s p/ 5s).
+
+Bloco mais caro (modelos de vídeo custam mais e demoram ~1 min). Pendências: conectar nó **Formato** ao t2v (hoje usa o aspect padrão do modelo); variantes extras (Seedance v5 Lite, GPT Image 1.5).
 
 ---
 

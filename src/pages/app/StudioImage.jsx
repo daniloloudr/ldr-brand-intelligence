@@ -19,6 +19,8 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { CreditBadge } from '../../components/CreditBadge'
+import { useWorkspace } from '../../lib/WorkspaceContext'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A'
@@ -32,6 +34,7 @@ const APP_ACTIONS = [
 ]
 
 export function StudioImage({ brandId }) {
+  const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState(DEFAULT_IMAGE_MODEL)
   const [useBrand, setUseBrand] = useState(true)
@@ -49,6 +52,7 @@ export function StudioImage({ brandId }) {
   const [improving, setImproving] = useState(false)
   const [voting, setVoting] = useState({})        // id -> bool
   const [lightbox, setLightbox] = useState(null)  // url da imagem aberta em tela cheia
+  const [broken, setBroken] = useState({})        // ids de imagens que falharam ao carregar (404) → ocultas
 
   const fileRef = useRef(null)
   const pollRef = useRef(null)
@@ -115,6 +119,7 @@ export function StudioImage({ brandId }) {
     if (!ids.length) return
     setItems(prev => [...ids.map(id => ({ id, status: 'processing', image_url: null, formato })), ...prev])
     ensurePolling()
+    reloadWorkspace?.()   // atualiza o saldo de créditos (débito já ocorreu no submit)
   }
 
   // ── Ação inline (upscale/removebg/variação) sobre uma peça pronta ──
@@ -170,7 +175,7 @@ export function StudioImage({ brandId }) {
         body: JSON.stringify({ brand_id: brandId, idea: prompt.trim(), use_brand: useBrand }),
       })
       const j = await res.json()
-      if (res.ok && j.prompt) setPrompt(j.prompt)
+      if (res.ok && j.prompt) { setPrompt(j.prompt); setMsg('Prompt melhorado — confira se faz sentido com o direcionamento da peça.') }
       else setMsg(j.error || `Erro ${res.status}`)
     } catch (e) { setMsg(e.message) }
     setImproving(false)
@@ -215,6 +220,9 @@ export function StudioImage({ brandId }) {
     setSaving(s => ({ ...s, [p.id]: false }))
     if (!error) setSaved(s => ({ ...s, [p.id]: true }))
   }
+
+  // Galeria visível: oculta gerações com erro e imagens que não carregam (404)
+  const visibleItems = items.filter(p => p.status !== 'error' && !broken[p.id])
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
@@ -304,7 +312,8 @@ export function StudioImage({ brandId }) {
               control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
               label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
             <Box sx={{ flex: 1 }} />
-            {msg && <Typography sx={{ fontSize: 13, color: CORAL }}>{msg}</Typography>}
+            {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
+            <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
               {generating ? 'Gerando…' : 'Gerar'}
@@ -315,7 +324,7 @@ export function StudioImage({ brandId }) {
         {/* Galeria persistente */}
         {loading ? (
           <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
             <ImageOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
             <Typography variant="h6" fontWeight={900}>Nenhuma imagem ainda</Typography>
@@ -325,7 +334,7 @@ export function StudioImage({ brandId }) {
           </Stack>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
-            {items.map(p => {
+            {visibleItems.map(p => {
               const done = p.status === 'done' && p.image_url
               return (
               <Paper key={p.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
@@ -334,9 +343,9 @@ export function StudioImage({ brandId }) {
                   onClick={() => done && setLightbox(p.image_url)}
                   sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: done ? 'zoom-in' : 'default' }}>
                   {done
-                    ? <Box component="img" src={p.image_url} alt="" loading="lazy" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    : p.status === 'error'
-                    ? <Typography sx={{ fontSize: 11, color: CORAL, px: 2, textAlign: 'center' }}>{p.error || 'erro'}</Typography>
+                    ? <Box component="img" src={p.image_url} alt="" loading="lazy"
+                        onError={() => setBroken(b => ({ ...b, [p.id]: true }))}
+                        sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
                 </Box>
                 {done && (

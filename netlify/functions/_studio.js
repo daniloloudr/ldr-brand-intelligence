@@ -6,9 +6,17 @@
 // ════════════════════════════════════════════════════════════════════
 import { putObject, storageConfigured } from './_storage.js'
 import { isDev } from './_ai.js'
-import { submitImageJob } from './_image.js'
+import { submitImageJob, firstImageUrl } from './_image.js'
+import { submitVideoJob, firstVideoUrl } from './_video.js'
 
-const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }
+const EXT = {
+  'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp',
+  'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov',
+}
+
+// Extrai a URL da mídia do payload do fal conforme o tipo (vídeo ou imagem).
+export const extractMediaUrl = (payload, mediaType) =>
+  mediaType === 'video' ? firstVideoUrl(payload) : firstImageUrl(payload)
 
 export function siteBase() {
   // Netlify injeta URL/DEPLOY_PRIME_URL em prod. Em dev, localhost.
@@ -101,6 +109,40 @@ export async function submitGeneration(supabase, {
   return { gen, request_id: job.request_id }
 }
 
+// ── Submissão de geração de VÍDEO (fal + insert + poll dev) ──────────
+export async function submitVideoGeneration(supabase, {
+  workspace_id, brand_id, workflow_id = null, node_id = null,
+  promptFinal, snapshot, modelKey, imageUrl = null, endImageUrl = null, duration, aspectRatio,
+}) {
+  const webhookUrl = isDev() ? null : `${siteBase()}/.netlify/functions/studio-webhook`
+  let job
+  try {
+    job = await submitVideoJob({ modelKey, prompt: promptFinal, imageUrl, endImageUrl, duration, aspectRatio, webhookUrl })
+  } catch (e) {
+    return { error: `Falha ao submeter vídeo no fal: ${e.message}` }
+  }
+
+  const { data: gen, error } = await supabase.from('studio_generations').insert({
+    workspace_id, brand_id, workflow_id, node_id,
+    prompt_final: promptFinal, brand_context: snapshot,
+    provider: job.model, provider_request_id: job.request_id,
+    formato: aspectRatio || null, media_type: 'video', status: 'processing',
+  }).select().single()
+  if (error) return { error: error.message }
+
+  // Dev: sem webhook em localhost → poll-background (sabe que é vídeo p/ extrair a URL).
+  if (isDev()) {
+    fetch(`${siteBase()}/.netlify/functions/studio-poll-background`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        generation_id: gen.id, model: job.model, request_id: job.request_id,
+        status_url: job.status_url, response_url: job.response_url, media_type: 'video',
+      }),
+    }).catch(() => {})
+  }
+  return { gen, request_id: job.request_id }
+}
+
 // ── Finalização ──────────────────────────────────────────────────────
 /** Baixa a imagem do fal e sobe no R2; marca a geração como done. Idempotente. */
 export async function finalizeGeneration(supabase, gen, falImageUrl) {
@@ -183,6 +225,6 @@ async function onGenerationSettled(supabase, gen) {
 /** Busca a geração pelo request_id do fal. */
 export async function findGenerationByRequest(supabase, requestId) {
   const { data } = await supabase.from('studio_generations')
-    .select('id, workspace_id, brand_id, campaign_id, status').eq('provider_request_id', requestId).maybeSingle()
+    .select('id, workspace_id, brand_id, campaign_id, status, media_type').eq('provider_request_id', requestId).maybeSingle()
   return data
 }

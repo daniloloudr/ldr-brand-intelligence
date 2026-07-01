@@ -4,8 +4,8 @@
 // Em produção o webhook cuida disso; aqui é só netlify dev.
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
-import { getJobStatus, getJobResult, firstImageUrl } from './_image.js'
-import { finalizeGeneration, failGeneration } from './_studio.js'
+import { getJobStatus, getJobResult } from './_image.js'
+import { finalizeGeneration, failGeneration, extractMediaUrl } from './_studio.js'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -14,7 +14,7 @@ export const handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
-  const { generation_id, model, request_id, status_url, response_url } = body
+  const { generation_id, model, request_id, status_url, response_url, media_type } = body
   if (!generation_id || !model || !request_id) return { statusCode: 400 }
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
@@ -29,7 +29,7 @@ export const handler = async (event) => {
       const st = await getJobStatus(model, request_id, status_url)
       if (st.status === 'COMPLETED') {
         const result = await getJobResult(model, request_id, response_url)
-        await finalizeGeneration(supabase, gen, firstImageUrl(result))
+        await finalizeGeneration(supabase, gen, extractMediaUrl(result, media_type))
         return { statusCode: 200 }
       }
       await sleep(3000)

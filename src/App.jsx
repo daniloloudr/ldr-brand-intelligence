@@ -5,6 +5,7 @@ import { getRoute } from "./lib/helpers";
 import { GlobalStyle } from "./components/GlobalStyle";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitePage } from "./pages/auth/Invite";
+import { ForcePasswordPage } from "./pages/auth/ForcePassword";
 import { AppInterno } from "./pages/AppInterno";
 import { AppShell } from "./pages/app/AppShell";
 import { PaginaMetodologia } from "./pages/PaginaMetodologia";
@@ -68,6 +69,20 @@ export default function App() {
 
   if (route === "metodologia")       return <PaginaMetodologia />;
   if (route === "relatorio-publico") return <RelatorioPublico />;
+
+  // Primeiro acesso: força troca de senha antes de liberar qualquer rota autenticada
+  if (user && user.user_metadata?.must_change_password) {
+    return (
+      <ForcePasswordPage
+        onDone={setUser}
+        onLogout={async () => {
+          await supabase.auth.signOut();
+          setUser(null);
+          window.location.hash = "#/login";
+        }}
+      />
+    );
+  }
 
   if (route === "login") {
     if (user) { window.location.hash = "#/app"; return null; }

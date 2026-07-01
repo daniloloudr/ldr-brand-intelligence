@@ -6,7 +6,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import {
   Box, Button, Typography, TextField, MenuItem, Select, ListSubheader, Paper,
-  Stack, CircularProgress, Divider, Tooltip, IconButton, Menu, Dialog,
+  Stack, CircularProgress, Divider, Tooltip, IconButton, Menu, Dialog, Chip,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SaveIcon from '@mui/icons-material/Save'
@@ -35,6 +35,11 @@ import ViewStreamOutlinedIcon from '@mui/icons-material/ViewStreamOutlined'
 import GroupWorkOutlinedIcon from '@mui/icons-material/GroupWorkOutlined'
 import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
+import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
 import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
@@ -42,10 +47,13 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
+import { CreditBadge } from '../../components/CreditBadge'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel } from '../../lib/studioModels'
+import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 
-const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A'
+const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A', INDIGO = '#6C4BE0', AMBER = '#E0B33A'
+const isVideoUrl = u => /\.(mp4|webm|mov)(\?|$)/i.test(u || '')
 const FORMATOS = [
   { v: '1:1',  label: 'Feed 1:1' },
   { v: '9:16', label: 'Story 9:16' },
@@ -106,6 +114,19 @@ const PromptNode = memo(({ id, data, selected }) => (
         {data.improving ? 'Melhorando…' : 'Melhorar'}
       </Button>
     </Stack>
+  </NodeShell>
+))
+
+// Contexto — texto longo livre que complementa o prompt (tema, briefing, referências
+// conceituais). Conectado a um Gerar/Vídeo, entra como [CONTEXTO ADICIONAL] no prompt.
+const ContextNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={AMBER} title="Contexto" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
+    <TextField
+      value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
+      placeholder="Contexto extra para compor o prompt: tema, briefing, público, restrições, referências conceituais…"
+      multiline fullWidth size="small" className="nodrag"
+      sx={{ flex: 1, minHeight: 0, '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' }, '& textarea': { height: '100% !important', fontSize: 12, overflow: 'auto !important' } }}
+    />
   </NodeShell>
 ))
 
@@ -218,22 +239,39 @@ const ImageInputNode = memo(({ id, data, selected }) => {
   const urls = imgUrls(data)
   return (
     <NodeShell id={id} color={GRAY} title={`Imagem${urls.length ? ` (${urls.length}/${MAX_REF})` : ''}`} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
-      <Box className="nodrag" sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.5 }}>
-        {urls.map(u => (
-          <Box key={u} sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-            <Box component="img" src={u} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            <IconButton size="small" onClick={() => data.onRemoveImg?.(id, u)} sx={{ position: 'absolute', top: 2, right: 2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.2, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
-              <CloseIcon sx={{ fontSize: 11 }} />
+      <Stack className="nodrag" spacing={0.5} sx={{ flex: 1, minHeight: 0 }}>
+        {/* Primeira imagem em destaque */}
+        {urls.length > 0 && (
+          <Box onClick={() => data.onOpen?.(urls[0], urls)}
+            sx={{ position: 'relative', flex: 1, minHeight: 0, borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover .rmBtn': { opacity: 1 } }}>
+            <Box component="img" src={urls[0]} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <IconButton size="small" className="rmBtn" onClick={e => { e.stopPropagation(); data.onRemoveImg?.(id, urls[0]) }}
+              sx={{ position: 'absolute', top: 4, right: 4, opacity: 0, transition: 'opacity .15s', bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.3, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+              <CloseIcon sx={{ fontSize: 13 }} />
             </IconButton>
           </Box>
-        ))}
-        {urls.length < MAX_REF && (
-          <Box component="label" sx={{ aspectRatio: '1 / 1', border: '1px dashed', borderColor: 'divider', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { borderColor: TEAL } }}>
-            {data.uploading ? <CircularProgress size={14} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />}
-            <input type="file" accept="image/*" multiple hidden onChange={e => { if (e.target.files?.length) data.onUpload?.(id, e.target.files); e.target.value = '' }} />
-          </Box>
         )}
-      </Box>
+
+        {/* Demais imagens (até 4) + upload */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0.5, flexShrink: 0 }}>
+          {urls.slice(1).map(u => (
+            <Box key={u} onClick={() => data.onOpen?.(u, urls)}
+              sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover .rmBtn': { opacity: 1 } }}>
+              <Box component="img" src={u} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <IconButton size="small" className="rmBtn" onClick={e => { e.stopPropagation(); data.onRemoveImg?.(id, u) }}
+                sx={{ position: 'absolute', top: 1, right: 1, opacity: 0, transition: 'opacity .15s', bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.15, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+                <CloseIcon sx={{ fontSize: 10 }} />
+              </IconButton>
+            </Box>
+          ))}
+          {urls.length < MAX_REF && (
+            <Box component="label" sx={{ aspectRatio: '1 / 1', border: '1px dashed', borderColor: 'divider', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { borderColor: TEAL } }}>
+              {data.uploading ? <CircularProgress size={14} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />}
+              <input type="file" accept="image/*" multiple hidden onChange={e => { if (e.target.files?.length) data.onUpload?.(id, e.target.files); e.target.value = '' }} />
+            </Box>
+          )}
+        </Box>
+      </Stack>
     </NodeShell>
   )
 })
@@ -273,7 +311,94 @@ const GroupNode = memo(({ id, data, selected }) => (
   </Box>
 ))
 
-const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, note: NoteNode, group: GroupNode }
+// Geração de VÍDEO — t2v (Prompt) ou i2v (imagem de um nó upstream). Player inline.
+const VideoGenNode = memo(({ id, data, selected }) => {
+  const mk = data.model || DEFAULT_VIDEO_MODEL
+  const m  = videoModelByKey(mk)
+  const [adjOpen, setAdjOpen] = useState(false)
+  const adjusting = data.status === 'running'
+  return (
+    <NodeShell id={id} color={INDIGO} title="Vídeo" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
+      <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
+        <Select value={mk} onChange={e => data.onChange(id, { model: e.target.value, duration: videoModelByKey(e.target.value)?.defaultDuration })}
+          size="small" fullWidth sx={{ fontSize: 11 }}>
+          {VIDEO_MODEL_GROUPS.flatMap(g => [
+            <ListSubheader key={g} sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 2.2, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
+            ...VIDEO_MODELS.filter(x => x.group === g).map(x => (
+              <MenuItem key={x.key} value={x.key} sx={{ fontSize: 11 }}>
+                {x.label}
+                <Typography component="span" sx={{ ml: 0.75, fontSize: 9, color: 'text.disabled' }}>{modeLabel(x)}</Typography>
+              </MenuItem>
+            )),
+          ])}
+        </Select>
+        <Typography sx={{ fontSize: 9, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          {modeLabel(m)}{m?.modes?.includes('i2v') && !m?.modes?.includes('t2v') ? ' · conecte uma imagem' : ''}
+        </Typography>
+        {m?.durations && (
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+            {m.durations.map(d => (
+              <Chip key={d} label={durLabel(d)} size="small" clickable onClick={() => data.onChange(id, { duration: d })}
+                variant={(data.duration || m.defaultDuration) === d ? 'filled' : 'outlined'}
+                sx={{ height: 20, fontSize: 10, fontWeight: 700, ...((data.duration || m.defaultDuration) === d && { bgcolor: INDIGO, color: '#fff' }) }} />
+            ))}
+          </Stack>
+        )}
+        {data.outputUrl ? (
+          <>
+            <Box onClick={() => data.onOpen?.(data.outputUrl)} sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-in', bgcolor: '#000', borderRadius: 1, overflow: 'hidden' }}>
+              <Box component="video" src={data.outputUrl} muted loop playsInline preload="metadata"
+                onMouseEnter={e => e.currentTarget.play?.().catch(() => {})} onMouseLeave={e => e.currentTarget.pause?.()}
+                sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+            </Box>
+            <Stack direction="row" spacing={0} alignItems="center" sx={{ mt: 0.25, flexShrink: 0 }}>
+              <Tooltip title="Aprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'up')}>
+                {data.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 14, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />}
+              </IconButton></Tooltip>
+              <Tooltip title="Reprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'down')}>
+                {data.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 14, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />}
+              </IconButton></Tooltip>
+              <Tooltip title="Ajustar (retoque sutil + reajustar)"><IconButton size="small" onClick={() => setAdjOpen(o => !o)}>
+                <TuneOutlinedIcon sx={{ fontSize: 15, color: adjOpen || data.adjust ? AMBER : 'inherit' }} />
+              </IconButton></Tooltip>
+              <Box sx={{ flex: 1 }} />
+              <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}><DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+              <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
+                <span><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, mediaType: 'video', formato: data.formato, saved: data.saved })}>
+                  <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
+                </IconButton></span>
+              </Tooltip>
+            </Stack>
+            {adjOpen && (
+              <Stack spacing={0.5} className="nodrag" sx={{ flexShrink: 0, pt: 0.25 }}>
+                <TextField value={data.adjust || ''} onChange={e => data.onChange(id, { adjust: e.target.value })}
+                  placeholder="Ajuste pontual: ex. 'luz um pouco mais quente', 'movimento mais lento'…"
+                  multiline minRows={2} maxRows={4} fullWidth size="small"
+                  sx={{ '& textarea': { fontSize: 11 } }} />
+                <Button size="small" variant="contained" disabled={adjusting || !(data.adjust || '').trim()}
+                  startIcon={adjusting ? <CircularProgress size={11} sx={{ color: '#fff' }} /> : <ReplayIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => data.onRegen?.(id)}
+                  sx={{ alignSelf: 'flex-end', fontSize: 10, fontWeight: 700, bgcolor: AMBER, color: '#000', py: 0.25, '&:hover': { bgcolor: '#CDA02F' } }}>
+                  {adjusting ? 'Reajustando…' : 'Reajustar'}
+                </Button>
+              </Stack>
+            )}
+          </>
+        ) : (
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 1 }}>
+            {data.status === 'running'
+              ? <Stack alignItems="center" spacing={0.5}><CircularProgress size={18} sx={{ color: INDIGO }} /><Typography sx={{ fontSize: 10, color: INDIGO, fontWeight: 700 }}>gerando vídeo… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>
+              : data.status === 'error'
+              ? <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>
+              : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>conecte um Prompt{m?.modes?.includes('i2v') && !m?.modes?.includes('t2v') ? ' + uma imagem' : m?.modes?.includes('i2v') ? ' (imagem opcional p/ i2v)' : ''}</Typography>}
+          </Box>
+        )}
+      </Stack>
+    </NodeShell>
+  )
+})
+
+const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, context: ContextNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, videoGen: VideoGenNode, note: NoteNode, group: GroupNode }
 
 // Nós que produzem imagem (podem alimentar apps/generates a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
@@ -290,8 +415,10 @@ const imgUrls = data => data?.urls?.length ? data.urls : (data?.url ? [data.url]
 // Paleta de nós que podem ser adicionados ao canvas (novo workflow = canvas em branco)
 const NODE_TEMPLATES = [
   { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
+  { type: 'context',      label: 'Contexto',     data: { text: '' }, style: { width: 280, height: 220 } },
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
   { type: 'generate',     label: 'Gerar',        data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
+  { type: 'videoGen',     label: 'Vídeo',        data: { status: 'idle', model: DEFAULT_VIDEO_MODEL, duration: videoModelByKey(DEFAULT_VIDEO_MODEL)?.defaultDuration } },
   { type: 'preview',      label: 'Prévia',       data: { imageUrl: null } },
   { type: 'imageInput',   label: 'Imagem (upload)', data: {} },
   { type: 'brandContext', label: 'Voz da marca',    data: { title: 'Voz da marca', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
@@ -303,7 +430,7 @@ const NODE_TEMPLATES = [
 ]
 
 export function StudioCanvas({ brandId, workflowId }) {
-  const { workspace } = useWorkspace()
+  const { workspace, reload: reloadWorkspace } = useWorkspace()
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([])
   const [wfId, setWfId]   = useState(workflowId || null)
@@ -311,7 +438,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg]     = useState('')
-  const [lightbox, setLightbox] = useState(null)   // url aberta em tela cheia
+  const [lightbox, setLightbox] = useState(null)   // { list: [url...], index } aberto em tela cheia
   const [running, setRunning] = useState(false)    // execução em andamento
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [elapsed, setElapsed] = useState(0)        // segundos desde o início do run
@@ -336,17 +463,19 @@ export function StudioCanvas({ brandId, workflowId }) {
   const downloadImage = useCallback(async (url) => {
     try {
       const res = await fetch(url); const blob = await res.blob()
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'loudr-studio.png'; a.click(); URL.revokeObjectURL(a.href)
+      const ext = (url.split('?')[0].match(/\.(mp4|webm|mov|png|jpe?g|webp)$/i)?.[1] || 'png').toLowerCase()
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `loudr-studio.${ext}`; a.click(); URL.revokeObjectURL(a.href)
     } catch { window.open(url, '_blank') }
   }, [])
 
   const savePiece = useCallback(async (nodeId, data) => {
     if (!data?.imageUrl || data.saved) return
+    const isVideo = data.mediaType === 'video'
     const { error } = await supabase.from('brand_assets').insert({
-      brand_id: brandId, tipo: 'foto',
-      nome: `Studio · ${data.formato || 'peça'}`, descricao: 'Gerado no Studio',
-      valor: data.imageUrl, mime_type: 'image/png',
-      metadata: { source: 'studio', generation_id: data.genId, formato: data.formato },
+      brand_id: brandId, tipo: isVideo ? 'video' : 'foto',
+      nome: `Studio · ${isVideo ? 'vídeo' : (data.formato || 'peça')}`, descricao: 'Gerado no Studio',
+      valor: data.imageUrl, mime_type: isVideo ? 'video/mp4' : 'image/png',
+      metadata: { source: isVideo ? 'studio-video' : 'studio', generation_id: data.genId, formato: data.formato },
     })
     if (!error) updateNodeData(nodeId, { saved: true })
   }, [brandId, updateNodeData])
@@ -386,12 +515,13 @@ export function StudioCanvas({ brandId, workflowId }) {
       const session = (await supabase.auth.getSession()).data.session
       const res = await fetch('/.netlify/functions/studio-prompt', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ brand_id: brandId, idea, use_brand: useBrand }),
+        body: JSON.stringify({ brand_id: brandId, idea, use_brand: useBrand, model: 'haiku', max_chars: 250 }),
       })
       const j = await res.json()
       updateNodeData(id, { improving: false, ...(res.ok && j.prompt ? { text: j.prompt } : {}) })
+      if (res.ok && j.prompt) setMsg('Prompt melhorado — confira se faz sentido com o direcionamento da peça.')
     } catch { updateNodeData(id, { improving: false }) }
-  }, [brandId, updateNodeData])
+  }, [brandId, updateNodeData, setMsg])
 
   // Votação/aprovação da peça do nó → studio_generations.feedback (RLS for all).
   const votePiece = useCallback(async (id, genId, voto) => {
@@ -405,7 +535,26 @@ export function StudioCanvas({ brandId, workflowId }) {
       .eq('id', genId)
   }, [updateNodeData])
 
-  const openLightbox = useCallback(url => url && setLightbox(url), [])
+  const openLightbox = useCallback((url, list) => {
+    const arr = (Array.isArray(list) && list.length) ? list : (url ? [url] : [])
+    if (!arr.length) return
+    const idx = Math.max(0, arr.indexOf(url))
+    setLightbox({ list: arr, index: idx })
+  }, [])
+  const stepLightbox = useCallback(dir => {
+    setLightbox(lb => lb && lb.list.length > 1 ? { ...lb, index: (lb.index + dir + lb.list.length) % lb.list.length } : lb)
+  }, [])
+
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = e => {
+      if (e.key === 'ArrowRight') stepLightbox(1)
+      else if (e.key === 'ArrowLeft') stepLightbox(-1)
+      else if (e.key === 'Escape') setLightbox(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox, stepLightbox])
 
   const deleteNode = useCallback((id) => {
     setNodes(ns => ns.filter(n => n.id !== id))
@@ -455,11 +604,11 @@ export function StudioCanvas({ brandId, workflowId }) {
     const style = (n.type !== 'group' && !n.style?.width) ? { ...sizeFor(n.type), ...(n.style || {}) } : n.style
     if (n.type === 'group') { data.onChange = updateNodeData; data.onUngroup = ungroup; data.onDelete = deleteGroup; data.onResize = markDirty; return { ...n, data } }
     data.onDelete = deleteNode; data.onDuplicate = duplicateNode; data.onResize = markDirty
-    if (['prompt', 'formato', 'generate', 'note'].includes(n.type)) data.onChange = updateNodeData
+    if (['prompt', 'context', 'formato', 'generate', 'videoGen', 'note'].includes(n.type)) data.onChange = updateNodeData
     if (n.type === 'prompt') data.onImprove = improvePrompt
-    if (['generate', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
-    if (['preview', 'app'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
-    if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput }
+    if (['generate', 'videoGen', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
+    if (['preview', 'app', 'videoGen'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
+    if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput; data.onOpen = openLightbox }
     return { ...n, style, data }
   }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, removeImageInput, improvePrompt, openLightbox, votePiece, runNode, regenNodeCb, ungroup, deleteGroup, markDirty])
   attachHandlersRef.current = attachHandlers
@@ -514,7 +663,7 @@ export function StudioCanvas({ brandId, workflowId }) {
             const hit = byNode[n.id]
             if (hit) {
               if (n.type === 'generate') { d.outputUrl = d.outputUrl || hit.url; d.status = 'done' }
-              if (n.type === 'app') { d.outputUrl = d.outputUrl || hit.url; d.genId = d.genId || hit.id; d.status = 'done' }
+              if (n.type === 'app' || n.type === 'videoGen') { d.outputUrl = d.outputUrl || hit.url; d.genId = d.genId || hit.id; d.status = 'done' }
             }
             return { ...n, data: d }
           })
@@ -615,6 +764,8 @@ export function StudioCanvas({ brandId, workflowId }) {
     const promptNode  = ins.find(n => n.type === 'prompt')
     const formatoNode = ins.find(n => n.type === 'formato')
     const brandNodes  = ins.filter(n => n.type === 'brandContext')
+    const contextNodes = ins.filter(n => n.type === 'context')
+    const context = contextNodes.map(n => (n.data?.text || '').trim()).filter(Boolean).join('\n\n')
     const previewNode = nodes.find(n => n.type === 'preview' && edges.some(e => e.source === genId && e.target === n.id))
     // Faceta da marca por nó conectado (Brand Voice → verbal, Brand Visual → visual)
     const brandFacets = []
@@ -623,9 +774,15 @@ export function StudioCanvas({ brandId, workflowId }) {
     return {
       prompt: (promptNode?.data?.text || '').trim(),
       formato: formatoNode?.data?.formato || '1:1',
-      hasBrand: brandNodes.length > 0, brandFacets, previewNodeId: previewNode?.id,
+      hasBrand: brandNodes.length > 0, brandFacets, context, previewNodeId: previewNode?.id,
     }
   }
+  // Junta prompt + contexto extra (nós Contexto) num único texto para o backend
+  const withContext = (prompt, context) => context ? `${prompt}\n\n[CONTEXTO ADICIONAL]\n${context}` : prompt
+  // Ajuste fino do vídeo: reaproveita os mesmos inputs e pede só o retoque pontual
+  const withAdjust = (prompt, adjust) => adjust
+    ? `${prompt}\n\n[AJUSTE FINO]\nMantenha o vídeo praticamente igual (mesma cena, composição e movimento); ajuste apenas, de forma sutil: ${adjust}`
+    : prompt
 
   // Nó produtor de imagem conectado à entrada de um nó (encadeamento)
   function imageUpstreamOf(nodeId) {
@@ -656,7 +813,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   // ctx = { outputs, auth, dispatched }
   async function dispatchGenerateNode(g, ctx) {
     const { outputs, auth, dispatched } = ctx
-    const { prompt, formato, hasBrand, brandFacets, previewNodeId } = inputsFor(g.id)
+    const { prompt, formato, hasBrand, brandFacets, context, previewNodeId } = inputsFor(g.id)
     if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
     const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
@@ -664,7 +821,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt, formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: withContext(prompt, context), formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
@@ -686,6 +843,30 @@ export function StudioCanvas({ brandId, workflowId }) {
     } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
   }
 
+  async function dispatchVideoNode(v, ctx) {
+    const { outputs, auth, dispatched } = ctx
+    const { prompt, hasBrand, brandFacets, context } = inputsFor(v.id)
+    if (!prompt) { updateNodeData(v.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(v.id); return null }
+    const mk = v.data?.model || DEFAULT_VIDEO_MODEL
+    const m = videoModelByKey(mk)
+    const up = imageUpstreamOf(v.id)
+    const imageUrl = toUrls(outputs[up?.id])[0] || null
+    // i2v-only exige imagem de origem
+    if (m && m.modes.includes('i2v') && !m.modes.includes('t2v') && !imageUrl) {
+      updateNodeData(v.id, { status: 'error', error: 'conecte uma imagem (image-to-video)' }); dispatched.add(v.id); return null
+    }
+    const duration = v.data?.duration || m?.defaultDuration
+    updateNodeData(v.id, { status: 'running', error: null, outputUrl: null })
+    try {
+      const res = await fetch('/.netlify/functions/studio-generate-video', { method: 'POST', headers: auth,
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: v.id, prompt: withAdjust(withContext(prompt, context), (v.data?.adjust || '').trim()), model: mk, use_brand: hasBrand, brand_facets: brandFacets,
+          image_url: m?.modes.includes('i2v') ? imageUrl : null, duration: m?.durations ? duration : undefined }) })
+      const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+      dispatched.add(v.id)
+      return { genId: j.generation_id, nodeId: v.id, kind: 'video' }
+    } catch (e) { updateNodeData(v.id, { status: 'error', error: e.message }); return null }
+  }
+
   // Semeia tudo que já foi produzido no grafo (imageInput, app, generate) — base
   // para regerar 1 nó usando as infos anteriores (estilo n8n).
   function seedExistingOutputs() {
@@ -701,12 +882,14 @@ export function StudioCanvas({ brandId, workflowId }) {
   async function run(rootId = null) {
     let genNodes = nodes.filter(n => n.type === 'generate')
     let appNodes = nodes.filter(n => n.type === 'app')
+    let vidNodes = nodes.filter(n => n.type === 'videoGen')
     if (rootId) {                                  // run seletivo: só o nó + descendentes
       const keep = downstreamClosure(rootId)
       genNodes = genNodes.filter(n => keep.has(n.id))
       appNodes = appNodes.filter(n => keep.has(n.id))
+      vidNodes = vidNodes.filter(n => keep.has(n.id))
     }
-    if (!genNodes.length && !appNodes.length) return setMsg('Adicione nós ao canvas.')
+    if (!genNodes.length && !appNodes.length && !vidNodes.length) return setMsg('Adicione nós ao canvas.')
     setMsg('')
 
     const auth = await authHeaders()
@@ -723,34 +906,38 @@ export function StudioCanvas({ brandId, workflowId }) {
 
     const jobs = []
     for (const g of genNodes) { if (genReady(g)) { const job = await dispatchGenerateNode(g, ctx); if (job) jobs.push(job) } }
+    for (const v of vidNodes) { if (genReady(v)) { const job = await dispatchVideoNode(v, ctx); if (job) jobs.push(job) } }
     for (const a of appNodes) {
       if (dispatched.has(a.id)) continue
       const up = imageUpstreamOf(a.id)
       if (up && toUrls(outputs[up.id]).length) { const job = await dispatchAppNode(a, ctx); if (job) jobs.push(job) }
     }
-    if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate ou conecte uma imagem a um app.')
-    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes,
-      dispatchGenerate: g => dispatchGenerateNode(g, ctx), dispatchApp: a => dispatchAppNode(a, ctx), genReady })
+    if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate/Vídeo ou conecte uma imagem a um app.')
+    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, vidNodes,
+      dispatchGenerate: g => dispatchGenerateNode(g, ctx), dispatchApp: a => dispatchAppNode(a, ctx), dispatchVideo: v => dispatchVideoNode(v, ctx), genReady })
+    reloadWorkspace?.()   // saldo cai assim que os jobs são submetidos (débito já ocorreu)
   }
 
   // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante)
   async function regenNode(nodeId) {
     const node = nodesRef.current.find(n => n.id === nodeId)
-    if (!node || !['generate', 'app'].includes(node.type)) return
+    if (!node || !['generate', 'videoGen', 'app'].includes(node.type)) return
     setMsg('')
     const auth = await authHeaders()
     const outputs = seedExistingOutputs()
     const ctx = { outputs, auth, dispatched: new Set() }
-    const job = node.type === 'generate' ? await dispatchGenerateNode(node, ctx) : await dispatchAppNode(node, ctx)
+    const job = node.type === 'generate' ? await dispatchGenerateNode(node, ctx)
+      : node.type === 'videoGen' ? await dispatchVideoNode(node, ctx)
+      : await dispatchAppNode(node, ctx)
     if (!job) return
-    pollEngine([job], { outputs, dispatched: ctx.dispatched, genNodes: [], appNodes: [],
-      dispatchGenerate: () => null, dispatchApp: () => null, genReady: () => false })
+    pollEngine([job], { outputs, dispatched: ctx.dispatched, genNodes: [], appNodes: [], vidNodes: [],
+      dispatchGenerate: () => null, dispatchApp: () => null, dispatchVideo: () => null, genReady: () => false })
   }
 
   // Poll concorrente + dispara apps/generates a jusante quando o upstream conclui
   function pollEngine(initialJobs, ctx) {
     if (pollRef.current) clearInterval(pollRef.current)
-    const { outputs, dispatched, genNodes, appNodes, dispatchGenerate, dispatchApp, genReady } = ctx
+    const { outputs, dispatched, genNodes, appNodes, vidNodes = [], dispatchGenerate, dispatchApp, dispatchVideo, genReady } = ctx
     const jobs = [...initialJobs]
     const pending = new Set(jobs.map(j => j.genId))
     const start = Date.now()
@@ -758,6 +945,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const stop = () => {
       clearInterval(pollRef.current); pollRef.current = null; setRunning(false); setElapsed(0)
       if (wfId) saveRef.current?.()   // autosave após cada run
+      reloadWorkspace?.()             // atualiza saldo de créditos ao fim do run
     }
     pollRef.current = setInterval(async () => {
       const secs = Math.floor((Date.now() - start) / 1000)
@@ -803,6 +991,10 @@ export function StudioCanvas({ brandId, workflowId }) {
       for (const g of genNodes) {
         if (dispatched.has(g.id) || !imageUpstreamsOf(g.id).length) continue
         if (genReady(g)) { const nj = await dispatchGenerate(g); if (nj) { jobs.push(nj); pending.add(nj.genId) } }
+      }
+      for (const v of vidNodes) {
+        if (dispatched.has(v.id) || !imageUpstreamsOf(v.id).length) continue   // só os que esperam imagem upstream
+        if (genReady(v)) { const nj = await dispatchVideo(v); if (nj) { jobs.push(nj); pending.add(nj.genId) } }
       }
       setProgress({ done: jobs.length - pending.size, total: jobs.length })
       if (!pending.size) stop()
@@ -894,6 +1086,7 @@ export function StudioCanvas({ brandId, workflowId }) {
               </Typography>
             )}
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
+            <CreditBadge />
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
             <Button size="small" variant="contained" disabled={running} onClick={() => run()}
               startIcon={running ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
@@ -913,7 +1106,9 @@ export function StudioCanvas({ brandId, workflowId }) {
           </Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
           <Tooltip title="Prompt" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'prompt'))}><TextFieldsIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
+          <Tooltip title="Contexto" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'context'))}><NotesOutlinedIcon sx={{ fontSize: 19, color: AMBER }} /></IconButton></Tooltip>
           <Tooltip title="Gerar" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'generate'))}><AutoFixHighOutlinedIcon sx={{ fontSize: 19, color: TEAL }} /></IconButton></Tooltip>
+          <Tooltip title="Vídeo" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'videoGen'))}><MovieOutlinedIcon sx={{ fontSize: 19, color: INDIGO }} /></IconButton></Tooltip>
           <Tooltip title="Imagem (upload)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'imageInput'))}><ImageOutlinedIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
           <Tooltip title="Nota (sticky)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'note'))}><StickyNote2OutlinedIcon sx={{ fontSize: 19, color: '#E0B33A' }} /></IconButton></Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
@@ -966,18 +1161,37 @@ export function StudioCanvas({ brandId, workflowId }) {
       {/* Lightbox — abre a imagem do R2 em tela cheia */}
       <Dialog open={!!lightbox} onClose={() => setLightbox(null)} maxWidth="lg"
         slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible' } } }}>
-        <Box sx={{ position: 'relative' }}>
-          <IconButton onClick={() => setLightbox(null)} sx={{ position: 'absolute', top: -14, right: -14, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
-            <CloseIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          {lightbox && <Box component="img" src={lightbox} alt="" sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 2 }} />}
-          {lightbox && (
-            <Button startIcon={<DownloadOutlinedIcon />} onClick={() => downloadImage(lightbox)}
-              sx={{ position: 'absolute', bottom: 12, right: 12, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', fontWeight: 700, '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
-              Baixar
-            </Button>
-          )}
-        </Box>
+        {lightbox && (() => {
+          const url = lightbox.list[lightbox.index]
+          const multi = lightbox.list.length > 1
+          return (
+            <Box sx={{ position: 'relative' }}>
+              <IconButton onClick={() => setLightbox(null)} sx={{ position: 'absolute', top: -14, right: -14, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
+                <CloseIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+              {isVideoUrl(url)
+                ? <Box component="video" src={url} controls autoPlay loop sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 2 }} />
+                : <Box component="img" src={url} alt="" sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 2 }} />}
+              {multi && (
+                <>
+                  <IconButton onClick={() => stepLightbox(-1)} sx={{ position: 'absolute', top: '50%', left: 12, transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,.6)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,.85)' } }}>
+                    <ChevronLeftIcon />
+                  </IconButton>
+                  <IconButton onClick={() => stepLightbox(1)} sx={{ position: 'absolute', top: '50%', right: 12, transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,.6)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,.85)' } }}>
+                    <ChevronRightIcon />
+                  </IconButton>
+                  <Box sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', bgcolor: 'rgba(0,0,0,.6)', color: '#fff', px: 1.2, py: 0.3, borderRadius: 5, fontSize: 12, fontWeight: 700 }}>
+                    {lightbox.index + 1} / {lightbox.list.length}
+                  </Box>
+                </>
+              )}
+              <Button startIcon={<DownloadOutlinedIcon />} onClick={() => downloadImage(url)}
+                sx={{ position: 'absolute', bottom: 12, right: 12, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', fontWeight: 700, '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
+                Baixar
+              </Button>
+            </Box>
+          )
+        })()}
       </Dialog>
     </Box>
   )

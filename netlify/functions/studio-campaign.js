@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
 import { resolveBrandContext, submitGeneration } from './_studio.js'
+import { creditsForImage, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -14,8 +15,6 @@ const headers = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
-const STUDIO_PLANS  = ['pro', 'enterprise']
-const MONTHLY_LIMIT = parseInt(process.env.STUDIO_MONTHLY_LIMIT || '1000', 10)
 const MAX_FORMATOS  = 8
 
 export const handler = async (event) => {
@@ -54,17 +53,17 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  // Plano + quota (a campanha consome N do limite mensal)
+  // Gating + débito = nº de formatos × crédito/imagem do modelo. Admin bypassa.
+  const amount = formatos.length * creditsForImage(model)
   if (!platformAdmin) {
     const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
-    if (!STUDIO_PLANS.includes(ws?.plano)) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Studio requer plano Pro ou superior' }) }
-
-    const inicioMes = new Date(); inicioMes.setUTCDate(1); inicioMes.setUTCHours(0, 0, 0, 0)
-    const { count } = await supabase.from('studio_generations')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspace_id).gte('created_at', inicioMes.toISOString())
-    if ((count || 0) + formatos.length > MONTHLY_LIMIT)
-      return { statusCode: 429, headers, body: JSON.stringify({ error: 'A campanha excede o limite mensal de gerações' }) }
+    const minP = minPlanoModelo(model)
+    if (!planoPermite(ws?.plano, minP)) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: `Este modelo requer o plano ${PLAN_LABEL[minP]} ou superior.`, minPlano: minP }) }
+    }
+    const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'campaign', modelo: model || 'auto', user_id: user.id })
+    if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para esta campanha.', need: amount }) }
+    if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }
   }
 
   // Brand context único (opcional) — coerência da campanha vem daqui
@@ -105,8 +104,9 @@ export const handler = async (event) => {
     await supabase.from('studio_campaigns').update({ hero_generation_id: generations[0].id }).eq('id', campaign.id)
   }
 
-  // Nenhuma peça submetida → marca a campanha como erro
+  // Nenhuma peça submetida → estorna o crédito e marca a campanha como erro
   if (!generations.length) {
+    if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'campaign' })
     await supabase.from('studio_campaigns').update({ status: 'rascunho' }).eq('id', campaign.id)
     return { statusCode: 502, headers, body: JSON.stringify({ error: 'Falha ao submeter as peças no fal' }) }
   }

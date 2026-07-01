@@ -1,12 +1,12 @@
 // ════════════════════════════════════════════════════════════════════
-// studio-generate.js — dispatch SÍNCRONO (<1s) de UMA geração
-// Compila o brand context server-side, submete o job no fal e grava a linha.
-// Spec: specs/features/studio.md §1
+// studio-generate-video.js — dispatch SÍNCRONO de UMA geração de vídeo
+// Mesma fundação do studio-generate (auth + gate Pro + quota), mas roteia
+// para os modelos de vídeo (t2v/i2v) via _video.js. Spec: studio.md §Vídeo
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
-import { falConfigured } from './_image.js'
-import { resolveBrandContext, submitGeneration } from './_studio.js'
-import { creditsForImage, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
+import { falVideoConfigured, VIDEO_MODELS, videoSupportsEndFrame } from './_video.js'
+import { resolveBrandContext, submitVideoGeneration } from './_studio.js'
+import { creditsForVideo, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -19,7 +19,7 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers }
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers }
 
-  if (!falConfigured()) return { statusCode: 503, headers, body: JSON.stringify({ error: 'FAL_KEY não configurada' }) }
+  if (!falVideoConfigured()) return { statusCode: 503, headers, body: JSON.stringify({ error: 'FAL_KEY não configurada' }) }
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
@@ -31,14 +31,23 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra, brand_facets } = body
-  const useBrand = body.use_brand !== false   // marca opcional — default ligada
-  // facets opcional: ['verbal','visual'] (Workflow). Ausente = ambas.
+  const { brand_id, workflow_id, node_id, prompt, model, image_url = null, end_image_url = null, duration, aspect_ratio, brand_facets } = body
+  const useBrand = body.use_brand !== false
   const facets = Array.isArray(brand_facets) && brand_facets.length
     ? { verbal: brand_facets.includes('verbal'), visual: brand_facets.includes('visual') }
     : undefined
+
   if (!brand_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
   if (!prompt)   return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
+  if (!model || !VIDEO_MODELS[model]) return { statusCode: 400, headers, body: JSON.stringify({ error: 'modelo de vídeo inválido' }) }
+
+  // i2v exige que o modelo suporte imagem; t2v exige que suporte texto
+  const m = VIDEO_MODELS[model]
+  if (image_url && !m.i2v) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Este modelo não aceita imagem de origem (image-to-video)' }) }
+  if (!image_url && !m.t2v) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Este modelo exige uma imagem de origem (image-to-video)' }) }
+  // frame final: exige modelo compatível + frame inicial
+  const endImageUrl = end_image_url && image_url && videoSupportsEndFrame(model) ? end_image_url : null
+  if (end_image_url && !endImageUrl) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Frame final requer um modelo compatível (Kling/Hailuo/Seedance) e um frame inicial' }) }
 
   // Brand → workspace (fonte autoritativa)
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
@@ -52,32 +61,30 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  // Gating + débito (admin bypassa ambos)
-  const amount = creditsForImage(model)
+  // Gating + débito (vídeo escala com a duração). Admin bypassa ambos.
+  const amount = creditsForVideo(model, duration)
   if (!platformAdmin) {
     const { data: ws } = await supabase.from('workspaces').select('plano').eq('id', workspace_id).single()
     const minP = minPlanoModelo(model)
     if (!planoPermite(ws?.plano, minP)) {
-      return { statusCode: 403, headers, body: JSON.stringify({ error: `Este modelo requer o plano ${PLAN_LABEL[minP]} ou superior.`, minPlano: minP }) }
+      return { statusCode: 403, headers, body: JSON.stringify({ error: `Este modelo de vídeo requer o plano ${PLAN_LABEL[minP]} ou superior.`, minPlano: minP }) }
     }
-    const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'image', modelo: model || 'auto', user_id: user.id })
-    if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para esta geração.', need: amount }) }
+    const r = await debitCredits(supabase, { workspace_id, amount, operacao: 'video', modelo: model, user_id: user.id })
+    if (r.insufficient) return { statusCode: 402, headers, body: JSON.stringify({ error: 'Créditos insuficientes para este vídeo.', need: amount }) }
     if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }
   }
 
-  // Marca como referência OPCIONAL — só injeta se useBrand
+  // Marca como referência OPCIONAL
   let snapshot = null, prefix = ''
   if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome, facets))
-  const promptFinal = useBrand
-    ? `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
-    : `${prompt}\n\n[FORMATO]\n${formato}`
+  const promptFinal = useBrand ? `${prefix}\n\n[PEDIDO — VÍDEO]\n${prompt}` : prompt
 
-  const { gen, request_id, error } = await submitGeneration(supabase, {
-    workspace_id, brand_id, workflow_id, node_id, campaign_id,
-    promptFinal, snapshot, formato, references, mode, model, extra,
+  const { gen, request_id, error } = await submitVideoGeneration(supabase, {
+    workspace_id, brand_id, workflow_id, node_id,
+    promptFinal, snapshot, modelKey: model, imageUrl: image_url, endImageUrl, duration, aspectRatio: aspect_ratio,
   })
   if (error) {
-    if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'image' })
+    if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'video' })
     return { statusCode: 502, headers, body: JSON.stringify({ error }) }
   }
 
