@@ -27,7 +27,29 @@ const SUGESTOES = [
 const _arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
 const _join = x => _arr(x).map(o => typeof o === 'object' ? (o.hex || o.valor || o.nome || o.termo || '') : o).filter(Boolean).join(', ')
 
-function buildSystemPrompt(brand, book, ragChunks) {
+// Compila o modelo vivo destilado (Camada de Inteligência) em bloco de contexto.
+function compileIntel(m, versao) {
+  if (!m) return ''
+  const lines = []
+  if (m.posicionamento?.valor) lines.push(`- Posicionamento (aprendido): ${m.posicionamento.valor}`)
+  if (m.voz?.valor)            lines.push(`- Voz (aprendida): ${m.voz.valor}`)
+  const pv = m.preferencias_visuais || {}
+  const aprov  = (pv.aprovado  || []).map(a => a?.padrao).filter(Boolean)
+  const reprov = (pv.reprovado || []).map(a => a?.padrao).filter(Boolean)
+  if (aprov.length)  lines.push(`- Visual APROVADO: ${aprov.join('; ')}`)
+  if (reprov.length) lines.push(`- Visual REPROVADO (evitar): ${reprov.join('; ')}`)
+  if (pv.modelo_preferido?.provider) lines.push(`- Estilo/modelo que mais performa: ${pv.modelo_preferido.provider}`)
+  const dos   = (m.do_dont?.do   || []).filter(Boolean)
+  const donts = (m.do_dont?.dont || []).filter(Boolean)
+  if (dos.length)   lines.push(`- Faça: ${dos.join('; ')}`)
+  if (donts.length) lines.push(`- Não faça: ${donts.join('; ')}`)
+  const fatos = (m.fatos || []).filter(f => f?.fato && (f.confianca ?? 1) >= 0.5).map(f => f.fato)
+  if (fatos.length) lines.push(`- Fatos consolidados: ${fatos.join('; ')}`)
+  if (!lines.length) return ''
+  return `\n\n## Inteligência da marca (aprendido com o uso — v${versao})\nConhecimento destilado das avaliações reais desta marca (votos, campanhas, diagnósticos). Priorize isto ao responder — é o que a marca demonstrou preferir na prática:\n${lines.join('\n')}`
+}
+
+function buildSystemPrompt(brand, book, ragChunks, intelligence) {
   const v  = book?.verbal_identity || {}
   const vi = book?.visual_identity || {}
   // fallback legado (brand books antigos)
@@ -53,7 +75,7 @@ function buildSystemPrompt(brand, book, ragChunks) {
   const tipografia     = [vi.tipo_principal_nome, vi.tipo_secundario_nome, vi.tipo_display].filter(Boolean).join(' · ')
 
   const hasContent = !!(tomVoz || valores?.length || posicionamento || personalidade.length ||
-    missao || proposito || paleta || (ragChunks?.length))
+    missao || proposito || paleta || (ragChunks?.length) || intelligence?.modelo)
 
   if (!hasContent) {
     return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma LOUDR OS.
@@ -100,6 +122,8 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
     ragChunks.forEach(c => { prompt += `- ${c.chunk_text}\n` })
   }
+
+  prompt += compileIntel(intelligence?.modelo, intelligence?.versao)
 
   return prompt
 }
@@ -210,6 +234,7 @@ export function BrandAssistant({ brandId }) {
   const [rateLimitSec, setRateLimit] = useState(0)
   const [loading, setLoading]       = useState(true)
   const [chunksCount, setChunksCount] = useState(0)
+  const [intelligence, setIntelligence] = useState(null)   // modelo vivo destilado (Camada de Inteligência)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -241,6 +266,14 @@ export function BrandAssistant({ brandId }) {
         .select('id', { count: 'exact', head: true })
         .eq('brand_id', b.id)
       setChunksCount(count || 0)
+
+      // Modelo vivo destilado (última versão) — o que a marca aprendeu com o uso
+      const { data: bi } = await supabase
+        .from('brand_intelligence')
+        .select('versao, modelo')
+        .eq('brand_id', b.id)
+        .order('versao', { ascending: false }).limit(1).maybeSingle()
+      setIntelligence(bi || null)
     }
 
     setLoading(false)
@@ -322,7 +355,7 @@ export function BrandAssistant({ brandId }) {
       }
     } catch { /* RAG failure não bloqueia o assistente */ }
 
-    const systemPrompt = buildSystemPrompt(brand, book, ragChunks)
+    const systemPrompt = buildSystemPrompt(brand, book, ragChunks, intelligence)
     const history = [...messages, userMsg]
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }))
@@ -356,7 +389,7 @@ export function BrandAssistant({ brandId }) {
     })
   }
 
-  const systemPrompt = buildSystemPrompt(brand, book, [])
+  const systemPrompt = buildSystemPrompt(brand, book, [], intelligence)
   const bookSections = book ? [
     { label: 'Identidade Verbal', filled: !!(book.verbal_identity?.tom_voz || book.verbal_identity?.valores?.length || book.identity?.missao) },
     { label: 'Posicionamento', filled: !!(book.verbal_identity?.posicionamento || book.positioning?.posicionamento) },
