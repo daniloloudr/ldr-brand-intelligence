@@ -163,8 +163,18 @@ Aprofundamento do núcleo (trilho "C"). O destilador deixava as evidências "ach
 
 *Stack:* `brand-distill-background.js` (`fmtSignalBody`/`fmtSignal(s, now)`, `created_at` no select, `now` no content, SYSTEM enriquecido).
 
-### Próximos (trilho D do aprofundamento)
-- **D — Diff entre versões** no painel (o que a versão N aprendeu/mudou em relação à N-1).
+### Diff entre versões no painel — "o que mudou" ✅ (2026-07-01)
+Aprofundamento do núcleo (trilho "D"). O painel IA LOUDR mostrava só a foto do modelo atual; agora mostra também **o que a última versão aprendeu em relação à anterior** — a evolução fica visível item a item, reforçando a prova de que a marca fica mais assertiva.
+
+- **100% client-side** (o painel já carregava todas as versões com `modelo` — zero backend/migration). Compara `versions[N]` vs `versions[N-1]`.
+- **Diff semântico leve:** `diffList(curr, prev)` classifica cada item em **NOVO** (presente em N, não em N-1) ou **revisto** (em N-1, não em N). O match usa `similar(a,b)` — igualdade normalizada OU **Jaccard de palavras significativas ≥ 0.5** — para que reformulação de texto pelo destilador **não** conte como novidade (baixo ruído).
+- **Facetas cobertas:** visual aprovado/reprovado, faça, não faça, fatos. Mais: delta de **confiança em pts** vs versão anterior, e sinalização "Posicionamento/Voz recalibrado" quando o texto muda de fato.
+- **Card "O que mudou na v{N}"** entre "O que a marca já aprendeu" e a proveniência; só aparece com ≥2 versões e havendo mudança. `DiffBlock` renderiza NOVO (cor da faceta) e revisto (tachado/esmaecido).
+- **Validado com dado real:** diff v1→v2 (dirigido pelo ensino de tom) apareceu como novos itens em Faça/Não faça/Fatos, +1 pt de confiança; a voz **não** foi marcada como recalibrada (foi refinada, não substituída) — sem falso positivo.
+
+*Stack:* `BrandIntelligence.jsx` (`norm`/`wordSet`/`similar`/`diffList`, cálculo de `facetDiffs`/`confDelta`/`vozChanged`/`posChanged`, componente `DiffBlock`, card "O que mudou").
+
+**CAMADA APROFUNDADA (trilhos A–D concluídos).** Núcleo vivo: ensina (A) · recupera o aprendido via RAG (B) · destila com recência/contradição/confiança-por-faceta (C) · mostra a evolução versão-a-versão (D).
 
 ---
 

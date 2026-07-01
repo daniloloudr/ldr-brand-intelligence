@@ -12,6 +12,25 @@ const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
 const shortProvider = p => (p || '?').split('/').slice(-2).join('/')
 const SIGNAL_LABEL = { image_vote: 'Avaliações de peças', campaign_verdict: 'Campanhas', diagnostic: 'Diagnósticos', listening_sentiment: 'Sentimento do público', brandbook_edit: 'Ajustes no brand book', assistant_correction: 'Ensinamentos no Assistant' }
 
+// ── Diff entre versões (trilho D) — comparação semântica leve, client-side ──
+const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+const wordSet = s => new Set(norm(s).split(' ').filter(w => w.length > 3))
+// Dois itens são "o mesmo" se o texto normalizado bate OU compartilham >50% das palavras
+// significativas (o destilador reescreve — evita marcar reformulação como novidade).
+function similar(a, b) {
+  const wa = wordSet(a), wb = wordSet(b)
+  if (!wa.size || !wb.size) return norm(a) === norm(b)
+  let inter = 0; for (const w of wa) if (wb.has(w)) inter++
+  return inter / (wa.size + wb.size - inter) >= 0.5
+}
+function diffList(curr, prev) {
+  const c = (curr || []).filter(Boolean), p = (prev || []).filter(Boolean)
+  return {
+    added:   c.filter(x => !p.some(y => similar(x, y))),
+    removed: p.filter(y => !c.some(x => similar(x, y))),
+  }
+}
+
 // Título de seção com dica explicativa (?)
 const SectionTitle = ({ children, help }) => (
   <Stack direction="row" spacing={0.75} alignItems="center" mb={1}>
@@ -70,6 +89,22 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
     .sort((a, b) => b.rate - a.rate)
 
   const trend = versions.map(v => ({ v: `v${v.versao}`, confianca: v.confianca_media != null ? Math.round(v.confianca_media * 100) : null }))
+
+  // ── Diff da última versão vs a anterior (trilho D) ──
+  const prev = versions.length > 1 ? versions[versions.length - 2] : null
+  const pm = prev?.modelo
+  const facetDiffs = pm ? [
+    { label: '✅ Visual que funciona', color: TEAL,  ...diffList((model?.preferencias_visuais?.aprovado  || []).map(a => a?.padrao), (pm?.preferencias_visuais?.aprovado  || []).map(a => a?.padrao)) },
+    { label: '❌ Visual a evitar',     color: CORAL, ...diffList((model?.preferencias_visuais?.reprovado || []).map(a => a?.padrao), (pm?.preferencias_visuais?.reprovado || []).map(a => a?.padrao)) },
+    { label: 'Faça',                   color: TEAL,  ...diffList(model?.do_dont?.do,   pm?.do_dont?.do) },
+    { label: 'Não faça',               color: CORAL, ...diffList(model?.do_dont?.dont, pm?.do_dont?.dont) },
+    { label: 'Fatos consolidados',     color: null,  ...diffList((model?.fatos || []).map(f => f?.fato), (pm?.fatos || []).map(f => f?.fato)) },
+  ].filter(f => f.added.length || f.removed.length) : []
+  const confDelta = pm && current?.confianca_media != null && prev.confianca_media != null
+    ? Math.round((current.confianca_media - prev.confianca_media) * 100) : null
+  const vozChanged = pm && model?.voz?.valor && pm?.voz?.valor && !similar(model.voz.valor, pm.voz.valor)
+  const posChanged = pm && model?.posicionamento?.valor && pm?.posicionamento?.valor && !similar(model.posicionamento.valor, pm.posicionamento.valor)
+  const hasDiff = facetDiffs.length || vozChanged || posChanged || (confDelta != null && confDelta !== 0)
 
   const Card = ({ children, sx }) => <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, ...sx }}>{children}</Paper>
 
@@ -187,6 +222,31 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
               </Stack>
             </Card>
 
+            {/* O que mudou (diff entre versões) */}
+            {prev && hasDiff && (
+              <Card>
+                <SectionTitle help="O que a inteligência da sua marca passou a entender nesta última versão, em relação à anterior. É a evolução, item a item.">
+                  O que mudou na v{current.versao}
+                </SectionTitle>
+                <Stack spacing={2}>
+                  {confDelta != null && confDelta !== 0 && (
+                    <Chip
+                      size="small"
+                      label={`Confiança ${confDelta > 0 ? '+' : ''}${confDelta} pts vs v${prev.versao}`}
+                      sx={{ alignSelf: 'flex-start', fontWeight: 800, bgcolor: confDelta > 0 ? 'rgba(13,158,122,0.12)' : 'rgba(232,24,90,0.10)', color: confDelta > 0 ? TEAL : CORAL }}
+                    />
+                  )}
+                  {(vozChanged || posChanged) && (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {posChanged && <Chip size="small" variant="outlined" label="Posicionamento recalibrado" sx={{ fontWeight: 700 }} />}
+                      {vozChanged && <Chip size="small" variant="outlined" label="Voz recalibrada" sx={{ fontWeight: 700 }} />}
+                    </Stack>
+                  )}
+                  {facetDiffs.map(f => <DiffBlock key={f.label} {...f} />)}
+                </Stack>
+              </Card>
+            )}
+
             {/* Proveniência */}
             <Card>
               <SectionTitle help="As fontes de evidência que formam o aprendizado da sua marca.">De onde vem esse aprendizado</SectionTitle>
@@ -203,6 +263,29 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
           </Stack>
         )}
       </Box>
+    </Box>
+  )
+}
+
+function DiffBlock({ label, color, added, removed }) {
+  if (!added.length && !removed.length) return null
+  return (
+    <Box>
+      <Typography fontSize={11} fontWeight={800} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" mb={0.5}>{label}</Typography>
+      <Stack spacing={0.5}>
+        {added.map((t, i) => (
+          <Stack key={'a' + i} direction="row" spacing={1} alignItems="flex-start">
+            <Typography component="span" fontSize={11} fontWeight={900} sx={{ color: color || '#0D9E7A', mt: '2px', flexShrink: 0 }}>NOVO</Typography>
+            <Typography fontSize={13} color="text.primary">{t}</Typography>
+          </Stack>
+        ))}
+        {removed.map((t, i) => (
+          <Stack key={'r' + i} direction="row" spacing={1} alignItems="flex-start">
+            <Typography component="span" fontSize={11} fontWeight={900} sx={{ color: 'text.disabled', mt: '2px', flexShrink: 0 }}>revisto</Typography>
+            <Typography fontSize={13} color="text.disabled" sx={{ textDecoration: 'line-through' }}>{t}</Typography>
+          </Stack>
+        ))}
+      </Stack>
     </Box>
   )
 }
