@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
-import { resolveBrandContext, submitGeneration } from './_studio.js'
+import { resolveBrandIntelligence, submitGeneration } from './_studio.js'
 import { creditsForImage, debitCredits, refundCredits, minPlanoModelo, planoPermite, PLAN_LABEL } from './_credits.js'
 
 const headers = {
@@ -67,7 +67,7 @@ export const handler = async (event) => {
 
   // Marca como referência OPCIONAL — só injeta se useBrand
   let snapshot = null, prefix = ''
-  if (useBrand) ({ prefix, snapshot } = await resolveBrandContext(supabase, brand_id, brand.nome, facets))
+  if (useBrand) ({ prefix, snapshot } = await resolveBrandIntelligence(supabase, brand_id, brand.nome, facets))
   const promptFinal = useBrand
     ? `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
     : `${prompt}\n\n[FORMATO]\n${formato}`

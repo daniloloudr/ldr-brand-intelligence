@@ -73,6 +73,41 @@ export async function resolveBrandContext(supabase, brand_id, brandNome, facets)
   return compileBrandContext({ brandBook: bbRows?.[0] || null, tokens, brandNome, facets })
 }
 
+// Compila o modelo vivo (destilado) em linhas acionáveis para o prompt de geração.
+function compileIntelligence(m) {
+  const lines = []
+  const pv = m?.preferencias_visuais || {}
+  const aprov  = (pv.aprovado  || []).map(a => a?.padrao).filter(Boolean)
+  const reprov = (pv.reprovado || []).map(a => a?.padrao).filter(Boolean)
+  if (aprov.length)  lines.push(`Padrões que a marca APROVA (priorize): ${aprov.join('; ')}`)
+  if (reprov.length) lines.push(`Padrões que a marca REPROVA (evite): ${reprov.join('; ')}`)
+  if (pv.modelo_preferido?.provider) lines.push(`Estilo/modelo que mais performa: ${pv.modelo_preferido.provider}`)
+  const dos   = (m?.do_dont?.do   || []).filter(Boolean)
+  const donts = (m?.do_dont?.dont || []).filter(Boolean)
+  if (dos.length)   lines.push(`Faça: ${dos.join('; ')}`)
+  if (donts.length) lines.push(`Não faça: ${donts.join('; ')}`)
+  const fatos = (m?.fatos || []).filter(f => f?.fato && (f.confianca ?? 1) >= 0.5).map(f => f.fato)
+  if (fatos.length) lines.push(`Fatos consolidados: ${fatos.join('; ')}`)
+  return lines.length ? lines.join('\n') : null
+}
+
+// ── Porta ÚNICA de contexto de marca (Camada de Inteligência) ──────────
+// Toda IA de borda passa por aqui: brand context estático + o modelo vivo
+// destilado dos brand_signals (última versão) → realimenta a geração.
+// Trocar modelo de borda nunca toca aqui. Spec: brand-intelligence.md
+export async function resolveBrandIntelligence(supabase, brand_id, brandNome, facets) {
+  const base = await resolveBrandContext(supabase, brand_id, brandNome, facets)
+  const { data: bi } = await supabase.from('brand_intelligence')
+    .select('versao, modelo').eq('brand_id', brand_id)
+    .order('versao', { ascending: false }).limit(1).maybeSingle()
+  const learned = bi?.modelo ? compileIntelligence(bi.modelo) : null
+  if (!learned) return base
+  return {
+    prefix: `${base.prefix}\n\n[INTELIGÊNCIA DA MARCA — aprendido com o uso (v${bi.versao})]\n${learned}`,
+    snapshot: { ...base.snapshot, intelligence_versao: bi.versao },
+  }
+}
+
 // ── Submissão de uma geração (fal + insert + poll dev) ───────────────
 export async function submitGeneration(supabase, {
   workspace_id, brand_id, workflow_id = null, node_id = null, campaign_id = null,
@@ -195,7 +230,7 @@ async function onGenerationSettled(supabase, gen) {
         .select('image_url, status').eq('id', gen.id).single()
       if (hero?.status === 'done' && hero.image_url) {
         const { data: brand } = await supabase.from('brands').select('nome').eq('id', camp.brand_id).single()
-        const { prefix, snapshot } = await resolveBrandContext(supabase, camp.brand_id, brand?.nome || '')
+        const { prefix, snapshot } = await resolveBrandIntelligence(supabase, camp.brand_id, brand?.nome || '')
         for (const formato of (camp.formatos || []).slice(1)) {
           const promptFinal = `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${camp.conceito}\n\n[ADAPTAÇÃO]\nAdapte a peça de referência para o formato ${formato}, mantendo EXATAMENTE a mesma direção de arte, composição, paleta, elementos e estética. Apenas reenquadre/recomponha para ${formato}.`
           await submitGeneration(supabase, {
