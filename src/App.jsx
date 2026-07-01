@@ -14,7 +14,7 @@ import { RelatorioPublico } from "./pages/RelatorioPublico";
 const WORKSPACE_ROUTES = [
   'app-home', 'posicionamento', 'listening', 'content-hub',
   'workspace', 'conta', 'time', 'plano', 'alertas',
-  'brands-list', 'brands-new', 'brands-detail', 'brands-assistant',
+  'brands-list', 'brands-new', 'brands-detail', 'brands-assistant', 'brands-intelligence',
   'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail',
   'brands-studio', 'brands-studio-campaigns', 'brands-studio-workflow', 'brands-studio-video',
 ];

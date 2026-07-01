@@ -18,6 +18,7 @@ import { BrandList } from './BrandList'
 import { BrandOnboarding } from './BrandOnboarding'
 import { BrandBook } from './BrandBook'
 import { BrandAssistant } from './BrandAssistant'
+import { BrandIntelligence } from './BrandIntelligence'
 import { Campaigns } from './Campaigns'
 import { CampaignNew } from './CampaignNew'
 import { CampaignDetail } from './CampaignDetail'
@@ -123,6 +124,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: 'Workflow', hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow', locked: !isPro },
     ] },
     { type: 'item', label: 'Brand Assistant', icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
+    { type: 'item', label: 'Inteligência da Marca', icon: IcoDiag, hash: `${brandPath}/intelligence`, active: route === 'brands-intelligence' },
   ]
 
   function renderPage() {
@@ -138,6 +140,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-list')           return <BrandList />
     if (route === 'brands-new')            return <BrandOnboarding />
     if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />
+    if (route === 'brands-intelligence')   return <BrandIntelligence brandId={getBrandId()} />
     if (route === 'brands-campaigns')      return <UpgradeGate planoNecessario="pro" workspace={workspace}><Campaigns brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-new')   return <UpgradeGate planoNecessario="pro" workspace={workspace}><CampaignNew brandId={getBrandId()} /></UpgradeGate>
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
