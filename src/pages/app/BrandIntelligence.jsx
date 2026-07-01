@@ -10,7 +10,7 @@ import { PageHeader } from '../../components/shell/PageHeader'
 const TEAL = '#0D9E7A', CORAL = '#E8185A', PURPLE = '#7F77DD'
 const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
 const shortProvider = p => (p || '?').split('/').slice(-2).join('/')
-const SIGNAL_LABEL = { image_vote: 'Avaliações de peças', campaign_verdict: 'Campanhas', diagnostic: 'Diagnósticos', listening_sentiment: 'Sentimento do público', brandbook_edit: 'Ajustes no brand book' }
+const SIGNAL_LABEL = { image_vote: 'Avaliações de peças', campaign_verdict: 'Campanhas', diagnostic: 'Diagnósticos', listening_sentiment: 'Sentimento do público', brandbook_edit: 'Ajustes no brand book', assistant_correction: 'Ensinamentos no Assistant' }
 
 // Título de seção com dica explicativa (?)
 const SectionTitle = ({ children, help }) => (

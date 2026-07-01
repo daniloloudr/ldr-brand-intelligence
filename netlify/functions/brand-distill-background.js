@@ -35,6 +35,8 @@ function fmtSignal(s) {
     return `[sentimento] +${p.avg_positivo} =${p.avg_neutro} -${p.avg_negativo} (${p.total_mencoes} menções, ${p.periodo || ''})`
   if (s.tipo === 'brandbook_edit')
     return `[edição do brand book pelo time] (${p.acao})`
+  if (s.tipo === 'assistant_correction')
+    return `[ENSINO EXPLÍCITO DO TIME no Brand Assistant] pergunta="${(p.pergunta || '').slice(0, 200)}" · o time CORRIGIU/ENSINOU: "${(p.correcao || '').slice(0, 500)}"`
   return `[${s.tipo}] ${JSON.stringify(p).slice(0, 300)}`
 }
 
@@ -45,6 +47,7 @@ const SYSTEM = [
   '- Aumente a confiança (0 a 1) quando vários sinais se corroboram; diminua/remova quando se contradizem.',
   '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider).',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
+  '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas.',
   '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido.',
   'Responda APENAS com JSON estrito neste schema (sem markdown, sem comentário):',
   '{"posicionamento":{"valor":"","confianca":0,"fontes":[]},"voz":{"valor":"","confianca":0,"fontes":[]},"preferencias_visuais":{"aprovado":[{"padrao":"","confianca":0,"exemplos":[]}],"reprovado":[{"padrao":"","confianca":0}],"modelo_preferido":{"provider":"","win_rate":0}},"do_dont":{"do":[],"dont":[]},"fatos":[{"fato":"","confianca":0,"fontes":[]}]}',

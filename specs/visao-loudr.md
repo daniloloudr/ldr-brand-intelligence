@@ -143,7 +143,8 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
 - **Studio** (Imagem · Vídeo · Workflow) — ✅ maduro, catálogo amplo de modelos de borda.
 - **Sistema de créditos + cobrança (Stripe)** — ✅ implementado e validado.
 - **Camada de Inteligência da Marca (Fases 0–3)** — ✅ ciclo fechado: avaliar → destilar → aprender → realimentar → provar.
-- **Próximos:** re-derivar RAG do modelo vivo · `assistant_correction` como sinal · Stripe live · recarga avulsa de créditos.
+- **Aprofundamento do núcleo:** ✅ **`assistant_correction`** — o Brand Assistant virou superfície de **ensino** ("Ensinar a marca"); a correção humana é sinal de altíssima prioridade que reescreve o modelo vivo.
+- **Próximos:** RAG re-derivado do modelo vivo · destilador mais esperto (recência/contradição) · diff entre versões · Stripe live · recarga avulsa de créditos.
 
 ---
 

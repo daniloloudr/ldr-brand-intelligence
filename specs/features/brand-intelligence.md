@@ -135,12 +135,13 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
 
-`assistant_correction` (não é evento de tabela) fica como emissão explícita futura.
+### `assistant_correction` — o Assistant como superfície de ensino ✅ (2026-07-01)
+Aprofundamento do núcleo (trilho "A"). No `BrandAssistant.jsx`, cada resposta tem um botão **"Ensinar a marca"** → o time corrige/ensina em texto → emite um sinal `assistant_correction` (insert direto em `brand_signals` via RLS do membro; `fonte='assistant'`, `ref_id`=conversa, payload `{pergunta, resposta, correcao}`, **peso 3**). O destilador trata como **ensino humano explícito de altíssima prioridade** (sobrepõe inferências fracas). Validado end-to-end: correção de tom → v2 com a voz reescrita, confiança 0.77→0.79. O Assistant deixa de ser só consumidor e vira **produtor** de inteligência.
 
-### Próximos (opcionais)
-- RAG do Assistant re-derivado do modelo vivo (embeddings do destilado).
-- Diff visual entre versões no painel.
-- `assistant_correction` explícito no chat.
+### Próximos (trilhos B/C/D do aprofundamento)
+- **B — RAG re-derivado do modelo vivo** (embeddings do destilado; unir os dois cérebros).
+- **C — Destilador mais esperto** (contradições, peso por recência, confiança por faceta).
+- **D — Diff entre versões** no painel.
 
 ---
 
