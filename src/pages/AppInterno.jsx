@@ -915,8 +915,15 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   }
 
   async function changePlano(wsId, plano) {
-    await supabase.from('workspaces').update({ plano }).eq('id', wsId);
-    setWorkspaces(ws => ws.map(w => w.id === wsId ? { ...w, plano } : w));
+    // C7: troca o plano E recarrega o pool de créditos (via RPC atômica).
+    const { data, error } = await supabase.rpc('set_workspace_plan', { p_workspace: wsId, p_plano: plano });
+    if (error) {
+      // fallback se a migration 024 ainda não rodou: troca só o plano
+      await supabase.from('workspaces').update({ plano }).eq('id', wsId);
+      setWorkspaces(ws => ws.map(w => w.id === wsId ? { ...w, plano } : w));
+      return;
+    }
+    setWorkspaces(ws => ws.map(w => w.id === wsId ? { ...w, plano, creditos_saldo: data } : w));
   }
 
   async function toggleAtivo(ws) {

@@ -12,6 +12,8 @@ export const VIDEO_MODELS = [
   { key: 'hailuo-02',     label: 'Hailuo 02',           group: 'Popular',  modes: ['t2v', 'i2v'], durations: ['6', '10'], defaultDuration: '6', aspects: null, endFrame: true, nota: 'Movimento expressivo, bom custo · suporta frame final' },
   // ── Versátil ──
   { key: 'seedance-1-pro', label: 'Seedance 1.0 Pro',   group: 'Versátil', modes: ['t2v', 'i2v'], durations: ['5', '10'], defaultDuration: '5', aspects: ['16:9', '9:16', '1:1'], endFrame: true, nota: 'Rápido e econômico · suporta frame final' },
+  { key: 'seedance-2-fast', label: 'Seedance 2.0 Fast', group: 'Versátil', modes: ['t2v', 'i2v'], durations: ['5', '10'], defaultDuration: '5', aspects: ['16:9', '9:16', '1:1'], endFrame: true, nota: 'Seedance 2.0 mais rápido e barato · áudio nativo · frame final' },
+  { key: 'seedance-2-pro',  label: 'Seedance 2.0',      group: 'Versátil', modes: ['t2v', 'i2v'], durations: ['5', '10'], defaultDuration: '5', aspects: ['16:9', '9:16', '1:1'], endFrame: true, nota: 'Nova geração ByteDance, áudio nativo, alta qualidade · frame final' },
   { key: 'wan-22',        label: 'Wan 2.2',             group: 'Versátil', modes: ['t2v', 'i2v'], durations: null, defaultDuration: null, aspects: ['16:9', '9:16', '1:1'], nota: 'Open, duração padrão (~5s)' },
 ]
 

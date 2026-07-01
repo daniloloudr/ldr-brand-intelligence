@@ -21,6 +21,8 @@ export const VIDEO_CREDITS = {
   'hailuo-02':      { 6: 5, 10: 9 },
   'kling-25-turbo': { 5: 7, 10: 13 },
   'seedance-1-pro': { 5: 14, 10: 27 },
+  'seedance-2-fast': { 5: 22, 10: 44 },
+  'seedance-2-pro':  { 5: 28, 10: 55 },
   'veo3-fast':      { 4: 29, 6: 44, 8: 58 },
   'veo3':           { 4: 54, 6: 81, 8: 108 },
   'wan-22':         { default: 4 },          // custo a confirmar
@@ -64,6 +66,8 @@ export const IMAGE_GUIDE = [
 
 export const VIDEO_GUIDE = [
   { key: 'seedance-1-pro',  label: 'Seedance 1.0 Pro',   beneficio: 'Rápido e econômico, texto e imagem→vídeo.', durations: [5, 10], minPlano: 'starter' },
+  { key: 'seedance-2-fast', label: 'Seedance 2.0 Fast',  beneficio: 'Seedance 2.0 mais rápido e barato, áudio nativo.', durations: [5, 10], minPlano: 'pro' },
+  { key: 'seedance-2-pro',  label: 'Seedance 2.0',       beneficio: 'Nova geração ByteDance, áudio nativo, alta qualidade.', durations: [5, 10], minPlano: 'pro' },
   { key: 'kling-25-turbo',  label: 'Kling 2.5 Turbo Pro', beneficio: 'Imagem→vídeo de alta qualidade, com frame final.', durations: [5, 10], minPlano: 'starter' },
   { key: 'hailuo-02',       label: 'Hailuo 02',          beneficio: 'Movimento expressivo, bom custo.', durations: [6, 10], minPlano: 'starter' },
   { key: 'wan-22',          label: 'Wan 2.2',            beneficio: 'Open, econômico.', durations: [], minPlano: 'starter' },
