@@ -20,6 +20,7 @@ Exportações: `src/lib/pdf.js` e `src/lib/pptx.js`. Card de gap na Home (`Home.
 - **Geração:** `netlify/functions/diagnostico-gerar-background.js` (background + polling) com `aiConfig('premium')` (Sonnet 4.6 + **web search sempre** — sem busca o modelo alucina dados públicos). Prompt em `netlify/functions/_prompt.js` (`SYSTEM_PROMPT`).
 - **Armazenamento:** tabela `diagnosticos` — o JSON completo vive em `diagnosticos.data` (jsonb); alguns campos promovidos a colunas (`score_*`, `frase_diagnostico`, `status`, `publico`). Fluxo de geração: cria linha pendente → `UPDATE` com `data` + `status='done'`.
 - **Renderização única:** `RelatorioCompleto.jsx` recebe `{ ...row, ...row.data }`, então lê tudo de `data`. Um só ponto de mudança cobre interno + público.
+- **Resiliência (jul/2026):** a geração tenta **até 3 vezes** (falha de API/timeout ou JSON inválido; backoff 4s/8s) antes de gravar `status='error'`. Um **reaper** agendado (`diagnostico-reaper.js`, cron `*/15`) marca como `error` qualquer diagnóstico preso em `running` há mais de **15 min** — cobre jobs órfãos (background interrompida: dev server morto, timeout duro, crash sem catch), que antes ficavam "em andamento" pra sempre.
 
 ---
 
