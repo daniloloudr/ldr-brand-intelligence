@@ -77,18 +77,20 @@ export const handler = async (event) => {
     }).catch(() => {})
   }
 
-  // Gera com até 3 tentativas (falha de API/timeout OU JSON inválido). Backoff 4s/8s.
-  // (callAI já retenta 429 internamente; estas são as tentativas de alto nível.)
+  // O web search em prod é lento (~minutos). Menos tentativas com MAIS tempo cada
+  // > muitas tentativas curtas que abortam uma geração que ia completar.
+  // 2 × 6,5 min = ~13 min, cabe nos 15 min da background function com margem.
+  const MAX_ATTEMPTS = 2
   let parsed = null
   let lastErr = ''
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await callAI({
         system:   SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msgText }],
         ...aiConfig('premium'),
-        retries:   0,        // o loop externo (3x) cuida das tentativas
-        timeoutMs: 240000,   // 4 min/tentativa — 3× cabe nos 15 min da background function
+        retries:   0,        // o loop externo cuida das tentativas
+        timeoutMs: 390000,   // 6,5 min/tentativa
       })
       const p = extractJSON(res.text)
       if (p) { parsed = p; break }
@@ -96,12 +98,12 @@ export const handler = async (event) => {
     } catch (e) {
       lastErr = e.message || 'Falha na geração do diagnóstico.'
     }
-    console.warn(`[diagnostico] tentativa ${attempt}/3 falhou: ${lastErr}`)
-    if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 4000))
+    console.warn(`[diagnostico] tentativa ${attempt}/${MAX_ATTEMPTS} falhou: ${lastErr}`)
+    if (attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 4000))
   }
 
   if (!parsed) {
-    await saveError(`Falha após 3 tentativas — ${lastErr}`)
+    await saveError(`Falha após ${MAX_ATTEMPTS} tentativas — ${lastErr}`)
     return { statusCode: 200 }
   }
 

@@ -17,7 +17,8 @@ export const MODELS = {
 export const TOOLS = {
   // max_uses limita o loop agêntico de busca — sem isso a chamada não-streaming
   // pode enrolar por minutos e estourar o teto de 15 min da background function em prod.
-  webSearch: { type: 'web_search_20250305', name: 'web_search', max_uses: 8 },
+  // O prompt do diagnóstico pede 5 buscas; 6 dá 1 de folga sem esticar o tempo.
+  webSearch: { type: 'web_search_20250305', name: 'web_search', max_uses: 6 },
 }
 
 export const isDev = () => !!process.env.NETLIFY_DEV
