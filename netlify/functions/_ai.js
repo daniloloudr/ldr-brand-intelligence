@@ -164,21 +164,42 @@ export async function streamAI({
   maxTokens = 4000,
   apiKey,
   onText,
+  idleMs,          // aborta se ficar SEM receber dados por N ms (ideal p/ streaming:
+                   // não corta um stream saudável que flui, só um pendurado)
 }) {
-  const resp = await fetch(ANTHROPIC_BASE, {
-    method:  'POST',
-    headers: anthropicHeaders(apiKey),
-    body:    JSON.stringify({
-      model:      model || MODELS.smart,
-      max_tokens: maxTokens,
-      stream:     true,
-      messages,
-      ...(system        ? { system } : {}),
-      ...(tools?.length ? { tools }  : {}),
-    }),
-  })
+  const controller = idleMs ? new AbortController() : null
+  let timer = null
+  const resetIdle = () => {
+    if (!controller) return
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => controller.abort(), idleMs)
+  }
+  const clearIdle = () => { if (timer) clearTimeout(timer) }
+
+  resetIdle()
+  let resp
+  try {
+    resp = await fetch(ANTHROPIC_BASE, {
+      method:  'POST',
+      headers: anthropicHeaders(apiKey),
+      body:    JSON.stringify({
+        model:      model || MODELS.smart,
+        max_tokens: maxTokens,
+        stream:     true,
+        messages,
+        ...(system        ? { system } : {}),
+        ...(tools?.length ? { tools }  : {}),
+      }),
+      signal:  controller?.signal,
+    })
+  } catch (e) {
+    clearIdle()
+    if (e.name === 'AbortError') throw new AIError(`Stream sem resposta após ${Math.round(idleMs / 1000)}s`, 408)
+    throw new AIError(`Network error: ${e.message}`, 0)
+  }
 
   if (!resp.ok) {
+    clearIdle()
     const err = await resp.json().catch(() => ({}))
     throw new AIError(err?.error?.message || `HTTP ${resp.status}`, resp.status)
   }
@@ -187,22 +208,30 @@ export async function streamAI({
   const decoder = new TextDecoder()
   let buf = '', fullText = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
-    const lines = buf.split('\n')
-    buf = lines.pop()
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const raw = line.slice(6).trim()
-      if (raw === '[DONE]') continue
-      let evt; try { evt = JSON.parse(raw) } catch { continue }
-      if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-        fullText += evt.delta.text || ''
-        onText?.(fullText)
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      resetIdle()   // qualquer chunk (inclui pings de keep-alive) reinicia o relógio
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop()
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const raw = line.slice(6).trim()
+        if (raw === '[DONE]') continue
+        let evt; try { evt = JSON.parse(raw) } catch { continue }
+        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          fullText += evt.delta.text || ''
+          onText?.(fullText)
+        }
       }
     }
+  } catch (e) {
+    if (e.name === 'AbortError') throw new AIError(`Stream sem resposta após ${Math.round(idleMs / 1000)}s`, 408)
+    throw new AIError(`Stream error: ${e.message}`, 0)
+  } finally {
+    clearIdle()
   }
 
   return fullText
