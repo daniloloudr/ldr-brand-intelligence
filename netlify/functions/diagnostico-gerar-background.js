@@ -87,6 +87,8 @@ export const handler = async (event) => {
         system:   SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msgText }],
         ...aiConfig('premium'),
+        retries:   0,        // o loop externo (3x) cuida das tentativas
+        timeoutMs: 240000,   // 4 min/tentativa — 3× cabe nos 15 min da background function
       })
       const p = extractJSON(res.text)
       if (p) { parsed = p; break }

@@ -15,7 +15,9 @@ export const MODELS = {
 }
 
 export const TOOLS = {
-  webSearch: { type: 'web_search_20250305', name: 'web_search' },
+  // max_uses limita o loop agêntico de busca — sem isso a chamada não-streaming
+  // pode enrolar por minutos e estourar o teto de 15 min da background function em prod.
+  webSearch: { type: 'web_search_20250305', name: 'web_search', max_uses: 8 },
 }
 
 export const isDev = () => !!process.env.NETLIFY_DEV
@@ -82,6 +84,9 @@ export class AIError extends Error {
  * @param {string}   [opts.apiKey]      defaults to env ANTHROPIC_KEY
  * @param {number}   [opts.retries]     how many times to retry on 429 (default 1)
  * @param {number}   [opts.retryDelay]  ms to wait before retry (default 3000)
+ * @param {number}   [opts.timeoutMs]   aborts the request (fetch + body read) after N ms.
+ *                                      Sem isso, uma chamada não-streaming pendurada trava
+ *                                      até o teto da function. Default: sem timeout.
  */
 export async function callAI({
   messages,
@@ -92,6 +97,7 @@ export async function callAI({
   apiKey,
   retries      = 1,
   retryDelay   = 3000,
+  timeoutMs,
 }) {
   const body = {
     model:      model || MODELS.smart,
@@ -104,27 +110,33 @@ export async function callAI({
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, retryDelay))
 
-    let resp
+    const controller = timeoutMs ? new AbortController() : null
+    const timer      = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
     try {
-      resp = await fetch(ANTHROPIC_BASE, {
+      const resp = await fetch(ANTHROPIC_BASE, {
         method:  'POST',
         headers: anthropicHeaders(apiKey),
         body:    JSON.stringify(body),
+        signal:  controller?.signal,
       })
+
+      if (resp.status === 429 && attempt < retries) continue
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        throw new AIError(err?.error?.message || `HTTP ${resp.status}`, resp.status)
+      }
+
+      const data = await resp.json()
+      const text = data.content?.find(b => b.type === 'text')?.text || ''
+      return { text, usage: data.usage }
     } catch (e) {
+      if (e.name === 'AbortError') throw new AIError(`Timeout após ${Math.round(timeoutMs / 1000)}s`, 408)
+      if (e instanceof AIError) throw e
       throw new AIError(`Network error: ${e.message}`, 0)
+    } finally {
+      if (timer) clearTimeout(timer)
     }
-
-    if (resp.status === 429 && attempt < retries) continue
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}))
-      throw new AIError(err?.error?.message || `HTTP ${resp.status}`, resp.status)
-    }
-
-    const data = await resp.json()
-    const text = data.content?.find(b => b.type === 'text')?.text || ''
-    return { text, usage: data.usage }
   }
 
   throw new AIError('Rate limit exceeded after retries', 429)
