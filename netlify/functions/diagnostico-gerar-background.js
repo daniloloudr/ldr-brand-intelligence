@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { callAI, aiConfig, extractJSON } from './_ai.js'
+import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 
 export const handler = async (event) => {
@@ -77,22 +77,23 @@ export const handler = async (event) => {
     }).catch(() => {})
   }
 
-  // O web search em prod é lento (~minutos). Menos tentativas com MAIS tempo cada
-  // > muitas tentativas curtas que abortam uma geração que ia completar.
-  // 2 × 6,5 min = ~13 min, cabe nos 15 min da background function com margem.
+  // STREAMING: a chamada não-streaming longa com web_search era dropada/pendurada
+  // ao sair da Lambda em prod (funcionava no localhost por não ter teto). Streaming
+  // mantém a conexão viva com eventos → não pendura. idleMs corta só um stream que
+  // parou de responder (não um saudável que flui). 2 tentativas p/ drops transitórios.
+  const { model, tools, maxTokens } = aiConfig('premium')
   const MAX_ATTEMPTS = 2
   let parsed = null
   let lastErr = ''
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const res = await callAI({
+      const text = await streamAI({
         system:   SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msgText }],
-        ...aiConfig('premium'),
-        retries:   0,        // o loop externo cuida das tentativas
-        timeoutMs: 390000,   // 6,5 min/tentativa
+        model, tools, maxTokens,
+        idleMs:   120000,   // 2 min sem NENHUM chunk (pings inclusos) = stream morto
       })
-      const p = extractJSON(res.text)
+      const p = extractJSON(text)
       if (p) { parsed = p; break }
       lastErr = 'Não foi possível extrair o diagnóstico do texto gerado.'
     } catch (e) {
