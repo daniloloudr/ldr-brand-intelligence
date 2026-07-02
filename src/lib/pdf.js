@@ -232,7 +232,20 @@ export async function gerarPDF(data, meta) {
   if (data.gap_identidade) {
     y = borderBlock(doc, y, C.amber, C.amberPale, "Gap de identidade", data.gap_identidade);
   }
-  if (data.territorio_inexplorado) {
+  if (data.territorios_possiveis?.length) {
+    data.territorios_possiveis.forEach(t => {
+      const body = [
+        t.tese,
+        t.sustenta && `Sustenta: ${t.sustenta}`,
+        t.diferencia && `Diferencia: ${t.diferencia}`,
+        t.fit_publico && `Fit com o público: ${t.fit_publico}`,
+        t.tensao && `Tensão: ${t.tensao}`,
+        t.exploracao && `A explorar: ${t.exploracao}`,
+      ].filter(Boolean).join("  ·  ");
+      const conf = t.confianca ? `  (${t.confianca})` : "";
+      y = borderBlock(doc, y, C.teal, C.tealPale, `Território possível — ${t.nome || ""}${conf}`, body);
+    });
+  } else if (data.territorio_inexplorado) {
     y = borderBlock(doc, y, C.teal, C.tealPale, "Território inexplorado", data.territorio_inexplorado);
   }
   if (data.pergunta_provocativa) {
@@ -286,7 +299,7 @@ export async function gerarPDF(data, meta) {
     if (d.oportunidade) {
       y += 2;
       box(doc, ML, y, 2, 10, C.teal);
-      microLabel(doc, ML + 5, y + 4, "O que a LOUDR faria");
+      microLabel(doc, ML + 5, y + 4, "Caminho a explorar");
       clr(doc, C.gray700);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8.5);
@@ -379,7 +392,7 @@ export async function gerarPDF(data, meta) {
   }
 
   if (data.porta_entrada_loudr) {
-    y = borderBlock(doc, y, C.teal, C.tealPale, "Porta de entrada LOUDR", data.porta_entrada_loudr);
+    y = borderBlock(doc, y, C.teal, C.tealPale, "Por onde começar a explorar", data.porta_entrada_loudr);
   }
 
   // CTA block (pinned near bottom)
