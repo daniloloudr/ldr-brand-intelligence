@@ -19,6 +19,9 @@
 [functions."brand-distill-cron"]
   schedule = "0 7 * * *"
 
+[functions."diagnostico-reaper"]
+  schedule = "*/15 * * * *"
+
 [functions."diagnostico-gerar"]
   timeout = 120
 

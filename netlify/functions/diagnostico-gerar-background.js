@@ -77,22 +77,29 @@ export const handler = async (event) => {
     }).catch(() => {})
   }
 
-  let text
-  try {
-    const res = await callAI({
-      system:   SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: msgText }],
-      ...aiConfig('premium'),
-    })
-    text = res.text
-  } catch (e) {
-    await saveError(e.message)
-    return { statusCode: 200 }
+  // Gera com até 3 tentativas (falha de API/timeout OU JSON inválido). Backoff 4s/8s.
+  // (callAI já retenta 429 internamente; estas são as tentativas de alto nível.)
+  let parsed = null
+  let lastErr = ''
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await callAI({
+        system:   SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: msgText }],
+        ...aiConfig('premium'),
+      })
+      const p = extractJSON(res.text)
+      if (p) { parsed = p; break }
+      lastErr = 'Não foi possível extrair o diagnóstico do texto gerado.'
+    } catch (e) {
+      lastErr = e.message || 'Falha na geração do diagnóstico.'
+    }
+    console.warn(`[diagnostico] tentativa ${attempt}/3 falhou: ${lastErr}`)
+    if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 4000))
   }
 
-  const parsed = extractJSON(text)
   if (!parsed) {
-    await saveError('Não foi possível extrair o diagnóstico. Tente novamente.')
+    await saveError(`Falha após 3 tentativas — ${lastErr}`)
     return { statusCode: 200 }
   }
 
