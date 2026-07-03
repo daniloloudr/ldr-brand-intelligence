@@ -45,7 +45,6 @@ const IcoAssist  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="n
 const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
   { label: 'Gestão de time',         hash: '#/app/time' },
-  { label: 'Plano e cobrança',       hash: '#/app/plano' },
   { label: 'Alertas',                hash: '#/app/alertas' },
   { label: 'IA LOUDR',               hash: '#/app/ia-loudr' },
 ]
@@ -131,7 +130,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'workspace')             return <WorkspacePage />
     if (route === 'conta')                 return <ContaPage />
     if (route === 'time')                  return <TimePage />
-    if (route === 'plano')                 return <PlanoPage />
+    // Plano e cobrança: customer-facing escondido (venda sob demanda). Créditos/PLANOS/Stripe seguem por baixo.
+    if (route === 'plano')                 { window.location.hash = '#/app'; return null }
     if (route === 'alertas')               return <AlertasPage />
     if (route === 'listening')             return <SocialListening />
     if (route === 'content-hub')           return <ContentHub />
