@@ -72,6 +72,15 @@ export class AIError extends Error {
   }
 }
 
+// Fail-fast: sem a chave, o fetch streaming PENDURA na Lambda até o teto de 15 min
+// (não dá 401 rápido). Guard explícito antes de qualquer fetch → erro claro em ms.
+// Atenção: as functions usam ANTHROPIC_KEY, NÃO VITE_ANTHROPIC_KEY (essa é só do frontend).
+function requireApiKey(apiKey) {
+  const key = apiKey || process.env.ANTHROPIC_KEY
+  if (!key) throw new AIError('ANTHROPIC_KEY ausente no ambiente — configure a env var no Netlify (functions usam ANTHROPIC_KEY, não VITE_ANTHROPIC_KEY).', 500)
+  return key
+}
+
 /**
  * Non-streaming call.
  * Returns { text, usage } or throws AIError.
@@ -100,6 +109,8 @@ export async function callAI({
   retryDelay   = 3000,
   timeoutMs,
 }) {
+  requireApiKey(apiKey)
+
   const body = {
     model:      model || MODELS.smart,
     max_tokens: maxTokens,
@@ -167,6 +178,8 @@ export async function streamAI({
   idleMs,          // aborta se ficar SEM receber dados por N ms (ideal p/ streaming:
                    // não corta um stream saudável que flui, só um pendurado)
 }) {
+  requireApiKey(apiKey)
+
   const controller = idleMs ? new AbortController() : null
   let timer = null
   const resetIdle = () => {
