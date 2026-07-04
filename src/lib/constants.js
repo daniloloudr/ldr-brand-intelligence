@@ -102,8 +102,8 @@ export const STEPS = [
 export const PLANOS = {
   trial:      { nome:"Trial",     preco:0,    creditos_mes:30,   preco_credito:0,    monitor:"mensal",  concorrentes:3,  membros:1,          social_listening:false, termos_listening:0,  studio:true, diagnosticos_mes:1 },
   starter:    { nome:"Essencial", preco:1500, creditos_mes:750,  preco_credito:2.00, monitor:"semanal", concorrentes:5,  membros:3,          social_listening:true,  termos_listening:3,  studio:true, diagnosticos_mes:Infinity },
-  pro:        { nome:"Pro",       preco:3000, creditos_mes:2000, preco_credito:1.50, monitor:"diario",  concorrentes:10, membros:10,         social_listening:true,  termos_listening:5,  studio:true, diagnosticos_mes:Infinity },
-  enterprise: { nome:"Premium",   preco:5000, creditos_mes:5000, preco_credito:1.00, monitor:"diario",  concorrentes:15, membros:Infinity,   social_listening:true,  termos_listening:10, studio:true, diagnosticos_mes:Infinity },
+  pro:        { nome:"Pro",       preco:3000, creditos_mes:2000, preco_credito:1.50, monitor:"diario",  concorrentes:6,  membros:10,         social_listening:true,  termos_listening:5,  studio:true, diagnosticos_mes:Infinity },
+  enterprise: { nome:"Premium",   preco:5000, creditos_mes:5000, preco_credito:1.00, monitor:"diario",  concorrentes:6,  membros:Infinity,   social_listening:true,  termos_listening:10, studio:true, diagnosticos_mes:Infinity },
 };
 
 export const RATE_LIMIT_WAIT = 65;
