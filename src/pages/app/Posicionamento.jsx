@@ -324,11 +324,31 @@ function SecaoConcorrentes({ workspace }) {
   const [nome, setNome]                 = useState('')
   const [dominio, setDominio]           = useState('')
   const [saving, setSaving]             = useState(false)
+  const [processing, setProcessing]     = useState(false)   // fila de diagnósticos rodando
+  const [procStart, setProcStart]       = useState(0)
 
   const plano  = PLANOS[workspace?.plano] || PLANOS.trial
   const limite = plano.concorrentes || 0
 
   useEffect(() => { if (workspace?.id) load() }, [workspace?.id])
+
+  // Enquanto a fila roda, recarrega periodicamente pra ver os diagnósticos caindo
+  useEffect(() => {
+    if (!processing) return
+    const t = setInterval(load, 20000)
+    return () => clearInterval(t)
+  }, [processing])
+
+  // Dispara a fila do workspace (gera TODOS os pendentes em série, com cache)
+  async function triggerFila() {
+    setProcessing(true); setProcStart(Date.now())
+    const { data: { session } } = await supabase.auth.getSession()
+    fetch('/.netlify/functions/concorrente-diagnosticar-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ workspace_id: workspace.id }),
+    }).catch(() => {})
+  }
 
   async function load() {
     setLoading(true)
@@ -348,13 +368,15 @@ function SecaoConcorrentes({ workspace }) {
     setSaving(true)
     await supabase.from('concorrentes').insert({ workspace_id: workspace.id, nome: nome.trim(), dominio: dominio.trim() || null, ativo: true })
     setNome(''); setDominio(''); setDialogOpen(false); setSaving(false)
-    load()
+    await load()
+    triggerFila()
   }
 
   async function addSugestao(sugestao) {
     if (concorrentes.length >= limite) return
     await supabase.from('concorrentes').insert({ workspace_id: workspace.id, nome: sugestao.nome, dominio: null, ativo: true })
-    load()
+    await load()
+    triggerFila()
   }
 
   async function removeConcorrente(id) {
@@ -373,6 +395,17 @@ function SecaoConcorrentes({ workspace }) {
       score_posicionamento: s.posicionamento ?? dados.score_posicionamento,
     }
   }
+
+  // Concorrentes ainda sem diagnóstico (a "fila" visível)
+  const semDiag = concorrentes.filter(c => !getLastDiag(c.id))
+  const prontos = concorrentes.length - semDiag.length
+
+  // Encerra o "processando" quando todos têm diagnóstico, ou após ~16 min (falhas)
+  useEffect(() => {
+    if (!processing) return
+    if (semDiag.length === 0 && concorrentes.length > 0) { setProcessing(false); return }
+    if (procStart && Date.now() - procStart > 16 * 60000) setProcessing(false)
+  }, [diags, concorrentes, processing])
 
   function getIntel(nome) {
     const lista = workspaceDiag?.data?.concorrentes || []
@@ -411,13 +444,42 @@ function SecaoConcorrentes({ workspace }) {
             <Chip label="Limite atingido" size="small" sx={{ ml: 1, bgcolor: 'rgba(239,159,39,0.1)', color: '#EF9F27', fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
           )}
         </Typography>
-        <Button variant="outlined" size="small" startIcon={<AddIcon />}
-          disabled={concorrentes.length >= limite}
-          onClick={() => setDialogOpen(true)}
-        >
-          Adicionar concorrente
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="text" size="small"
+            startIcon={processing ? <CircularProgress size={13} color="inherit" /> : null}
+            disabled={processing || concorrentes.length === 0}
+            onClick={triggerFila}
+          >
+            {processing ? 'Gerando…' : 'Atualizar diagnósticos'}
+          </Button>
+          <Button variant="outlined" size="small" startIcon={<AddIcon />}
+            disabled={concorrentes.length >= limite}
+            onClick={() => setDialogOpen(true)}
+          >
+            Adicionar concorrente
+          </Button>
+        </Box>
       </Box>
+
+      {/* Banner de processamento da fila */}
+      {processing && (
+        <Box sx={{ mb: 2.5, p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(13,158,122,0.06)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <CircularProgress size={16} sx={{ color: '#0D9E7A' }} />
+            <Typography variant="body2" fontWeight={700}>
+              Gerando diagnósticos dos concorrentes…{concorrentes.length ? ` (${prontos}/${concorrentes.length})` : ''}
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant={concorrentes.length ? 'determinate' : 'indeterminate'}
+            value={concorrentes.length ? (prontos / concorrentes.length) * 100 : 0}
+            sx={{ height: 6, borderRadius: 3, bgcolor: '#1E3550', '& .MuiLinearProgress-bar': { bgcolor: '#0D9E7A' } }}
+          />
+          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.75, display: 'block' }}>
+            Rodam em série (~2-3 min cada) reaproveitando o cache. Pode navegar — continua em background.
+          </Typography>
+        </Box>
+      )}
 
       {/* Sugestões do diagnóstico */}
       {sugeridos.length > 0 && concorrentes.length < limite && (
@@ -469,6 +531,12 @@ function SecaoConcorrentes({ workspace }) {
                   sx={{ fontSize: '0.65rem', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                   {intel.diferencial}
                 </Typography>
+              )}
+              {processing && !getLastDiag(c.id) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                  <CircularProgress size={11} sx={{ color: '#0D9E7A' }} />
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#0D9E7A' }}>Gerando…</Typography>
+                </Box>
               )}
             </Card>
           )
