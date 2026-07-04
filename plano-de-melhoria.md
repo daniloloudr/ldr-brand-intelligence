@@ -1,73 +1,94 @@
-# Plano de Melhoria — LOUDR Brand Intelligence
+# Plano de Desenvolvimento — LOUDR Brand Intelligence
 
-> Documento de trabalho. Prioriza **onde está o valor do negócio** (a Camada de Inteligência de Marca), sem quebrar o que já funciona. Fases pensadas pra serem incrementais — nada de big-bang.
-
-## 0. Princípio norteador
-
-O diferencial da LOUDR **não é o Studio** (geração visual é commodity). É o Studio **alimentado pela Camada de Inteligência de Marca**: ingerir tudo da marca → transformar em contexto → banco vetorial que **retroalimenta** → base de toda criação. Toda decisão de arquitetura abaixo serve pra **proteger, isolar e fazer crescer essa camada**.
-
-Duas camadas distintas — não confundir:
-- **Camada de borda (`_ai.js`)** — chama LLM/embeddings de terceiros. Hoje Anthropic + Voyage; tem que continuar **trocável a qualquer momento**. Importante, mas não é o produto.
-- **Camada de Inteligência de Marca** — o cérebro proprietário. É o produto. É o que precisa virar bloco próprio, versionável e evolutivo.
+> Reescrito a partir do **discurso de negócio** (apresentação VHITA, 03/07/2026). Ordena o desenvolvimento por **valor de negócio validado por comprador real**, não por pureza técnica. Estado atual ancorado no código (não especulativo).
 
 ---
 
-## 1. Camada de Inteligência de Marca (PRIORIDADE MÁXIMA)
+## 0. North star (o discurso, virado em princípio)
 
-### Estado atual (já existe — não é do zero)
-- **Ingestão:** `brand-manual-extract-background` (PDF→estruturado), brand book digitado, `brand_signals` (sinais crus).
-- **Destilação (o cérebro):** `brand-distill-background` lê `brand_signals` não-consumidos + versão atual do modelo vivo → destila próxima versão via LLM → grava em `brand_intelligence` → marca sinais consumidos. Loop de retroalimentação via `brand-distill-cron` (diário).
-- **Embedding:** `_embed.js` (Voyage voyage-3, 1024 dims) → `brand_book_chunks` ("os dois cérebros": brand book digitado + modelo vivo aprendido).
-- **Retrieval:** `brand-book-search` (busca vetorial).
-- **Consumo:** Studio (`_studio`), BrandAssistant, e (a validar) diagnóstico/content-hub.
+**Existe UM cérebro de marca vivo, e ele é o CHÃO — não um componente.** Todo pilar (Brand Book, Posicionamento/Diagnóstico, Listening, Content, Studio, Inteligência Competitiva) **alimenta e bebe** desse mesmo cérebro. Ele fica mais assertivo com o uso. **Isso é o moat e é o "pump" (flywheel): mais uso → mais sinal → cérebro mais assertivo → mais valor → mais uso.**
 
-### Problemas a resolver
-1. **Sem fronteira formal.** O pipeline está espalhado em várias functions Netlify, misturado com CRUD/app. Não há um "SDK interno da inteligência" — cada consumidor conhece as tabelas e o fluxo por dentro.
-2. **Preso ao teto de 15 min do Netlify.** Destilação, re-embedding, ingestão de fontes externas (o que você quer expandir) são cargas longas/multi-passo. O runtime efêmero é o substrato errado — a saga do diagnóstico já provou isso.
-3. **Retrieval/contexto não padronizado.** Cada consumidor monta o contexto de marca do seu jeito; não há um "montador de contexto" único e testável.
-4. **Observabilidade zero.** Não dá pra ver qualidade da destilação, deriva do modelo vivo, custo por marca, o que foi recuperado numa geração.
+- **Borda (`_ai.js`) = commodity, trocável, longe.** LLMs/embeddings de terceiros são meio, não fim. Nunca amarrar o produto a um provider.
+- **O cérebro = o produto.** É o que não se copia. Toda decisão serve pra **isolar, alimentar e fazer crescer** essa camada.
+- **Ciclo de vida:** **prospect (frio)** — sem dados da marca ainda, Diagnóstico roda em web search, é arma comercial de topo de funil; **cliente (quente)** — tudo passa a retroalimentar e a consumir o cérebro da marca.
 
-### Alvo (faseado)
-- **Fase 1 — Fronteira lógica, sem mover infra.** Criar um módulo único `brand-intelligence/` (ainda no repo) que exponha uma API interna: `ingest(signal)`, `distill(brand_id)`, `search(brand_id, query)`, `buildContext(brand_id, purpose)`. Todo consumidor (Studio, Assistant, diagnóstico) passa a usar SÓ essa API — ninguém toca tabela de vetor direto. **80% do benefício, 20% do custo.**
-- **Fase 2 — Extrair pra serviço dedicado.** Mover a camada pra um worker de longa duração (container/serviço) com **fila + estado durável**, exposto por API interna autenticada. Migrar primeiro o que é longo: `brand-distill`, re-embedding, ingestão externa. Some o teto de 15 min; ganha deploy/escala/observabilidade próprios. O app Netlify vira **cliente**.
-- **Fase 3 — Crescer o cérebro.** Fontes externas (notícias, redes, reviews, dados de mercado) como novos tipos de `brand_signals`; versionamento do modelo vivo com histórico/diff; métricas de qualidade; feedback loop das avaliações humanas realimentando a destilação.
-
-### Guardrails
-- Camada de borda (`_ai.js`) permanece a ÚNICA porta pra LLM/embeddings de terceiros — a Inteligência de Marca chama a borda, nunca a API do provider direto. Isso mantém a troca de provider barata.
-- Vetor e modelo vivo são o ativo: backup/versionamento próprios, isolados do banco de app.
+Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendizado é um dos principais valores, senão fica na cabeça da pessoa"*. O cliente já nomeou o moat.
 
 ---
 
-## 2. Segurança (rápido, alto impacto)
+## 1. Estado atual real (ancorado no código)
 
-1. **🔴 Chave Anthropic no bundle do frontend.** `BrandAssistant.jsx`, `ContentGerarDrawer.jsx`, `CampaignNew.jsx` setam `x-api-key = import.meta.env.VITE_ANTHROPIC_KEY`. Como a var existe no build do Netlify, o Vite **inlina a chave no JS de produção**. Em prod o caminho já usa o proxy `/.netlify/functions/anthropic` (chave própria no servidor), então o header do cliente é desnecessário. **Ação:** só setar `x-api-key` quando `import.meta.env.DEV`; conferir o bundle publicado; rotacionar a chave depois. **Confirmar `ANTHROPIC_KEY` em todos os contextos do Netlify** (regressão recente foi essa var sumindo → hang de 15 min).
-2. **Supabase único dev+prod.** Teste local grava direto em prod. Separar instâncias (ou ao menos schema/projeto de staging) antes de escalar.
-3. **`SUPABASE_SERVICE_KEY` em 30+ functions.** Cada function tem poder total. Ao extrair a Inteligência de Marca (Fase 2), reduzir a superfície: functions de app com chave de menor privilégio; service key só no worker.
-4. **Positivo:** RLS presente (13 migrations, ~84 policies). Manter e cobrir tabelas novas.
+| Elo do flywheel | Estado |
+|---|---|
+| **Ingestão / sinais (write)** | ✅ Amplo: `diagnostic`, `listening_sentiment`, `image_vote`, `campaign_verdict`, `brandbook_edit`, `assistant_correction` emitem `brand_signals` (triggers no banco) |
+| **Destilação (cérebro)** | ✅ `brand-distill-background` (LLM) → `brand_intelligence` versionado + re-embed RAG (`_embed.js`, Voyage) |
+| **Consumo do cérebro (read)** | ⚠️ Estreito: só **Studio** (`resolveBrandIntelligence` no `_studio.js`) e **Assistant** |
+| **Content Hub** | 🔴 **Fora do loop dos dois lados** — não lê nem escreve o cérebro |
+| **Inteligência Competitiva** | 🟡 UI real (`Concorrentes.jsx`, tabelas `concorrentes`/`diagnosticos_concorrentes`), mas **não alimenta o cérebro**; território/ameaças = "em construção" |
 
-## 3. Performance
-
-1. **Bundle monolítico 2,1 MB** num único `index-*.js`, sem code-splitting. Páginas grandes (`AppInterno` 1232, `StudioCanvas` 1198, `PaginaPublica` 1177) entram todas juntas. **Ação:** lazy-load por rota (`React.lazy`/dynamic import) — ganho imediato de load.
-2. **Padrão background+polling+reaper** é remendo do teto de 15 min. Resolve-se de vez na Fase 2 (worker + fila).
-3. **`fail-fast` de `ANTHROPIC_KEY` já aplicado** (`_ai.js`) — erro em ms em vez de pendurar 15 min. Manter esse padrão pra toda dependência externa crítica.
-
-## 4. Estrutura / organização
-
-- Hoje **apresentação + inteligência + infra** no mesmo deploy. Meta: **3 blocos claros** — (a) App/UI (Netlify), (b) Borda LLM (`_ai.js`, fina, trocável), (c) Inteligência de Marca (bloco próprio, o IP).
-- Quebrar arquivos-monstro (`AppInterno` 1232, `StudioCanvas` 1198) em componentes — reduz risco e acelera manutenção.
-
-## 5. Precificação (em andamento)
-
-- **Modelo muda:** provavelmente deixa de ser SaaS self-service. Venda sob demanda; **créditos continuam existindo pra limitar consumo**, mas plano/créditos definidos manualmente pelo Danilo.
-- **Agora:** esconder só o customer-facing (menu "Plano e cobrança" + rota `#/app/plano`). **Manter** `PLANOS`, `CreditBadge`, gating e `stripe-checkout` intactos por baixo. ✅ feito neste ciclo.
-- **Depois:** repensar a modelagem de créditos pra refletir custo real por tipo de geração/uso de inteligência.
+**A divergência que importa: o pitch está à frente do código.** Você vende (com precisão) "tudo retroalimenta o cérebro", mas hoje só Studio+Assistant *consomem* o cérebro. **Fechar esse gap = fazer o produto entregar a visão já vendida.**
 
 ---
 
-## Ordem sugerida
-1. Segurança #1 (chave no bundle) + confirmar env — baixo esforço, risco real.
-2. Esconder customer-facing de preço — feito.
-3. Camada de Inteligência Fase 1 (fronteira lógica) — destrava o resto.
-4. Performance (lazy-load) — ganho rápido em paralelo.
-5. Camada de Inteligência Fase 2 (worker + fila) — quando a dor do teto justificar (já está justificando).
-6. Fase 3 (crescer o cérebro) — contínuo, é o roadmap de valor.
+## 2. Roadmap por prioridade de negócio (validado pela compradora)
+
+### P1 — Loop de criativo on-brand em escala 🎯 (killer app)
+**Dor #1 da Raquel:** 400-600 criativos/mês pra Meta Ads, ~50% do tempo iterando o que já funciona, ~10 pessoas. Ela quer *"pegar o que funciona, entender a lógica e desdobrar em versões mantendo o conceito"*.
+- **O que construir:** fluxo no Studio "criativo vencedor → entende a lógica → desdobra em N variações on-brand", com o cérebro da marca injetado como referência. Iteração barata em crédito (ver P5).
+- **Por que:** é onde o Studio + cérebro brilham juntos e onde está o ROI do cliente (liberar 50% do time). É o que fecha venda.
+- **Extensão (quando houver integração):** conectar com a biblioteca de ads pra saber o que performou e usar o vencedor como referência automática (ela pediu; hoje falta a integração, a inteligência já suporta).
+
+### P2 — Content Hub dentro do cérebro (fechar o gap mais claro)
+- **O que construir:** Content Hub passa a **ler** (`resolveBrandIntelligence` como o Studio) e **escrever** (emitir sinal de conteúdo aprovado/usado).
+- **Por que:** hoje o cliente pagante recebe conteúdo com voz/território diferentes do Studio — corrói o "uma marca coerente em tudo" que é o valor. Fechar isso é entregar o pitch.
+
+### P3 — Inteligência Competitiva (promessa de 2 semanas a prospect vivo)
+- **O que construir:** mapa de território + gaps + ameaças/movimentos recentes dos concorrentes → **alimentar o vetor/cérebro** (hoje só fica em tabela). Conectar com Listening + clipping semanal (visão do Rogério).
+- **Por que:** compromisso com prazo atrelado a um deal em andamento. E vira insumo do cérebro competitivo — diferencia no discurso comercial.
+
+### P4 — Memória institucional VISÍVEL (ativo comercial)
+- **O que construir:** afiar o painel `BrandIntelligence` (confiança subindo, "o que mudou na vN", win-rate por provider, cérebro por marca) como **prova viva** do aprendizado.
+- **Por que:** a compradora nomeou "guardar o aprendizado" como principal valor. O painel é material de venda: o prospect *vê* o cérebro ficando mais assertivo.
+
+### P5 — Crédito como narrativa de valor (não só limitador)
+- **O que construir:** iteração/exploração barata ou grátis; cobrar o "profundo" (super-botão). Danilo define planos/créditos manualmente (customer-facing de preço já escondido).
+- **Por que (Rogério):** todas as ferramentas queimam 30-40% de crédito iterando pra chegar num output usável. O cérebro **reduz desperdício** aprendendo o que não presta (hailuo, win-rate por provider) → argumento de valor exclusivo.
+
+---
+
+## 3. Fundamentos que sustentam o pump (não negociáveis com o comercial esquentando)
+
+1. **Isolamento por tenant** — cada cérebro de marca isolado, versionado e com backup próprio. Zero vazamento/corrupção entre marcas. É confiança do cliente; obrigatório antes de escalar contas.
+2. **Completude do flywheel** — toda superfície de **cliente** escreve+lê o mesmo cérebro (P2 é o primeiro passo). Sem isso, o pump gira só em parte do produto.
+3. **Performance — bundle monolítico 2,1 MB sem code-splitting.** Um único `index-*.js`; páginas pesadas (`StudioCanvas`, `AppInterno`, `Posicionamento`) e libs de export (html2canvas, jspdf, pptxgenjs) entram todas de uma vez. **Fix:** `React.lazy` por rota + `manualChunks` pras libs pesadas. Ganho direto de load. É o fix de sustentação #1 verificado.
+4. **Segurança — chave Anthropic no bundle: ✅ já tratado (verificado).** Os 3 pontos (`BrandAssistant`/`ContentGerarDrawer`/`CampaignNew`) setam `x-api-key` só dentro de `if (import.meta.env.DEV)`; em prod o dead-code elimination remove a referência — build com chave-sentinela confirmou que NÃO vaza. Manter só o cuidado de confirmar `ANTHROPIC_KEY` em todos os contextos do Netlify.
+5. ~~Teto de 15 min do Netlify~~ — **resolvido** (era env var faltando). Fora da lista.
+
+---
+
+## 4. Estratégia de modelo: RAG + dataset primeiro, SLM adiado (DECISÃO firmada)
+
+- **Não** construir SLM/modelo próprio como núcleo. O ativo é o **cérebro (dados + loop)**, não os pesos. Aposta = **frontier LLM (borda trocável) + RAG eficaz sobre dataset proprietário**.
+- **O dataset é o fio central** — `(contexto de marca → output → avaliação humana)`. Valor duplo: melhora o RAG **agora** e destrava fine-tune de pesos **depois**, sem retrabalho.
+- **"Fine-tuning" neste estágio = afinar o SISTEMA** (retrieval + montagem de contexto + prompts), não pesos.
+- **Workstream a iniciar:** schema versionado de coleta do dataset a partir do uso + avaliações (é a maior alavancagem e não depende de mais nada).
+- **Gatilho pra reabrir fine-tune/SLM:** volume alto + custo de API pesando + dataset limpo/validado + tarefa ESTREITA (classificação/tag/dedup de sinais), nunca raciocínio aberto.
+
+---
+
+## 5. Arquitetura alvo (3 blocos)
+
+- **(a) Superfícies (App Netlify)** — Brand Book, Posicionamento, Studio, Content, painéis. Clientes finos que chamam o cérebro.
+- **(b) Borda (`_ai.js`)** — fina, única porta pra LLM/embeddings de terceiros, trocável.
+- **(c) Cérebro de Marca** — a camada de inteligência como **serviço próprio** (ingest / distill / search / buildContext), o IP. Hoje mora dentro do `_studio.js` (`resolveBrandIntelligence`); a evolução é **extrair pra um módulo/serviço único** que toda superfície usa. Extração incremental do que já existe — não greenfield.
+
+---
+
+## Ordem sugerida (negócio primeiro)
+1. **Segurança #3** (chave no bundle) — baixo esforço, risco real.
+2. **P1 — loop de criativo on-brand** (killer app, fecha venda).
+3. **P2 — Content Hub no cérebro** (fecha o gap pitch↔código mais claro).
+4. **P3 — Inteligência Competitiva** (promessa de 2 semanas).
+5. **P4 — painel de memória** (ativo comercial, em paralelo).
+6. **Workstream do dataset** (contínuo, destrava o futuro).
+7. **Isolamento por tenant + flywheel completo** — endurecer conforme as contas crescem.

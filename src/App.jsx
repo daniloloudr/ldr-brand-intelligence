@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { DS } from "./lib/constants";
 import { getRoute } from "./lib/helpers";
@@ -6,10 +6,19 @@ import { GlobalStyle } from "./components/GlobalStyle";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitePage } from "./pages/auth/Invite";
 import { ForcePasswordPage } from "./pages/auth/ForcePassword";
-import { AppInterno } from "./pages/AppInterno";
 import { AppShell } from "./pages/app/AppShell";
-import { PaginaMetodologia } from "./pages/PaginaMetodologia";
-import { RelatorioPublico } from "./pages/RelatorioPublico";
+// Carregados sob demanda: admin (grande, raro) e páginas públicas (fora do fluxo logado)
+const AppInterno       = lazy(() => import("./pages/AppInterno").then(m => ({ default: m.AppInterno })));
+const PaginaMetodologia = lazy(() => import("./pages/PaginaMetodologia").then(m => ({ default: m.PaginaMetodologia })));
+const RelatorioPublico = lazy(() => import("./pages/RelatorioPublico").then(m => ({ default: m.RelatorioPublico })));
+
+// Fallback simples enquanto o chunk carrega (mesmo visual do loader de auth)
+const PageFallback = () => (
+  <div style={{ minHeight: "100vh", background: DS.navy, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <GlobalStyle />
+    <div style={{ width: 40, height: 40, border: `3px solid ${DS.navyMid}`, borderTopColor: DS.green, borderRadius: "50%", animation: "spin 0.75s linear infinite" }} />
+  </div>
+);
 
 const WORKSPACE_ROUTES = [
   'app-home', 'posicionamento', 'listening', 'content-hub',
@@ -67,8 +76,8 @@ export default function App() {
     </div>
   );
 
-  if (route === "metodologia")       return <PaginaMetodologia />;
-  if (route === "relatorio-publico") return <RelatorioPublico />;
+  if (route === "metodologia")       return <Suspense fallback={<PageFallback />}><PaginaMetodologia /></Suspense>;
+  if (route === "relatorio-publico") return <Suspense fallback={<PageFallback />}><RelatorioPublico /></Suspense>;
 
   // Primeiro acesso: força troca de senha antes de liberar qualquer rota autenticada
   if (user && user.user_metadata?.must_change_password) {
@@ -109,15 +118,17 @@ export default function App() {
   if (ADMIN_ROUTES.includes(route)) {
     if (!user) { window.location.hash = "#/login"; return null; }
     return (
-      <AppInterno
-        user={user}
-        onImpersonate={(data) => { setImpersonating(data); window.location.hash = "#/app"; }}
-        onLogout={async () => {
-          await supabase.auth.signOut();
-          setUser(null);
-          window.location.hash = "#/login";
-        }}
-      />
+      <Suspense fallback={<PageFallback />}>
+        <AppInterno
+          user={user}
+          onImpersonate={(data) => { setImpersonating(data); window.location.hash = "#/app"; }}
+          onLogout={async () => {
+            await supabase.auth.signOut();
+            setUser(null);
+            window.location.hash = "#/login";
+          }}
+        />
+      </Suspense>
     );
   }
 
