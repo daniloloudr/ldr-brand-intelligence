@@ -384,8 +384,7 @@ function SecaoConcorrentes({ workspace }) {
     setConcorrentes(prev => prev.filter(c => c.id !== id))
   }
 
-  function getLastDiag(concId) {
-    const d = diags.find(x => x.concorrente_id === concId)
+  function normDiag(d) {
     if (!d) return null
     const s = d.scores || {}, dados = d.dados || {}
     return {
@@ -396,6 +395,9 @@ function SecaoConcorrentes({ workspace }) {
       territorios_possiveis: dados.territorios_possiveis || [],
     }
   }
+  const diagsDe = concId => diags.filter(x => x.concorrente_id === concId)   // desc por created_at
+  function getLastDiag(concId) { return normDiag(diagsDe(concId)[0]) }
+  function getPrevDiag(concId) { return normDiag(diagsDe(concId)[1]) }
 
   // Concorrentes ainda sem diagnóstico (a "fila" visível)
   const semDiag = concorrentes.filter(c => !getLastDiag(c.id))
@@ -453,6 +455,24 @@ function SecaoConcorrentes({ workspace }) {
     t,
     disputa: terrConcorrentes.filter(x => x.terrs.some(ct => overlaps(t.nome, ct.nome))).map(x => x.c.nome),
   }))
+
+  // ── b: Movimentos por ciclo — diff do último diagnóstico do concorrente vs o anterior ──
+  const DIMS_MOV = [
+    { k: 'score_singularidade',  label: 'Singularidade'  },
+    { k: 'score_consistencia',   label: 'Consistência'   },
+    { k: 'score_posicionamento', label: 'Posicionamento' },
+  ]
+  const movimentos = concorrentes.map(c => {
+    const cur = getLastDiag(c.id), prev = getPrevDiag(c.id)
+    if (!cur || !prev) return null
+    const deltas = DIMS_MOV.map(d => ({ label: d.label, delta: (cur[d.k] ?? 0) - (prev[d.k] ?? 0) }))
+    const curT  = (cur.territorios_possiveis || []).map(t => t.nome)
+    const prevT = (prev.territorios_possiveis || []).map(t => t.nome)
+    const novos   = curT.filter(n => !prevT.some(p => overlaps(n, p)))
+    const sumidos = prevT.filter(p => !curT.some(n => overlaps(n, p)))
+    const mudou = deltas.some(x => x.delta !== 0) || novos.length || sumidos.length
+    return { c, cur, deltas, novos, sumidos, mudou }
+  }).filter(m => m && m.mudou)
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress size={28} color="primary" /></Box>
 
@@ -673,6 +693,41 @@ function SecaoConcorrentes({ workspace }) {
                   </Box>
                 </Box>
               )}
+            </Card>
+          )}
+
+          {/* b — Movimentos por ciclo (evolução do concorrente vs ciclo anterior) */}
+          {movimentos.length > 0 && (
+            <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+              <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TrendingUpIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                <Typography variant="overline" color="text.disabled">Movimentos Recentes — evolução por ciclo</Typography>
+              </Box>
+              {movimentos.map(({ c, deltas, novos, sumidos }) => (
+                <Box key={c.id} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                  <Typography fontWeight={800} fontSize={13} mb={0.75}>{c.nome}</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                    {deltas.filter(d => d.delta !== 0).map(d => {
+                      const up = d.delta > 0
+                      return (
+                        <Chip key={d.label} size="small"
+                          label={`${d.label} ${up ? '↑' : '↓'}${up ? '+' : ''}${d.delta}`}
+                          sx={{ height: 20, fontSize: '0.6rem', fontWeight: 800,
+                            bgcolor: up ? 'rgba(13,158,122,0.1)' : 'rgba(232,24,90,0.1)',
+                            color:   up ? '#0D9E7A' : '#E8185A' }} />
+                      )
+                    })}
+                    {novos.map((n, i) => (
+                      <Chip key={`n${i}`} size="small" label={`Novo território: ${n}`}
+                        sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(127,119,221,0.1)', color: '#7F77DD' }} />
+                    ))}
+                    {sumidos.map((s, i) => (
+                      <Chip key={`s${i}`} size="small" label={`Abandonou: ${s}`}
+                        sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'background.default', color: 'text.disabled' }} />
+                    ))}
+                  </Box>
+                </Box>
+              ))}
             </Card>
           )}
 
