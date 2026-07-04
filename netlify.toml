@@ -19,6 +19,9 @@
 [functions."brand-distill-cron"]
   schedule = "0 7 * * *"
 
+[functions."concorrente-diagnosticar-cron"]
+  schedule = "0 6 * * 1"
+
 [functions."diagnostico-reaper"]
   schedule = "*/15 * * * *"
 

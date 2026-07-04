@@ -63,6 +63,7 @@ export function Concorrentes() {
   const [nome, setNome]               = useState('')
   const [dominio, setDominio]         = useState('')
   const [saving, setSaving]           = useState(false)
+  const [generatingIds, setGeneratingIds] = useState([])
 
   const plano    = PLANOS[workspace?.plano] || PLANOS.trial
   const limite   = plano.concorrentes || 0
@@ -71,6 +72,20 @@ export function Concorrentes() {
     if (!workspace?.id) return
     load()
   }, [workspace?.id])
+
+  // Enquanto há concorrente gerando diagnóstico, recarrega até aparecer
+  useEffect(() => {
+    if (generatingIds.length === 0) return
+    const t = setInterval(load, 25000)
+    return () => clearInterval(t)
+  }, [generatingIds.length])
+
+  // Tira de "gerando" quem já tem diagnóstico gravado
+  useEffect(() => {
+    if (generatingIds.length === 0) return
+    const prontos = generatingIds.filter(id => diags.some(d => d.concorrente_id === id))
+    if (prontos.length) setGeneratingIds(prev => prev.filter(id => !prontos.includes(id)))
+  }, [diags])
 
   async function load() {
     setLoading(true)
@@ -103,16 +118,26 @@ export function Concorrentes() {
   async function addConcorrente() {
     if (!nome.trim()) return
     setSaving(true)
-    await supabase.from('concorrentes').insert({
+    const { data: novo } = await supabase.from('concorrentes').insert({
       workspace_id: workspace.id,
       nome: nome.trim(),
       dominio: dominio.trim() || null,
       ativo: true,
-    })
+    }).select('id').single()
     setNome('')
     setDominio('')
     setDialogOpen(false)
     setSaving(false)
+    // Dispara o diagnóstico on-demand (background) e marca como "gerando"
+    if (novo?.id) {
+      setGeneratingIds(prev => [...prev, novo.id])
+      const { data: { session } } = await supabase.auth.getSession()
+      fetch('/.netlify/functions/concorrente-diagnosticar-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ concorrente_id: novo.id }),
+      }).catch(() => {})
+    }
     load()
   }
 
@@ -121,8 +146,19 @@ export function Concorrentes() {
     setConcorrentes(prev => prev.filter(c => c.id !== id))
   }
 
+  // Normaliza o shape da tabela (scores/dados jsonb) para os campos flat que o render usa.
   function getLastDiag(concorrenteId) {
-    return diags.find(d => d.concorrente_id === concorrenteId) || null
+    const d = diags.find(x => x.concorrente_id === concorrenteId)
+    if (!d) return null
+    const s = d.scores || {}
+    const dados = d.dados || {}
+    return {
+      ...d,
+      score_singularidade:  s.singularidade  ?? dados.score_singularidade,
+      score_consistencia:   s.consistencia   ?? dados.score_consistencia,
+      score_posicionamento: s.posicionamento ?? dados.score_posicionamento,
+      territorios_possiveis: dados.territorios_possiveis || [],
+    }
   }
 
   // Territory Map data — minha marca + concorrentes
@@ -319,6 +355,9 @@ export function Concorrentes() {
                               <Chip label={`P: ${d.score_posicionamento}`} size="small"
                                 sx={{ bgcolor: 'rgba(127,119,221,0.08)', color: '#7F77DD', fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
                             </Box>
+                          ) : generatingIds.includes(c.id) ? (
+                            <Chip label="Gerando diagnóstico…" size="small"
+                              sx={{ bgcolor: 'rgba(13,158,122,0.08)', color: 'primary.main', fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
                           ) : (
                             <Chip label="Sem diagnóstico" size="small"
                               sx={{ bgcolor: 'background.default', color: 'text.disabled', fontSize: '0.6rem', height: 18 }} />
@@ -363,7 +402,7 @@ export function Concorrentes() {
             placeholder="empresa.com.br"
           />
           <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
-            O diagnóstico do concorrente será gerado automaticamente pelo monitor no próximo ciclo.
+            O diagnóstico do concorrente é gerado automaticamente ao adicionar (leva ~2-3 min) e atualizado semanalmente.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

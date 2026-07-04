@@ -362,7 +362,17 @@ function SecaoConcorrentes({ workspace }) {
     setConcorrentes(prev => prev.filter(c => c.id !== id))
   }
 
-  function getLastDiag(concId) { return diags.find(d => d.concorrente_id === concId) || null }
+  function getLastDiag(concId) {
+    const d = diags.find(x => x.concorrente_id === concId)
+    if (!d) return null
+    const s = d.scores || {}, dados = d.dados || {}
+    return {
+      ...d,
+      score_singularidade:  s.singularidade  ?? dados.score_singularidade,
+      score_consistencia:   s.consistencia   ?? dados.score_consistencia,
+      score_posicionamento: s.posicionamento ?? dados.score_posicionamento,
+    }
+  }
 
   function getIntel(nome) {
     const lista = workspaceDiag?.data?.concorrentes || []
