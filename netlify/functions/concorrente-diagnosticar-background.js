@@ -1,8 +1,9 @@
-// concorrente-diagnosticar-background.js — gera o diagnóstico de UM concorrente
-// on-demand (disparado quando o usuário adiciona um concorrente). Background
-// function (teto de 15 min); grava em diagnosticos_concorrentes (scores + dados).
+// concorrente-diagnosticar-background.js — dispara a FILA de diagnósticos de
+// concorrente de um workspace (on-demand, quando o usuário adiciona um concorrente
+// ou pede refresh). Gera todos os pendentes em SÉRIE (aproveita o prompt cache).
+// Background function (teto de 15 min); grava em diagnosticos_concorrentes.
 import { createClient } from '@supabase/supabase-js'
-import { diagnosticarConcorrente } from './_diagnostico.js'
+import { concorrentesPendentes, diagnosticarEmSerie } from './_diagnostico.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
@@ -17,26 +18,18 @@ export const handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
-  const { concorrente_id } = body
-  if (!concorrente_id) return { statusCode: 400 }
+  const { workspace_id } = body
+  if (!workspace_id) return { statusCode: 400 }
 
-  const { data: concorrente } = await supabase
-    .from('concorrentes').select('id, workspace_id, nome, dominio').eq('id', concorrente_id).single()
-  if (!concorrente) return { statusCode: 404 }
-
-  // Acesso: membro do workspace do concorrente OU platform admin
+  // Acesso: membro do workspace OU platform admin
   const [{ data: member }, { data: platformAdmin }] = await Promise.all([
-    supabase.from('workspace_members').select('role').eq('workspace_id', concorrente.workspace_id).eq('user_id', user.id).maybeSingle(),
+    supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user.id).maybeSingle(),
     supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
   ])
   if (!member && !platformAdmin) return { statusCode: 403 }
 
-  try {
-    await diagnosticarConcorrente(supabase, concorrente)
-  } catch (e) {
-    console.warn(`[concorrente-diag] ${concorrente.nome}: ${e.message}`)
-    // Sem linha de erro na tabela (não há coluna status); o front mostra "sem diagnóstico".
-    return { statusCode: 200 }
-  }
-  return { statusCode: 200 }
+  const pendentes = await concorrentesPendentes(supabase, { workspace_id })
+  const res = await diagnosticarEmSerie(supabase, pendentes)
+  console.log(`[concorrente-diag] ws ${workspace_id}: ${res.ok}/${res.tentados} gerados, ${res.restantes} restantes`)
+  return { statusCode: 200, body: JSON.stringify(res) }
 }

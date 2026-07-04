@@ -63,7 +63,8 @@ export function Concorrentes() {
   const [nome, setNome]               = useState('')
   const [dominio, setDominio]         = useState('')
   const [saving, setSaving]           = useState(false)
-  const [generatingIds, setGeneratingIds] = useState([])
+  const [processing, setProcessing]   = useState(false)   // fila de diagnósticos rodando
+  const [procStart, setProcStart]     = useState(0)
 
   const plano    = PLANOS[workspace?.plano] || PLANOS.trial
   const limite   = plano.concorrentes || 0
@@ -73,19 +74,24 @@ export function Concorrentes() {
     load()
   }, [workspace?.id])
 
-  // Enquanto há concorrente gerando diagnóstico, recarrega até aparecer
+  // Enquanto a fila roda, recarrega periodicamente pra ver os diagnósticos caindo
   useEffect(() => {
-    if (generatingIds.length === 0) return
-    const t = setInterval(load, 25000)
+    if (!processing) return
+    const t = setInterval(load, 20000)
     return () => clearInterval(t)
-  }, [generatingIds.length])
+  }, [processing])
 
-  // Tira de "gerando" quem já tem diagnóstico gravado
-  useEffect(() => {
-    if (generatingIds.length === 0) return
-    const prontos = generatingIds.filter(id => diags.some(d => d.concorrente_id === id))
-    if (prontos.length) setGeneratingIds(prev => prev.filter(id => !prontos.includes(id)))
-  }, [diags])
+  // Dispara a fila do workspace (gera TODOS os pendentes em série, com cache)
+  async function triggerFila() {
+    setProcessing(true)
+    setProcStart(Date.now())
+    const { data: { session } } = await supabase.auth.getSession()
+    fetch('/.netlify/functions/concorrente-diagnosticar-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ workspace_id: workspace.id }),
+    }).catch(() => {})
+  }
 
   async function load() {
     setLoading(true)
@@ -118,27 +124,18 @@ export function Concorrentes() {
   async function addConcorrente() {
     if (!nome.trim()) return
     setSaving(true)
-    const { data: novo } = await supabase.from('concorrentes').insert({
+    await supabase.from('concorrentes').insert({
       workspace_id: workspace.id,
       nome: nome.trim(),
       dominio: dominio.trim() || null,
       ativo: true,
-    }).select('id').single()
+    })
     setNome('')
     setDominio('')
     setDialogOpen(false)
     setSaving(false)
-    // Dispara o diagnóstico on-demand (background) e marca como "gerando"
-    if (novo?.id) {
-      setGeneratingIds(prev => [...prev, novo.id])
-      const { data: { session } } = await supabase.auth.getSession()
-      fetch('/.netlify/functions/concorrente-diagnosticar-background', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ concorrente_id: novo.id }),
-      }).catch(() => {})
-    }
-    load()
+    await load()
+    triggerFila()   // gera o novo + qualquer pendente, em série
   }
 
   async function removeConcorrente(id) {
@@ -160,6 +157,17 @@ export function Concorrentes() {
       territorios_possiveis: dados.territorios_possiveis || [],
     }
   }
+
+  // Concorrentes ainda sem diagnóstico (a "fila" visível)
+  const semDiag = concorrentes.filter(c => !getLastDiag(c.id))
+  const prontos = concorrentes.length - semDiag.length
+
+  // Encerra o "processando" quando todos têm diagnóstico, ou após ~16 min (falhas)
+  useEffect(() => {
+    if (!processing) return
+    if (semDiag.length === 0 && concorrentes.length > 0) { setProcessing(false); return }
+    if (procStart && Date.now() - procStart > 16 * 60000) setProcessing(false)
+  }, [diags, concorrentes, processing])
 
   // Territory Map data — minha marca + concorrentes
   const scatterData = [
@@ -202,6 +210,15 @@ export function Concorrentes() {
           </Typography>
         </Box>
         <Button
+          variant="outlined"
+          startIcon={processing ? <CircularProgress size={14} color="inherit" /> : null}
+          disabled={processing || concorrentes.length === 0}
+          onClick={triggerFila}
+          sx={{ fontWeight: 800, flexShrink: 0, mr: 1.5 }}
+        >
+          {processing ? 'Gerando…' : 'Atualizar diagnósticos'}
+        </Button>
+        <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
@@ -212,6 +229,26 @@ export function Concorrentes() {
           Adicionar
         </Button>
       </Box>
+
+      {/* Banner de processamento da fila */}
+      {processing && (
+        <Box sx={{ mb: 3, p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(13,158,122,0.06)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <CircularProgress size={16} sx={{ color: '#0D9E7A' }} />
+            <Typography variant="body2" fontWeight={700}>
+              Gerando diagnósticos dos concorrentes…{concorrentes.length ? ` (${prontos}/${concorrentes.length})` : ''}
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant={concorrentes.length ? 'determinate' : 'indeterminate'}
+            value={concorrentes.length ? (prontos / concorrentes.length) * 100 : 0}
+            sx={{ height: 6, borderRadius: 3, bgcolor: '#1E3550', '& .MuiLinearProgress-bar': { bgcolor: '#0D9E7A' } }}
+          />
+          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.75, display: 'block' }}>
+            Rodam em série (~2-3 min cada) reaproveitando o cache. Pode navegar — continua em background.
+          </Typography>
+        </Box>
+      )}
 
       {/* Limite */}
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -355,9 +392,9 @@ export function Concorrentes() {
                               <Chip label={`P: ${d.score_posicionamento}`} size="small"
                                 sx={{ bgcolor: 'rgba(127,119,221,0.08)', color: '#7F77DD', fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
                             </Box>
-                          ) : generatingIds.includes(c.id) ? (
-                            <Chip label="Gerando diagnóstico…" size="small"
-                              sx={{ bgcolor: 'rgba(13,158,122,0.08)', color: 'primary.main', fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
+                          ) : processing ? (
+                            <Chip icon={<CircularProgress size={11} sx={{ color: 'primary.main !important' }} />} label="Gerando…" size="small"
+                              sx={{ bgcolor: 'rgba(13,158,122,0.08)', color: 'primary.main', fontWeight: 700, fontSize: '0.6rem', height: 20, pl: 0.5 }} />
                           ) : (
                             <Chip label="Sem diagnóstico" size="small"
                               sx={{ bgcolor: 'background.default', color: 'text.disabled', fontSize: '0.6rem', height: 18 }} />

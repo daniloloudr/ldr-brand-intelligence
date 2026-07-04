@@ -53,3 +53,30 @@ export async function diagnosticarConcorrente(supabase, concorrente) {
   if (error) throw new Error(error.message)
   return parsed
 }
+
+// Concorrentes ATIVOS sem diagnóstico recente (a "fila"). Filtra por workspace se dado.
+export async function concorrentesPendentes(supabase, { workspace_id, staleDays = 7 } = {}) {
+  const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString()
+  let q = supabase.from('concorrentes').select('id, workspace_id, nome, dominio').eq('ativo', true)
+  if (workspace_id) q = q.eq('workspace_id', workspace_id)
+  const [{ data: concs }, { data: diags }] = await Promise.all([
+    q,
+    supabase.from('diagnosticos_concorrentes').select('concorrente_id, created_at').order('created_at', { ascending: false }),
+  ])
+  const ultimo = new Map()
+  for (const d of diags || []) if (!ultimo.has(d.concorrente_id)) ultimo.set(d.concorrente_id, d.created_at)
+  return (concs || []).filter(c => { const u = ultimo.get(c.id); return !u || u < cutoff })
+}
+
+// Gera a fila em SÉRIE (não paralelo — o prompt cache do _ai.js só rende com reuso
+// sequencial dentro do TTL). Cap p/ não estourar o teto de 15 min da function.
+export async function diagnosticarEmSerie(supabase, concorrentes, { max = 6 } = {}) {
+  const fila = concorrentes.slice(0, max)
+  let ok = 0
+  const erros = []
+  for (const c of fila) {
+    try { await diagnosticarConcorrente(supabase, c); ok++ }
+    catch (e) { erros.push({ concorrente: c.nome, erro: e.message }) }
+  }
+  return { ok, tentados: fila.length, restantes: concorrentes.length - fila.length, erros }
+}
