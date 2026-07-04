@@ -45,12 +45,40 @@ export async function salvarConcorrenteDiag(supabase, concorrente, parsed) {
   })
 }
 
+// Feed do cérebro (C): emite um brand_signal 'competitive' com o diagnóstico do
+// concorrente. É CONTEXTO DE MERCADO — o distiller usa pra afiar a diferenciação
+// da marca (territórios ocupados/livres, ameaças), nunca como atributo da marca.
+// brand_id derivado do workspace (mesmo padrão do trigger de 'diagnostic').
+async function emitCompetitiveSignal(supabase, concorrente, parsed) {
+  const { data: brand } = await supabase
+    .from('brands').select('id').eq('workspace_id', concorrente.workspace_id).limit(1).maybeSingle()
+  if (!brand) return   // workspace sem marca ainda → nada pra alimentar
+  await supabase.from('brand_signals').insert({
+    brand_id:     brand.id,
+    workspace_id: concorrente.workspace_id,
+    tipo:         'competitive',
+    fonte:        'concorrentes',
+    ref_id:       concorrente.id,
+    payload: {
+      concorrente:          concorrente.nome,
+      dominio:              concorrente.dominio || null,
+      score_singularidade:  parsed.score_singularidade,
+      score_consistencia:   parsed.score_consistencia,
+      score_posicionamento: parsed.score_posicionamento,
+      territorios: (parsed.territorios_possiveis || []).map(t => ({ nome: t.nome, confianca: t.confianca })),
+      frase:                (parsed.frase_diagnostico || '').slice(0, 300),
+    },
+    peso: 0.6,   // contexto competitivo pesa menos que sinais da própria marca
+  }).catch(() => {})
+}
+
 // Gera + grava um concorrente. Usa dominio se houver, senão o nome.
 export async function diagnosticarConcorrente(supabase, concorrente) {
   const empresa = concorrente.dominio || concorrente.nome
   const parsed = await gerarDiagnostico(empresa, null)
   const { error } = await salvarConcorrenteDiag(supabase, concorrente, parsed)
   if (error) throw new Error(error.message)
+  await emitCompetitiveSignal(supabase, concorrente, parsed)   // feed do cérebro (C)
   return parsed
 }
 
