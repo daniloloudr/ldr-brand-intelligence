@@ -84,11 +84,25 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 
 ---
 
-## Ordem sugerida (negócio primeiro)
-1. **Segurança #3** (chave no bundle) — baixo esforço, risco real.
-2. **P1 — loop de criativo on-brand** (killer app, fecha venda).
-3. **P2 — Content Hub no cérebro** (fecha o gap pitch↔código mais claro).
-4. **P3 — Inteligência Competitiva** (promessa de 2 semanas).
-5. **P4 — painel de memória** (ativo comercial, em paralelo).
-6. **Workstream do dataset** (contínuo, destrava o futuro).
-7. **Isolamento por tenant + flywheel completo** — endurecer conforme as contas crescem.
+## Ordem de execução (decisão 04/07: competitiva lidera pelo prazo do deal)
+
+**Sustentação (feito):** code-splitting ✅ · `StudioCanvas` refatorado ✅ · chave no bundle já ok ✅
+
+1. **🎯 P3 — Inteligência Competitiva (LIDERA).** Promessa de ~2 semanas a prospect vivo (VHITA). Ver escopo detalhado abaixo (§ Inteligência Competitiva — plano de entrega).
+2. **P1 — loop de criativo on-brand** (killer app, maior valor recorrente).
+3. **P2 — Content Hub no cérebro** (fecha o gap pitch↔código).
+4. **P4 — painel de memória** (ativo comercial, em paralelo).
+5. **Workstream do dataset** (contínuo, destrava o futuro).
+6. **Isolamento por tenant + flywheel completo** — endurecer conforme as contas crescem.
+
+## Inteligência Competitiva — plano de entrega (2 semanas)
+
+**Já existe:** página `Concorrentes.jsx` (CRUD + scatter de scores), tabelas `concorrentes`/`diagnosticos_concorrentes`, diagnóstico de concorrente via `cron-monitor`, e território + ameaça já saem do prompt do diagnóstico (`territorios_possiveis`, `concorrentes[].ameaca/sinal`).
+
+**Falta (o entregável):**
+1. **Mapa de território integrado** — sua marca vs. concorrentes num mesmo mapa (territórios ocupados, espaços livres, sobreposições) + **análise de gaps**.
+2. **Ameaças & movimentos recentes** — nível de ameaça por concorrente + o que mudou desde o último ciclo (diff de re-diagnóstico/listening).
+3. **Feed do cérebro** — território/gaps/ameaças viram `brand_signals` (novo tipo, ex. `competitive_move`) → distiller → `brand_intelligence`. Fecha o flywheel na competitiva.
+4. **Conexão com Listening/clipping** — clipping semanal dos concorrentes puxado do social listening, alimentando o tracking (fase 2 se o prazo apertar).
+
+**Sequência sugerida:** (a) mapa de território + gaps a partir do que o diagnóstico já gera (entrega visível rápido) → (b) tracking de movimentos (diff entre ciclos) → (c) feed do cérebro → (d) clipping/listening.
