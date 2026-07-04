@@ -81,6 +81,18 @@ function requireApiKey(apiKey) {
   return key
 }
 
+// Prompt caching: marca o system (prompt fixo) com cache_control. A ordem é
+// tools → system → messages, então o corte no último bloco de system cacheia
+// tools+system juntos; o que varia (empresa/URL, em messages) fica DEPOIS e não
+// quebra o cache. Só rende quando o MESMO prompt é reusado dentro do TTL (5 min)
+// — ex.: batch de diagnósticos de concorrente. Escrita 1,25× / leitura 0,1×.
+// Requer prefixo >= mínimo do modelo (Sonnet 4.6 = 2048 tokens; o nosso ~2144).
+function cachedSystem(system) {
+  if (!system) return undefined
+  if (Array.isArray(system)) return system   // já em blocos: respeita como veio
+  return [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+}
+
 /**
  * Non-streaming call.
  * Returns { text, usage } or throws AIError.
@@ -115,8 +127,8 @@ export async function callAI({
     model:      model || MODELS.smart,
     max_tokens: maxTokens,
     messages,
-    ...(system        ? { system }                  : {}),
-    ...(tools?.length ? { tools }                   : {}),
+    ...(system        ? { system: cachedSystem(system) } : {}),
+    ...(tools?.length ? { tools }                        : {}),
   }
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -200,8 +212,8 @@ export async function streamAI({
         max_tokens: maxTokens,
         stream:     true,
         messages,
-        ...(system        ? { system } : {}),
-        ...(tools?.length ? { tools }  : {}),
+        ...(system        ? { system: cachedSystem(system) } : {}),
+        ...(tools?.length ? { tools }                        : {}),
       }),
       signal:  controller?.signal,
     })
