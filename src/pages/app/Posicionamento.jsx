@@ -393,6 +393,7 @@ function SecaoConcorrentes({ workspace }) {
       score_singularidade:  s.singularidade  ?? dados.score_singularidade,
       score_consistencia:   s.consistencia   ?? dados.score_consistencia,
       score_posicionamento: s.posicionamento ?? dados.score_posicionamento,
+      territorios_possiveis: dados.territorios_possiveis || [],
     }
   }
 
@@ -432,6 +433,26 @@ function SecaoConcorrentes({ workspace }) {
       return { nome: c.nome, x: d?.score_singularidade || 5, y: d?.score_posicionamento || 5, z: 150, cor: CORES_CONC[(i + 1) % CORES_CONC.length], isSelf: false }
     }),
   ]
+
+  // ── a.2: Mapa de Território (territórios possíveis: você × concorrentes) + gaps ──
+  const CONF_CFG = {
+    alta:     { label: 'Alta',     color: '#0D9E7A', bg: 'rgba(13,158,122,0.10)' },
+    media:    { label: 'Média',    color: '#EF9F27', bg: 'rgba(239,159,39,0.10)' },
+    hipotese: { label: 'Hipótese', color: '#7F77DD', bg: 'rgba(127,119,221,0.10)' },
+  }
+  const meusTerritorios = workspaceDiag?.data?.territorios_possiveis || []
+  const terrConcorrentes = concorrentes
+    .map((c, i) => ({ c, cor: CORES_CONC[(i + 1) % CORES_CONC.length], terrs: getLastDiag(c.id)?.territorios_possiveis || [] }))
+    .filter(x => x.terrs.length)
+
+  // Heurística leve de sobreposição por palavras significativas (Jaccard >= 0.34)
+  const STOP = new Set(['de','da','do','a','o','e','para','com','em','no','na','the','of','and','marca','território','territorio'])
+  const toks = s => new Set(String(s || '').toLowerCase().normalize('NFD').replace(/[^\w ]/g,'').split(/\s+/).filter(w => w.length > 3 && !STOP.has(w)))
+  const overlaps = (a, b) => { const A = toks(a), B = toks(b); if (!A.size || !B.size) return false; let i = 0; for (const w of A) if (B.has(w)) i++; return i / (A.size + B.size - i) >= 0.34 }
+  const meusComDisputa = meusTerritorios.map(t => ({
+    t,
+    disputa: terrConcorrentes.filter(x => x.terrs.some(ct => overlaps(t.nome, ct.nome))).map(x => x.c.nome),
+  }))
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress size={28} color="primary" /></Box>
 
@@ -588,6 +609,72 @@ function SecaoConcorrentes({ workspace }) {
               ))}
             </Box>
           </Card>
+
+          {/* a.2 — Mapa de Território: espaços possíveis (você) × territórios dos concorrentes + gaps */}
+          {(meusTerritorios.length > 0 || terrConcorrentes.length > 0) && (
+            <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+              <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="overline" color="text.disabled">Mapa de Território — Espaços & Disputa</Typography>
+                <Typography variant="caption" color="text.disabled" display="block" mt={0.25}>
+                  Territórios que cada marca pode reivindicar (do diagnóstico). Sobreposição = disputa; sem sobreposição = espaço livre.
+                </Typography>
+              </Box>
+
+              {/* Seus territórios possíveis */}
+              <Box sx={{ p: 2.5, borderBottom: terrConcorrentes.length ? '1px solid' : 'none', borderColor: 'divider' }}>
+                <Typography variant="caption" fontWeight={800} sx={{ color: '#0D9E7A', display: 'block', mb: 1.25 }}>
+                  Seus territórios possíveis
+                </Typography>
+                {meusComDisputa.length === 0 ? (
+                  <Typography variant="caption" color="text.disabled">Gere/atualize o diagnóstico da sua marca para mapear territórios.</Typography>
+                ) : meusComDisputa.map(({ t, disputa }, i) => {
+                  const cfg = CONF_CFG[t.confianca] || CONF_CFG.hipotese
+                  return (
+                    <Box key={i} sx={{ mb: 1.5, pb: 1.5, borderBottom: i < meusComDisputa.length - 1 ? '1px dashed' : 'none', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography fontWeight={800} fontSize={13}>{t.nome}</Typography>
+                        <Chip label={`Confiança ${cfg.label}`} size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: cfg.bg, color: cfg.color }} />
+                        {disputa.length > 0
+                          ? <Chip label={`Em disputa: ${disputa.join(', ')}`} size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: 'rgba(239,159,39,0.1)', color: '#EF9F27' }} />
+                          : <Chip label="Espaço livre" size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: 'rgba(13,158,122,0.1)', color: '#0D9E7A' }} />}
+                      </Box>
+                      {t.tese && (
+                        <Typography variant="caption" color="text.secondary" display="block" mt={0.4} sx={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{t.tese}</Typography>
+                      )}
+                    </Box>
+                  )
+                })}
+              </Box>
+
+              {/* Territórios reivindicados pelos concorrentes */}
+              {terrConcorrentes.length > 0 && (
+                <Box sx={{ p: 2.5 }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+                    Territórios reivindicados pelos concorrentes
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 1.5 }}>
+                    {terrConcorrentes.map(({ c, cor, terrs }) => (
+                      <Box key={c.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cor }} />
+                          <Typography fontWeight={800} fontSize={12}>{c.nome}</Typography>
+                        </Box>
+                        {terrs.slice(0, 3).map((ct, j) => {
+                          const cfg = CONF_CFG[ct.confianca] || CONF_CFG.hipotese
+                          return (
+                            <Box key={j} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.4 }}>
+                              <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: cfg.color, flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ fontSize: '0.68rem', lineHeight: 1.3 }} noWrap>{ct.nome}</Typography>
+                            </Box>
+                          )
+                        })}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Card>
+          )}
 
           {/* Gap analysis */}
           <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
