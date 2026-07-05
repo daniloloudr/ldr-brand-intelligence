@@ -326,6 +326,8 @@ function SecaoConcorrentes({ workspace }) {
   const [saving, setSaving]             = useState(false)
   const [processing, setProcessing]     = useState(false)   // fila de diagnósticos rodando
   const [procStart, setProcStart]       = useState(0)
+  const [clipping, setClipping]         = useState([])
+  const [buscandoClip, setBuscandoClip] = useState(false)
 
   const plano  = PLANOS[workspace?.plano] || PLANOS.trial
   const limite = plano.concorrentes || 0
@@ -338,6 +340,13 @@ function SecaoConcorrentes({ workspace }) {
     const t = setInterval(load, 20000)
     return () => clearInterval(t)
   }, [processing])
+
+  // Enquanto busca clipping, recarrega pra ver os itens caindo
+  useEffect(() => {
+    if (!buscandoClip) return
+    const t = setInterval(load, 25000)
+    return () => clearInterval(t)
+  }, [buscandoClip])
 
   // Dispara a fila do workspace (gera TODOS os pendentes em série, com cache)
   async function triggerFila() {
@@ -352,15 +361,30 @@ function SecaoConcorrentes({ workspace }) {
 
   async function load() {
     setLoading(true)
-    const [{ data: concs }, { data: concDiags }, { data: wsDiag }] = await Promise.all([
+    const [{ data: concs }, { data: concDiags }, { data: wsDiag }, { data: clips }] = await Promise.all([
       supabase.from('concorrentes').select('*').eq('workspace_id', workspace.id).eq('ativo', true).order('created_at'),
       supabase.from('diagnosticos_concorrentes').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
       supabase.from('diagnosticos').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      // concorrente_clipping pode não existir até aplicar a migration 027 (retorna data:null, não quebra)
+      supabase.from('concorrente_clipping').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(24),
     ])
     setConcorrentes(concs || [])
     setDiags(concDiags || [])
     setWorkspaceDiag(wsDiag || null)
+    setClipping(clips || [])
     setLoading(false)
+  }
+
+  // Dispara a coleta do clipping (background) e recarrega enquanto busca
+  async function triggerClipping() {
+    setBuscandoClip(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    fetch('/.netlify/functions/concorrente-clipping-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ workspace_id: workspace.id }),
+    }).catch(() => {})
+    setTimeout(() => setBuscandoClip(false), 210000)
   }
 
   async function addConcorrente() {
@@ -426,6 +450,11 @@ function SecaoConcorrentes({ workspace }) {
     alta:   { label: 'Alta',   color: '#E8185A', bg: 'rgba(232,24,90,0.1)'   },
     media:  { label: 'Média',  color: '#EF9F27', bg: 'rgba(239,159,39,0.1)'  },
     baixa:  { label: 'Baixa',  color: '#0D9E7A', bg: 'rgba(13,158,122,0.1)'  },
+  }
+  const SENT_CFG = {
+    positivo: { color: '#0D9E7A', bg: 'rgba(13,158,122,0.1)' },
+    neutro:   { color: '#8A9AB0', bg: 'rgba(138,154,176,0.12)' },
+    negativo: { color: '#E8185A', bg: 'rgba(232,24,90,0.1)' },
   }
 
   const scatterData = [
@@ -730,6 +759,45 @@ function SecaoConcorrentes({ workspace }) {
               ))}
             </Card>
           )}
+
+          {/* d — Clipping dos concorrentes (menções/notícias recentes) */}
+          <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+            <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AssessmentOutlinedIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                <Typography variant="overline" color="text.disabled">Clipping dos Concorrentes</Typography>
+              </Box>
+              <Button variant="text" size="small"
+                startIcon={buscandoClip ? <CircularProgress size={13} color="inherit" /> : null}
+                disabled={buscandoClip || concorrentes.length === 0}
+                onClick={triggerClipping}>
+                {buscandoClip ? 'Buscando…' : 'Buscar clipping'}
+              </Button>
+            </Box>
+            {clipping.length === 0 ? (
+              <Box sx={{ p: 2.5 }}>
+                <Typography variant="caption" color="text.disabled">
+                  {buscandoClip ? 'Buscando menções e notícias recentes dos concorrentes… (~2-3 min)' : 'Sem clipping ainda. Clique em "Buscar clipping" ou aguarde o ciclo semanal.'}
+                </Typography>
+              </Box>
+            ) : clipping.map(item => {
+              const scfg = SENT_CFG[item.sentiment] || SENT_CFG.neutro
+              const nome = concorrentes.find(c => c.id === item.concorrente_id)?.nome
+              return (
+                <Box key={item.id} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                  {item.url
+                    ? <Typography component="a" href={item.url} target="_blank" rel="noopener noreferrer" fontWeight={800} fontSize={13} sx={{ color: 'text.primary', textDecoration: 'none', display: 'block', mb: 0.4, '&:hover': { color: 'primary.main' } }}>{item.titulo} ↗</Typography>
+                    : <Typography fontWeight={800} fontSize={13} display="block" mb={0.4}>{item.titulo}</Typography>}
+                  {item.conteudo && <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{item.conteudo}</Typography>}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                    {nome && <Chip label={nome} size="small" sx={{ height: 16, fontSize: '0.55rem', fontWeight: 700 }} />}
+                    {item.fonte && <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>{item.fonte}</Typography>}
+                    {item.sentiment && <Chip label={item.sentiment} size="small" sx={{ height: 16, fontSize: '0.55rem', fontWeight: 700, bgcolor: scfg.bg, color: scfg.color }} />}
+                  </Box>
+                </Box>
+              )
+            })}
+          </Card>
 
           {/* Gap analysis */}
           <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
