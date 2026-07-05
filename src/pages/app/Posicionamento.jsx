@@ -4,8 +4,9 @@ import {
   TextField, Alert, Divider, Card, CardContent,
   ToggleButtonGroup, ToggleButton, LinearProgress,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  IconButton,
+  IconButton, Collapse,
 } from '@mui/material'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import AssessmentOutlinedIcon    from '@mui/icons-material/AssessmentOutlined'
 import AddIcon                   from '@mui/icons-material/Add'
 import ShareIcon                 from '@mui/icons-material/Share'
@@ -625,37 +626,41 @@ function SecaoConcorrentes({ workspace }) {
 
       {concorrentes.length > 0 && (
         <>
-          {/* Territory Map */}
-          <Card sx={{ p: 3, border: '1px solid', borderColor: 'divider', mb: 3 }}>
-            <Typography variant="overline" color="text.disabled" display="block" mb={0.5}>Territory Map — Singularidade × Posicionamento</Typography>
-            <Typography variant="caption" color="text.disabled" display="block" mb={2}>
-              Scores dos diagnósticos. Concorrentes sem diagnóstico aparecem no centro.
-            </Typography>
-            <ResponsiveContainer width="100%" height={280}>
-              <ScatterChart margin={{ top: 12, right: 24, bottom: 24, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E3550" />
-                <XAxis type="number" dataKey="x" domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }}>
-                  <Label value="Singularidade" position="insideBottom" offset={-16} fill="#8A9AB0" fontSize={11} />
-                </XAxis>
-                <YAxis type="number" dataKey="y" domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }}>
-                  <Label value="Posicionamento" angle={-90} position="insideLeft" offset={12} fill="#8A9AB0" fontSize={11} />
-                </YAxis>
-                <ZAxis type="number" dataKey="z" range={[60, 240]} />
-                <RechartTooltip content={<ScatterTooltip />} />
+          {/* Mapa de Scores (scatter) — padrão de card unificado */}
+          <Card sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+            <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="overline" color="text.disabled">Mapa de Scores — Singularidade × Posicionamento</Typography>
+              <Typography variant="caption" color="text.disabled" display="block" mt={0.25}>
+                Scores dos diagnósticos. Concorrentes sem diagnóstico aparecem no centro.
+              </Typography>
+            </Box>
+            <Box sx={{ p: 2.5 }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <ScatterChart margin={{ top: 12, right: 24, bottom: 24, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3550" />
+                  <XAxis type="number" dataKey="x" domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }}>
+                    <Label value="Singularidade" position="insideBottom" offset={-16} fill="#8A9AB0" fontSize={11} />
+                  </XAxis>
+                  <YAxis type="number" dataKey="y" domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }}>
+                    <Label value="Posicionamento" angle={-90} position="insideLeft" offset={12} fill="#8A9AB0" fontSize={11} />
+                  </YAxis>
+                  <ZAxis type="number" dataKey="z" range={[60, 240]} />
+                  <RechartTooltip content={<ScatterTooltip />} />
+                  {scatterData.map(d => (
+                    <Scatter key={d.nome} name={d.nome} data={[d]} fill={d.cor} opacity={d.isSelf ? 1 : 0.7} />
+                  ))}
+                </ScatterChart>
+              </ResponsiveContainer>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 {scatterData.map(d => (
-                  <Scatter key={d.nome} name={d.nome} data={[d]} fill={d.cor} opacity={d.isSelf ? 1 : 0.7} />
+                  <Box key={d.nome} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: d.cor }} />
+                    <Typography variant="caption" fontWeight={d.isSelf ? 800 : 500} color={d.isSelf ? 'text.primary' : 'text.secondary'}>
+                      {d.nome}{d.isSelf ? ' (você)' : ''}
+                    </Typography>
+                  </Box>
                 ))}
-              </ScatterChart>
-            </ResponsiveContainer>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-              {scatterData.map(d => (
-                <Box key={d.nome} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: d.cor }} />
-                  <Typography variant="caption" fontWeight={d.isSelf ? 800 : 500} color={d.isSelf ? 'text.primary' : 'text.secondary'}>
-                    {d.nome}{d.isSelf ? ' (você)' : ''}
-                  </Typography>
-                </Box>
-              ))}
+              </Box>
             </Box>
           </Card>
 
@@ -944,6 +949,7 @@ export function Posicionamento() {
   const [gerando, setGerando]         = useState(false)
   const [gerandoStep, setGerandoStep] = useState(0)
   const [gerandoErro, setGerandoErro] = useState('')
+  const [histOpen, setHistOpen]       = useState(false)   // histórico recolhido por padrão
 
   const fetchDiagnosticos = useCallback(async () => {
     if (!workspace?.id) return
@@ -1176,11 +1182,16 @@ export function Posicionamento() {
             </Box>
           </Paper>
 
-          {/* ── Histórico ── */}
+          {/* ── Histórico (recolhível/secundário) ── */}
           {restante.length > 0 && (
-            <>
-              <Typography variant="overline" color="text.disabled" sx={{ display: 'block', mb: 1.5 }}>Histórico</Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 5 }}>
+            <Box sx={{ mb: 5 }}>
+              <Box onClick={() => setHistOpen(o => !o)}
+                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', mb: 1.5, color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}>
+                <Typography variant="overline">Histórico ({restante.length})</Typography>
+                <KeyboardArrowDownIcon sx={{ fontSize: 18, transition: 'transform 0.2s', transform: histOpen ? 'rotate(180deg)' : 'none' }} />
+              </Box>
+              <Collapse in={histOpen}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {restante.map(diag => (
                   <Paper key={diag.id}
                     onClick={() => { setSelectedDiag(diag); setEstado('relatorio') }}
@@ -1209,7 +1220,8 @@ export function Posicionamento() {
                   </Paper>
                 ))}
               </Box>
-            </>
+              </Collapse>
+            </Box>
           )}
 
           {/* ── Seção 2: Evolução ── */}
