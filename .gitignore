@@ -27,3 +27,6 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# planilha de custos (WIP, não versionar)
+specs/custos.csv

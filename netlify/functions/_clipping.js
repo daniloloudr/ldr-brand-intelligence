@@ -1,6 +1,6 @@
 // _clipping.js — coleta de clipping (menções/notícias recentes) dos concorrentes.
 // Reaproveita o web-search do _ai.js (mesmo padrão do listening). Grava em
-// concorrente_clipping (migration 027), deduplicando por url. Em SÉRIE (cache).
+// concorrente_clipping (migration 028), deduplicando por url. Em SÉRIE (cache).
 import { callAI, aiConfig } from './_ai.js'
 
 const DISCLAIMER = [
@@ -16,16 +16,34 @@ Retorne APENAS JSON, sem markdown:
 }
 
 function parseEvents(txt) {
-  const s = String(txt || '').replace(/^```[a-z]*\n?/im, '').replace(/\n?```$/im, '').trim()
-  const tryParse = str => { try { const r = JSON.parse(str); return Array.isArray(r.events) ? r.events : null } catch { return null } }
-  let events = tryParse(s)
-  if (!events) { const j0 = s.indexOf('{'), j1 = s.lastIndexOf('}'); if (j0 >= 0 && j1 > j0) events = tryParse(s.slice(j0, j1 + 1)) }
+  // Aceita JSON puro, cercado em ```json``` ou embutido em prosa (web search é verboso):
+  // acha o objeto que contém "events" e casa as chaves via contagem de profundidade.
+  const raw  = String(txt || '')
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const cand = fence ? fence[1] : raw
+  let events = null
+  const ie = cand.indexOf('"events"')
+  if (ie >= 0) {
+    const start = cand.lastIndexOf('{', ie)
+    if (start >= 0) {
+      let depth = 0
+      for (let i = start; i < cand.length; i++) {
+        if (cand[i] === '{') depth++
+        else if (cand[i] === '}') {
+          if (--depth === 0) {
+            try { const o = JSON.parse(cand.slice(start, i + 1)); if (Array.isArray(o.events)) events = o.events } catch { /* incompleto */ }
+            break
+          }
+        }
+      }
+    }
+  }
   return (events || []).filter(e => !DISCLAIMER.some(p => p.test(`${e.titulo || ''} ${e.conteudo || ''}`)))
 }
 
 async function coletarClipping(concorrente) {
   try {
-    const { text } = await callAI({ ...aiConfig('standard'), maxTokens: 1200,
+    const { text } = await callAI({ ...aiConfig('premium'), maxTokens: 6000,
       messages: [{ role: 'user', content: buildPrompt(concorrente.nome, concorrente.dominio) }] })
     return parseEvents(text)
   } catch (e) {
@@ -53,7 +71,7 @@ export async function coletarClippingWorkspace(supabase, { workspace_id, max = 6
     }
     const novos = events.filter(e => !e.url || !jaExistem.has(e.url))
     if (novos.length) {
-      await supabase.from('concorrente_clipping').insert(novos.map(e => ({
+      const { error: insErr } = await supabase.from('concorrente_clipping').insert(novos.map(e => ({
         workspace_id:   c.workspace_id,
         concorrente_id: c.id,
         titulo:         (e.titulo || '').slice(0, 200),
@@ -62,8 +80,8 @@ export async function coletarClippingWorkspace(supabase, { workspace_id, max = 6
         sentiment:      e.sentiment || null,
         score_impacto:  Number.isFinite(e.score_impacto) ? e.score_impacto : null,
         url:            e.url || null,
-      }))).catch(() => {})
-      inseridos += novos.length
+      })))
+      if (!insErr) inseridos += novos.length
     }
   }
   return { concorrentes: fila.length, inseridos }

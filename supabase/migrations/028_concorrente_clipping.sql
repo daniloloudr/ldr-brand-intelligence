@@ -1,4 +1,4 @@
--- 027_concorrente_clipping.sql
+-- 028_concorrente_clipping.sql
 -- Clipping (menções/notícias recentes) dos concorrentes monitorados.
 -- Alimentado por concorrente-clipping-background (on-demand) e -cron (semanal).
 
