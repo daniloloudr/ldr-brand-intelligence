@@ -6,6 +6,7 @@ import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
 import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../lib/helpers";
+import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
@@ -22,6 +23,7 @@ const IcoPlus   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="no
 const IcoChart  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 const IcoList   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
 const IcoLogout = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+const IcoCoins  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1110.34 18"/><path d="M7 6h1v4"/><path d="M16.71 13.88l.7.71-2.82 2.82"/></svg>;
 const IcoSun    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>;
 const IcoMoon   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>;
 const IcoBell   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>;
@@ -414,6 +416,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     { id: "historico",    label: "Dashboard",        Icon: IcoChart, badge: null },
     { id: "todos",        label: "Diagnósticos",     Icon: IcoList,  badge: null },
     { id: "workspaces",   label: "Workspaces",       Icon: IcoList,  badge: null },
+    { id: "custos",       label: "Custos",           Icon: IcoCoins, badge: null },
   ];
 
   const pendentesList = solicitacoes.filter(s => s.status === "pendente");
@@ -426,6 +429,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     solicitacoes: { title: "Fila de solicitações",    sub: "Aprove para gerar o diagnóstico ou rejeite a solicitação." },
     historico:    { title: "Dashboard",               sub: `${doneCount} relatório${doneCount !== 1 ? "s" : ""} gerado${doneCount !== 1 ? "s" : ""} pela equipe LOUDR.` },
     todos:        { title: "Todos os diagnósticos",   sub: `Lista completa — ${historico.length} item${historico.length !== 1 ? "ns" : ""} (${doneCount} concluído${doneCount !== 1 ? "s" : ""}).` },
+    custos:       { title: "Custos de geração",       sub: "Consumo e custo estimado da borda (Studio) por modelo e por conta." },
   };
 
   const ph = pageHeaders[page];
@@ -795,6 +799,8 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
                 createSignal={wsCreateSignal}
               />
             )}
+
+            {page === "custos" && <CustosAdmin C={C} />}
           </div>
         </main>
       </div>
@@ -869,6 +875,138 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
         </Box>
       </Popover>
     </ThemeProvider>
+  );
+}
+
+/* ─── CustosAdmin ────────────────────────────────────────────────── */
+
+function CustosAdmin({ C }) {
+  const [loading, setLoading] = useState(true);
+  const [gens, setGens]       = useState([]);
+  const [wsMap, setWsMap]     = useState({});
+  const [periodo, setPeriodo] = useState("mes");   // mes | 90d | tudo
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [g, w] = await Promise.all([
+        supabase.from("studio_generations").select("workspace_id,provider,media_type,status,created_at").limit(5000),
+        supabase.from("workspaces").select("id,nome,plano,creditos_saldo"),
+      ]);
+      const m = {}; (w.data || []).forEach(x => { m[x.id] = x; });
+      setGens(g.data || []); setWsMap(m); setLoading(false);
+    })();
+  }, []);
+
+  const d0 = new Date();
+  const cutoff = periodo === "mes"
+    ? new Date(d0.getFullYear(), d0.getMonth(), 1).getTime()
+    : periodo === "90d" ? Date.now() - 90 * 864e5 : 0;
+
+  const rows = gens.filter(r => (r.status || "done") === "done" && new Date(r.created_at).getTime() >= cutoff);
+
+  let totCred = 0, totImg = 0, totVid = 0;
+  const porModelo = {}, porConta = {};
+  rows.forEach(r => {
+    const cred = creditsForProvider(r.provider, r.media_type);
+    totCred += cred;
+    if (r.media_type === "video") totVid++; else totImg++;
+    const mk = modelLabel(r.provider);
+    if (!porModelo[mk]) porModelo[mk] = { label: mk, tipo: r.media_type || "image", n: 0, cred: 0 };
+    porModelo[mk].n++; porModelo[mk].cred += cred;
+    const wid = r.workspace_id || "—";
+    if (!porConta[wid]) porConta[wid] = { n: 0, cred: 0 };
+    porConta[wid].n++; porConta[wid].cred += cred;
+  });
+  const modelos = Object.values(porModelo).sort((a, b) => b.cred - a.cred);
+  const contas  = Object.entries(porConta).map(([id, v]) => ({ id, ...v, ws: wsMap[id] })).sort((a, b) => b.cred - a.cred);
+
+  const brl = n => "R$ " + brlFromCredits(n).toFixed(2).replace(".", ",");
+  const usd = n => "US$ " + usdFromCredits(n).toFixed(2);
+
+  const card = { background: C.topbar, border: `1px solid ${C.border}`, borderRadius: 12 };
+  const th   = { textAlign: "left", padding: "9px 14px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textDis, fontFamily: F, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" };
+  const td   = { padding: "10px 14px", fontSize: 13, color: C.text, fontFamily: F, borderBottom: `1px solid ${C.border}` };
+  const thR  = { ...th, textAlign: "right" };
+  const tdR  = { ...td, textAlign: "right" };
+
+  if (loading) return <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontFamily: F }}>Carregando…</div>;
+
+  const stats = [
+    { lbl: "Custo estimado", val: brl(totCred), sub: usd(totCred) },
+    { lbl: "Créditos consumidos", val: totCred.toLocaleString("pt-BR"), sub: `${rows.length} gerações` },
+    { lbl: "Imagens", val: totImg.toLocaleString("pt-BR"), sub: "1 crédito base" },
+    { lbl: "Vídeos", val: totVid.toLocaleString("pt-BR"), sub: "5–108 créditos" },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {[{ k: "mes", l: "Mês atual" }, { k: "90d", l: "90 dias" }, { k: "tudo", l: "Tudo" }].map(p => (
+          <button key={p.k} onClick={() => setPeriodo(p.k)} style={{
+            padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer",
+            border: `1px solid ${periodo === p.k ? DS.green : C.border}`,
+            background: periodo === p.k ? DS.green : "transparent",
+            color: periodo === p.k ? "#fff" : C.textSec,
+          }}>{p.l}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 22 }}>
+        {stats.map(s => (
+          <div key={s.lbl} style={{ ...card, padding: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textDis, fontFamily: F }}>{s.lbl}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: C.text, fontFamily: F, marginTop: 4, lineHeight: 1 }}>{s.val}</div>
+            <div style={{ fontSize: 11, color: C.textSec, fontFamily: F, marginTop: 4 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ ...card, padding: 32, textAlign: "center", color: C.textDis, fontFamily: F }}>Nenhuma geração no período.</div>
+      ) : (
+        <>
+          <div style={{ ...card, overflow: "hidden", marginBottom: 16 }}>
+            <div style={{ padding: "13px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 800, color: C.text, fontFamily: F }}>Por modelo</div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr><th style={th}>Modelo</th><th style={thR}>Gerações</th><th style={thR}>Créditos</th><th style={thR}>Custo</th></tr></thead>
+              <tbody>
+                {modelos.map(m => (
+                  <tr key={m.label}>
+                    <td style={td}><span style={{ display: "inline-block", width: 7, height: 7, borderRadius: 2, background: m.tipo === "video" ? DS.amber : DS.green, marginRight: 8, verticalAlign: "middle" }} />{m.label}</td>
+                    <td style={tdR}>{m.n}</td>
+                    <td style={tdR}>{m.cred.toLocaleString("pt-BR")}</td>
+                    <td style={{ ...tdR, fontWeight: 700 }}>{brl(m.cred)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ ...card, overflow: "hidden" }}>
+            <div style={{ padding: "13px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 800, color: C.text, fontFamily: F }}>Por conta</div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr><th style={th}>Conta</th><th style={thR}>Gerações</th><th style={thR}>Créditos</th><th style={thR}>Custo</th><th style={thR}>Saldo atual</th></tr></thead>
+              <tbody>
+                {contas.map(c => (
+                  <tr key={c.id}>
+                    <td style={td}>{c.ws?.nome || c.id.slice(0, 8)}</td>
+                    <td style={tdR}>{c.n}</td>
+                    <td style={tdR}>{c.cred.toLocaleString("pt-BR")}</td>
+                    <td style={{ ...tdR, fontWeight: 700 }}>{brl(c.cred)}</td>
+                    <td style={{ ...tdR, color: C.textSec }}>{c.ws?.creditos_saldo ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, marginTop: 16, lineHeight: 1.5 }}>
+        Custo estimado a partir do mapa de créditos (créditos ≈ 18 × custo_USD; câmbio R$5,50). A duração de vídeo assume o menor tier. Não inclui a inteligência (diagnóstico, listening, assistant) — fair-use, sem crédito. "Gerações" = 1 imagem = 1 token.
+      </div>
+    </div>
   );
 }
 
