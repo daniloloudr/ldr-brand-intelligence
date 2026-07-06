@@ -2,6 +2,7 @@
 // Reaproveita o web-search do _ai.js (mesmo padrão do listening). Grava em
 // concorrente_clipping (migration 028), deduplicando por url. Em SÉRIE (cache).
 import { callAI, aiConfig } from './_ai.js'
+import { emitSignal } from './_brain.js'
 
 const DISCLAIMER = [
   /não (tenho|possui|é possível|foi possível)/i, /sem acesso/i,
@@ -74,7 +75,7 @@ async function emitClippingSignal(supabase, cache, c, novos) {
   if (!mov.length) return
   const brand_id = await brandIdFor(supabase, cache, c.workspace_id)
   if (!brand_id) return
-  const { error } = await supabase.from('brand_signals').insert({
+  const { error } = await emitSignal(supabase, {
     brand_id, workspace_id: c.workspace_id, tipo: 'competitive', fonte: 'clipping',
     ref_id: c.id, peso: 0.5,
     payload: { concorrente: c.nome, dominio: c.dominio || null, movimentos: mov },

@@ -3,6 +3,7 @@
 // + retry. Streaming evita o hang da chamada longa com web_search na Lambda.
 import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
+import { emitSignal } from './_brain.js'
 
 const MAX_ATTEMPTS = 2
 
@@ -53,7 +54,7 @@ async function emitCompetitiveSignal(supabase, concorrente, parsed) {
   const { data: brand } = await supabase
     .from('brands').select('id').eq('workspace_id', concorrente.workspace_id).limit(1).maybeSingle()
   if (!brand) return   // workspace sem marca ainda → nada pra alimentar
-  const { error: sigErr } = await supabase.from('brand_signals').insert({
+  const { error: sigErr } = await emitSignal(supabase, {
     brand_id:     brand.id,
     workspace_id: concorrente.workspace_id,
     tipo:         'competitive',

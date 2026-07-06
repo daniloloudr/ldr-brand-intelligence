@@ -1,4 +1,10 @@
+// ════════════════════════════════════════════════════════════════════
+// brand-book-search.js — wrapper HTTP da busca semântica do cérebro.
+// Auth do membro + delega a _brain.js (searchBrandKnowledge): top-5 sobre
+// brand_book_chunks (brand book digitado + "intel:" do modelo vivo).
+// ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
+import { searchBrandKnowledge } from './_brain.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -26,38 +32,6 @@ export const handler = async (event) => {
   const { brand_id, query } = body
   if (!brand_id || !query) return { statusCode: 400, headers, body: JSON.stringify({ chunks: [] }) }
 
-  // Check if brand_book_chunks has data for this brand
-  const { count } = await supabase
-    .from('brand_book_chunks')
-    .select('id', { count: 'exact', head: true })
-    .eq('brand_id', brand_id)
-
-  if (!count) return { statusCode: 200, headers, body: JSON.stringify({ chunks: [] }) }
-
-  // Embed the query
-  const voyageRes = await fetch('https://api.voyageai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.VOYAGE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model: 'voyage-3', input: [query] }),
-  })
-
-  if (!voyageRes.ok) return { statusCode: 200, headers, body: JSON.stringify({ chunks: [] }) }
-
-  const voyageData = await voyageRes.json()
-  const queryEmbedding = voyageData.data[0].embedding
-
-  const { data: chunks } = await supabase.rpc('match_brand_book_chunks', {
-    p_brand_id:  brand_id,
-    p_embedding: queryEmbedding,
-    p_limit:     5,
-  })
-
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({ chunks: chunks || [] }),
-  }
+  const chunks = await searchBrandKnowledge(supabase, brand_id, query, 5)
+  return { statusCode: 200, headers, body: JSON.stringify({ chunks }) }
 }

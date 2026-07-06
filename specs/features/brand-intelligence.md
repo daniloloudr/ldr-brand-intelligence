@@ -102,6 +102,7 @@ Esboço de `modelo` (jsonb):
 
 ### 4. Porta de saída única — `resolveBrandIntelligence()`
 Evolução do `resolveBrandContext` atual. **A única** função que qualquer IA de borda chama para obter contexto de marca. Imagem, Assistente, diagnóstico, conteúdo — todos passam por aqui. Trocar modelo de borda nunca toca nisso.
+- **Desde 2026-07-06 vive em `netlify/functions/_brain.js`** — o cérebro extraído como módulo único com as 4 operações: `emitSignal` (ingest), `distillBrand` (destilação; `brand-distill-background.js` é só wrapper HTTP), `searchBrandKnowledge` (busca semântica; `brand-book-search.js` é só wrapper HTTP) e `resolveBrandIntelligence` (contexto). `_studio.js` voltou a ser só Studio.
 - Retorna o contexto destilado **+** (opcional) os trechos crus ainda relevantes, no formato que cada consumidor precisa (prefixo de prompt, chunks de RAG, etc.).
 - O **RAG do Brand Assistant** (`brand_book_chunks`) passa a ser **re-derivado a partir do modelo vivo**, não só do brand book digitado. ✅ Implementado (trilho B) — ver abaixo.
 
@@ -117,7 +118,7 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 
 ## Faseamento — status de implementação (2026-07-01)
 
-- **Fase 0 — Espinha dorsal ✅** `brand_signals` (append-only, RLS) + emissão via **triggers no banco** (image_vote, campaign_verdict, diagnostic, listening_sentiment, brandbook_edit) + backfill dos votos/campanhas existentes. Porta única `resolveBrandIntelligence()` em `_studio.js`; generate/video/campaign/prompt roteados por ela. Migration `025_brand_signals.sql`.
+- **Fase 0 — Espinha dorsal ✅** `brand_signals` (append-only, RLS) + emissão via **triggers no banco** (image_vote, campaign_verdict, diagnostic, listening_sentiment, brandbook_edit) + backfill dos votos/campanhas existentes. Porta única `resolveBrandIntelligence()` (hoje em `_brain.js`); generate/video/campaign/prompt roteados por ela. Migration `025_brand_signals.sql`.
 - **Fase 1 — Modelo vivo + destilador ✅** `brand_intelligence` versionado (migration `026`). Destilador `brand-distill-background.js` (Sonnet, idempotente via `consumido_em`). `resolveBrandIntelligence` realimenta a geração com o modelo destilado. Automação: `brand-distill-cron.js` (netlify.toml `0 7 * * *`, limiar `BRAND_DISTILL_THRESHOLD`).
 - **Fase 2 — Realimentar o Assistente ✅** `BrandAssistant.jsx` carrega a última versão e injeta o bloco "Inteligência da marca (aprendido com o uso)" no system prompt (preferências visuais, do/don't, win-rate por provider, fatos). *(RAG re-derivado dos chunks fica como aprofundamento opcional — o modelo destilado é compacto e vai direto no contexto.)*
 - **Fase 3 — Métricas e proveniência ✅** Painel `BrandIntelligence.jsx`: confiança média + evolução por versão (recharts), approval-rate, win-rate por provider, modelo vivo legível, proveniência por tipo de sinal.

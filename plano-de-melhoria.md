@@ -80,7 +80,7 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 
 - **(a) Superfícies (App Netlify)** — Brand Book, Posicionamento, Studio, Content, painéis. Clientes finos que chamam o cérebro.
 - **(b) Borda (`_ai.js`)** — fina, única porta pra LLM/embeddings de terceiros, trocável.
-- **(c) Cérebro de Marca** — a camada de inteligência como **serviço próprio** (ingest / distill / search / buildContext), o IP. Hoje mora dentro do `_studio.js` (`resolveBrandIntelligence`); a evolução é **extrair pra um módulo/serviço único** que toda superfície usa. Extração incremental do que já existe — não greenfield.
+- **(c) Cérebro de Marca** — a camada de inteligência como **serviço próprio** (ingest / distill / search / buildContext), o IP. **✅ Extraído (2026-07-06) para `netlify/functions/_brain.js`**: `emitSignal` / `distillBrand` / `searchBrandKnowledge` / `resolveBrandIntelligence`. `brand-distill-background.js` e `brand-book-search.js` viraram wrappers HTTP finos; `_studio.js` voltou a ser só Studio. Próxima evolução: serviço com fila/estado durável fora do teto do Netlify, quando o volume pedir.
 
 ---
 

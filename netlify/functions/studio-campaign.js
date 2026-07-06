@@ -6,7 +6,8 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
-import { resolveBrandIntelligence, submitGeneration } from './_studio.js'
+import { resolveBrandIntelligence } from './_brain.js'
+import { submitGeneration } from './_studio.js'
 import { creditsForImage, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {

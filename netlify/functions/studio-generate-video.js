@@ -5,7 +5,8 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falVideoConfigured, VIDEO_MODELS, videoSupportsEndFrame } from './_video.js'
-import { resolveBrandIntelligence, submitVideoGeneration } from './_studio.js'
+import { resolveBrandIntelligence } from './_brain.js'
+import { submitVideoGeneration } from './_studio.js'
 import { creditsForVideo, debitCredits, refundCredits } from './_credits.js'
 
 const headers = {

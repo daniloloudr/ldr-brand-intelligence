@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig } from './_ai.js'
-import { resolveBrandIntelligence } from './_studio.js'
+import { resolveBrandIntelligence } from './_brain.js'
 
 const headers = {
   'Content-Type': 'application/json',
