@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Box, CircularProgress, Typography, Button, Stack, Divider } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -11,24 +11,29 @@ import { PLANOS } from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
 import { useBrandManualJobs } from '../../lib/useBrandManualJobs'
 import { AppLayout } from '../../components/shell/AppLayout'
-import { Home } from './Home'
-import { Posicionamento } from './Posicionamento'
-import { SocialListening } from './SocialListening'
-import { BrandList } from './BrandList'
-import { BrandOnboarding } from './BrandOnboarding'
-import { BrandBook } from './BrandBook'
-import { BrandAssistant } from './BrandAssistant'
-import { BrandIntelligence } from './BrandIntelligence'
-import { Campaigns } from './Campaigns'
-import { CampaignNew } from './CampaignNew'
-import { CampaignDetail } from './CampaignDetail'
-import { WorkspacePage, ContaPage, TimePage, PlanoPage, AlertasPage } from './WorkspacePage'
-import { ContentHub } from './ContentHub'
-import { StudioImage } from './StudioImage'
-import { StudioWorkflows } from './StudioWorkflows'
-import { StudioCanvas } from './StudioCanvas'
-import { StudioCampaigns } from './StudioCampaigns'
-import { StudioVideo } from './StudioVideo'
+// Páginas carregadas sob demanda (code-splitting por rota) — cada uma vira um chunk
+// separado, fora do bundle principal. Named exports → mapeados p/ default no lazy.
+const Home            = lazy(() => import('./Home').then(m => ({ default: m.Home })))
+const Posicionamento  = lazy(() => import('./Posicionamento').then(m => ({ default: m.Posicionamento })))
+const SocialListening = lazy(() => import('./SocialListening').then(m => ({ default: m.SocialListening })))
+const BrandList       = lazy(() => import('./BrandList').then(m => ({ default: m.BrandList })))
+const BrandOnboarding = lazy(() => import('./BrandOnboarding').then(m => ({ default: m.BrandOnboarding })))
+const BrandBook       = lazy(() => import('./BrandBook').then(m => ({ default: m.BrandBook })))
+const BrandAssistant  = lazy(() => import('./BrandAssistant').then(m => ({ default: m.BrandAssistant })))
+const BrandIntelligence = lazy(() => import('./BrandIntelligence').then(m => ({ default: m.BrandIntelligence })))
+const Campaigns       = lazy(() => import('./Campaigns').then(m => ({ default: m.Campaigns })))
+const CampaignNew     = lazy(() => import('./CampaignNew').then(m => ({ default: m.CampaignNew })))
+const CampaignDetail  = lazy(() => import('./CampaignDetail').then(m => ({ default: m.CampaignDetail })))
+const WorkspacePage   = lazy(() => import('./WorkspacePage').then(m => ({ default: m.WorkspacePage })))
+const ContaPage       = lazy(() => import('./WorkspacePage').then(m => ({ default: m.ContaPage })))
+const TimePage        = lazy(() => import('./WorkspacePage').then(m => ({ default: m.TimePage })))
+const AlertasPage     = lazy(() => import('./WorkspacePage').then(m => ({ default: m.AlertasPage })))
+const ContentHub      = lazy(() => import('./ContentHub').then(m => ({ default: m.ContentHub })))
+const StudioImage     = lazy(() => import('./StudioImage').then(m => ({ default: m.StudioImage })))
+const StudioWorkflows = lazy(() => import('./StudioWorkflows').then(m => ({ default: m.StudioWorkflows })))
+const StudioCanvas    = lazy(() => import('./StudioCanvas').then(m => ({ default: m.StudioCanvas })))
+const StudioCampaigns = lazy(() => import('./StudioCampaigns').then(m => ({ default: m.StudioCampaigns })))
+const StudioVideo     = lazy(() => import('./StudioVideo').then(m => ({ default: m.StudioVideo })))
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import logoNegativa from '../../assets/negativa.svg'
 import logoPositivo from '../../assets/logo-positivo-200px.png'
@@ -45,7 +50,6 @@ const IcoAssist  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="n
 const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
   { label: 'Gestão de time',         hash: '#/app/time' },
-  { label: 'Plano e cobrança',       hash: '#/app/plano' },
   { label: 'Alertas',                hash: '#/app/alertas' },
   { label: 'IA LOUDR',               hash: '#/app/ia-loudr' },
 ]
@@ -131,7 +135,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'workspace')             return <WorkspacePage />
     if (route === 'conta')                 return <ContaPage />
     if (route === 'time')                  return <TimePage />
-    if (route === 'plano')                 return <PlanoPage />
+    // Plano e cobrança: customer-facing escondido (venda sob demanda). Créditos/PLANOS/Stripe seguem por baixo.
+    if (route === 'plano')                 { window.location.hash = '#/app'; return null }
     if (route === 'alertas')               return <AlertasPage />
     if (route === 'listening')             return <SocialListening />
     if (route === 'content-hub')           return <ContentHub />
@@ -187,7 +192,9 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       bellContent={({ close }) => renderBellContent(jobs, close)}
     >
       <ErrorBoundary key={route}>
-        {renderPage()}
+        <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}><CircularProgress /></Box>}>
+          {renderPage()}
+        </Suspense>
       </ErrorBoundary>
     </AppLayout>
   )

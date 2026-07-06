@@ -36,6 +36,12 @@ function fmtSignalBody(s) {
       : (p.territorio_legado ? ` · território: ${p.territorio_legado}` : '')
     return `[diagnóstico] singularidade=${p.score_singularidade} consistencia=${p.score_consistencia} posicionamento=${p.score_posicionamento} "${(p.frase || '').slice(0, 300)}"${terr}`
   }
+  if (s.tipo === 'competitive') {
+    const terr = Array.isArray(p.territorios) && p.territorios.length
+      ? ' · territórios que ELE reivindica: ' + p.territorios.map(t => `${t.nome}${t.confianca ? ` (${t.confianca})` : ''}`).join(' | ')
+      : ''
+    return `[CONCORRENTE: ${p.concorrente || '?'}] singularidade=${p.score_singularidade} consistencia=${p.score_consistencia} posicionamento=${p.score_posicionamento} "${(p.frase || '').slice(0, 200)}"${terr}`
+  }
   if (s.tipo === 'listening_sentiment')
     return `[sentimento] +${p.avg_positivo} =${p.avg_neutro} -${p.avg_negativo} (${p.total_mencoes} menções, ${p.periodo || ''})`
   if (s.tipo === 'brandbook_edit')
@@ -54,7 +60,7 @@ function fmtSignal(s, now) {
 
 const SYSTEM = [
   'Você é o DESTILADOR de inteligência de marca do LOUDR. Você mantém um MODELO VIVO, estruturado, de uma marca — que fica mais assertivo conforme evidências se acumulam.',
-  'Recebe: (a) o MODELO ATUAL (pode estar vazio) e (b) SINAIS NOVOS (votos em peças geradas, veredictos de campanha, diagnósticos, sentimento, edições do brand book).',
+  'Recebe: (a) o MODELO ATUAL (pode estar vazio) e (b) SINAIS NOVOS (votos em peças geradas, veredictos de campanha, diagnósticos, diagnósticos de CONCORRENTES, sentimento, edições do brand book).',
   'Produz a PRÓXIMA versão do modelo. Regras:',
   '- CONFIANÇA POR FACETA: cada faceta (posicionamento, voz, cada preferência visual, cada do/dont, cada fato) tem confiança PRÓPRIA (0 a 1). Calibre uma a uma pela força, quantidade e recência das evidências DAQUELA faceta — nunca um número global chutado.',
   '- Aumente a confiança quando vários sinais se corroboram; diminua quando se contradizem.',
@@ -64,6 +70,7 @@ const SYSTEM = [
   '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider). Votos recentes pesam mais que antigos.',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
   '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas e vence empates de recência.',
+  '- competitive descreve CONCORRENTES e o mercado (NÃO a sua marca). Use para AFIAR A DIFERENCIAÇÃO: registre em "fatos" onde cada concorrente se posiciona e quais territórios ele reivindica; em "do_dont" derive movimentos de diferenciação (ex.: não reforçar um território já dominado por concorrente; ocupar espaço livre que nenhum concorrente reivindica); pode calibrar "posicionamento" para o que diferencia. NUNCA atribua atributos/territórios do concorrente à própria marca.',
   '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido (com sua confiança recalibrada).',
   'Responda APENAS com JSON estrito neste schema (sem markdown, sem comentário):',
   '{"posicionamento":{"valor":"","confianca":0,"fontes":[]},"voz":{"valor":"","confianca":0,"fontes":[]},"preferencias_visuais":{"aprovado":[{"padrao":"","confianca":0,"exemplos":[]}],"reprovado":[{"padrao":"","confianca":0}],"modelo_preferido":{"provider":"","win_rate":0}},"do_dont":{"do":[],"dont":[]},"fatos":[{"fato":"","confianca":0,"fontes":[]}]}',
