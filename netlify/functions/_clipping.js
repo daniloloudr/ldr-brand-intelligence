@@ -43,7 +43,9 @@ function parseEvents(txt) {
 
 async function coletarClipping(concorrente) {
   try {
-    const { text } = await callAI({ ...aiConfig('premium'), maxTokens: 6000,
+    // 'standard': web search em prod (funciona), sem em dev (retorna 0 — economia).
+    // maxTokens alto: com web search a resposta (preâmbulo + JSON) é longa e não pode truncar.
+    const { text } = await callAI({ ...aiConfig('standard'), maxTokens: 6000,
       messages: [{ role: 'user', content: buildPrompt(concorrente.nome, concorrente.dominio) }] })
     return parseEvents(text)
   } catch (e) {
