@@ -53,7 +53,7 @@ async function emitCompetitiveSignal(supabase, concorrente, parsed) {
   const { data: brand } = await supabase
     .from('brands').select('id').eq('workspace_id', concorrente.workspace_id).limit(1).maybeSingle()
   if (!brand) return   // workspace sem marca ainda → nada pra alimentar
-  await supabase.from('brand_signals').insert({
+  const { error: sigErr } = await supabase.from('brand_signals').insert({
     brand_id:     brand.id,
     workspace_id: concorrente.workspace_id,
     tipo:         'competitive',
@@ -69,7 +69,8 @@ async function emitCompetitiveSignal(supabase, concorrente, parsed) {
       frase:                (parsed.frase_diagnostico || '').slice(0, 300),
     },
     peso: 0.6,   // contexto competitivo pesa menos que sinais da própria marca
-  }).catch(() => {})
+  })
+  if (sigErr) console.error('[competitive] signal do diagnóstico falhou:', sigErr.message)
 }
 
 // Gera + grava um concorrente. Usa dominio se houver, senão o nome.

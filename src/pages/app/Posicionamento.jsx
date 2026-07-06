@@ -492,6 +492,13 @@ function SecaoConcorrentes({ workspace }) {
   const clipPageSafe = Math.min(clipPage, clipMaxPage)
   const clipSlice   = clipping.slice(clipPageSafe * CLIP_PER, clipPageSafe * CLIP_PER + CLIP_PER)
 
+  // Resumo do ciclo — destaques computados do clipping carregado
+  const clipAlto = clipping.filter(x => (x.score_impacto ?? 0) >= 7).length
+  const clipNeg  = clipping.filter(x => x.sentiment === 'negativo').length
+  const clipPorConc = {}
+  clipping.forEach(x => { const n = concorrentes.find(c => c.id === x.concorrente_id)?.nome; if (n) clipPorConc[n] = (clipPorConc[n] || 0) + 1 })
+  const clipMaisAtivo = Object.entries(clipPorConc).sort((a, b) => b[1] - a[1])[0] || null
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress size={28} color="primary" /></Box>
 
   return (
@@ -773,6 +780,15 @@ function SecaoConcorrentes({ workspace }) {
                 {buscandoClip ? 'Buscando…' : 'Buscar clipping'}
               </Button>
             </Box>
+            {clipping.length > 0 && (
+              <Box sx={{ px: 2.5, py: 1.25, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.6rem' }}>Resumo do ciclo</Typography>
+                <Chip label={`${clipTotal} menções`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />
+                {clipAlto > 0 && <Chip label={`${clipAlto} de alto impacto`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: 'rgba(13,158,122,0.1)', color: '#0D9E7A' }} />}
+                {clipNeg > 0 && <Chip label={`${clipNeg} negativa${clipNeg > 1 ? 's' : ''}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: 'rgba(232,24,90,0.1)', color: '#E8185A' }} />}
+                {clipMaisAtivo && <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>· mais ativo: <Box component="strong" sx={{ color: 'text.secondary' }}>{clipMaisAtivo[0]}</Box></Typography>}
+              </Box>
+            )}
             {clipping.length === 0 ? (
               <Box sx={{ p: 2.5 }}>
                 <Typography variant="caption" color="text.disabled">

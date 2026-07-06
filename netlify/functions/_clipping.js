@@ -54,6 +54,34 @@ async function coletarClipping(concorrente) {
   }
 }
 
+// Feed do cérebro: cada concorrente com movimentos novos de impacto emite um
+// brand_signal 'competitive' (fonte=clipping) — o distiller aprende os movimentos
+// recentes do mercado pra afiar a diferenciação. Peso baixo (é contexto, não a marca).
+async function brandIdFor(supabase, cache, ws) {
+  if (cache.has(ws)) return cache.get(ws)
+  const { data } = await supabase.from('brands').select('id').eq('workspace_id', ws).limit(1).maybeSingle()
+  const id = data?.id || null
+  cache.set(ws, id)
+  return id
+}
+
+async function emitClippingSignal(supabase, cache, c, novos) {
+  const mov = novos
+    .filter(e => (e.score_impacto ?? 0) >= 4 || e.sentiment === 'negativo')
+    .sort((a, b) => (b.score_impacto ?? 0) - (a.score_impacto ?? 0))
+    .slice(0, 5)
+    .map(e => ({ titulo: (e.titulo || '').slice(0, 160), sentiment: e.sentiment || null, score_impacto: e.score_impacto ?? null }))
+  if (!mov.length) return
+  const brand_id = await brandIdFor(supabase, cache, c.workspace_id)
+  if (!brand_id) return
+  const { error } = await supabase.from('brand_signals').insert({
+    brand_id, workspace_id: c.workspace_id, tipo: 'competitive', fonte: 'clipping',
+    ref_id: c.id, peso: 0.5,
+    payload: { concorrente: c.nome, dominio: c.dominio || null, movimentos: mov },
+  })
+  if (error) console.error(`[clipping] signal ${c.nome} falhou: ${error.message}`)
+}
+
 // Coleta o clipping dos concorrentes ativos (de um workspace, ou todos) em SÉRIE.
 export async function coletarClippingWorkspace(supabase, { workspace_id, max = 6 } = {}) {
   let q = supabase.from('concorrentes').select('id, workspace_id, nome, dominio').eq('ativo', true)
@@ -62,6 +90,7 @@ export async function coletarClippingWorkspace(supabase, { workspace_id, max = 6
   const fila = (concs || []).slice(0, max)
 
   let inseridos = 0
+  const brandCache = new Map()
   for (const c of fila) {                                   // SÉRIE (cache do prompt)
     const events = await coletarClipping(c)
     const urls = events.map(e => e.url).filter(Boolean)
@@ -83,7 +112,10 @@ export async function coletarClippingWorkspace(supabase, { workspace_id, max = 6
         score_impacto:  Number.isFinite(e.score_impacto) ? e.score_impacto : null,
         url:            e.url || null,
       })))
-      if (!insErr) inseridos += novos.length
+      if (!insErr) {
+        inseridos += novos.length
+        await emitClippingSignal(supabase, brandCache, c, novos)
+      }
     }
   }
   return { concorrentes: fila.length, inseridos }

@@ -37,6 +37,11 @@ function fmtSignalBody(s) {
     return `[diagnóstico] singularidade=${p.score_singularidade} consistencia=${p.score_consistencia} posicionamento=${p.score_posicionamento} "${(p.frase || '').slice(0, 300)}"${terr}`
   }
   if (s.tipo === 'competitive') {
+    // clipping: movimentos recentes do concorrente (notícias/menções por ciclo)
+    if (Array.isArray(p.movimentos) && p.movimentos.length) {
+      const mv = p.movimentos.map(m => `${m.titulo}${m.score_impacto ? ` (impacto ${m.score_impacto}${m.sentiment ? `, ${m.sentiment}` : ''})` : ''}`).join(' | ')
+      return `[CONCORRENTE: ${p.concorrente || '?'} — MOVIMENTOS RECENTES] ${mv}`
+    }
     const terr = Array.isArray(p.territorios) && p.territorios.length
       ? ' · territórios que ELE reivindica: ' + p.territorios.map(t => `${t.nome}${t.confianca ? ` (${t.confianca})` : ''}`).join(' | ')
       : ''
