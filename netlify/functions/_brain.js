@@ -3,12 +3,14 @@
 // É o IP do produto: as superfícies (Studio, Assistant, Content, Posicionamento)
 // são clientes finos; a borda (_ai.js, _embed.js) é commodity trocável.
 //
-// As 4 operações:
+// As operações:
 //   ingest   → emitSignal()               grava brand_signals por código
 //                                         (sinais de uso nascem de triggers — migration 025)
 //   distill  → distillBrand()             sinais + versão atual → próxima versão do modelo vivo
 //   search   → searchBrandKnowledge()     RAG: brand book digitado + "intel:" aprendido
 //   context  → resolveBrandIntelligence() porta ÚNICA de contexto p/ toda IA de borda
+//   dataset  → fetchDataset()             exemplos julgados (contexto → output → avaliação);
+//                                         captura é automática via triggers (migration 029)
 //
 // Spec: specs/features/brand-intelligence.md
 // ════════════════════════════════════════════════════════════════════
@@ -128,6 +130,19 @@ export async function searchBrandKnowledge(supabase, brand_id, query, limit = 5)
     p_limit:     limit,
   })
   return chunks || []
+}
+
+// ── Dataset (contexto → output → avaliação humana) ──────────────────
+// Leitura canônica dos exemplos julgados de uma marca (migration 029; a
+// captura é 100% via triggers). É o insumo do fine-tune por tenant no futuro
+// e de painéis de qualidade — nunca escreva aqui por código.
+export async function fetchDataset(supabase, brand_id, { superficie = null, limit = 200 } = {}) {
+  let q = supabase.from('brand_dataset')
+    .select('id, created_at, superficie, contexto, output, avaliacao, schema_versao')
+    .eq('brand_id', brand_id).order('created_at', { ascending: false }).limit(limit)
+  if (superficie) q = q.eq('superficie', superficie)
+  const { data } = await q
+  return data || []
 }
 
 // ── Destilação ───────────────────────────────────────────────────────

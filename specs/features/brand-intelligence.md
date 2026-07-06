@@ -141,6 +141,17 @@ O Content Hub fecha o loop dos DOIS lados:
 - **Lê:** `content-hub-gerar-background.js` injeta `resolveBrandIntelligence()` (identidade + modelo vivo) nos prompts de territórios/ideias — clusters e ideias saem alinhados a voz, território e do/don't aprendidos. `ContentGerarDrawer.jsx` carrega a última versão de `brand_intelligence` (via `compileIntel` de `src/lib/brandIntel.js`, compartilhado com o Assistant) e injeta no prompt do briefing.
 - **Escreve:** "Copiar briefing" = adoção → emite sinal **`content_used`** (`fonte='content_hub'`, payload `{item_tipo, titulo, formato, intencao, cluster, briefing}`, **peso 1.5**, 1x por briefing, insert via RLS do membro). O destilador aprende os temas/formatos/ângulos que o time realmente usa.
 
+### Dataset — `(contexto → output → avaliação humana)` ✅ v1 (2026-07-06)
+O fio central da estratégia de modelo (plano-de-melhoria §4): tabela **`brand_dataset`** (migration `029`) com exemplos canônicos e versionados (`schema_versao`) por marca — só entram exemplos **julgados por humano**. Captura 100% automática via triggers (nenhuma feature muda):
+| origem | superfície | contexto | output | avaliação |
+|---|---|---|---|---|
+| voto em `studio_generations` | `studio_image`/`studio_video` | brand_context + prompt_final + formato | provider + url | `vote` up/down (re-voto atualiza) |
+| status em `studio_campaigns` | `campaign` | conceito + formatos + mode | peças geradas (agregadas) | `verdict` concluida/aprovada |
+| sinal `assistant_correction` | `assistant` | pergunta | resposta | `correction` (o rótulo mais valioso) |
+| sinal `content_used` | `content_hub` | item (título/formato/intenção) | briefing | `adoption` |
+
+Idempotente por `unique(fonte_tabela, fonte_id)` + backfill do histórico. Escrita SÓ via triggers (RLS: membros leem, ninguém edita julgamento à mão). Leitura canônica: `fetchDataset()` em `_brain.js`. Destrava fine-tune por tenant no futuro sem retrabalho.
+
 ### `assistant_correction` — o Assistant como superfície de ensino ✅ (2026-07-01)
 Aprofundamento do núcleo (trilho "A"). No `BrandAssistant.jsx`, cada resposta tem um botão **"Ensinar a marca"** → o time corrige/ensina em texto → emite um sinal `assistant_correction` (insert direto em `brand_signals` via RLS do membro; `fonte='assistant'`, `ref_id`=conversa, payload `{pergunta, resposta, correcao}`, **peso 3**). O destilador trata como **ensino humano explícito de altíssima prioridade** (sobrepõe inferências fracas). Validado end-to-end: correção de tom → v2 com a voz reescrita, confiança 0.77→0.79. O Assistant deixa de ser só consumidor e vira **produtor** de inteligência.
 

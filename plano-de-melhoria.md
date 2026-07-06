@@ -71,7 +71,7 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 - **Não** construir SLM/modelo próprio como núcleo. O ativo é o **cérebro (dados + loop)**, não os pesos. Aposta = **frontier LLM (borda trocável) + RAG eficaz sobre dataset proprietário**.
 - **O dataset é o fio central** — `(contexto de marca → output → avaliação humana)`. Valor duplo: melhora o RAG **agora** e destrava fine-tune de pesos **depois**, sem retrabalho.
 - **"Fine-tuning" neste estágio = afinar o SISTEMA** (retrieval + montagem de contexto + prompts), não pesos.
-- **Workstream a iniciar:** schema versionado de coleta do dataset a partir do uso + avaliações (é a maior alavancagem e não depende de mais nada).
+- **Workstream ✅ v1 (2026-07-06):** tabela `brand_dataset` (migration `029`) — exemplos canônicos `(contexto → output → avaliação)` com `schema_versao`, capturados 100% via triggers (votos, verdicts de campanha, correções do Assistant, conteúdos adotados) + backfill do histórico. Leitura via `fetchDataset()` no `_brain.js`. Contínuo: novas superfícies julgadas entram como novas capturas.
 - **Gatilho pra reabrir fine-tune/SLM:** volume alto + custo de API pesando + dataset limpo/validado + tarefa ESTREITA (classificação/tag/dedup de sinais), nunca raciocínio aberto.
 
 ---
