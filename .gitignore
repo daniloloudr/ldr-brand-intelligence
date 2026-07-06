@@ -30,3 +30,4 @@ yarn-error.log*
 
 # planilha de custos (WIP, não versionar)
 specs/custos.csv
+supabase/.temp/
