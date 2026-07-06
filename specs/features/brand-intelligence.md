@@ -136,6 +136,11 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
 
+### Content Hub dentro do cérebro (P2) ✅ (2026-07-06)
+O Content Hub fecha o loop dos DOIS lados:
+- **Lê:** `content-hub-gerar-background.js` injeta `resolveBrandIntelligence()` (identidade + modelo vivo) nos prompts de territórios/ideias — clusters e ideias saem alinhados a voz, território e do/don't aprendidos. `ContentGerarDrawer.jsx` carrega a última versão de `brand_intelligence` (via `compileIntel` de `src/lib/brandIntel.js`, compartilhado com o Assistant) e injeta no prompt do briefing.
+- **Escreve:** "Copiar briefing" = adoção → emite sinal **`content_used`** (`fonte='content_hub'`, payload `{item_tipo, titulo, formato, intencao, cluster, briefing}`, **peso 1.5**, 1x por briefing, insert via RLS do membro). O destilador aprende os temas/formatos/ângulos que o time realmente usa.
+
 ### `assistant_correction` — o Assistant como superfície de ensino ✅ (2026-07-01)
 Aprofundamento do núcleo (trilho "A"). No `BrandAssistant.jsx`, cada resposta tem um botão **"Ensinar a marca"** → o time corrige/ensina em texto → emite um sinal `assistant_correction` (insert direto em `brand_signals` via RLS do membro; `fonte='assistant'`, `ref_id`=conversa, payload `{pergunta, resposta, correcao}`, **peso 3**). O destilador trata como **ensino humano explícito de altíssima prioridade** (sobrepõe inferências fracas). Validado end-to-end: correção de tom → v2 com a voz reescrita, confiança 0.77→0.79. O Assistant deixa de ser só consumidor e vira **produtor** de inteligência.
 

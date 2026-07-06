@@ -38,8 +38,8 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 - **Por que:** é onde o Studio + cérebro brilham juntos e onde está o ROI do cliente (liberar 50% do time). É o que fecha venda.
 - **Extensão (quando houver integração):** conectar com a biblioteca de ads pra saber o que performou e usar o vencedor como referência automática (ela pediu; hoje falta a integração, a inteligência já suporta).
 
-### P2 — Content Hub dentro do cérebro (fechar o gap mais claro)
-- **O que construir:** Content Hub passa a **ler** (`resolveBrandIntelligence` como o Studio) e **escrever** (emitir sinal de conteúdo aprovado/usado).
+### P2 — Content Hub dentro do cérebro ✅ (2026-07-06)
+- **Entregue:** Content Hub **lê** o cérebro (análise server-side via `resolveBrandIntelligence`; briefing no drawer via `compileIntel` compartilhado) e **escreve** (copiar briefing → sinal `content_used`, peso 1.5). Destilador e painel IA LOUDR entendem o sinal novo.
 - **Por que:** hoje o cliente pagante recebe conteúdo com voz/território diferentes do Studio — corrói o "uma marca coerente em tudo" que é o valor. Fechar isso é entregar o pitch.
 
 ### P3 — Inteligência Competitiva (promessa de 2 semanas a prospect vivo)

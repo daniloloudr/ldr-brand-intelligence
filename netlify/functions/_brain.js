@@ -174,6 +174,8 @@ function fmtSignalBody(s) {
     return `[edição do brand book pelo time] (${p.acao})`
   if (s.tipo === 'assistant_correction')
     return `[ENSINO EXPLÍCITO DO TIME no Brand Assistant] pergunta="${(p.pergunta || '').slice(0, 200)}" · o time CORRIGIU/ENSINOU: "${(p.correcao || '').slice(0, 500)}"`
+  if (s.tipo === 'content_used')
+    return `[conteúdo ADOTADO pelo time] ${p.item_tipo === 'ideia' ? 'ideia' : 'keyword'}="${(p.titulo || '').slice(0, 120)}" formato=${p.formato || '?'} intenção=${p.intencao || '?'} briefing="${(p.briefing || '').slice(0, 400)}"`
   return `[${s.tipo}] ${JSON.stringify(p).slice(0, 300)}`
 }
 
@@ -196,6 +198,7 @@ const SYSTEM = [
   '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider). Votos recentes pesam mais que antigos.',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
   '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas e vence empates de recência.',
+  '- content_used = o time ADOTOU um conteúdo/briefing gerado (copiou pra usar). Aprenda com ele os TEMAS, formatos e ângulos de conteúdo que a marca realmente usa — alimenta voz, do_dont e fatos de território de conteúdo.',
   '- competitive descreve CONCORRENTES e o mercado (NÃO a sua marca). Use para AFIAR A DIFERENCIAÇÃO: registre em "fatos" onde cada concorrente se posiciona e quais territórios ele reivindica; em "do_dont" derive movimentos de diferenciação (ex.: não reforçar um território já dominado por concorrente; ocupar espaço livre que nenhum concorrente reivindica); pode calibrar "posicionamento" para o que diferencia. NUNCA atribua atributos/territórios do concorrente à própria marca.',
   '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido (com sua confiança recalibrada).',
   'Responda APENAS com JSON estrito neste schema (sem markdown, sem comentário):',
