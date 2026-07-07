@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig, extractJSON, isDev } from './_ai.js'
+import { resolveBrandIntelligence } from './_brain.js'
 
 function buildDiagContext(diag) {
   if (!diag?.data) return ''
@@ -13,7 +14,7 @@ function buildDiagContext(diag) {
   return parts.join('\n')
 }
 
-function promptTerritorios(dominio, marca, diagCtx, nTerr) {
+function promptTerritorios(dominio, marca, diagCtx, nTerr, brandCtx) {
   return `Você é especialista em SEO.
 
 PASSO 1 — Pesquise e leia o site "${dominio}":
@@ -24,7 +25,7 @@ PASSO 1 — Pesquise e leia o site "${dominio}":
 PASSO 2 — Com base no que leu, identifique:
 - tipo "proprio": termos que LITERALMENTE APARECEM no conteúdo do site — nos títulos, menus, textos de serviços, CTAs, descrições. Não invente — extraia do texto real.
 - tipo "oportunidade": keywords adjacentes que o público-alvo busca mas o site ainda não cobre diretamente.
-${diagCtx ? `\nContexto do negócio:\n${diagCtx}\n` : ''}
+${diagCtx ? `\nContexto do negócio:\n${diagCtx}\n` : ''}${brandCtx ? `\nIdentidade e aprendizado da marca (alinhe territórios e oportunidades a isto):\n${brandCtx}\n` : ''}
 Agrupe em ${nTerr} clusters temáticos. Cada cluster deve ter EXATAMENTE 5 keywords próprias e 5 oportunidades (total 10 por cluster).
 
 Para cada cluster: id (kebab-case), nome descritivo, keywords.
@@ -34,12 +35,12 @@ Retorne APENAS JSON válido, sem markdown:
 {"clusters":[{"id":"...","nome":"...","keywords":[{"termo":"...","tipo":"proprio","intencao":"informacional","volume":"alto","oportunidade":"alta"}]}]}`
 }
 
-function promptIdeias(dominio, diagCtx, clusters, nIdeas) {
+function promptIdeias(dominio, diagCtx, clusters, nIdeas, brandCtx) {
   const lista = clusters.map(c => `- "${c.id}": ${c.nome}`).join('\n')
   return `Você é estrategista de conteúdo.
 
 Para o site "${dominio}", gere ${nIdeas} ideias de conteúdo em português brasileiro.
-${diagCtx ? `\nContexto:\n${diagCtx}\n` : ''}
+${diagCtx ? `\nContexto:\n${diagCtx}\n` : ''}${brandCtx ? `\nIdentidade e aprendizado da marca (as ideias devem soar como ESTA marca — voz, território, do/don't):\n${brandCtx}\n` : ''}
 Grupos de keywords do site:
 ${lista}
 
@@ -51,9 +52,9 @@ Retorne APENAS JSON válido, sem markdown:
 {"ideias":[{"id":"1","titulo":"...","cluster":"...","relevancia":"...","ideia":"...","formato":"Artigo","intencao":"informacional"}]}`
 }
 
-function promptDev(dominio, marca, diagCtx) {
+function promptDev(dominio, marca, diagCtx, brandCtx) {
   return `SEO expert. Business: "${marca}" (${dominio}).
-${diagCtx ? `Context:\n${diagCtx}\n` : ''}
+${diagCtx ? `Context:\n${diagCtx}\n` : ''}${brandCtx ? `Brand identity & learned preferences:\n${brandCtx}\n` : ''}
 Return JSON with 3 keyword clusters and 3 content ideas for this business.
 Each cluster: EXACTLY 5 "proprio" keywords (already used by this business) + 5 "oportunidade" keywords (expansion opportunities). Total 10 per cluster.
 
@@ -98,12 +99,22 @@ export const handler = async (event) => {
   const marca   = ws.nome || ws.dominio
   const diagCtx = buildDiagContext(diag)
 
+  // Cérebro da marca: identidade + modelo vivo aprendido entram como contexto
+  // da análise (P2 — Content Hub lê o cérebro). Sem marca ainda → segue sem.
+  let brandCtx = ''
+  const { data: brand } = await supabase
+    .from('brands').select('id, nome').eq('workspace_id', workspace_id).limit(1).maybeSingle()
+  if (brand) {
+    try { ({ prefix: brandCtx } = await resolveBrandIntelligence(supabase, brand.id, brand.nome)) }
+    catch (e) { console.error('[content] brain context falhou (não-fatal):', e.message) }
+  }
+
   let clusters, ideias
   try {
     if (dev) {
       const { text } = await callAI({
         ...aiConfig('fast'),
-        messages: [{ role: 'user', content: promptDev(dominio, marca, diagCtx) }],
+        messages: [{ role: 'user', content: promptDev(dominio, marca, diagCtx, brandCtx) }],
       })
       const parsed = extractJSON(text)
       clusters = parsed?.clusters
@@ -114,7 +125,7 @@ export const handler = async (event) => {
       const resC = await callAI({
         ...cfg,
         maxTokens: 5000,
-        messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6) }],
+        messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6, brandCtx) }],
       })
       clusters = extractJSON(resC.text)?.clusters
       if (!clusters?.length) throw new Error('Análise inválida retornada pela IA')
@@ -122,7 +133,7 @@ export const handler = async (event) => {
       const resI = await callAI({
         ...cfg,
         maxTokens: 2000,
-        messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6) }],
+        messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6, brandCtx) }],
       })
       ideias = extractJSON(resI.text)?.ideias
     }

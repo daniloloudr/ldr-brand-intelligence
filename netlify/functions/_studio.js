@@ -1,13 +1,14 @@
 // ════════════════════════════════════════════════════════════════════
 // _studio.js — núcleo compartilhado do Studio
-// - brand context (resolve + compila) reaproveitado por generate e campaign
 // - submissão de geração (fal + insert + poll dev)
 // - finalização (baixa do fal → R2 → update) + conclusão de campanha
+// Contexto de marca vive no cérebro (_brain.js → resolveBrandIntelligence).
 // ════════════════════════════════════════════════════════════════════
 import { putObject, storageConfigured } from './_storage.js'
 import { isDev } from './_ai.js'
 import { submitImageJob, firstImageUrl } from './_image.js'
 import { submitVideoJob, firstVideoUrl } from './_video.js'
+import { resolveBrandIntelligence } from './_brain.js'
 
 const EXT = {
   'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp',
@@ -21,91 +22,6 @@ export const extractMediaUrl = (payload, mediaType) =>
 export function siteBase() {
   // Netlify injeta URL/DEPLOY_PRIME_URL em prod. Em dev, localhost.
   return (process.env.URL || process.env.DEPLOY_PRIME_URL || 'http://localhost:8888').replace(/\/$/, '')
-}
-
-// ── Brand context ────────────────────────────────────────────────────
-const arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
-
-// facets controla quais facetas da marca entram no contexto: { verbal, visual }.
-// Default = ambas (compat). No Workflow, nós Brand Voice/Brand Visual escolhem.
-export function compileBrandContext({ brandBook, tokens, brandNome, facets }) {
-  const useVerbal = facets ? !!facets.verbal : true
-  const useVisual = facets ? !!facets.visual : true
-  const v  = brandBook?.verbal_identity || {}
-  const vi = brandBook?.visual_identity || {}
-
-  const cores = (tokens || [])
-    .filter(t => /^color/i.test(t.nome || '') || t.categoria === 'color')
-    .map(t => t.valor).filter(Boolean)
-  const paleta = arr(vi.paleta).map(p => p?.hex || p?.valor || p).filter(Boolean)
-  const todasCores = [...new Set([...paleta, ...cores])].slice(0, 8)
-
-  const personalidade = [...new Set([...arr(v.personalidade), ...arr(v.tom_atributos)].filter(Boolean))]
-  const tipografia = [vi.tipo_principal_nome, vi.tipo_secundario_nome, vi.tipo_display].filter(Boolean)
-  const estetica = [vi.foto_mood, vi.foto_luz_edicao, vi.foto_enquadramento, vi.ilustracao_estilo, vi.icone_estilo].filter(Boolean)
-  const evitar = [
-    ...(useVerbal ? [v.tom_evitar] : []),
-    ...(useVisual ? [arr(vi.usos_proibidos).join('; '), arr(vi.foto_dont).join('; ')] : []),
-  ].filter(Boolean)
-
-  const linhas = []
-  linhas.push(`Marca: ${brandNome || ''}`)
-  if (useVerbal && (v.posicionamento || v.proposta_valor)) linhas.push(`Posicionamento: ${v.posicionamento || v.proposta_valor}`)
-  if (useVerbal && personalidade.length) linhas.push(`Personalidade: ${personalidade.join(', ')} — a peça deve transmitir isso`)
-  if (useVerbal && v.tom_voz) linhas.push(`Tom: ${v.tom_voz}`)
-  if (useVisual && todasCores.length) linhas.push(`Paleta (use como cores dominantes): ${todasCores.join(', ')}`)
-  if (useVisual && tipografia.length) linhas.push(`Tipografia (se houver texto): ${tipografia.join(', ')}`)
-  if (useVisual && estetica.length) linhas.push(`Estética visual: ${estetica.join('; ')}`)
-  if (evitar.length) linhas.push(`Evitar: ${evitar.join('; ')}`)
-
-  const prefix = `[BRAND CONTEXT]\n${linhas.join('\n')}`
-  const snapshot = { facets: { verbal: useVerbal, visual: useVisual }, verbal: v, visual: vi, cores: todasCores, personalidade, tipografia, estetica }
-  return { prefix, snapshot }
-}
-
-/** Lê brand_book (linha mais recente) + tokens e compila o brand context. */
-export async function resolveBrandContext(supabase, brand_id, brandNome, facets) {
-  const [{ data: bbRows }, { data: tokens }] = await Promise.all([
-    supabase.from('brand_books').select('verbal_identity, visual_identity')
-      .eq('brand_id', brand_id).order('updated_at', { ascending: false }).limit(1),
-    supabase.from('design_tokens').select('nome, valor, categoria').eq('brand_id', brand_id),
-  ])
-  return compileBrandContext({ brandBook: bbRows?.[0] || null, tokens, brandNome, facets })
-}
-
-// Compila o modelo vivo (destilado) em linhas acionáveis para o prompt de geração.
-function compileIntelligence(m) {
-  const lines = []
-  const pv = m?.preferencias_visuais || {}
-  const aprov  = (pv.aprovado  || []).map(a => a?.padrao).filter(Boolean)
-  const reprov = (pv.reprovado || []).map(a => a?.padrao).filter(Boolean)
-  if (aprov.length)  lines.push(`Padrões que a marca APROVA (priorize): ${aprov.join('; ')}`)
-  if (reprov.length) lines.push(`Padrões que a marca REPROVA (evite): ${reprov.join('; ')}`)
-  if (pv.modelo_preferido?.provider) lines.push(`Estilo/modelo que mais performa: ${pv.modelo_preferido.provider}`)
-  const dos   = (m?.do_dont?.do   || []).filter(Boolean)
-  const donts = (m?.do_dont?.dont || []).filter(Boolean)
-  if (dos.length)   lines.push(`Faça: ${dos.join('; ')}`)
-  if (donts.length) lines.push(`Não faça: ${donts.join('; ')}`)
-  const fatos = (m?.fatos || []).filter(f => f?.fato && (f.confianca ?? 1) >= 0.5).map(f => f.fato)
-  if (fatos.length) lines.push(`Fatos consolidados: ${fatos.join('; ')}`)
-  return lines.length ? lines.join('\n') : null
-}
-
-// ── Porta ÚNICA de contexto de marca (Camada de Inteligência) ──────────
-// Toda IA de borda passa por aqui: brand context estático + o modelo vivo
-// destilado dos brand_signals (última versão) → realimenta a geração.
-// Trocar modelo de borda nunca toca aqui. Spec: brand-intelligence.md
-export async function resolveBrandIntelligence(supabase, brand_id, brandNome, facets) {
-  const base = await resolveBrandContext(supabase, brand_id, brandNome, facets)
-  const { data: bi } = await supabase.from('brand_intelligence')
-    .select('versao, modelo').eq('brand_id', brand_id)
-    .order('versao', { ascending: false }).limit(1).maybeSingle()
-  const learned = bi?.modelo ? compileIntelligence(bi.modelo) : null
-  if (!learned) return base
-  return {
-    prefix: `${base.prefix}\n\n[INTELIGÊNCIA DA MARCA — aprendido com o uso (v${bi.versao})]\n${learned}`,
-    snapshot: { ...base.snapshot, intelligence_versao: bi.versao },
-  }
 }
 
 // ── Submissão de uma geração (fal + insert + poll dev) ───────────────

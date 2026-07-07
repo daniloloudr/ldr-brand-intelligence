@@ -6,6 +6,8 @@ import CloseIcon       from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import CheckIcon       from '@mui/icons-material/Check'
+import { supabase } from '../../lib/supabase'
+import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 
 const API_URL = import.meta.env.DEV
@@ -17,11 +19,12 @@ const OPOR_COR     = { alta: '#0D9E7A', media: '#EF9F27', baixa: '#8A9AB0' }
 const VOL_COR      = { alto: '#0D9E7A', medio: '#EF9F27', baixo: '#8A9AB0' }
 const VOL_LABEL    = { alto: 'Alto', medio: 'Médio', baixo: 'Nicho' }
 
-function buildPrompt(item, workspace) {
+function buildPrompt(item, workspace, intelBlock) {
   const marca = workspace.dominio || workspace.nome
+  const intel = intelBlock ? `\n${intelBlock}\n` : ''
   if (item._tipo === 'ideia') {
     return `Você é estrategista de conteúdo.
-
+${intel}
 Crie um briefing de conteúdo para o site "${marca}":
 
 Título da ideia: "${item.titulo}"
@@ -50,7 +53,7 @@ Responda em português brasileiro, direto ao ponto.`
   }
 
   return `Você é especialista em SEO e estratégia de conteúdo.
-
+${intel}
 Crie um briefing de conteúdo para o site "${marca}":
 
 Palavra-chave: "${item.termo}"
@@ -78,7 +81,23 @@ Gere exatamente nessa estrutura, usando markdown:
 Responda em português brasileiro, direto ao ponto.`
 }
 
-async function streamBrief({ item, workspace, onText, onDone, onError }) {
+// Lê o cérebro da marca (modelo vivo destilado) p/ o briefing sair on-brand.
+// Devolve { brand, intelBlock } — falha silenciosa (briefing sem intel ainda funciona).
+async function loadBrainContext(workspaceId) {
+  try {
+    const { data: brand } = await supabase.from('brands')
+      .select('id, nome').eq('workspace_id', workspaceId).limit(1).maybeSingle()
+    if (!brand) return { brand: null, intelBlock: '' }
+    const { data: bi } = await supabase.from('brand_intelligence')
+      .select('versao, modelo').eq('brand_id', brand.id)
+      .order('versao', { ascending: false }).limit(1).maybeSingle()
+    return { brand, intelBlock: compileIntel(bi?.modelo, bi?.versao) }
+  } catch {
+    return { brand: null, intelBlock: '' }
+  }
+}
+
+async function streamBrief({ item, workspace, intelBlock, onText, onDone, onError }) {
   let attempt = 0
   while (attempt < MAX_RETRIES) {
     attempt++
@@ -94,7 +113,7 @@ async function streamBrief({ item, workspace, onText, onDone, onError }) {
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
           stream: true,
-          messages: [{ role: 'user', content: buildPrompt(item, workspace) }],
+          messages: [{ role: 'user', content: buildPrompt(item, workspace, intelBlock) }],
         }),
       })
 
@@ -170,24 +189,55 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
   const [text, setText]          = useState('')
   const [error, setError]        = useState('')
   const [copied, setCopied]      = useState(false)
+  const [brain, setBrain]        = useState({ brand: null, intelBlock: '' })
+  const [signaled, setSignaled]  = useState(false)
 
   useEffect(() => {
     if (!open || !item) return
+    let cancelled = false
     setText('')
     setError('')
+    setSignaled(false)
     setStreaming(true)
-    streamBrief({
-      item,
-      workspace,
-      onText:  t => setText(t),
-      onDone:  t => { setText(t); setStreaming(false) },
-      onError: e => { setError(e); setStreaming(false) },
+    loadBrainContext(workspace.id).then(ctx => {
+      if (cancelled) return
+      setBrain(ctx)
+      streamBrief({
+        item,
+        workspace,
+        intelBlock: ctx.intelBlock,
+        onText:  t => setText(t),
+        onDone:  t => { setText(t); setStreaming(false) },
+        onError: e => { setError(e); setStreaming(false) },
+      })
     })
+    return () => { cancelled = true }
   }, [open, item])
+
+  // Copiar = o time ADOTOU o briefing → sinal 'content_used' pro cérebro
+  // (fecha o loop do Content Hub na escrita). Uma vez por briefing.
+  function emitContentUsed() {
+    if (signaled || !brain.brand?.id || !workspace?.id) return
+    setSignaled(true)
+    supabase.from('brand_signals').insert({
+      brand_id: brain.brand.id, workspace_id: workspace.id,
+      tipo: 'content_used', fonte: 'content_hub', ref_id: null,
+      payload: {
+        item_tipo: item?._tipo || 'keyword',
+        titulo:    (item?._tipo === 'ideia' ? item?.titulo : item?.termo) || '',
+        formato:   item?.formato || null,
+        intencao:  item?.intencao || null,
+        cluster:   item?.cluster || null,
+        briefing:  (text || '').slice(0, 1500),
+      },
+      peso: 1.5,
+    }).then(({ error: e }) => { if (e) console.error('[content] signal falhou:', e.message) })
+  }
 
   async function handleCopy() {
     if (!text) return
     await navigator.clipboard.writeText(text).catch(() => {})
+    emitContentUsed()
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -272,8 +322,8 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
               <Button
                 variant="outlined" size="small" fullWidth
                 startIcon={<AutoAwesomeIcon sx={{ fontSize: '13px !important' }} />}
-                onClick={() => { setText(''); setStreaming(true); streamBrief({
-                  item, workspace,
+                onClick={() => { setText(''); setSignaled(false); setStreaming(true); streamBrief({
+                  item, workspace, intelBlock: brain.intelBlock,
                   onText: t => setText(t),
                   onDone: t => { setText(t); setStreaming(false) },
                   onError: e => { setError(e); setStreaming(false) },

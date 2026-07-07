@@ -102,6 +102,7 @@ Esboço de `modelo` (jsonb):
 
 ### 4. Porta de saída única — `resolveBrandIntelligence()`
 Evolução do `resolveBrandContext` atual. **A única** função que qualquer IA de borda chama para obter contexto de marca. Imagem, Assistente, diagnóstico, conteúdo — todos passam por aqui. Trocar modelo de borda nunca toca nisso.
+- **Desde 2026-07-06 vive em `netlify/functions/_brain.js`** — o cérebro extraído como módulo único com as 4 operações: `emitSignal` (ingest), `distillBrand` (destilação; `brand-distill-background.js` é só wrapper HTTP), `searchBrandKnowledge` (busca semântica; `brand-book-search.js` é só wrapper HTTP) e `resolveBrandIntelligence` (contexto). `_studio.js` voltou a ser só Studio.
 - Retorna o contexto destilado **+** (opcional) os trechos crus ainda relevantes, no formato que cada consumidor precisa (prefixo de prompt, chunks de RAG, etc.).
 - O **RAG do Brand Assistant** (`brand_book_chunks`) passa a ser **re-derivado a partir do modelo vivo**, não só do brand book digitado. ✅ Implementado (trilho B) — ver abaixo.
 
@@ -117,7 +118,7 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 
 ## Faseamento — status de implementação (2026-07-01)
 
-- **Fase 0 — Espinha dorsal ✅** `brand_signals` (append-only, RLS) + emissão via **triggers no banco** (image_vote, campaign_verdict, diagnostic, listening_sentiment, brandbook_edit) + backfill dos votos/campanhas existentes. Porta única `resolveBrandIntelligence()` em `_studio.js`; generate/video/campaign/prompt roteados por ela. Migration `025_brand_signals.sql`.
+- **Fase 0 — Espinha dorsal ✅** `brand_signals` (append-only, RLS) + emissão via **triggers no banco** (image_vote, campaign_verdict, diagnostic, listening_sentiment, brandbook_edit) + backfill dos votos/campanhas existentes. Porta única `resolveBrandIntelligence()` (hoje em `_brain.js`); generate/video/campaign/prompt roteados por ela. Migration `025_brand_signals.sql`.
 - **Fase 1 — Modelo vivo + destilador ✅** `brand_intelligence` versionado (migration `026`). Destilador `brand-distill-background.js` (Sonnet, idempotente via `consumido_em`). `resolveBrandIntelligence` realimenta a geração com o modelo destilado. Automação: `brand-distill-cron.js` (netlify.toml `0 7 * * *`, limiar `BRAND_DISTILL_THRESHOLD`).
 - **Fase 2 — Realimentar o Assistente ✅** `BrandAssistant.jsx` carrega a última versão e injeta o bloco "Inteligência da marca (aprendido com o uso)" no system prompt (preferências visuais, do/don't, win-rate por provider, fatos). *(RAG re-derivado dos chunks fica como aprofundamento opcional — o modelo destilado é compacto e vai direto no contexto.)*
 - **Fase 3 — Métricas e proveniência ✅** Painel `BrandIntelligence.jsx`: confiança média + evolução por versão (recharts), approval-rate, win-rate por provider, modelo vivo legível, proveniência por tipo de sinal.
@@ -134,6 +135,34 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 | `trg_signal_diagnostic` | `diagnosticos` | `diagnostic` (migration 027: captura `territorios_possiveis` + emite na conclusão `status='done'`) |
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
+
+### Writing Room (E1) ✅ (2026-07-06)
+Nova superfície do Studio (`#/app/brands/:id/studio/writing`): copy de marketing com **frameworks guiados por formato** (legenda, carrossel, roteiro de reel, copy de anúncio Meta, e-mail — catálogo em `src/lib/writingFrameworks.js`; estrutura fixa da peça vem do framework, a voz vem do cérebro). System prompt = identidade verbal do brand book + `compileIntel` (modelo vivo). Streaming Sonnet via proxy `anthropic.js` (padrão Assistant). **"Copiar peça" = adoção** → sinal `content_used` (`fonte='writing_room'`, cluster=framework, peso 1.5) → alimenta a faceta `conteudo` do destilador e o `brand_dataset`. Chip "Escrevendo com a inteligência da marca (vN)" quando há cérebro.
+
+### Content Hub dentro do cérebro (P2) ✅ (2026-07-06)
+O Content Hub fecha o loop dos DOIS lados:
+- **Lê:** `content-hub-gerar-background.js` injeta `resolveBrandIntelligence()` (identidade + modelo vivo) nos prompts de territórios/ideias — clusters e ideias saem alinhados a voz, território e do/don't aprendidos. `ContentGerarDrawer.jsx` carrega a última versão de `brand_intelligence` (via `compileIntel` de `src/lib/brandIntel.js`, compartilhado com o Assistant) e injeta no prompt do briefing.
+- **Escreve:** "Copiar briefing" = adoção → emite sinal **`content_used`** (`fonte='content_hub'`, payload `{item_tipo, titulo, formato, intencao, cluster, briefing}`, **peso 1.5**, 1x por briefing, insert via RLS do membro). O destilador aprende os temas/formatos/ângulos que o time realmente usa.
+
+### Enriquecimento do modelo vivo ✅ (2026-07-06)
+Três avanços no núcleo:
+1. **Taxonomia garantida por código** — `normalizeModelo()` em `_brain.js`: toda versão gravada passa por normalização (facetas conhecidas, tipos coagidos, confianças clampadas em [0,1], listas com teto, chaves desconhecidas descartadas). O LLM propõe; o código garante o shape. Consumidores podem confiar.
+2. **Facetas novas** — `territorio` (o território que a marca deve reivindicar, derivado de diagnostic × competitive) e `conteudo` `{temas, formatos, angulos}` (derivado de content_used + campanhas aprovadas). Fluem por toda a cadeia: destilador → compileIntelligence (geração) → intelChunks (RAG `intel:territorio`/`intel:conteudo`) → compileIntel (Assistant/Content) → painel (listas + diff + chip "Território recalibrado").
+3. **Métrica de assertividade por versão** — coluna `metricas` em `brand_intelligence` (migration `030`): a cada destilação grava o desempenho OBSERVADO sob a versão anterior (`approval_sob_versao_anterior` = votos 👍 desde a última destilação). O gráfico de evolução do painel ganhou a série "Aprovação das peças" ao lado da confiança — é a prova de que o cérebro **evolui**, não só muda.
+
+### Painel admin cross-tenant — "Cérebros" ✅ (2026-07-06)
+Aba **Cérebros** no painel interno (`AppInterno.jsx`, acesso `is_platform_admin`): visão de TODOS os cérebros de marca — KPIs globais (cérebros ativos, confiança média, sinais pendentes, tamanho do dataset) + tabela por marca (versão, confiança com delta vs anterior, sinais/pendentes, exemplos no dataset, approval-rate do Studio, última destilação) + botão **"Destilar agora"** (dispara `brand-distill-background` sob demanda). Diferente da tela IA LOUDR do cliente, aqui a copy PODE falar do mecanismo — é interna.
+
+### Dataset — `(contexto → output → avaliação humana)` ✅ v1 (2026-07-06)
+O fio central da estratégia de modelo (plano-de-melhoria §4): tabela **`brand_dataset`** (migration `029`) com exemplos canônicos e versionados (`schema_versao`) por marca — só entram exemplos **julgados por humano**. Captura 100% automática via triggers (nenhuma feature muda):
+| origem | superfície | contexto | output | avaliação |
+|---|---|---|---|---|
+| voto em `studio_generations` | `studio_image`/`studio_video` | brand_context + prompt_final + formato | provider + url | `vote` up/down (re-voto atualiza) |
+| status em `studio_campaigns` | `campaign` | conceito + formatos + mode | peças geradas (agregadas) | `verdict` concluida/aprovada |
+| sinal `assistant_correction` | `assistant` | pergunta | resposta | `correction` (o rótulo mais valioso) |
+| sinal `content_used` | `content_hub` | item (título/formato/intenção) | briefing | `adoption` |
+
+Idempotente por `unique(fonte_tabela, fonte_id)` + backfill do histórico. Escrita SÓ via triggers (RLS: membros leem, ninguém edita julgamento à mão). Leitura canônica: `fetchDataset()` em `_brain.js`. Destrava fine-tune por tenant no futuro sem retrabalho.
 
 ### `assistant_correction` — o Assistant como superfície de ensino ✅ (2026-07-01)
 Aprofundamento do núcleo (trilho "A"). No `BrandAssistant.jsx`, cada resposta tem um botão **"Ensinar a marca"** → o time corrige/ensina em texto → emite um sinal `assistant_correction` (insert direto em `brand_signals` via RLS do membro; `fonte='assistant'`, `ref_id`=conversa, payload `{pergunta, resposta, correcao}`, **peso 3**). O destilador trata como **ensino humano explícito de altíssima prioridade** (sobrepõe inferências fracas). Validado end-to-end: correção de tom → v2 com a voz reescrita, confiança 0.77→0.79. O Assistant deixa de ser só consumidor e vira **produtor** de inteligência.

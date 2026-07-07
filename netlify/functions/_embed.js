@@ -39,6 +39,8 @@ export function intelChunks(modelo) {
     push('intel:posicionamento', `Posicionamento que a marca comprovou pelo uso real: ${txt(modelo.posicionamento)}`)
   if (modelo.voz?.valor)
     push('intel:voz', `Voz da marca, aprendida e reforçada pelo uso real: ${txt(modelo.voz)}`)
+  if (modelo.territorio?.valor)
+    push('intel:territorio', `Território de posicionamento que a marca deve reivindicar (aprendido dos diagnósticos e do mapa competitivo): ${txt(modelo.territorio)}`)
 
   const pv = modelo.preferencias_visuais || {}
   for (const a of (pv.aprovado  || [])) push('intel:aprovado',  `Visual APROVADO pela marca (comprovado por avaliações reais): ${txt(a)}`)
@@ -49,6 +51,10 @@ export function intelChunks(modelo) {
   const dd = modelo.do_dont || {}
   for (const d of (dd.do   || [])) push('intel:do',   `A marca DEVE (aprendido pelo uso): ${txt(d)}`)
   for (const d of (dd.dont || [])) push('intel:dont', `A marca NÃO DEVE (aprendido pelo uso): ${txt(d)}`)
+
+  const ct = modelo.conteudo || {}
+  for (const t of (ct.temas   || [])) push('intel:conteudo', `Tema de conteúdo que a marca realmente usa (comprovado por adoção): ${txt(t)}`)
+  for (const a of (ct.angulos || [])) push('intel:conteudo', `Ângulo de conteúdo que funciona para a marca: ${txt(a)}`)
 
   for (const f of (modelo.fatos || [])) push('intel:fato', `Fato aprendido sobre a marca: ${txt(f)}`)
 

@@ -1,6 +1,8 @@
 # Plano de Desenvolvimento — LOUDR Brand Intelligence
 
 > Reescrito a partir do **discurso de negócio** (apresentação VHITA, 03/07/2026). Ordena o desenvolvimento por **valor de negócio validado por comprador real**, não por pureza técnica. Estado atual ancorado no código (não especulativo).
+>
+> **⚠️ Tarefas vivem no [`BACKLOG.md`](./BACKLOG.md) (canônico desde 06/07/2026).** Este documento é estratégia e contexto.
 
 ---
 
@@ -38,8 +40,8 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 - **Por que:** é onde o Studio + cérebro brilham juntos e onde está o ROI do cliente (liberar 50% do time). É o que fecha venda.
 - **Extensão (quando houver integração):** conectar com a biblioteca de ads pra saber o que performou e usar o vencedor como referência automática (ela pediu; hoje falta a integração, a inteligência já suporta).
 
-### P2 — Content Hub dentro do cérebro (fechar o gap mais claro)
-- **O que construir:** Content Hub passa a **ler** (`resolveBrandIntelligence` como o Studio) e **escrever** (emitir sinal de conteúdo aprovado/usado).
+### P2 — Content Hub dentro do cérebro ✅ (2026-07-06)
+- **Entregue:** Content Hub **lê** o cérebro (análise server-side via `resolveBrandIntelligence`; briefing no drawer via `compileIntel` compartilhado) e **escreve** (copiar briefing → sinal `content_used`, peso 1.5). Destilador e painel IA LOUDR entendem o sinal novo.
 - **Por que:** hoje o cliente pagante recebe conteúdo com voz/território diferentes do Studio — corrói o "uma marca coerente em tudo" que é o valor. Fechar isso é entregar o pitch.
 
 ### P3 — Inteligência Competitiva (promessa de 2 semanas a prospect vivo)
@@ -71,7 +73,7 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 - **Não** construir SLM/modelo próprio como núcleo. O ativo é o **cérebro (dados + loop)**, não os pesos. Aposta = **frontier LLM (borda trocável) + RAG eficaz sobre dataset proprietário**.
 - **O dataset é o fio central** — `(contexto de marca → output → avaliação humana)`. Valor duplo: melhora o RAG **agora** e destrava fine-tune de pesos **depois**, sem retrabalho.
 - **"Fine-tuning" neste estágio = afinar o SISTEMA** (retrieval + montagem de contexto + prompts), não pesos.
-- **Workstream a iniciar:** schema versionado de coleta do dataset a partir do uso + avaliações (é a maior alavancagem e não depende de mais nada).
+- **Workstream ✅ v1 (2026-07-06):** tabela `brand_dataset` (migration `029`) — exemplos canônicos `(contexto → output → avaliação)` com `schema_versao`, capturados 100% via triggers (votos, verdicts de campanha, correções do Assistant, conteúdos adotados) + backfill do histórico. Leitura via `fetchDataset()` no `_brain.js`. Contínuo: novas superfícies julgadas entram como novas capturas.
 - **Gatilho pra reabrir fine-tune/SLM:** volume alto + custo de API pesando + dataset limpo/validado + tarefa ESTREITA (classificação/tag/dedup de sinais), nunca raciocínio aberto.
 
 ---
@@ -80,20 +82,26 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 
 - **(a) Superfícies (App Netlify)** — Brand Book, Posicionamento, Studio, Content, painéis. Clientes finos que chamam o cérebro.
 - **(b) Borda (`_ai.js`)** — fina, única porta pra LLM/embeddings de terceiros, trocável.
-- **(c) Cérebro de Marca** — a camada de inteligência como **serviço próprio** (ingest / distill / search / buildContext), o IP. Hoje mora dentro do `_studio.js` (`resolveBrandIntelligence`); a evolução é **extrair pra um módulo/serviço único** que toda superfície usa. Extração incremental do que já existe — não greenfield.
+- **(c) Cérebro de Marca** — a camada de inteligência como **serviço próprio** (ingest / distill / search / buildContext), o IP. **✅ Extraído (2026-07-06) para `netlify/functions/_brain.js`**: `emitSignal` / `distillBrand` / `searchBrandKnowledge` / `resolveBrandIntelligence`. `brand-distill-background.js` e `brand-book-search.js` viraram wrappers HTTP finos; `_studio.js` voltou a ser só Studio. Próxima evolução: serviço com fila/estado durável fora do teto do Netlify, quando o volume pedir.
 
 ---
 
-## Ordem de execução (decisão 04/07: competitiva lidera pelo prazo do deal)
+## Ordem de execução (revista 06/07 — cérebro consolidado, evoluções de produto na fila)
 
-**Sustentação (feito):** code-splitting ✅ · `StudioCanvas` refatorado ✅ · chave no bundle já ok ✅
+**Feito:** sustentação ✅ · P3 Competitiva ✅ · P2 Content Hub ✅ · `_brain.js` extraído ✅ · dataset (`brand_dataset`) ✅ · painel admin Cérebros ✅ · enriquecimento do modelo vivo (taxonomia + territorio/conteudo + métricas por versão) ✅
 
-1. **🎯 P3 — Inteligência Competitiva (LIDERA).** Promessa de ~2 semanas a prospect vivo (VHITA). Ver escopo detalhado abaixo (§ Inteligência Competitiva — plano de entrega).
-2. **P1 — loop de criativo on-brand** (killer app, maior valor recorrente).
-3. **P2 — Content Hub no cérebro** (fecha o gap pitch↔código).
-4. **P4 — painel de memória** (ativo comercial, em paralelo).
-5. **Workstream do dataset** (contínuo, destrava o futuro).
-6. **Isolamento por tenant + flywheel completo** — endurecer conforme as contas crescem.
+### Evoluções de produto (gap analysis vs Pupila, 06/07/2026)
+
+Contexto: **Pupila** (pupila.ai, SP, US$ 1M, 2024) = "nosso Studio como produto inteiro", com DNA de marca **estático** (configuração, sem aprendizado). Regra: fechar primeiro os gaps que **fortalecem o cérebro**; nunca deixar o pitch virar "gerador de imagem on-brand".
+
+1. **E1 — Writing Room on-brand** (porta de entrada do P1). Superfície dedicada de copy de marketing (legenda, headline, mensagem de campanha) injetando o cérebro (voz aprendida + territorio + conteudo.temas) e emitindo sinal de adoção. Consumidor E produtor de inteligência — a nossa versão nasce melhor que a deles por design.
+2. **E2 — P1: loop de criativo on-brand** (killer app). "Criativo vencedor → entende a lógica → N variações on-brand" com o cérebro como referência. **Extensão creative testing:** conectar performance real (Meta Ads / biblioteca de ads — a Raquel pediu) como o sinal mais valioso do dataset.
+3. **E3 — Edit & Enhance na galeria.** Os apps Ampliar/Remover fundo/Variação JÁ existem (nós do Workflow) — expor com 1 clique na página Imagem/galeria. Polimento que neutraliza o argumento de demo deles.
+4. **E4 — Biblioteca de assets (F12).** `brand_assets` já grava; falta frontend com pastas, tags e busca.
+5. **P4 — painel de memória como material comercial** (em paralelo; a série de aprovação por versão já é argumento).
+6. **Contínuos:** dataset (export fine-tune quando volume crescer) · isolamento por tenant conforme contas crescem · cérebro como serviço próprio quando o volume pedir.
+
+**📌 ANOTADO para decisão futura (não é corrida agora):** trial self-service (Pupila tem; LOUDR é invite-only por decisão). Reavaliar quando o modelo comercial/pricing estiver validado.
 
 ## Inteligência Competitiva — plano de entrega (2 semanas)
 
