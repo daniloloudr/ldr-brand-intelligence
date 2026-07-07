@@ -8,9 +8,9 @@
 
 ## 🔴 Agora — valor direto de venda
 
-1. **Deploy: merge `dev → main`** — 11 commits validados (cérebro como camada completa: `_brain.js`, flywheel, dataset, painel Cérebros, enriquecimento). Validar na UI antes: `#/admin` → Cérebros · IA LOUDR (série de aprovação + território) · Content Hub on-brand.
+1. ~~**Deploy: merge `dev → main`**~~ ✅ (2026-07-07) — cérebro completo + Writing Room em produção (deploy ready no Netlify).
 2. ~~**E1 — Writing Room on-brand**~~ ✅ (2026-07-06) — `#/app/brands/:id/studio/writing` (nav Brand Studio): 5 frameworks guiados (legenda, carrossel, reel, anúncio, e-mail — `writingFrameworks.js`), system prompt = identidade verbal + `compileIntel` (cérebro), streaming Sonnet via proxy, "Copiar peça" emite `content_used` (fonte `writing_room`) → destilador + dataset.
-3. **E2 — P1: loop de criativo on-brand INTEGRADO COM META** *(killer app)* — visão da Raquel/VHITA: **integrado com a Meta** (não é extensão, é o coração). (a) **Motor de desdobramento:** criativo vencedor → visão/LLM entende a lógica → N variações on-brand via cérebro. (b) **Integração Meta Marketing API:** conecta a conta de anúncios do workspace (OAuth), identifica os vencedores AUTOMATICAMENTE (CTR/conversão/spend), e a performance real vira sinal (`ad_performance`) no cérebro + dataset — o rótulo mais valioso possível. ⚠️ Meta exige app + App Review (`ads_read`) + business verification — **iniciar o registro do app cedo** (semanas de aprovação); o motor (a) funciona standalone (upload/galeria) enquanto o acesso não sai, já desenhado Meta-ready.
+3. *(E2 — loop de criativo com Meta: **movido para "Depois", CONDICIONADO ao fechamento do deal VHITA** — decisão 2026-07-07.)*
 
 ## 🟠 Próximo — fortalece produto e pitch
 
@@ -20,6 +20,8 @@
 7. **Dogfooding competitiva** — cadastrar a **Pupila** como concorrente no Posicionamento do workspace LOUDR (diagnóstico + clipping + cérebro). ~10 min.
 
 ## 🟡 Depois — fundação e escala
+
+7b. **E2 — P1: loop de criativo on-brand INTEGRADO COM META** *(killer app — **GATILHO: deal VHITA fechado**, decisão 2026-07-07: só constrói com a conta real dela para integrar)* — visão da Raquel: **integrado com a Meta** (não é extensão, é o coração). (a) **Motor de desdobramento:** criativo vencedor → visão/LLM entende a lógica → N variações on-brand via cérebro. (b) **Integração Meta Marketing API:** conecta a conta de anúncios do workspace (OAuth), identifica vencedores AUTOMATICAMENTE (CTR/conversão/spend), performance real vira sinal (`ad_performance`) no cérebro + dataset. ⚠️ Ao disparar o gatilho, **registrar o app na Meta IMEDIATAMENTE** (App Review `ads_read` + business verification = semanas); o motor (a) pode nascer standalone Meta-ready enquanto o acesso não sai.
 
 8. **Dataset: export de fine-tune** — JSONL por tenant a partir de `brand_dataset` + critérios de qualidade/dedup. Gatilho: volume de exemplos crescendo.
 9. **Isolamento por tenant** — backup/versionamento por cérebro, zero vazamento entre marcas. Gatilho: contas crescendo.
