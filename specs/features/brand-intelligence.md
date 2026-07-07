@@ -141,6 +141,12 @@ O Content Hub fecha o loop dos DOIS lados:
 - **Lê:** `content-hub-gerar-background.js` injeta `resolveBrandIntelligence()` (identidade + modelo vivo) nos prompts de territórios/ideias — clusters e ideias saem alinhados a voz, território e do/don't aprendidos. `ContentGerarDrawer.jsx` carrega a última versão de `brand_intelligence` (via `compileIntel` de `src/lib/brandIntel.js`, compartilhado com o Assistant) e injeta no prompt do briefing.
 - **Escreve:** "Copiar briefing" = adoção → emite sinal **`content_used`** (`fonte='content_hub'`, payload `{item_tipo, titulo, formato, intencao, cluster, briefing}`, **peso 1.5**, 1x por briefing, insert via RLS do membro). O destilador aprende os temas/formatos/ângulos que o time realmente usa.
 
+### Enriquecimento do modelo vivo ✅ (2026-07-06)
+Três avanços no núcleo:
+1. **Taxonomia garantida por código** — `normalizeModelo()` em `_brain.js`: toda versão gravada passa por normalização (facetas conhecidas, tipos coagidos, confianças clampadas em [0,1], listas com teto, chaves desconhecidas descartadas). O LLM propõe; o código garante o shape. Consumidores podem confiar.
+2. **Facetas novas** — `territorio` (o território que a marca deve reivindicar, derivado de diagnostic × competitive) e `conteudo` `{temas, formatos, angulos}` (derivado de content_used + campanhas aprovadas). Fluem por toda a cadeia: destilador → compileIntelligence (geração) → intelChunks (RAG `intel:territorio`/`intel:conteudo`) → compileIntel (Assistant/Content) → painel (listas + diff + chip "Território recalibrado").
+3. **Métrica de assertividade por versão** — coluna `metricas` em `brand_intelligence` (migration `030`): a cada destilação grava o desempenho OBSERVADO sob a versão anterior (`approval_sob_versao_anterior` = votos 👍 desde a última destilação). O gráfico de evolução do painel ganhou a série "Aprovação das peças" ao lado da confiança — é a prova de que o cérebro **evolui**, não só muda.
+
 ### Painel admin cross-tenant — "Cérebros" ✅ (2026-07-06)
 Aba **Cérebros** no painel interno (`AppInterno.jsx`, acesso `is_platform_admin`): visão de TODOS os cérebros de marca — KPIs globais (cérebros ativos, confiança média, sinais pendentes, tamanho do dataset) + tabela por marca (versão, confiança com delta vs anterior, sinais/pendentes, exemplos no dataset, approval-rate do Studio, última destilação) + botão **"Destilar agora"** (dispara `brand-distill-background` sob demanda). Diferente da tela IA LOUDR do cliente, aqui a copy PODE falar do mecanismo — é interna.
 

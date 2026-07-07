@@ -6,6 +6,7 @@ export function compileIntel(m, versao) {
   const lines = []
   if (m.posicionamento?.valor) lines.push(`- Posicionamento (aprendido): ${m.posicionamento.valor}`)
   if (m.voz?.valor)            lines.push(`- Voz (aprendida): ${m.voz.valor}`)
+  if (m.territorio?.valor)     lines.push(`- Território a reivindicar (aprendido): ${m.territorio.valor}`)
   const pv = m.preferencias_visuais || {}
   const aprov  = (pv.aprovado  || []).map(a => a?.padrao).filter(Boolean)
   const reprov = (pv.reprovado || []).map(a => a?.padrao).filter(Boolean)
@@ -16,6 +17,9 @@ export function compileIntel(m, versao) {
   const donts = (m.do_dont?.dont || []).filter(Boolean)
   if (dos.length)   lines.push(`- Faça: ${dos.join('; ')}`)
   if (donts.length) lines.push(`- Não faça: ${donts.join('; ')}`)
+  const ct = m.conteudo || {}
+  if (ct.temas?.length)   lines.push(`- Temas de conteúdo que a marca usa: ${ct.temas.join('; ')}`)
+  if (ct.angulos?.length) lines.push(`- Ângulos que funcionam: ${ct.angulos.join('; ')}`)
   const fatos = (m.fatos || []).filter(f => f?.fato && (f.confianca ?? 1) >= 0.5).map(f => f.fato)
   if (fatos.length) lines.push(`- Fatos consolidados: ${fatos.join('; ')}`)
   if (!lines.length) return ''

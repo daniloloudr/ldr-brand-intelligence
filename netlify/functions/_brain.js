@@ -70,6 +70,7 @@ export async function resolveBrandContext(supabase, brand_id, brandNome, facets)
 // Compila o modelo vivo (destilado) em linhas acionáveis para o prompt de geração.
 function compileIntelligence(m) {
   const lines = []
+  if (m?.territorio?.valor) lines.push(`Território da marca (aprendido): ${m.territorio.valor}`)
   const pv = m?.preferencias_visuais || {}
   const aprov  = (pv.aprovado  || []).map(a => a?.padrao).filter(Boolean)
   const reprov = (pv.reprovado || []).map(a => a?.padrao).filter(Boolean)
@@ -80,6 +81,9 @@ function compileIntelligence(m) {
   const donts = (m?.do_dont?.dont || []).filter(Boolean)
   if (dos.length)   lines.push(`Faça: ${dos.join('; ')}`)
   if (donts.length) lines.push(`Não faça: ${donts.join('; ')}`)
+  const ct = m?.conteudo || {}
+  if (ct.temas?.length)   lines.push(`Temas de conteúdo que a marca usa: ${ct.temas.join('; ')}`)
+  if (ct.angulos?.length) lines.push(`Ângulos que funcionam: ${ct.angulos.join('; ')}`)
   const fatos = (m?.fatos || []).filter(f => f?.fato && (f.confianca ?? 1) >= 0.5).map(f => f.fato)
   if (fatos.length) lines.push(`Fatos consolidados: ${fatos.join('; ')}`)
   return lines.length ? lines.join('\n') : null
@@ -143,6 +147,60 @@ export async function fetchDataset(supabase, brand_id, { superficie = null, limi
   if (superficie) q = q.eq('superficie', superficie)
   const { data } = await q
   return data || []
+}
+
+// ── Taxonomia do modelo vivo ─────────────────────────────────────────
+// O LLM propõe; o código GARANTE o shape. Toda versão gravada passa por aqui:
+// facetas conhecidas, tipos coagidos, confianças em [0,1], listas com teto.
+// Consumidores (compileIntelligence, intelChunks, painéis) podem confiar.
+const clamp01 = n => (typeof n === 'number' && isFinite(n)) ? Math.min(1, Math.max(0, n)) : null
+const str     = (x, max) => (typeof x === 'string' ? x.trim().slice(0, max) : '')
+const strList = (x, max, len) => (Array.isArray(x) ? x : [])
+  .map(i => typeof i === 'string' ? i : str(i?.valor || i?.fato || i?.padrao || i?.tema || '', len))
+  .map(t => (t || '').trim().slice(0, len)).filter(Boolean).slice(0, max)
+
+function facetTexto(f, max = 600) {
+  const valor = str(f?.valor ?? f, max)
+  if (!valor) return null
+  return { valor, confianca: clamp01(f?.confianca) ?? 0.5, fontes: strList(f?.fontes, 8, 60) }
+}
+
+export function normalizeModelo(raw) {
+  const m = raw && typeof raw === 'object' ? raw : {}
+  const pv = m.preferencias_visuais || {}
+  const padroes = (arr, comExemplos) => (Array.isArray(arr) ? arr : []).map(a => {
+    const padrao = str(a?.padrao ?? a, 300)
+    if (!padrao) return null
+    const out = { padrao, confianca: clamp01(a?.confianca) ?? 0.5 }
+    if (comExemplos) out.exemplos = strList(a?.exemplos, 5, 200)
+    return out
+  }).filter(Boolean).slice(0, 15)
+  const fatos = (Array.isArray(m.fatos) ? m.fatos : []).map(f => {
+    const fato = str(f?.fato ?? f, 400)
+    if (!fato) return null
+    return { fato, confianca: clamp01(f?.confianca) ?? 0.5, fontes: strList(f?.fontes, 8, 60) }
+  }).filter(Boolean).slice(0, 30)
+  const ct = m.conteudo || {}
+  return {
+    posicionamento: facetTexto(m.posicionamento),
+    voz:            facetTexto(m.voz),
+    territorio:     facetTexto(m.territorio),
+    preferencias_visuais: {
+      aprovado:  padroes(pv.aprovado, true),
+      reprovado: padroes(pv.reprovado, false),
+      modelo_preferido: pv.modelo_preferido?.provider
+        ? { provider: str(pv.modelo_preferido.provider, 80), win_rate: clamp01(pv.modelo_preferido.win_rate) }
+        : null,
+    },
+    do_dont: { do: strList(m.do_dont?.do, 20, 300), dont: strList(m.do_dont?.dont, 20, 300) },
+    conteudo: {
+      temas:     strList(ct.temas, 15, 120),
+      formatos:  strList(ct.formatos, 8, 40),
+      angulos:   strList(ct.angulos, 10, 200),
+      confianca: clamp01(ct.confianca),
+    },
+    fatos,
+  }
 }
 
 // ── Destilação ───────────────────────────────────────────────────────
@@ -212,12 +270,14 @@ const SYSTEM = [
   '- DECAIMENTO: se o MODELO ATUAL afirma algo que os sinais novos contradizem, ou que já não é corroborado, REDUZA sua confiança em vez de mantê-la. Só permanece alta a confiança do que é recente e reforçado.',
   '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider). Votos recentes pesam mais que antigos.',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
+  '- territorio: o território de posicionamento que a MARCA deve reivindicar — derive de diagnostic (territórios possíveis) cruzado com competitive (não reivindique espaço dominado por concorrente; prefira espaço livre).',
+  '- conteudo: derive de content_used e campanhas aprovadas — os TEMAS, formatos e ângulos de conteúdo que o time realmente adota. Se não houver sinal de conteúdo, deixe as listas vazias.',
   '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas e vence empates de recência.',
   '- content_used = o time ADOTOU um conteúdo/briefing gerado (copiou pra usar). Aprenda com ele os TEMAS, formatos e ângulos de conteúdo que a marca realmente usa — alimenta voz, do_dont e fatos de território de conteúdo.',
   '- competitive descreve CONCORRENTES e o mercado (NÃO a sua marca). Use para AFIAR A DIFERENCIAÇÃO: registre em "fatos" onde cada concorrente se posiciona e quais territórios ele reivindica; em "do_dont" derive movimentos de diferenciação (ex.: não reforçar um território já dominado por concorrente; ocupar espaço livre que nenhum concorrente reivindica); pode calibrar "posicionamento" para o que diferencia. NUNCA atribua atributos/territórios do concorrente à própria marca.',
   '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido (com sua confiança recalibrada).',
   'Responda APENAS com JSON estrito neste schema (sem markdown, sem comentário):',
-  '{"posicionamento":{"valor":"","confianca":0,"fontes":[]},"voz":{"valor":"","confianca":0,"fontes":[]},"preferencias_visuais":{"aprovado":[{"padrao":"","confianca":0,"exemplos":[]}],"reprovado":[{"padrao":"","confianca":0}],"modelo_preferido":{"provider":"","win_rate":0}},"do_dont":{"do":[],"dont":[]},"fatos":[{"fato":"","confianca":0,"fontes":[]}]}',
+  '{"posicionamento":{"valor":"","confianca":0,"fontes":[]},"voz":{"valor":"","confianca":0,"fontes":[]},"territorio":{"valor":"","confianca":0,"fontes":[]},"preferencias_visuais":{"aprovado":[{"padrao":"","confianca":0,"exemplos":[]}],"reprovado":[{"padrao":"","confianca":0}],"modelo_preferido":{"provider":"","win_rate":0}},"do_dont":{"do":[],"dont":[]},"conteudo":{"temas":[],"formatos":[],"angulos":[],"confianca":0},"fatos":[{"fato":"","confianca":0,"fontes":[]}]}',
 ].join('\n')
 
 /**
@@ -234,7 +294,7 @@ export async function distillBrand(supabase, brand_id) {
     supabase.from('brand_signals').select('id, tipo, ref_id, payload, peso, created_at, workspace_id')
       .eq('brand_id', brand_id).is('consumido_em', null).order('created_at', { ascending: true }).limit(MAX_SIGNALS),
     supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single(),
-    supabase.from('brand_intelligence').select('versao, modelo').eq('brand_id', brand_id).order('versao', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('brand_intelligence').select('versao, modelo, created_at').eq('brand_id', brand_id).order('versao', { ascending: false }).limit(1).maybeSingle(),
   ])
   if (!brand) return { status: 'not_found' }
   if (!signals?.length) return { status: 'no_signals' }
@@ -256,16 +316,37 @@ export async function distillBrand(supabase, brand_id) {
   try {
     const { text } = await callAI({
       model: isDev() ? MODELS.medium : MODELS.smart,
-      maxTokens: 4000, retries: 1, retryDelay: 3000,
+      maxTokens: 6000, retries: 1, retryDelay: 3000,
       system: SYSTEM,
       messages: [{ role: 'user', content }],
     })
     modelo = extractJSON(text)
+    if (!modelo || typeof modelo !== 'object')
+      console.error('[distill] JSON inválido — fim da resposta:', (text || '').slice(-300))
   } catch (e) {
     console.error('[distill] LLM falhou:', e.message)
     return { status: 'llm_error', message: e.message }
   }
   if (!modelo || typeof modelo !== 'object') return { status: 'invalid' }
+  modelo = normalizeModelo(modelo)   // taxonomia garantida por código, não pelo LLM
+
+  // Métrica de assertividade: desempenho OBSERVADO sob a versão anterior —
+  // approval das peças votadas desde a última destilação. É a série que prova
+  // que o cérebro evolui (não só que muda). Não-fatal.
+  let metricas = null
+  try {
+    let q = supabase.from('studio_generations').select('feedback')
+      .eq('brand_id', brand_id).not('feedback', 'is', null)
+    if (atual?.created_at) q = q.gte('feedback_at', atual.created_at)
+    const { data: votos } = await q
+    const total = votos?.length || 0
+    const ups = (votos || []).filter(v => v.feedback === 'up').length
+    metricas = {
+      approval_sob_versao_anterior: total ? ups / total : null,
+      votos_janela: total,
+      janela_inicio: atual?.created_at || null,
+    }
+  } catch (e) { console.error('[distill] metricas falharam (não-fatal):', e.message) }
 
   // 3. grava nova versão
   const versao = (atual?.versao || 0) + 1
@@ -274,6 +355,7 @@ export async function distillBrand(supabase, brand_id) {
     brand_id, workspace_id: brand.workspace_id, versao, modelo,
     confianca_media: avgConfianca(modelo),
     gerado_de: { count: signals.length, tipos, signal_ids: signalIds },
+    metricas,
   })
   if (insErr) { console.error('[distill] insert falhou:', insErr.message); return { status: 'insert_error', message: insErr.message } }
 

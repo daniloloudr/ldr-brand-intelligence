@@ -63,7 +63,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
   async function load() {
     setLoading(true)
     const [{ data: bi }, { data: gens }, { data: sigs }] = await Promise.all([
-      supabase.from('brand_intelligence').select('versao, confianca_media, gerado_de, modelo, created_at')
+      supabase.from('brand_intelligence').select('versao, confianca_media, gerado_de, modelo, created_at, metricas')
         .eq('brand_id', brandId).order('versao', { ascending: true }),
       supabase.from('studio_generations').select('provider, feedback').eq('brand_id', brandId).not('feedback', 'is', null),
       supabase.from('brand_signals').select('tipo').eq('brand_id', brandId),
@@ -88,7 +88,12 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
     .map(([p, x]) => ({ provider: p, rate: x.up / x.total, total: x.total }))
     .sort((a, b) => b.rate - a.rate)
 
-  const trend = versions.map(v => ({ v: `v${v.versao}`, confianca: v.confianca_media != null ? Math.round(v.confianca_media * 100) : null }))
+  const trend = versions.map(v => ({
+    v: `v${v.versao}`,
+    confianca:  v.confianca_media != null ? Math.round(v.confianca_media * 100) : null,
+    desempenho: v.metricas?.approval_sob_versao_anterior != null ? Math.round(v.metricas.approval_sob_versao_anterior * 100) : null,
+  }))
+  const hasDesempenho = trend.some(t => t.desempenho != null)
 
   // ── Diff da última versão vs a anterior (trilho D) ──
   const prev = versions.length > 1 ? versions[versions.length - 2] : null
@@ -98,13 +103,15 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
     { label: '❌ Visual a evitar',     color: CORAL, ...diffList((model?.preferencias_visuais?.reprovado || []).map(a => a?.padrao), (pm?.preferencias_visuais?.reprovado || []).map(a => a?.padrao)) },
     { label: 'Faça',                   color: TEAL,  ...diffList(model?.do_dont?.do,   pm?.do_dont?.do) },
     { label: 'Não faça',               color: CORAL, ...diffList(model?.do_dont?.dont, pm?.do_dont?.dont) },
+    { label: 'Temas de conteúdo',      color: PURPLE, ...diffList(model?.conteudo?.temas, pm?.conteudo?.temas) },
     { label: 'Fatos consolidados',     color: null,  ...diffList((model?.fatos || []).map(f => f?.fato), (pm?.fatos || []).map(f => f?.fato)) },
   ].filter(f => f.added.length || f.removed.length) : []
   const confDelta = pm && current?.confianca_media != null && prev.confianca_media != null
     ? Math.round((current.confianca_media - prev.confianca_media) * 100) : null
-  const vozChanged = pm && model?.voz?.valor && pm?.voz?.valor && !similar(model.voz.valor, pm.voz.valor)
-  const posChanged = pm && model?.posicionamento?.valor && pm?.posicionamento?.valor && !similar(model.posicionamento.valor, pm.posicionamento.valor)
-  const hasDiff = facetDiffs.length || vozChanged || posChanged || (confDelta != null && confDelta !== 0)
+  const vozChanged  = pm && model?.voz?.valor && pm?.voz?.valor && !similar(model.voz.valor, pm.voz.valor)
+  const posChanged  = pm && model?.posicionamento?.valor && pm?.posicionamento?.valor && !similar(model.posicionamento.valor, pm.posicionamento.valor)
+  const terrChanged = pm && model?.territorio?.valor && !similar(model.territorio.valor, pm?.territorio?.valor || '')
+  const hasDiff = facetDiffs.length || vozChanged || posChanged || terrChanged || (confDelta != null && confDelta !== 0)
 
   const Card = ({ children, sx }) => <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, ...sx }}>{children}</Paper>
 
@@ -178,11 +185,17 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                       <XAxis dataKey="v" tick={{ fontSize: 11 }} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                      <RTooltip formatter={v => `${v}%`} />
+                      <RTooltip formatter={(v, name) => [`${v}%`, name === 'confianca' ? 'Confiança' : 'Aprovação das peças']} />
                       <Line type="monotone" dataKey="confianca" stroke={TEAL} strokeWidth={2.5} dot={{ r: 3 }} />
+                      {hasDesempenho && <Line type="monotone" dataKey="desempenho" stroke={PURPLE} strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" connectNulls />}
                     </LineChart>
                   </ResponsiveContainer>
                 </Box>
+                {hasDesempenho && (
+                  <Typography fontSize={11} color="text.secondary" mt={1}>
+                    <span style={{ color: TEAL, fontWeight: 700 }}>—</span> Confiança do que a marca sabe · <span style={{ color: PURPLE, fontWeight: 700 }}>- -</span> Aprovação das peças criadas com cada versão
+                  </Typography>
+                )}
               </Card>
             ) : (
               <Card sx={{ bgcolor: 'action.hover' }}>
@@ -218,6 +231,8 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                 <ModelList title="❌ Visual a evitar" items={(model?.preferencias_visuais?.reprovado || []).map(a => a?.padrao)} color={CORAL} />
                 <ModelList title="Faça" items={model?.do_dont?.do} color={TEAL} />
                 <ModelList title="Não faça" items={model?.do_dont?.dont} color={CORAL} />
+                <ModelList title="Território da marca" items={model?.territorio?.valor ? [model.territorio.valor] : []} color={PURPLE} />
+                <ModelList title="Temas de conteúdo que funcionam" items={model?.conteudo?.temas} color={PURPLE} />
                 <ModelList title="Fatos consolidados" items={(model?.fatos || []).map(f => f?.fato)} />
               </Stack>
             </Card>
@@ -240,6 +255,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {posChanged && <Chip size="small" variant="outlined" label="Posicionamento recalibrado" sx={{ fontWeight: 700 }} />}
                       {vozChanged && <Chip size="small" variant="outlined" label="Voz recalibrada" sx={{ fontWeight: 700 }} />}
+                      {terrChanged && <Chip size="small" variant="outlined" label="Território recalibrado" sx={{ fontWeight: 700 }} />}
                     </Stack>
                   )}
                   {facetDiffs.map(f => <DiffBlock key={f.label} {...f} />)}
