@@ -19,7 +19,7 @@
 
 4. ~~**E3 — Edit & Enhance na galeria**~~ ✅ **JÁ EXISTIA** (constatado 2026-07-07) — a página Imagem já expõe Ampliar/Remover fundo/Variação inline em cada item da galeria (`APP_ACTIONS` → `studio-edit`), além do canvas. O gap-analysis da Pupila marcou "parcial" por engano. Só padronizado o rótulo Upscale→Ampliar.
 5. ~~**E4 — Biblioteca de assets**~~ ✅ (2026-07-07) — página **Biblioteca** no Brand Studio (`/studio/biblioteca`, `StudioLibrary.jsx`): grid de mídia/arquivos (peças salvas do Studio + uploads; cor/tipografia ficam no Brand Book), **pastas** (chips + contagem, free-solo), **tags** (#filtros) e **busca** (nome/descrição/tag/pasta). Dialog "Organizar" por asset; preview de imagem/vídeo (hover-play)/SVG inline; baixar/excluir. Migration `032` (pasta + tags[]) aplicada. Validado no browser. *(Evolução: ver "Stock assets" em Ideias.)*
-6. **P4 — painel de memória como material comercial** — afiar IA LOUDR como prova viva (a série de aprovação por versão já é argumento de venda).
+6. ~~**P4 — painel de memória como material comercial**~~ ✅ (2026-07-07) — IA LOUDR ganhou: banner-narrativa com números reais (desde {data}, N evidências → M versões → aprendizados ativos → confiança início→hoje), delta de confiança desde a v1 (▲/▼ pts), "última janela" de aprovação (metricas por versão) e contagem de aprendizados ativos. **Sem export PDF por decisão do Danilo — prova viva é na tela.**
 7. **Dogfooding competitiva** — cadastrar a **Pupila** como concorrente no Posicionamento do workspace LOUDR (diagnóstico + clipping + cérebro). ~10 min.
 
 ## 🟡 Depois — fundação e escala
