@@ -17,7 +17,7 @@
 
 ## 🟠 Próximo — fortalece produto e pitch
 
-4. **E3 — Edit & Enhance na galeria** — apps Ampliar/Remover fundo/Variação já existem (nós do Workflow); expor com 1 clique na página Imagem/galeria. Neutraliza a demo da Pupila.
+4. ~~**E3 — Edit & Enhance na galeria**~~ ✅ **JÁ EXISTIA** (constatado 2026-07-07) — a página Imagem já expõe Ampliar/Remover fundo/Variação inline em cada item da galeria (`APP_ACTIONS` → `studio-edit`), além do canvas. O gap-analysis da Pupila marcou "parcial" por engano. Só padronizado o rótulo Upscale→Ampliar.
 5. **E4 — Biblioteca de assets** — `brand_assets` já grava (canvas/campanhas, upload no Brand Book); falta organização: pastas, tags, busca. *(Evolução: ver "Stock assets" em Ideias.)*
 6. **P4 — painel de memória como material comercial** — afiar IA LOUDR como prova viva (a série de aprovação por versão já é argumento de venda).
 7. **Dogfooding competitiva** — cadastrar a **Pupila** como concorrente no Posicionamento do workspace LOUDR (diagnóstico + clipping + cérebro). ~10 min.
