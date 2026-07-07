@@ -158,6 +158,7 @@ export function StudioVideo({ brandId }) {
           end_image_url: m?.endFrame ? p.endUrl : null,
           duration: m?.durations ? p.duration : undefined,
           aspect_ratio: m?.aspects && !p.srcUrl ? p.aspect : undefined,
+          regen_of: item.id, ajuste: txt,   // reajustar = reprovação implícita + o que faltou
         }),
       })
       const j = await res.json()

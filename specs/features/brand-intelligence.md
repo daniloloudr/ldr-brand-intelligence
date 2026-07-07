@@ -136,6 +136,9 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
 
+### `image_regen` — regenerar é reprovação implícita ✅ (2026-07-07)
+Insight do Danilo: **quem regenera não gostou.** `studio-generate`/`studio-generate-video` aceitam `regen` (canvas acha a peça anterior pelo `workflow_id`+`node_id`) ou `regen_of` (id direto — "Reajustar" do StudioVideo, que também manda o **texto do ajuste** = correção direcionada dizendo o que faltou). Emitem sinal `image_regen` via `emitSignal` (peso 1 — mais fraco que 👎 explícito peso 2). Destilador pesa menos no win-rate e trata `ajuste` como correção de alta relevância. Dataset (migration `031`): vira exemplo julgado da peça ORIGINAL com `on conflict do nothing` — voto explícito sempre prevalece. Painel: "Regenerações (não convenceu)".
+
 ### Writing Room (E1) ✅ (2026-07-06)
 Nova superfície do Studio (`#/app/brands/:id/studio/writing`): copy de marketing com **frameworks guiados por formato** (legenda, carrossel, roteiro de reel, copy de anúncio Meta, e-mail — catálogo em `src/lib/writingFrameworks.js`; estrutura fixa da peça vem do framework, a voz vem do cérebro). System prompt = identidade verbal do brand book + `compileIntel` (modelo vivo). Streaming Sonnet via proxy `anthropic.js` (padrão Assistant). **"Copiar peça" = adoção** → sinal `content_used` (`fonte='writing_room'`, cluster=framework, peso 1.5) → alimenta a faceta `conteudo` do destilador e o `brand_dataset`. Chip "Escrevendo com a inteligência da marca (vN)" quando há cérebro.
 

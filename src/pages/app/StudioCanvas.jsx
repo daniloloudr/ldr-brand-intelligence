@@ -435,7 +435,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: withContext(prompt, context), formato, use_brand: hasBrand, brand_facets: brandFacets, model, references }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: withContext(prompt, context), formato, use_brand: hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
@@ -474,7 +474,8 @@ export function StudioCanvas({ brandId, workflowId }) {
     try {
       const res = await fetch('/.netlify/functions/studio-generate-video', { method: 'POST', headers: auth,
         body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: v.id, prompt: withAdjust(withContext(prompt, context), (v.data?.adjust || '').trim()), model: mk, use_brand: hasBrand, brand_facets: brandFacets,
-          image_url: m?.modes.includes('i2v') ? imageUrl : null, duration: m?.durations ? duration : undefined }) })
+          image_url: m?.modes.includes('i2v') ? imageUrl : null, duration: m?.durations ? duration : undefined,
+          regen: !!ctx.regen, ajuste: (v.data?.adjust || '').trim() || undefined }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(v.id)
       return { genId: j.generation_id, nodeId: v.id, kind: 'video' }
@@ -539,7 +540,8 @@ export function StudioCanvas({ brandId, workflowId }) {
     setMsg('')
     const auth = await authHeaders()
     const outputs = seedExistingOutputs()
-    const ctx = { outputs, auth, dispatched: new Set() }
+    // regen: true → o servidor emite sinal de reprovação implícita da peça anterior
+    const ctx = { outputs, auth, dispatched: new Set(), regen: true }
     const job = node.type === 'generate' ? await dispatchGenerateNode(node, ctx)
       : node.type === 'videoGen' ? await dispatchVideoNode(node, ctx)
       : await dispatchAppNode(node, ctx)

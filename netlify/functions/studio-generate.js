@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
-import { resolveBrandIntelligence } from './_brain.js'
+import { resolveBrandIntelligence, emitSignal } from './_brain.js'
 import { submitGeneration } from './_studio.js'
 import { creditsForImage, debitCredits, refundCredits } from './_credits.js'
 
@@ -32,7 +32,7 @@ export const handler = async (event) => {
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
-  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra, brand_facets } = body
+  const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra, brand_facets, regen = false, regen_of = null } = body
   const useBrand = body.use_brand !== false   // marca opcional — default ligada
   // facets opcional: ['verbal','visual'] (Workflow). Ausente = ambas.
   const facets = Array.isArray(brand_facets) && brand_facets.length
@@ -75,6 +75,23 @@ export const handler = async (event) => {
   if (error) {
     if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'image' })
     return { statusCode: 502, headers, body: JSON.stringify({ error }) }
+  }
+
+  // Regenerar = reprovação IMPLÍCITA da peça anterior → sinal pro cérebro
+  // (mais fraco que 👎 explícito). Acha a peça anterior por id ou pelo nó. Não-fatal.
+  if (regen || regen_of) {
+    try {
+      let q = supabase.from('studio_generations').select('id, provider, formato, media_type, prompt_final')
+      q = regen_of
+        ? q.eq('id', regen_of).eq('workspace_id', workspace_id)
+        : q.eq('workflow_id', workflow_id).eq('node_id', node_id).eq('status', 'done').neq('id', gen.id).order('created_at', { ascending: false }).limit(1)
+      const { data: orig } = await q.maybeSingle()
+      if (orig) await emitSignal(supabase, {
+        brand_id, workspace_id, tipo: 'image_regen', fonte: 'studio', ref_id: orig.id, peso: 1,
+        payload: { provider: orig.provider, formato: orig.formato, media_type: orig.media_type || 'image',
+          prompt: (orig.prompt_final || '').slice(0, 1000) },
+      })
+    } catch (e) { console.error('[regen] signal falhou (não-fatal):', e.message) }
   }
 
   return { statusCode: 200, headers, body: JSON.stringify({ generation_id: gen.id, request_id, status: 'processing' }) }
