@@ -14,6 +14,14 @@ const REEL_VIDEO_MODEL = 'seedance-2-fast'
 
 const FORMATO = { legenda: '1:1', carrossel: '1:1', anuncio: '1:1', reel: '9:16' }
 
+// Regra do produto: imagem SEMPRE limpa — texto é outra camada (pós-produção).
+// A copy da peça NÃO entra no contexto de geração (é o que faz o modelo
+// renderizar palavras corrompidas na imagem); só a direção visual entra.
+const NO_TEXT_GUARD = 'IMPORTANTE: a imagem deve ser LIMPA — NENHUM texto, letra, número, logotipo ou tipografia. O texto da peça será aplicado na pós-produção pelo time criativo; deixe espaço negativo para ele.'
+
+// Extrai da peça só as seções de direção visual (Sugestão de imagem etc.).
+const visualSections = peca => ((peca || '').match(/^## (?:Sugestão de imagem|Direção visual)[^\n]*\n[\s\S]*?(?=\n## |$)/gim) || []).join('\n\n')
+
 export function compileWritingWorkflow({ fwKey, fwLabel, titulo, peca, prompts }) {
   const nodes = [], edges = []
   const N = (id, type, col, row, data = {}, style) => {
@@ -22,14 +30,16 @@ export function compileWritingWorkflow({ fwKey, fwLabel, titulo, peca, prompts }
   }
   const E = (a, b) => edges.push({ id: `e-${a}-${b}`, source: a, target: b })
 
-  // Compartilhados: a peça inteira como Contexto + visual da marca + formato.
-  N('ctx', 'context', 0, 0, { text: (peca || '').slice(0, 4000) }, { width: 280, height: 220 })
+  // Compartilhados: Contexto = tema + guarda de imagem limpa + direção visual
+  // da peça (NUNCA a copy — texto entra na pós). + visual da marca + formato.
+  const ctxText = [`Tema da peça: ${titulo}`, NO_TEXT_GUARD, visualSections(peca)].filter(Boolean).join('\n\n')
+  N('ctx', 'context', 0, 0, { text: ctxText.slice(0, 4000) }, { width: 280, height: 220 })
   N('bv', 'brandContext', 0, 2, { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' })
   N('f', 'formato', 0, 3, { formato: FORMATO[fwKey] || '1:1' })
 
   const isReel = fwKey === 'reel'
   prompts.forEach((p, i) => {
-    const pid = N(`p${i}`, 'prompt', 1, i, { text: p.prompt })
+    const pid = N(`p${i}`, 'prompt', 1, i, { text: `${p.prompt} Imagem limpa, sem nenhum texto ou tipografia.` })
     const gid = N(`g${i}`, 'generate', 2, i, { status: 'idle', model: 'auto' })
     E(pid, gid); E('ctx', gid); E('bv', gid); E('f', gid)
     if (isReel) {

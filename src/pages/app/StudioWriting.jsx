@@ -130,7 +130,7 @@ async function deriveVisualPrompts({ fwKey, peca }) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 1500,
-      system: 'Você é diretor de arte. Dada uma peça de conteúdo, você deriva prompts de IMAGEM para gerar os visuais dela. Cada prompt: português, 1–3 frases, cena CONCRETA (sujeito, ambiente, enquadramento, luz), SEM texto sobreposto na imagem, sem citar a marca pelo nome. Responda APENAS com JSON estrito: {"prompts":[{"titulo":"","prompt":""}]}',
+      system: 'Você é diretor de arte. Dada uma peça de conteúdo, você deriva prompts de IMAGEM para gerar os visuais dela (use a seção "Sugestão de imagem" da peça quando existir). REGRA ABSOLUTA: a imagem é LIMPA — NENHUM texto, letra, número, logotipo ou tipografia (o texto entra na pós-produção); preveja espaço negativo onde o texto entrará. Cada prompt: português, 1–3 frases, cena CONCRETA (sujeito, ambiente, enquadramento, luz), sem citar a marca pelo nome. Responda APENAS com JSON estrito: {"prompts":[{"titulo":"","prompt":""}]}',
       messages: [{ role: 'user', content: `${DERIVE_RULES[fwKey]}\n\nPEÇA:\n${peca.slice(0, 6000)}` }],
     }),
   })
