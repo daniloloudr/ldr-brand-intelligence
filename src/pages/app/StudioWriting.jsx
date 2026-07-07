@@ -6,10 +6,15 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
 import ReplayIcon from '@mui/icons-material/Replay'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import CloseIcon from '@mui/icons-material/Close'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import { IconButton } from '@mui/material'
 import { supabase } from '../../lib/supabase'
 import { compileIntel } from '../../lib/brandIntel'
 import { WRITING_FRAMEWORKS } from '../../lib/writingFrameworks'
+import { compileWritingWorkflow, DERIVE_RULES } from '../../lib/writingToWorkflow'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 
@@ -91,6 +96,67 @@ async function streamCopy({ system, prompt, onText, onDone, onError }) {
   }
 }
 
+// Parse da peça em BLOCOS por header "## " — a unidade de controle humano:
+// cada bloco pode ser editado na mão ou refeito sozinho, sem perder o resto.
+function parseBlocks(text) {
+  const blocks = []
+  let cur = null
+  for (const line of (text || '').split('\n')) {
+    if (line.startsWith('## ')) {
+      if (cur) blocks.push(cur)
+      cur = { header: line.slice(3).trim(), body: '' }
+    } else if (cur) {
+      cur.body += (cur.body ? '\n' : '') + line
+    } else if (line.trim()) {
+      cur = { header: 'Peça', body: line }
+    }
+  }
+  if (cur) blocks.push(cur)
+  return blocks.map(b => ({ ...b, body: b.body.trim() }))
+}
+
+const assembleBlocks = blocks =>
+  blocks.map(b => `## ${b.header}\n${b.body}`).join('\n\n')
+
+// Deriva os prompts VISUAIS da peça (1 chamada, JSON estrito). O prompt de
+// imagem descreve a CENA — a estética/voz da marca entram depois, no nó de
+// geração (cérebro). Sem streaming: resposta curta.
+// A estética da marca (declarada + aprendida) entra na DERIVAÇÃO — a cena já
+// nasce nas cores/mood da marca, em vez de brigar com o brand context depois.
+function brandVisualHints(book, intel) {
+  const vi = book?.visual_identity || {}
+  const paleta = (Array.isArray(vi.paleta) ? vi.paleta : []).map(p => p?.hex || p?.valor || p).filter(Boolean).slice(0, 6)
+  const estetica = [vi.foto_mood, vi.foto_luz_edicao, vi.foto_enquadramento].filter(Boolean)
+  const aprov = (intel?.modelo?.preferencias_visuais?.aprovado || []).map(a => a?.padrao).filter(Boolean).slice(0, 4)
+  const lines = []
+  if (paleta.length)   lines.push(`Paleta da marca (cores dominantes das cenas): ${paleta.join(', ')}`)
+  if (estetica.length) lines.push(`Estética/mood: ${estetica.join('; ')}`)
+  if (aprov.length)    lines.push(`Padrões visuais que a marca APROVA (aprendido pelo uso): ${aprov.join('; ')}`)
+  return lines.join('\n')
+}
+
+async function deriveVisualPrompts({ fwKey, peca, brandVisual }) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (import.meta.env.DEV) headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_KEY || ''
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1500,
+      system: 'Você é diretor de arte. Dada uma peça de conteúdo, você deriva prompts de IMAGEM para gerar os visuais dela (use a seção "Sugestão de imagem" da peça quando existir). REGRA ABSOLUTA: NENHUM texto, letra, número, logotipo ou tipografia na imagem (o texto entra na pós-produção); preveja espaço negativo onde o texto entrará. As cenas NASCEM na estética da marca fornecida — cores dominantes, luz e mood fazem parte da descrição da cena. Cada prompt: português, 1–3 frases, cena CONCRETA (sujeito, ambiente, enquadramento, luz, cores), sem citar a marca pelo nome. Responda APENAS com JSON estrito: {"prompts":[{"titulo":"","prompt":""}]}',
+      messages: [{ role: 'user', content: `${DERIVE_RULES[fwKey]}${brandVisual ? `\n\nESTÉTICA DA MARCA (as cenas nascem nela):\n${brandVisual}` : ''}\n\nPEÇA:\n${peca.slice(0, 6000)}` }],
+    }),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `Erro ${res.status}`) }
+  const data = await res.json()
+  const text = data?.content?.[0]?.text || ''
+  const m = text.match(/\{[\s\S]*\}/)
+  const parsed = m ? JSON.parse(m[0]) : null
+  if (!parsed?.prompts?.length) throw new Error('Não consegui derivar os prompts da peça.')
+  return parsed.prompts.filter(p => (p?.prompt || '').trim())
+}
+
 function renderMarkdown(text) {
   if (!text) return null
   return text.split('\n').map((line, i) => {
@@ -117,7 +183,12 @@ export function StudioWriting({ brandId }) {
   const [fw, setFw]               = useState(null)      // framework selecionado
   const [campos, setCampos]       = useState({})
   const [text, setText]           = useState('')
+  const [blocks, setBlocks]       = useState([])      // peça parseada em blocos editáveis
+  const [editing, setEditing]     = useState(null)    // índice do bloco em edição manual
+  const [draft, setDraft]         = useState('')
+  const [redoing, setRedoing]     = useState(null)    // índice do bloco sendo refeito
   const [streaming, setStreaming] = useState(false)
+  const [compiling, setCompiling] = useState(false)   // criando o workflow com as peças
   const [error, setError]         = useState('')
   const [copied, setCopied]       = useState(false)
   const [signaled, setSignaled]   = useState(false)
@@ -127,7 +198,7 @@ export function StudioWriting({ brandId }) {
     ;(async () => {
       const [{ data: b }, { data: bbRows }] = await Promise.all([
         supabase.from('brands').select('id, nome, workspace_id').eq('id', brandId).maybeSingle(),
-        supabase.from('brand_books').select('verbal_identity').eq('brand_id', brandId)
+        supabase.from('brand_books').select('verbal_identity, visual_identity').eq('brand_id', brandId)
           .order('updated_at', { ascending: false }).limit(1),
       ])
       setBrand(b || null)
@@ -145,19 +216,51 @@ export function StudioWriting({ brandId }) {
     if (obrigatorio) { setError(`Preencha "${obrigatorio.label}".`); return }
     setError('')
     setText('')
+    setBlocks([])
+    setEditing(null)
     setSignaled(false)
     setStreaming(true)
     streamCopy({
       system: buildWriterSystem(brand, book, intel),
       prompt: fw.build(campos),
       onText: t => setText(t),
-      onDone: t => { setText(t); setStreaming(false) },
+      onDone: t => { setText(t); setBlocks(parseBlocks(t)); setStreaming(false) },
       onError: e => { setError(e); setStreaming(false) },
     })
   }
 
+  // Refaz UM bloco mantendo o resto — a IA vê a peça inteira e reescreve só
+  // aquela seção, coerente com o que ficou. Controle humano granular.
+  function redoBlock(i) {
+    const b = blocks[i]
+    if (!b || redoing != null) return
+    setRedoing(i)
+    setEditing(null)
+    const prompt = `A peça abaixo já está escrita e aprovada, EXCETO a seção "${b.header}", que precisa ser reescrita.
+
+${assembleBlocks(blocks)}
+
+Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com o restante da peça e com o mesmo propósito da seção original. Responda SOMENTE com o novo conteúdo dessa seção: sem o header "## ${b.header}", sem comentários, sem as outras seções.`
+    streamCopy({
+      system: buildWriterSystem(brand, book, intel),
+      prompt,
+      onText: t => setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: t.trim() } : x)),
+      onDone: t => { setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: t.trim() } : x)); setRedoing(null); setSignaled(false) },
+      onError: e => { setError(e); setRedoing(null) },
+    })
+  }
+
+  function startEdit(i) { setEditing(i); setDraft(blocks[i]?.body || '') }
+  function saveEdit(i) {
+    setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: draft.trim() } : x))
+    setEditing(null)
+    setSignaled(false)   // peça mudou → nova adoção conta como novo exemplo
+  }
+
+  const pecaFinal = () => blocks.length ? assembleBlocks(blocks) : text
+
   // Copiar = adoção → sinal 'content_used' (fonte writing_room) pro cérebro +
-  // dataset (trigger da 029 captura). Uma vez por peça gerada.
+  // dataset (trigger da 029 captura). Uma vez por versão da peça (edição reabre).
   function emitAdoption() {
     if (signaled || !brand?.id || !brand?.workspace_id) return
     setSignaled(true)
@@ -170,18 +273,44 @@ export function StudioWriting({ brandId }) {
         formato:  fw?.label || null,
         intencao: null,
         cluster:  fw?.key || null,
-        briefing: (text || '').slice(0, 2000),
+        briefing: pecaFinal().slice(0, 2000),
       },
       peso: 1.5,
     }).then(({ error: e }) => { if (e) console.error('[writing] signal falhou:', e.message) })
   }
 
   async function handleCopy() {
-    if (!text) return
-    await navigator.clipboard.writeText(text).catch(() => {})
+    const t = pecaFinal()
+    if (!t) return
+    await navigator.clipboard.writeText(t).catch(() => {})
     emitAdoption()
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Fase 2: compila a peça num Workflow do canvas — prompts visuais derivados,
+  // um caminho de geração por slide/variação/cena (Reel encadeia imagem→vídeo).
+  // Nada gera sozinho: o usuário revisa os prompts no canvas e dispara.
+  async function criarWorkflow() {
+    if (!fw || !blocks.length || compiling) return
+    setCompiling(true)
+    setError('')
+    try {
+      const peca = pecaFinal()
+      const prompts = await deriveVisualPrompts({ fwKey: fw.key, peca, brandVisual: brandVisualHints(book, intel) })
+      const titulo = (campos[fw.campos?.[0]?.id] || fw.label).slice(0, 60)
+      const { nome, nodes, edges } = compileWritingWorkflow({ fwKey: fw.key, fwLabel: fw.label, titulo, peca, prompts })
+      const { data: wf, error: e } = await supabase.from('studio_workflows').insert({
+        workspace_id: brand?.workspace_id, brand_id: brandId, is_template: false,
+        nome, nodes, edges,
+      }).select().single()
+      if (e) throw new Error(e.message)
+      emitAdoption()   // levar pro workflow = adoção da peça
+      window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}`
+    } catch (e) {
+      setError(e.message || 'Falha ao criar o workflow.')
+      setCompiling(false)
+    }
   }
 
   return (
@@ -245,26 +374,83 @@ export function StudioWriting({ brandId }) {
               <CircularProgress size={16} />
               <Typography fontSize={13} color="text.secondary">Escrevendo no tom da marca…</Typography>
             </Stack>
-          ) : (
+          ) : streaming ? (
             <Box>
               {renderMarkdown(text)}
-              {streaming && <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>}
-              {!streaming && text && (
-                <Stack direction="row" spacing={1.5} mt={3}>
-                  <Tooltip title="Copiar marca a peça como adotada — a marca aprende com o que você usa">
-                    <Button variant="outlined" size="small" onClick={handleCopy}
-                      startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
-                      sx={{ fontWeight: 700, color: copied ? TEAL : 'text.secondary', borderColor: copied ? TEAL : 'divider' }}>
-                      {copied ? 'Copiado!' : 'Copiar peça'}
+              <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>
+            </Box>
+          ) : blocks.length ? (
+            <Box>
+              <Typography fontSize={11.5} color="text.secondary" mb={1.5}>
+                Cada seção pode ser <strong>editada</strong> ou <strong>refeita</strong> sozinha — o resto da peça não muda.
+              </Typography>
+              <Stack spacing={1.5}>
+                {blocks.map((b, i) => (
+                  <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2,
+                    opacity: redoing != null && redoing !== i ? 0.55 : 1,
+                    borderColor: redoing === i ? TEAL : editing === i ? PURPLE : 'divider' }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={0.75}>
+                      <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: TEAL }}>
+                        {b.header}
+                      </Typography>
+                      <Stack direction="row" spacing={0.5}>
+                        {editing === i ? (
+                          <>
+                            <Tooltip title="Salvar edição"><IconButton size="small" onClick={() => saveEdit(i)} sx={{ color: TEAL }}><CheckIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                            <Tooltip title="Cancelar"><IconButton size="small" onClick={() => setEditing(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                          </>
+                        ) : (
+                          <>
+                            <Tooltip title="Editar esta seção na mão">
+                              <IconButton size="small" disabled={redoing != null} onClick={() => startEdit(i)}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
+                            </Tooltip>
+                            <Tooltip title="Refazer só esta seção — o resto da peça não muda">
+                              <span><IconButton size="small" disabled={redoing != null} onClick={() => redoBlock(i)}>
+                                {redoing === i ? <CircularProgress size={14} /> : <ReplayIcon sx={{ fontSize: 16 }} />}
+                              </IconButton></span>
+                            </Tooltip>
+                          </>
+                        )}
+                      </Stack>
+                    </Stack>
+                    {editing === i ? (
+                      <TextField fullWidth multiline minRows={3} size="small" value={draft}
+                        onChange={e => setDraft(e.target.value)} autoFocus />
+                    ) : (
+                      <Box>
+                        {renderMarkdown(b.body)}
+                        {redoing === i && <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>}
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+              <Stack direction="row" spacing={1.5} mt={3} flexWrap="wrap" useFlexGap>
+                <Tooltip title="Copiar marca a peça como adotada — a marca aprende com o que você usa">
+                  <Button variant="outlined" size="small" onClick={handleCopy} disabled={redoing != null || compiling}
+                    startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
+                    sx={{ fontWeight: 700, color: copied ? TEAL : 'text.secondary', borderColor: copied ? TEAL : 'divider' }}>
+                    {copied ? 'Copiado!' : 'Copiar peça'}
+                  </Button>
+                </Tooltip>
+                <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />} disabled={redoing != null || compiling}
+                  sx={{ fontWeight: 700, color: 'text.secondary', borderColor: 'divider' }}>
+                  Refazer tudo
+                </Button>
+                {fw?.key !== 'email' && (
+                  <Tooltip title="Compila a peça num workflow: um caminho de geração por seção (Reel vira imagem→vídeo). Você revisa os prompts no canvas antes de gerar.">
+                    <Button variant="contained" size="small" onClick={criarWorkflow} disabled={redoing != null || compiling}
+                      startIcon={compiling ? <CircularProgress size={14} color="inherit" /> : <AccountTreeOutlinedIcon />}
+                      sx={{ fontWeight: 800, bgcolor: PURPLE, '&:hover': { bgcolor: '#665EC4' } }}>
+                      {compiling ? 'Montando o workflow…' : 'Criar workflow com as peças'}
                     </Button>
                   </Tooltip>
-                  <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />}
-                    sx={{ fontWeight: 700, color: 'text.secondary', borderColor: 'divider' }}>
-                    Regerar
-                  </Button>
-                </Stack>
-              )}
+                )}
+              </Stack>
+              {error && <Typography fontSize={12} color="error" mt={1}>{error}</Typography>}
             </Box>
+          ) : (
+            <Box>{renderMarkdown(text)}</Box>
           )}
         </Paper>
       </Box>

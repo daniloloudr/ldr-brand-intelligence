@@ -23,7 +23,9 @@ Estrutura obrigatória (markdown):
 ## CTA
 (1 frase de chamada para ação)
 ## Hashtags
-(5–8, coerentes com a marca — só se o canal for Instagram/TikTok)`,
+(5–8, coerentes com a marca — só se o canal for Instagram/TikTok)
+## Sugestão de imagem
+(direção visual para o time criativo: cena LIMPA e SEM NENHUM texto na imagem — sujeito, enquadramento, luz, espaço negativo e onde o texto entra na pós-produção)`,
   },
   {
     key: 'carrossel',
@@ -45,7 +47,9 @@ Estrutura obrigatória (markdown), um bloco por slide:
 (fechamento + chamada para ação clara)
 Depois dos slides, adicione:
 ## Legenda do post
-(2–4 linhas + hashtags)`,
+(2–4 linhas + hashtags)
+## Sugestão de imagem
+(direção visual para o time criativo, 1 linha por slide: cena LIMPA e SEM NENHUM texto na imagem — o título/texto do slide entra na pós-produção; indique onde)`,
   },
   {
     key: 'reel',
@@ -84,7 +88,10 @@ Gere EXATAMENTE 3 variações com ângulos diferentes. Estrutura obrigatória (m
 **Headline** (máx 40 caracteres)
 **Texto principal** (gancho na 1ª linha + 2–4 linhas de corpo)
 **Descrição** (máx 30 caracteres)
-**CTA sugerido** (botão)`,
+**CTA sugerido** (botão)
+Depois das variações, adicione:
+## Sugestão de imagem
+(direção visual por variação para o time criativo: cena LIMPA e SEM NENHUM texto na imagem — headline e CTA entram na pós-produção)`,
   },
   {
     key: 'email',
