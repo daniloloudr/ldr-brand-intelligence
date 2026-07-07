@@ -9,7 +9,7 @@
 ## 🔴 Agora — valor direto de venda
 
 1. **Deploy: merge `dev → main`** — 11 commits validados (cérebro como camada completa: `_brain.js`, flywheel, dataset, painel Cérebros, enriquecimento). Validar na UI antes: `#/admin` → Cérebros · IA LOUDR (série de aprovação + território) · Content Hub on-brand.
-2. **E1 — Writing Room on-brand** *(porta do P1)* — superfície de copy de marketing (legenda, headline, carrossel, roteiro de reel, copy de anúncio) injetando o cérebro (voz aprendida + território + temas) e emitindo sinal de adoção. **Com FRAMEWORKS prontos por formato** — estruturas guiadas em vez de prompt em branco (insight BrandsDecoded: o que vende é o framework, não o gerador). Consumidor E produtor de inteligência.
+2. ~~**E1 — Writing Room on-brand**~~ ✅ (2026-07-06) — `#/app/brands/:id/studio/writing` (nav Brand Studio): 5 frameworks guiados (legenda, carrossel, reel, anúncio, e-mail — `writingFrameworks.js`), system prompt = identidade verbal + `compileIntel` (cérebro), streaming Sonnet via proxy, "Copiar peça" emite `content_used` (fonte `writing_room`) → destilador + dataset.
 3. **E2 — P1: loop de criativo on-brand** *(killer app)* — "criativo vencedor → entende a lógica → N variações on-brand" com o cérebro como referência. **Extensão creative testing:** performance real (Meta Ads / biblioteca de ads — pedido da Raquel/VHITA) como o sinal mais valioso do dataset.
 
 ## 🟠 Próximo — fortalece produto e pitch

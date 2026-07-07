@@ -136,6 +136,9 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
 
+### Writing Room (E1) ✅ (2026-07-06)
+Nova superfície do Studio (`#/app/brands/:id/studio/writing`): copy de marketing com **frameworks guiados por formato** (legenda, carrossel, roteiro de reel, copy de anúncio Meta, e-mail — catálogo em `src/lib/writingFrameworks.js`; estrutura fixa da peça vem do framework, a voz vem do cérebro). System prompt = identidade verbal do brand book + `compileIntel` (modelo vivo). Streaming Sonnet via proxy `anthropic.js` (padrão Assistant). **"Copiar peça" = adoção** → sinal `content_used` (`fonte='writing_room'`, cluster=framework, peso 1.5) → alimenta a faceta `conteudo` do destilador e o `brand_dataset`. Chip "Escrevendo com a inteligência da marca (vN)" quando há cérebro.
+
 ### Content Hub dentro do cérebro (P2) ✅ (2026-07-06)
 O Content Hub fecha o loop dos DOIS lados:
 - **Lê:** `content-hub-gerar-background.js` injeta `resolveBrandIntelligence()` (identidade + modelo vivo) nos prompts de territórios/ideias — clusters e ideias saem alinhados a voz, território e do/don't aprendidos. `ContentGerarDrawer.jsx` carrega a última versão de `brand_intelligence` (via `compileIntel` de `src/lib/brandIntel.js`, compartilhado com o Assistant) e injeta no prompt do briefing.

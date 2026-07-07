@@ -29,6 +29,7 @@ export function getRoute() {
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/campanhas/))       return 'brands-studio-campaigns';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow/))        return 'brands-studio-workflow';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/writing/))         return 'brands-studio-writing';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio/))                  return 'brands-studio';
   if (h.startsWith('#/app/brands/'))                               return 'brands-detail';
   if (h === '#/admin')               return 'admin';
