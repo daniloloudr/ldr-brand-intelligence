@@ -10,7 +10,7 @@
 
 1. **Deploy: merge `dev → main`** — 11 commits validados (cérebro como camada completa: `_brain.js`, flywheel, dataset, painel Cérebros, enriquecimento). Validar na UI antes: `#/admin` → Cérebros · IA LOUDR (série de aprovação + território) · Content Hub on-brand.
 2. ~~**E1 — Writing Room on-brand**~~ ✅ (2026-07-06) — `#/app/brands/:id/studio/writing` (nav Brand Studio): 5 frameworks guiados (legenda, carrossel, reel, anúncio, e-mail — `writingFrameworks.js`), system prompt = identidade verbal + `compileIntel` (cérebro), streaming Sonnet via proxy, "Copiar peça" emite `content_used` (fonte `writing_room`) → destilador + dataset.
-3. **E2 — P1: loop de criativo on-brand** *(killer app)* — "criativo vencedor → entende a lógica → N variações on-brand" com o cérebro como referência. **Extensão creative testing:** performance real (Meta Ads / biblioteca de ads — pedido da Raquel/VHITA) como o sinal mais valioso do dataset.
+3. **E2 — P1: loop de criativo on-brand INTEGRADO COM META** *(killer app)* — visão da Raquel/VHITA: **integrado com a Meta** (não é extensão, é o coração). (a) **Motor de desdobramento:** criativo vencedor → visão/LLM entende a lógica → N variações on-brand via cérebro. (b) **Integração Meta Marketing API:** conecta a conta de anúncios do workspace (OAuth), identifica os vencedores AUTOMATICAMENTE (CTR/conversão/spend), e a performance real vira sinal (`ad_performance`) no cérebro + dataset — o rótulo mais valioso possível. ⚠️ Meta exige app + App Review (`ads_read`) + business verification — **iniciar o registro do app cedo** (semanas de aprovação); o motor (a) funciona standalone (upload/galeria) enquanto o acesso não sai, já desenhado Meta-ready.
 
 ## 🟠 Próximo — fortalece produto e pitch
 
