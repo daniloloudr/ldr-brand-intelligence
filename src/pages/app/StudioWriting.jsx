@@ -121,7 +121,21 @@ const assembleBlocks = blocks =>
 // Deriva os prompts VISUAIS da peça (1 chamada, JSON estrito). O prompt de
 // imagem descreve a CENA — a estética/voz da marca entram depois, no nó de
 // geração (cérebro). Sem streaming: resposta curta.
-async function deriveVisualPrompts({ fwKey, peca }) {
+// A estética da marca (declarada + aprendida) entra na DERIVAÇÃO — a cena já
+// nasce nas cores/mood da marca, em vez de brigar com o brand context depois.
+function brandVisualHints(book, intel) {
+  const vi = book?.visual_identity || {}
+  const paleta = (Array.isArray(vi.paleta) ? vi.paleta : []).map(p => p?.hex || p?.valor || p).filter(Boolean).slice(0, 6)
+  const estetica = [vi.foto_mood, vi.foto_luz_edicao, vi.foto_enquadramento].filter(Boolean)
+  const aprov = (intel?.modelo?.preferencias_visuais?.aprovado || []).map(a => a?.padrao).filter(Boolean).slice(0, 4)
+  const lines = []
+  if (paleta.length)   lines.push(`Paleta da marca (cores dominantes das cenas): ${paleta.join(', ')}`)
+  if (estetica.length) lines.push(`Estética/mood: ${estetica.join('; ')}`)
+  if (aprov.length)    lines.push(`Padrões visuais que a marca APROVA (aprendido pelo uso): ${aprov.join('; ')}`)
+  return lines.join('\n')
+}
+
+async function deriveVisualPrompts({ fwKey, peca, brandVisual }) {
   const headers = { 'Content-Type': 'application/json' }
   if (import.meta.env.DEV) headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_KEY || ''
   const res = await fetch(API_URL, {
@@ -130,8 +144,8 @@ async function deriveVisualPrompts({ fwKey, peca }) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 1500,
-      system: 'Você é diretor de arte. Dada uma peça de conteúdo, você deriva prompts de IMAGEM para gerar os visuais dela (use a seção "Sugestão de imagem" da peça quando existir). REGRA ABSOLUTA: a imagem é LIMPA — NENHUM texto, letra, número, logotipo ou tipografia (o texto entra na pós-produção); preveja espaço negativo onde o texto entrará. Cada prompt: português, 1–3 frases, cena CONCRETA (sujeito, ambiente, enquadramento, luz), sem citar a marca pelo nome. Responda APENAS com JSON estrito: {"prompts":[{"titulo":"","prompt":""}]}',
-      messages: [{ role: 'user', content: `${DERIVE_RULES[fwKey]}\n\nPEÇA:\n${peca.slice(0, 6000)}` }],
+      system: 'Você é diretor de arte. Dada uma peça de conteúdo, você deriva prompts de IMAGEM para gerar os visuais dela (use a seção "Sugestão de imagem" da peça quando existir). REGRA ABSOLUTA: NENHUM texto, letra, número, logotipo ou tipografia na imagem (o texto entra na pós-produção); preveja espaço negativo onde o texto entrará. As cenas NASCEM na estética da marca fornecida — cores dominantes, luz e mood fazem parte da descrição da cena. Cada prompt: português, 1–3 frases, cena CONCRETA (sujeito, ambiente, enquadramento, luz, cores), sem citar a marca pelo nome. Responda APENAS com JSON estrito: {"prompts":[{"titulo":"","prompt":""}]}',
+      messages: [{ role: 'user', content: `${DERIVE_RULES[fwKey]}${brandVisual ? `\n\nESTÉTICA DA MARCA (as cenas nascem nela):\n${brandVisual}` : ''}\n\nPEÇA:\n${peca.slice(0, 6000)}` }],
     }),
   })
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `Erro ${res.status}`) }
@@ -184,7 +198,7 @@ export function StudioWriting({ brandId }) {
     ;(async () => {
       const [{ data: b }, { data: bbRows }] = await Promise.all([
         supabase.from('brands').select('id, nome, workspace_id').eq('id', brandId).maybeSingle(),
-        supabase.from('brand_books').select('verbal_identity').eq('brand_id', brandId)
+        supabase.from('brand_books').select('verbal_identity, visual_identity').eq('brand_id', brandId)
           .order('updated_at', { ascending: false }).limit(1),
       ])
       setBrand(b || null)
@@ -283,7 +297,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
     setError('')
     try {
       const peca = pecaFinal()
-      const prompts = await deriveVisualPrompts({ fwKey: fw.key, peca })
+      const prompts = await deriveVisualPrompts({ fwKey: fw.key, peca, brandVisual: brandVisualHints(book, intel) })
       const titulo = (campos[fw.campos?.[0]?.id] || fw.label).slice(0, 60)
       const { nome, nodes, edges } = compileWritingWorkflow({ fwKey: fw.key, fwLabel: fw.label, titulo, peca, prompts })
       const { data: wf, error: e } = await supabase.from('studio_workflows').insert({

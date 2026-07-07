@@ -17,7 +17,7 @@ const FORMATO = { legenda: '1:1', carrossel: '1:1', anuncio: '1:1', reel: '9:16'
 // Regra do produto: imagem SEMPRE limpa — texto é outra camada (pós-produção).
 // A copy da peça NÃO entra no contexto de geração (é o que faz o modelo
 // renderizar palavras corrompidas na imagem); só a direção visual entra.
-const NO_TEXT_GUARD = 'IMPORTANTE: a imagem deve ser LIMPA — NENHUM texto, letra, número, logotipo ou tipografia. O texto da peça será aplicado na pós-produção pelo time criativo; deixe espaço negativo para ele.'
+const NO_TEXT_GUARD = 'IMPORTANTE: NENHUM texto, letra, número, logotipo ou tipografia na imagem — o texto da peça será aplicado na pós-produção pelo time criativo; deixe espaço negativo para ele. Use a paleta e a estética da marca como base das cores da cena.'
 
 // Extrai da peça só as seções de direção visual (Sugestão de imagem etc.).
 const visualSections = peca => ((peca || '').match(/^## (?:Sugestão de imagem|Direção visual)[^\n]*\n[\s\S]*?(?=\n## |$)/gim) || []).join('\n\n')
@@ -39,7 +39,7 @@ export function compileWritingWorkflow({ fwKey, fwLabel, titulo, peca, prompts }
 
   const isReel = fwKey === 'reel'
   prompts.forEach((p, i) => {
-    const pid = N(`p${i}`, 'prompt', 1, i, { text: `${p.prompt} Imagem limpa, sem nenhum texto ou tipografia.` })
+    const pid = N(`p${i}`, 'prompt', 1, i, { text: `${p.prompt} Sem nenhum texto ou tipografia na imagem.` })
     const gid = N(`g${i}`, 'generate', 2, i, { status: 'idle', model: 'auto' })
     E(pid, gid); E('ctx', gid); E('bv', gid); E('f', gid)
     if (isReel) {
