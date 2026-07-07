@@ -37,6 +37,7 @@
 
 - **Trial self-service** — Pupila tem; LOUDR é invite-only por decisão. Reavaliar quando modelo comercial/pricing estiver validado. *(Anotado 2026-07-06 a pedido do Danilo.)*
 - **Stock assets como base de referências** — incorporar Shutterstock/iStock (ou similar) como acervo, com o **cérebro buscando tipos de referência on-brand** (preferências visuais aprendidas → query na API de stock → referências para o Studio/i2v). Avaliar licenciamento e custo por asset. *(Ideia do Danilo, 2026-07-06.)*
+- **Editor de texto sobre imagem (estilo Canva)** — overlay de tipografia na plataforma para fechar a peça sem sair do LOUDR. Danilo: "não é o momento ainda" (2026-07-07). Por ora, texto = pós-produção do time criativo guiada pelo bloco "Sugestão de imagem".
 - **Nurturing emails** (D+2, D+5, D+10, D+15) — jornada de ativação por e-mail.
 - **F07b — Search Listening** — análise de busca orgânica (além do social).
 
