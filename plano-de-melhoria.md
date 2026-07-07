@@ -84,16 +84,22 @@ Validação do comprador (Raquel, VHITA), nas palavras dela: *"guardar o aprendi
 
 ---
 
-## Ordem de execução (decisão 04/07: competitiva lidera pelo prazo do deal)
+## Ordem de execução (revista 06/07 — cérebro consolidado, evoluções de produto na fila)
 
-**Sustentação (feito):** code-splitting ✅ · `StudioCanvas` refatorado ✅ · chave no bundle já ok ✅
+**Feito:** sustentação ✅ · P3 Competitiva ✅ · P2 Content Hub ✅ · `_brain.js` extraído ✅ · dataset (`brand_dataset`) ✅ · painel admin Cérebros ✅ · enriquecimento do modelo vivo (taxonomia + territorio/conteudo + métricas por versão) ✅
 
-1. **🎯 P3 — Inteligência Competitiva (LIDERA).** Promessa de ~2 semanas a prospect vivo (VHITA). Ver escopo detalhado abaixo (§ Inteligência Competitiva — plano de entrega).
-2. **P1 — loop de criativo on-brand** (killer app, maior valor recorrente).
-3. **P2 — Content Hub no cérebro** (fecha o gap pitch↔código).
-4. **P4 — painel de memória** (ativo comercial, em paralelo).
-5. **Workstream do dataset** (contínuo, destrava o futuro).
-6. **Isolamento por tenant + flywheel completo** — endurecer conforme as contas crescem.
+### Evoluções de produto (gap analysis vs Pupila, 06/07/2026)
+
+Contexto: **Pupila** (pupila.ai, SP, US$ 1M, 2024) = "nosso Studio como produto inteiro", com DNA de marca **estático** (configuração, sem aprendizado). Regra: fechar primeiro os gaps que **fortalecem o cérebro**; nunca deixar o pitch virar "gerador de imagem on-brand".
+
+1. **E1 — Writing Room on-brand** (porta de entrada do P1). Superfície dedicada de copy de marketing (legenda, headline, mensagem de campanha) injetando o cérebro (voz aprendida + territorio + conteudo.temas) e emitindo sinal de adoção. Consumidor E produtor de inteligência — a nossa versão nasce melhor que a deles por design.
+2. **E2 — P1: loop de criativo on-brand** (killer app). "Criativo vencedor → entende a lógica → N variações on-brand" com o cérebro como referência. **Extensão creative testing:** conectar performance real (Meta Ads / biblioteca de ads — a Raquel pediu) como o sinal mais valioso do dataset.
+3. **E3 — Edit & Enhance na galeria.** Os apps Ampliar/Remover fundo/Variação JÁ existem (nós do Workflow) — expor com 1 clique na página Imagem/galeria. Polimento que neutraliza o argumento de demo deles.
+4. **E4 — Biblioteca de assets (F12).** `brand_assets` já grava; falta frontend com pastas, tags e busca.
+5. **P4 — painel de memória como material comercial** (em paralelo; a série de aprovação por versão já é argumento).
+6. **Contínuos:** dataset (export fine-tune quando volume crescer) · isolamento por tenant conforme contas crescem · cérebro como serviço próprio quando o volume pedir.
+
+**📌 ANOTADO para decisão futura (não é corrida agora):** trial self-service (Pupila tem; LOUDR é invite-only por decisão). Reavaliar quando o modelo comercial/pricing estiver validado.
 
 ## Inteligência Competitiva — plano de entrega (2 semanas)
 
