@@ -149,7 +149,14 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
   - ✅ **Destilador mais esperto** — pondera **recência × peso**, resolve **contradições** sem apagar conhecimento (rebaixa a confiança do lado vencido) e calibra **confiança por faceta**. *(Validado: uma correção recente do time reverteu um "reprovado" antigo e refinou a regra em vez de apagá-la.)*
   - ✅ **Diff entre versões** — o painel IA LOUDR mostra "o que mudou na v{N}" (novos aprendizados, itens revistos, delta de confiança), tornando a evolução visível item a item.
 - **Núcleo vivo aprofundado (A–D concluídos):** ensina → recupera o aprendido no RAG → destila com recência/contradição → prova a evolução versão-a-versão.
-- **Próximos:** Stripe live · recarga avulsa de créditos.
+- **Cérebro como camada de verdade (06/jul):**
+  - ✅ **`_brain.js`** — o cérebro extraído como módulo único (ingest · distill · search · context · dataset). As superfícies são clientes finos; a fronteira para virar serviço próprio está pronta.
+  - ✅ **Flywheel COMPLETO** — Content Hub fechou o loop: **toda** superfície de cliente (Studio, Assistant, Posicionamento, Competitiva, Content) agora **lê e escreve** o mesmo cérebro. O pitch "tudo retroalimenta" é código, não promessa.
+  - ✅ **Dataset canônico** — `brand_dataset`: exemplos julgados `(contexto → output → avaliação humana)` por marca, versionados, capturados 100% por triggers. É o embrião do modelo por tenant — melhora o RAG agora, destrava fine-tune depois, sem retrabalho.
+  - ✅ **Taxonomia garantida + facetas novas** — `normalizeModelo()` (o LLM propõe, o código garante o shape); facetas `territorio` (derivada de diagnóstico × mapa competitivo — o cérebro aponta o espaço livre a reivindicar) e `conteudo` (temas/ângulos que o time realmente adota).
+  - ✅ **Métrica de assertividade por versão** — cada destilação grava o approval observado sob a versão anterior; o gráfico mostra confiança **e** desempenho real. A evolução é medida, não narrada.
+  - ✅ **Painel admin cross-tenant ("Cérebros")** — a LOUDR enxerga todos os cérebros: versão, confiança, sinais, dataset, approval, destilação sob demanda. A visão de operar uma **rede de inteligências de marca**.
+- **Próximos:** Stripe live · recarga avulsa de créditos · P1 (loop de criativo on-brand).
 
 ---
 
