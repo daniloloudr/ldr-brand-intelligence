@@ -10,6 +10,9 @@
 
 1. ~~**Deploy: merge `dev → main`**~~ ✅ (2026-07-07) — cérebro completo + Writing Room em produção (deploy ready no Netlify).
 2. ~~**E1 — Writing Room on-brand**~~ ✅ (2026-07-06) — `#/app/brands/:id/studio/writing` (nav Brand Studio): 5 frameworks guiados (legenda, carrossel, reel, anúncio, e-mail — `writingFrameworks.js`), system prompt = identidade verbal + `compileIntel` (cérebro), streaming Sonnet via proxy, "Copiar peça" emite `content_used` (fonte `writing_room`) → destilador + dataset.
+   - ~~**E1.1 — Fase 1 do Writing→Mídia: blocos editáveis**~~ ✅ (2026-07-07) — peça parseada em seções (`## `); cada bloco com **editar na mão** e **refazer só esta seção** (IA vê a peça inteira, reescreve só o bloco); "Refazer tudo"; cópia/sinal usam a peça montada dos blocos; edição reabre a adoção. Validado real (carrossel 5 slides, redo do slide 2 sem tocar o resto).
+   - **E1.2 — Fase 2: "Criar workflow com as peças"** — compilador peça→canvas: legenda/carrossel/anúncio → nós prompt+formato+generate (N caminhos); Reel → cadeia generate→videoGen (Seedance i2v); e-mail não materializa. Nós CONFERIDOS: canvas já tem prompt, context, formato, generate, videoGen, preview, imageInput, brandContext, apps. Cada prompt derivado com "Melhorar prompt" + **aviso obrigatório de conferir** (regra do Danilo).
+   - **E1.3 — Fase 3: atalho de geração inline p/ casos simples + edições humanas de bloco viram sinal (ensino de voz).**
 3. *(E2 — loop de criativo com Meta: **movido para "Depois", CONDICIONADO ao fechamento do deal VHITA** — decisão 2026-07-07.)*
 
 ## 🟠 Próximo — fortalece produto e pitch

@@ -6,7 +6,10 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
 import ReplayIcon from '@mui/icons-material/Replay'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import CloseIcon from '@mui/icons-material/Close'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
+import { IconButton } from '@mui/material'
 import { supabase } from '../../lib/supabase'
 import { compileIntel } from '../../lib/brandIntel'
 import { WRITING_FRAMEWORKS } from '../../lib/writingFrameworks'
@@ -91,6 +94,28 @@ async function streamCopy({ system, prompt, onText, onDone, onError }) {
   }
 }
 
+// Parse da peça em BLOCOS por header "## " — a unidade de controle humano:
+// cada bloco pode ser editado na mão ou refeito sozinho, sem perder o resto.
+function parseBlocks(text) {
+  const blocks = []
+  let cur = null
+  for (const line of (text || '').split('\n')) {
+    if (line.startsWith('## ')) {
+      if (cur) blocks.push(cur)
+      cur = { header: line.slice(3).trim(), body: '' }
+    } else if (cur) {
+      cur.body += (cur.body ? '\n' : '') + line
+    } else if (line.trim()) {
+      cur = { header: 'Peça', body: line }
+    }
+  }
+  if (cur) blocks.push(cur)
+  return blocks.map(b => ({ ...b, body: b.body.trim() }))
+}
+
+const assembleBlocks = blocks =>
+  blocks.map(b => `## ${b.header}\n${b.body}`).join('\n\n')
+
 function renderMarkdown(text) {
   if (!text) return null
   return text.split('\n').map((line, i) => {
@@ -117,6 +142,10 @@ export function StudioWriting({ brandId }) {
   const [fw, setFw]               = useState(null)      // framework selecionado
   const [campos, setCampos]       = useState({})
   const [text, setText]           = useState('')
+  const [blocks, setBlocks]       = useState([])      // peça parseada em blocos editáveis
+  const [editing, setEditing]     = useState(null)    // índice do bloco em edição manual
+  const [draft, setDraft]         = useState('')
+  const [redoing, setRedoing]     = useState(null)    // índice do bloco sendo refeito
   const [streaming, setStreaming] = useState(false)
   const [error, setError]         = useState('')
   const [copied, setCopied]       = useState(false)
@@ -145,19 +174,51 @@ export function StudioWriting({ brandId }) {
     if (obrigatorio) { setError(`Preencha "${obrigatorio.label}".`); return }
     setError('')
     setText('')
+    setBlocks([])
+    setEditing(null)
     setSignaled(false)
     setStreaming(true)
     streamCopy({
       system: buildWriterSystem(brand, book, intel),
       prompt: fw.build(campos),
       onText: t => setText(t),
-      onDone: t => { setText(t); setStreaming(false) },
+      onDone: t => { setText(t); setBlocks(parseBlocks(t)); setStreaming(false) },
       onError: e => { setError(e); setStreaming(false) },
     })
   }
 
+  // Refaz UM bloco mantendo o resto — a IA vê a peça inteira e reescreve só
+  // aquela seção, coerente com o que ficou. Controle humano granular.
+  function redoBlock(i) {
+    const b = blocks[i]
+    if (!b || redoing != null) return
+    setRedoing(i)
+    setEditing(null)
+    const prompt = `A peça abaixo já está escrita e aprovada, EXCETO a seção "${b.header}", que precisa ser reescrita.
+
+${assembleBlocks(blocks)}
+
+Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com o restante da peça e com o mesmo propósito da seção original. Responda SOMENTE com o novo conteúdo dessa seção: sem o header "## ${b.header}", sem comentários, sem as outras seções.`
+    streamCopy({
+      system: buildWriterSystem(brand, book, intel),
+      prompt,
+      onText: t => setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: t.trim() } : x)),
+      onDone: t => { setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: t.trim() } : x)); setRedoing(null); setSignaled(false) },
+      onError: e => { setError(e); setRedoing(null) },
+    })
+  }
+
+  function startEdit(i) { setEditing(i); setDraft(blocks[i]?.body || '') }
+  function saveEdit(i) {
+    setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: draft.trim() } : x))
+    setEditing(null)
+    setSignaled(false)   // peça mudou → nova adoção conta como novo exemplo
+  }
+
+  const pecaFinal = () => blocks.length ? assembleBlocks(blocks) : text
+
   // Copiar = adoção → sinal 'content_used' (fonte writing_room) pro cérebro +
-  // dataset (trigger da 029 captura). Uma vez por peça gerada.
+  // dataset (trigger da 029 captura). Uma vez por versão da peça (edição reabre).
   function emitAdoption() {
     if (signaled || !brand?.id || !brand?.workspace_id) return
     setSignaled(true)
@@ -170,15 +231,16 @@ export function StudioWriting({ brandId }) {
         formato:  fw?.label || null,
         intencao: null,
         cluster:  fw?.key || null,
-        briefing: (text || '').slice(0, 2000),
+        briefing: pecaFinal().slice(0, 2000),
       },
       peso: 1.5,
     }).then(({ error: e }) => { if (e) console.error('[writing] signal falhou:', e.message) })
   }
 
   async function handleCopy() {
-    if (!text) return
-    await navigator.clipboard.writeText(text).catch(() => {})
+    const t = pecaFinal()
+    if (!t) return
+    await navigator.clipboard.writeText(t).catch(() => {})
     emitAdoption()
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -245,26 +307,73 @@ export function StudioWriting({ brandId }) {
               <CircularProgress size={16} />
               <Typography fontSize={13} color="text.secondary">Escrevendo no tom da marca…</Typography>
             </Stack>
-          ) : (
+          ) : streaming ? (
             <Box>
               {renderMarkdown(text)}
-              {streaming && <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>}
-              {!streaming && text && (
-                <Stack direction="row" spacing={1.5} mt={3}>
-                  <Tooltip title="Copiar marca a peça como adotada — a marca aprende com o que você usa">
-                    <Button variant="outlined" size="small" onClick={handleCopy}
-                      startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
-                      sx={{ fontWeight: 700, color: copied ? TEAL : 'text.secondary', borderColor: copied ? TEAL : 'divider' }}>
-                      {copied ? 'Copiado!' : 'Copiar peça'}
-                    </Button>
-                  </Tooltip>
-                  <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />}
-                    sx={{ fontWeight: 700, color: 'text.secondary', borderColor: 'divider' }}>
-                    Regerar
-                  </Button>
-                </Stack>
-              )}
+              <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>
             </Box>
+          ) : blocks.length ? (
+            <Box>
+              <Typography fontSize={11.5} color="text.secondary" mb={1.5}>
+                Cada seção pode ser <strong>editada</strong> ou <strong>refeita</strong> sozinha — o resto da peça não muda.
+              </Typography>
+              <Stack spacing={1.5}>
+                {blocks.map((b, i) => (
+                  <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2,
+                    opacity: redoing != null && redoing !== i ? 0.55 : 1,
+                    borderColor: redoing === i ? TEAL : editing === i ? PURPLE : 'divider' }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={0.75}>
+                      <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: TEAL }}>
+                        {b.header}
+                      </Typography>
+                      <Stack direction="row" spacing={0.5}>
+                        {editing === i ? (
+                          <>
+                            <Tooltip title="Salvar edição"><IconButton size="small" onClick={() => saveEdit(i)} sx={{ color: TEAL }}><CheckIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                            <Tooltip title="Cancelar"><IconButton size="small" onClick={() => setEditing(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                          </>
+                        ) : (
+                          <>
+                            <Tooltip title="Editar esta seção na mão">
+                              <IconButton size="small" disabled={redoing != null} onClick={() => startEdit(i)}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
+                            </Tooltip>
+                            <Tooltip title="Refazer só esta seção — o resto da peça não muda">
+                              <span><IconButton size="small" disabled={redoing != null} onClick={() => redoBlock(i)}>
+                                {redoing === i ? <CircularProgress size={14} /> : <ReplayIcon sx={{ fontSize: 16 }} />}
+                              </IconButton></span>
+                            </Tooltip>
+                          </>
+                        )}
+                      </Stack>
+                    </Stack>
+                    {editing === i ? (
+                      <TextField fullWidth multiline minRows={3} size="small" value={draft}
+                        onChange={e => setDraft(e.target.value)} autoFocus />
+                    ) : (
+                      <Box>
+                        {renderMarkdown(b.body)}
+                        {redoing === i && <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>}
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+              <Stack direction="row" spacing={1.5} mt={3}>
+                <Tooltip title="Copiar marca a peça como adotada — a marca aprende com o que você usa">
+                  <Button variant="outlined" size="small" onClick={handleCopy} disabled={redoing != null}
+                    startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
+                    sx={{ fontWeight: 700, color: copied ? TEAL : 'text.secondary', borderColor: copied ? TEAL : 'divider' }}>
+                    {copied ? 'Copiado!' : 'Copiar peça'}
+                  </Button>
+                </Tooltip>
+                <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />} disabled={redoing != null}
+                  sx={{ fontWeight: 700, color: 'text.secondary', borderColor: 'divider' }}>
+                  Refazer tudo
+                </Button>
+              </Stack>
+            </Box>
+          ) : (
+            <Box>{renderMarkdown(text)}</Box>
           )}
         </Paper>
       </Box>
