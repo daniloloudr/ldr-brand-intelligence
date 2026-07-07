@@ -9,10 +9,12 @@ import ReplayIcon from '@mui/icons-material/Replay'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import { IconButton } from '@mui/material'
 import { supabase } from '../../lib/supabase'
 import { compileIntel } from '../../lib/brandIntel'
 import { WRITING_FRAMEWORKS } from '../../lib/writingFrameworks'
+import { compileWritingWorkflow, DERIVE_RULES } from '../../lib/writingToWorkflow'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 
@@ -116,6 +118,31 @@ function parseBlocks(text) {
 const assembleBlocks = blocks =>
   blocks.map(b => `## ${b.header}\n${b.body}`).join('\n\n')
 
+// Deriva os prompts VISUAIS da peça (1 chamada, JSON estrito). O prompt de
+// imagem descreve a CENA — a estética/voz da marca entram depois, no nó de
+// geração (cérebro). Sem streaming: resposta curta.
+async function deriveVisualPrompts({ fwKey, peca }) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (import.meta.env.DEV) headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_KEY || ''
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1500,
+      system: 'Você é diretor de arte. Dada uma peça de conteúdo, você deriva prompts de IMAGEM para gerar os visuais dela. Cada prompt: português, 1–3 frases, cena CONCRETA (sujeito, ambiente, enquadramento, luz), SEM texto sobreposto na imagem, sem citar a marca pelo nome. Responda APENAS com JSON estrito: {"prompts":[{"titulo":"","prompt":""}]}',
+      messages: [{ role: 'user', content: `${DERIVE_RULES[fwKey]}\n\nPEÇA:\n${peca.slice(0, 6000)}` }],
+    }),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `Erro ${res.status}`) }
+  const data = await res.json()
+  const text = data?.content?.[0]?.text || ''
+  const m = text.match(/\{[\s\S]*\}/)
+  const parsed = m ? JSON.parse(m[0]) : null
+  if (!parsed?.prompts?.length) throw new Error('Não consegui derivar os prompts da peça.')
+  return parsed.prompts.filter(p => (p?.prompt || '').trim())
+}
+
 function renderMarkdown(text) {
   if (!text) return null
   return text.split('\n').map((line, i) => {
@@ -147,6 +174,7 @@ export function StudioWriting({ brandId }) {
   const [draft, setDraft]         = useState('')
   const [redoing, setRedoing]     = useState(null)    // índice do bloco sendo refeito
   const [streaming, setStreaming] = useState(false)
+  const [compiling, setCompiling] = useState(false)   // criando o workflow com as peças
   const [error, setError]         = useState('')
   const [copied, setCopied]       = useState(false)
   const [signaled, setSignaled]   = useState(false)
@@ -244,6 +272,31 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
     emitAdoption()
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Fase 2: compila a peça num Workflow do canvas — prompts visuais derivados,
+  // um caminho de geração por slide/variação/cena (Reel encadeia imagem→vídeo).
+  // Nada gera sozinho: o usuário revisa os prompts no canvas e dispara.
+  async function criarWorkflow() {
+    if (!fw || !blocks.length || compiling) return
+    setCompiling(true)
+    setError('')
+    try {
+      const peca = pecaFinal()
+      const prompts = await deriveVisualPrompts({ fwKey: fw.key, peca })
+      const titulo = (campos[fw.campos?.[0]?.id] || fw.label).slice(0, 60)
+      const { nome, nodes, edges } = compileWritingWorkflow({ fwKey: fw.key, fwLabel: fw.label, titulo, peca, prompts })
+      const { data: wf, error: e } = await supabase.from('studio_workflows').insert({
+        workspace_id: brand?.workspace_id, brand_id: brandId, is_template: false,
+        nome, nodes, edges,
+      }).select().single()
+      if (e) throw new Error(e.message)
+      emitAdoption()   // levar pro workflow = adoção da peça
+      window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}`
+    } catch (e) {
+      setError(e.message || 'Falha ao criar o workflow.')
+      setCompiling(false)
+    }
   }
 
   return (
@@ -358,19 +411,29 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                   </Paper>
                 ))}
               </Stack>
-              <Stack direction="row" spacing={1.5} mt={3}>
+              <Stack direction="row" spacing={1.5} mt={3} flexWrap="wrap" useFlexGap>
                 <Tooltip title="Copiar marca a peça como adotada — a marca aprende com o que você usa">
-                  <Button variant="outlined" size="small" onClick={handleCopy} disabled={redoing != null}
+                  <Button variant="outlined" size="small" onClick={handleCopy} disabled={redoing != null || compiling}
                     startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
                     sx={{ fontWeight: 700, color: copied ? TEAL : 'text.secondary', borderColor: copied ? TEAL : 'divider' }}>
                     {copied ? 'Copiado!' : 'Copiar peça'}
                   </Button>
                 </Tooltip>
-                <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />} disabled={redoing != null}
+                <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />} disabled={redoing != null || compiling}
                   sx={{ fontWeight: 700, color: 'text.secondary', borderColor: 'divider' }}>
                   Refazer tudo
                 </Button>
+                {fw?.key !== 'email' && (
+                  <Tooltip title="Compila a peça num workflow: um caminho de geração por seção (Reel vira imagem→vídeo). Você revisa os prompts no canvas antes de gerar.">
+                    <Button variant="contained" size="small" onClick={criarWorkflow} disabled={redoing != null || compiling}
+                      startIcon={compiling ? <CircularProgress size={14} color="inherit" /> : <AccountTreeOutlinedIcon />}
+                      sx={{ fontWeight: 800, bgcolor: PURPLE, '&:hover': { bgcolor: '#665EC4' } }}>
+                      {compiling ? 'Montando o workflow…' : 'Criar workflow com as peças'}
+                    </Button>
+                  </Tooltip>
+                )}
               </Stack>
+              {error && <Typography fontSize={12} color="error" mt={1}>{error}</Typography>}
             </Box>
           ) : (
             <Box>{renderMarkdown(text)}</Box>

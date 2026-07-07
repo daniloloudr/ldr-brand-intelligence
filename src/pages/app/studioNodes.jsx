@@ -79,12 +79,18 @@ const PromptNode = memo(({ id, data, selected }) => (
         placeholder="O que criar…" multiline fullWidth size="small"
         sx={{ flex: 1, minHeight: 0, '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' }, '& textarea': { height: '100% !important', fontSize: 12, overflow: 'auto !important' } }}
       />
-      <Button size="small" disabled={data.improving || !(data.text || '').trim()}
-        startIcon={data.improving ? <CircularProgress size={11} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 14 }} />}
-        onClick={() => data.onImprove?.(id)}
-        sx={{ alignSelf: 'flex-end', fontSize: 10, fontWeight: 700, color: TEAL, minWidth: 0, py: 0 }}>
-        {data.improving ? 'Melhorando…' : 'Melhorar'}
-      </Button>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        {/* Regra do produto: todo "Melhorar" vem com o aviso de conferir antes de gerar */}
+        <Typography sx={{ fontSize: 9, color: 'text.disabled', lineHeight: 1.2 }}>
+          Confira o prompt antes de gerar
+        </Typography>
+        <Button size="small" disabled={data.improving || !(data.text || '').trim()}
+          startIcon={data.improving ? <CircularProgress size={11} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 14 }} />}
+          onClick={() => data.onImprove?.(id)}
+          sx={{ fontSize: 10, fontWeight: 700, color: TEAL, minWidth: 0, py: 0 }}>
+          {data.improving ? 'Melhorando…' : 'Melhorar'}
+        </Button>
+      </Stack>
     </Stack>
   </NodeShell>
 ))
