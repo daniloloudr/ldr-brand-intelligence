@@ -6,7 +6,9 @@
 // nos nós de geração, como sempre.
 import { videoModelByKey } from './videoModels'
 
-const POS = (col, row) => ({ x: 40 + col * 250, y: 40 + row * 200 })
+// Nós têm 250×250px (contexto 280×220) — passo de 340×310 dá ~80px de respiro
+// entre colunas e ~60px entre linhas, sem sobreposição.
+const POS = (col, row) => ({ x: 40 + col * 340, y: 40 + row * 310 })
 
 // "Dance2" (decisão do Danilo): cadeia do Reel usa Seedance 2 — áudio nativo,
 // rápido e barato, i2v a partir da imagem gerada da cena.
@@ -32,10 +34,11 @@ export function compileWritingWorkflow({ fwKey, fwLabel, titulo, peca, prompts }
 
   // Compartilhados: Contexto = tema + guarda de imagem limpa + direção visual
   // da peça (NUNCA a copy — texto entra na pós). + visual da marca + formato.
+  // Coluna da esquerda com posições explícitas (alturas diferentes entre si).
   const ctxText = [`Tema da peça: ${titulo}`, NO_TEXT_GUARD, visualSections(peca)].filter(Boolean).join('\n\n')
-  N('ctx', 'context', 0, 0, { text: ctxText.slice(0, 4000) }, { width: 280, height: 220 })
-  N('bv', 'brandContext', 0, 2, { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' })
-  N('f', 'formato', 0, 3, { formato: FORMATO[fwKey] || '1:1' })
+  nodes.push({ id: 'ctx', type: 'context', position: { x: 40, y: 40 },  data: { text: ctxText.slice(0, 4000) }, style: { width: 280, height: 220 } })
+  nodes.push({ id: 'bv',  type: 'brandContext', position: { x: 40, y: 330 }, data: { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' } })
+  nodes.push({ id: 'f',   type: 'formato', position: { x: 40, y: 650 }, data: { formato: FORMATO[fwKey] || '1:1' } })
 
   const isReel = fwKey === 'reel'
   prompts.forEach((p, i) => {
