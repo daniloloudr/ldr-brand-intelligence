@@ -4,6 +4,8 @@
 
 ---
 
+> **North star (Danilo, jul/2026):** *"Revolucionar a indústria criativa com IA. Esse é o início do poder da marca no meio da operação."* — a indústria separa a marca (guideline, agência) da operação (produção diária); o LOUDR funde os dois: a inteligência da marca vive dentro do fluxo, aprende de cada peça e guia a próxima.
+
 ## Em uma frase
 
 > **O LOUDR não é um gerador de conteúdo com IA — é o sistema operacional vivo da marca.** A geração (imagem, vídeo) é só uma das saídas. O ativo é uma **camada de inteligência que aprende a marca e fica mais assertiva a cada uso**, provando isso com métrica.
