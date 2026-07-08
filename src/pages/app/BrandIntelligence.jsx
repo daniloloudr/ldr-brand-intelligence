@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { NeuralGraph } from '../../components/NeuralGraph'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A', PURPLE = '#7F77DD'
 const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
@@ -217,6 +218,14 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                 <Typography fontSize={11} color="text.secondary">{aprendizados} aprendizados ativos</Typography>
               </Card>
             </Box>
+
+            {/* A rede viva — tudo que está sendo capturado e onde vira criação */}
+            <Card>
+              <SectionTitle help="O mapa vivo da inteligência: à esquerda, tudo que a marca vive e o LOUDR captura (o número é a quantidade real de evidências); no centro, as facetas que ela aprendeu; à direita, onde esse aprendizado é aplicado automaticamente.">
+                A rede da sua marca
+              </SectionTitle>
+              <NeuralGraph signalStats={signalStats} model={model} versao={current.versao} />
+            </Card>
 
             {/* Evolução */}
             {trend.length > 1 ? (
