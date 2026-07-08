@@ -24,6 +24,8 @@
 
 ## 🔴 Frentes novas (direção do Danilo, 2026-07-08)
 
+- **🚀 MCP do Cérebro — PLANEJADO, fazer em breve (decisão 2026-07-08: Figma primeiro; Danilo aprovou o plano).** Plano completo e pronto para executar em [`specs/features/mcp-cerebro.md`](specs/features/mcp-cerebro.md): F0 auth por API key (migration 035) → F1 MCP server no Netlify (6 tools sobre o `_brain.js`) → F2 teste estruturado T1–T7 com o MCP oficial do Figma (write-to-canvas) → F3 produto. ~2 dias de execução. Dependência do Danilo p/ o T4: seat Full pago no Figma.
+
 - **Revisão de taxonomia + layout do Brand Book (time de criação).** ⚠️ Mapa técnico antes de mudar: a taxonomia atual (`verbal_identity`/`visual_identity` e suas chaves — tom_voz, personalidade, paleta, foto_mood etc.) é consumida por `compileBrandContext` (_brain.js, toda geração), `buildWriterSystem` (Writing Room), `compileIntel`/RAG (`brand-book-embed`), extração de manual (F11) e o destilador (grounding). Quando o time definir a taxonomia nova, fazer o de-para campo a campo e migrar os consumidores juntos — mudar só a UI quebra o cérebro silenciosamente.
 - **Go-to-market: marca do produto + apresentação ao mercado.** Criar a marca do produto (naming/identidade) e o material de venda. Dogfooding máximo: usar o próprio LOUDR para construir essa marca (brand book próprio, diagnóstico, Writing Room para a copy de lançamento) — vira case e demo ao mesmo tempo. Ativos prontos para o pitch: rede neural viva, narrativa "N evidências → M versões", diagnóstico competitivo com clipping.
 
