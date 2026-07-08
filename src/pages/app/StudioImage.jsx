@@ -28,7 +28,7 @@ const MAX_REFS = 5   // até 5 referências p/ ajudar composições e banners
 
 // Ações inline pós-geração (reaproveitam studio-edit.js)
 const APP_ACTIONS = [
-  { op: 'upscale',   label: 'Upscale',       Icon: HighQualityOutlinedIcon },
+  { op: 'upscale',   label: 'Ampliar',       Icon: HighQualityOutlinedIcon },
   { op: 'removebg',  label: 'Remover fundo', Icon: LayersClearOutlinedIcon },
   { op: 'variation', label: 'Variação',      Icon: AutoAwesomeMotionOutlinedIcon },
 ]

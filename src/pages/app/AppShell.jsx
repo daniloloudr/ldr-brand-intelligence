@@ -35,6 +35,7 @@ const StudioCanvas    = lazy(() => import('./StudioCanvas').then(m => ({ default
 const StudioCampaigns = lazy(() => import('./StudioCampaigns').then(m => ({ default: m.StudioCampaigns })))
 const StudioVideo     = lazy(() => import('./StudioVideo').then(m => ({ default: m.StudioVideo })))
 const StudioWriting   = lazy(() => import('./StudioWriting').then(m => ({ default: m.StudioWriting })))
+const StudioLibrary   = lazy(() => import('./StudioLibrary').then(m => ({ default: m.StudioLibrary })))
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import logoNegativa from '../../assets/negativa.svg'
 import logoPositivo from '../../assets/logo-positivo-200px.png'
@@ -127,6 +128,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: 'Vídeos',       hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
       { label: 'Writing Room', hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
       { label: 'Workflow',     hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
+      { label: 'Biblioteca',   hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
     ] },
     { type: 'item', label: 'Brand Assistant', icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
   ]
@@ -156,6 +158,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     }
     if (route === 'brands-studio-video')   return <StudioVideo brandId={getBrandId()} />
     if (route === 'brands-studio-writing') return <StudioWriting brandId={getBrandId()} />
+    if (route === 'brands-studio-biblioteca') return <StudioLibrary brandId={getBrandId()} />
     if (route === 'brands-studio-campaigns') return <StudioCampaigns brandId={getBrandId()} />
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />

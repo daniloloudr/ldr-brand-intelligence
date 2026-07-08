@@ -251,7 +251,28 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
   }
 
   function startEdit(i) { setEditing(i); setDraft(blocks[i]?.body || '') }
+
+  // E1.3: reescrever uma seção na mão é ENSINO DE VOZ — "a IA escreveu X, o
+  // humano preferiu Y". Vira sinal de alto valor pro cérebro (não-fatal).
+  function emitEditSignal(secao, original, edicao) {
+    if (!brand?.id || !brand?.workspace_id) return
+    const o = (original || '').trim(), e = (edicao || '').trim()
+    if (!e || e === o) return   // edição vazia/idêntica não ensina nada
+    supabase.from('brand_signals').insert({
+      brand_id: brand.id, workspace_id: brand.workspace_id,
+      tipo: 'writing_edit', fonte: 'writing_room', ref_id: null,
+      payload: {
+        secao: (secao || '').slice(0, 120),
+        formato: fw?.label || null, cluster: fw?.key || null,
+        original: o.slice(0, 1500), edicao: e.slice(0, 1500),
+      },
+      peso: 2.5,
+    }).then(({ error: err }) => { if (err) console.error('[writing] edit signal falhou:', err.message) })
+  }
+
   function saveEdit(i) {
+    const b = blocks[i]
+    emitEditSignal(b?.header, b?.body, draft)
     setBlocks(bs => bs.map((x, j) => j === i ? { ...x, body: draft.trim() } : x))
     setEditing(null)
     setSignaled(false)   // peça mudou → nova adoção conta como novo exemplo

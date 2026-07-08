@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react'
 import { Box, Paper, Typography, Stack, CircularProgress, Chip, LinearProgress, Divider, Tooltip } from '@mui/material'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { NeuralGraph } from '../../components/NeuralGraph'
 
 const TEAL = '#0D9E7A', CORAL = '#E8185A', PURPLE = '#7F77DD'
 const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
 const shortProvider = p => (p || '?').split('/').slice(-2).join('/')
-const SIGNAL_LABEL = { image_vote: 'Avaliações de peças', campaign_verdict: 'Campanhas', diagnostic: 'Diagnósticos', listening_sentiment: 'Sentimento do público', brandbook_edit: 'Ajustes no brand book', assistant_correction: 'Ensinamentos no Assistant', competitive: 'Movimentos de mercado', content_used: 'Conteúdos adotados', image_regen: 'Regenerações (não convenceu)' }
+const SIGNAL_LABEL = { image_vote: 'Avaliações de peças', campaign_verdict: 'Campanhas', diagnostic: 'Diagnósticos', listening_sentiment: 'Sentimento do público', brandbook_edit: 'Ajustes no brand book', assistant_correction: 'Ensinamentos no Assistant', competitive: 'Movimentos de mercado', content_used: 'Conteúdos adotados', image_regen: 'Regenerações (não convenceu)', writing_edit: 'Copy reescrita (ensino de voz)' }
 
 // ── Diff entre versões (trilho D) — comparação semântica leve, client-side ──
 const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -108,6 +110,19 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
   ].filter(f => f.added.length || f.removed.length) : []
   const confDelta = pm && current?.confianca_media != null && prev.confianca_media != null
     ? Math.round((current.confianca_media - prev.confianca_media) * 100) : null
+  // Números "desde o início" — a prova viva para quem olha a tela (P4)
+  const v1 = versions[0]
+  const confDesdeInicio = versions.length > 1 && current?.confianca_media != null && v1?.confianca_media != null
+    ? Math.round((current.confianca_media - v1.confianca_media) * 100) : null
+  const dataInicio = v1?.created_at ? new Date(v1.created_at).toLocaleDateString('pt-BR') : null
+  const janelaAprovacao = current?.metricas?.approval_sob_versao_anterior ?? null
+  const aprendizados = model ? (
+    (model.preferencias_visuais?.aprovado?.length || 0) + (model.preferencias_visuais?.reprovado?.length || 0) +
+    (model.do_dont?.do?.length || 0) + (model.do_dont?.dont?.length || 0) +
+    (model.conteudo?.temas?.length || 0) + (model.fatos?.length || 0) +
+    (model.posicionamento?.valor ? 1 : 0) + (model.voz?.valor ? 1 : 0) + (model.territorio?.valor ? 1 : 0)
+  ) : 0
+
   const vozChanged  = pm && model?.voz?.valor && pm?.voz?.valor && !similar(model.voz.valor, pm.voz.valor)
   const posChanged  = pm && model?.posicionamento?.valor && pm?.posicionamento?.valor && !similar(model.posicionamento.valor, pm.posicionamento.valor)
   const terrChanged = pm && model?.territorio?.valor && !similar(model.territorio.valor, pm?.territorio?.valor || '')
@@ -154,26 +169,63 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
           </Stack>
         ) : (
           <Stack spacing={2.5}>
+            {/* A prova viva em uma frase — números reais, não promessa */}
+            {versions.length > 1 && dataInicio && (
+              <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'rgba(127,119,221,0.35)', bgcolor: 'rgba(127,119,221,0.06)' }}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <TrendingUpIcon sx={{ color: PURPLE, fontSize: 22 }} />
+                  <Typography fontSize={13.5} sx={{ lineHeight: 1.55 }}>
+                    Desde <strong>{dataInicio}</strong>, a sua marca transformou <strong>{totalSignals} evidências de uso</strong> em{' '}
+                    <strong>{versions.length} versões de aprendizado</strong> — {aprendizados} aprendizados ativos hoje
+                    {confDesdeInicio != null && confDesdeInicio !== 0 && (
+                      <>, com a confiança {confDesdeInicio > 0 ? 'subindo' : 'sendo recalibrada'} de{' '}
+                      <strong>{pct(v1.confianca_media)}</strong> para <strong>{pct(current.confianca_media)}</strong></>
+                    )}.
+                  </Typography>
+                </Stack>
+              </Paper>
+            )}
+
             {/* Métricas de topo */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
               <Card>
                 <SectionTitle help="Cada avanço no aprendizado da sua marca gera uma versão nova.">Versão</SectionTitle>
                 <Typography fontWeight={900} fontSize={28} sx={{ color: PURPLE }}>v{current.versao}</Typography>
+                {dataInicio && <Typography fontSize={11} color="text.secondary">aprendendo desde {dataInicio}</Typography>}
               </Card>
               <Card>
                 <SectionTitle help="O quanto a inteligência está segura do que aprendeu sobre a sua marca. Sobe conforme as evidências se confirmam.">Confiança</SectionTitle>
-                <Typography fontWeight={900} fontSize={28} sx={{ color: TEAL }}>{pct(current.confianca_media)}</Typography>
+                <Typography fontWeight={900} fontSize={28} sx={{ color: TEAL }}>
+                  {pct(current.confianca_media)}
+                  {confDesdeInicio != null && confDesdeInicio !== 0 && (
+                    <Typography component="span" fontSize={13} fontWeight={800} sx={{ ml: 0.75, color: confDesdeInicio > 0 ? TEAL : CORAL }}>
+                      {confDesdeInicio > 0 ? '▲' : '▼'}{Math.abs(confDesdeInicio)} pts
+                    </Typography>
+                  )}
+                </Typography>
+                {versions.length > 1 && <Typography fontSize={11} color="text.secondary">início: {pct(v1?.confianca_media)}</Typography>}
               </Card>
               <Card>
                 <SectionTitle help="A fração das peças que você aprovou — reflete o quanto o LOUDR já acerta o tom da sua marca.">Aprovação</SectionTitle>
                 <Typography fontWeight={900} fontSize={28}>{pct(approval)}</Typography>
-                <Typography fontSize={11} color="text.secondary">{ups} 👍 · {downs} 👎</Typography>
+                <Typography fontSize={11} color="text.secondary">
+                  {ups} 👍 · {downs} 👎{janelaAprovacao != null ? ` · última janela: ${pct(janelaAprovacao)}` : ''}
+                </Typography>
               </Card>
               <Card>
                 <SectionTitle help="Cada avaliação, campanha e diagnóstico é uma evidência que alimenta o aprendizado.">Evidências</SectionTitle>
                 <Typography fontWeight={900} fontSize={28}>{totalSignals}</Typography>
+                <Typography fontSize={11} color="text.secondary">{aprendizados} aprendizados ativos</Typography>
               </Card>
             </Box>
+
+            {/* A rede viva — tudo que está sendo capturado e onde vira criação */}
+            <Card>
+              <SectionTitle help="O mapa vivo da inteligência: à esquerda, tudo que a marca vive e o LOUDR captura (o número é a quantidade real de evidências); no centro, as facetas que ela aprendeu; à direita, onde esse aprendizado é aplicado automaticamente.">
+                A rede da sua marca
+              </SectionTitle>
+              <NeuralGraph signalStats={signalStats} model={model} versao={current.versao} />
+            </Card>
 
             {/* Evolução */}
             {trend.length > 1 ? (
