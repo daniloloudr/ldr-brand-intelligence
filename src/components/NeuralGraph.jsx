@@ -12,6 +12,7 @@ const INPUTS = [
   { k: 'image_regen',          label: 'Regenerações' },
   { k: 'campaign_verdict',     label: 'Campanhas' },
   { k: 'content_used',         label: 'Conteúdos adotados' },
+  { k: 'writing_edit',         label: 'Copy reescrita' },
   { k: 'assistant_correction', label: 'Ensinamentos' },
   { k: 'brandbook_edit',       label: 'Brand book' },
   { k: 'diagnostic',           label: 'Diagnósticos' },
@@ -40,7 +41,7 @@ const OUTPUTS = [
 // Que evidência fortalece que faceta / que faceta guia que superfície
 const IN_TO_FACET = {
   image_vote: ['visual'], image_regen: ['visual'], campaign_verdict: ['visual', 'conteudo'],
-  content_used: ['conteudo', 'voz'], assistant_correction: ['voz', 'fatos'],
+  content_used: ['conteudo', 'voz'], writing_edit: ['voz', 'conteudo'], assistant_correction: ['voz', 'fatos'],
   brandbook_edit: ['voz', 'posicionamento'], diagnostic: ['posicionamento', 'territorio'],
   competitive: ['territorio', 'fatos'], listening_sentiment: ['fatos'],
 }
@@ -61,7 +62,7 @@ const curve = (x1, y1, x2, y2) => {
 export function NeuralGraph({ signalStats = {}, model, versao }) {
   const W = 940, H = 470
   const inX = 190, faX = 470, outX = 760
-  const inY  = i => 38 + i * 49
+  const inY  = i => 36 + i * 45
   const faY  = i => 66 + i * 74
   const outY = i => 66 + i * 74
 

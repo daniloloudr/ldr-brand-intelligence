@@ -249,6 +249,8 @@ function fmtSignalBody(s) {
     return `[ENSINO EXPLÍCITO DO TIME no Brand Assistant] pergunta="${(p.pergunta || '').slice(0, 200)}" · o time CORRIGIU/ENSINOU: "${(p.correcao || '').slice(0, 500)}"`
   if (s.tipo === 'content_used')
     return `[conteúdo ADOTADO pelo time] ${p.item_tipo === 'ideia' ? 'ideia' : 'keyword'}="${(p.titulo || '').slice(0, 120)}" formato=${p.formato || '?'} intenção=${p.intencao || '?'} briefing="${(p.briefing || '').slice(0, 400)}"`
+  if (s.tipo === 'writing_edit')
+    return `[COPY REESCRITA PELO TIME — ensino de voz] seção="${p.secao || '?'}" formato=${p.formato || '?'} · a IA escreveu: "${(p.original || '').slice(0, 300)}" · o time preferiu: "${(p.edicao || '').slice(0, 400)}"`
   if (s.tipo === 'image_regen')
     return `[REGENERADO — reprovação implícita] provider=${p.provider || '?'} formato=${p.formato || '?'} tipo=${p.media_type || 'image'}${p.ajuste ? ` · o usuário pediu para ajustar: "${p.ajuste}"` : ''} prompt="${(p.prompt || '').slice(0, 300)}" (ref:${s.ref_id})`
   return `[${s.tipo}] ${JSON.stringify(p).slice(0, 300)}`
@@ -271,6 +273,7 @@ const SYSTEM = [
   '- CONTRADIÇÃO: quando sinais se contradizem entre si OU contradizem o MODELO ATUAL, NÃO faça média cega. Prevalece o lado mais recente + de maior peso + ensino explícito. Ao lado perdedor, NÃO apague conhecimento útil — rebaixe a confiança e, se relevante, registre a ressalva no próprio "valor"/"fato".',
   '- DECAIMENTO: se o MODELO ATUAL afirma algo que os sinais novos contradizem, ou que já não é corroborado, REDUZA sua confiança em vez de mantê-la. Só permanece alta a confiança do que é recente e reforçado.',
   '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider). Votos recentes pesam mais que antigos.',
+  '- writing_edit = o time REESCREVEU um trecho de copy gerado. Aprenda com a DIFERENÇA entre o que a IA escreveu e o que o humano preferiu — é ensino direto de voz e estilo (quase tão forte quanto assistant_correction); alimenta voz, do_dont e conteudo.',
   '- image_regen = o usuário REGENEROU uma peça sem votar — reprovação IMPLÍCITA, mais fraca que um 👎 explícito (pese menos no win-rate e nas preferências). Quando houver "ajuste", ele diz EXATAMENTE o que faltou — trate como correção direcionada de alta relevância para as preferências visuais.',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
   '- territorio: o território de posicionamento que a MARCA deve reivindicar — derive de diagnostic (territórios possíveis) cruzado com competitive (não reivindique espaço dominado por concorrente; prefira espaço livre).',
