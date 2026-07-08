@@ -12,7 +12,7 @@
 2. ~~**E1 — Writing Room on-brand**~~ ✅ (2026-07-06) — `#/app/brands/:id/studio/writing` (nav Brand Studio): 5 frameworks guiados (legenda, carrossel, reel, anúncio, e-mail — `writingFrameworks.js`), system prompt = identidade verbal + `compileIntel` (cérebro), streaming Sonnet via proxy, "Copiar peça" emite `content_used` (fonte `writing_room`) → destilador + dataset.
    - ~~**E1.1 — Fase 1 do Writing→Mídia: blocos editáveis**~~ ✅ (2026-07-07) — peça parseada em seções (`## `); cada bloco com **editar na mão** e **refazer só esta seção** (IA vê a peça inteira, reescreve só o bloco); "Refazer tudo"; cópia/sinal usam a peça montada dos blocos; edição reabre a adoção. Validado real (carrossel 5 slides, redo do slide 2 sem tocar o resto).
    - ~~**E1.2 — Fase 2: "Criar workflow com as peças"**~~ ✅ (2026-07-07) — compilador peça→canvas (`writingToWorkflow.js`): prompts visuais derivados por LLM (1/post, 1/slide, 2-4 cenas/reel, 1/variação), peça inteira no nó Contexto, caminhos prompt→generate→preview (Reel: →videoGen **Seedance 2**), visual da marca + formato compartilhados. Nada gera sozinho — revisão no canvas. PromptNode ganhou o aviso "Confira o prompt antes de gerar" (regra). Validado real: legenda→workflow no canvas.
-   - **E1.3 — Fase 3: atalho de geração inline p/ casos simples + edições humanas de bloco viram sinal (ensino de voz).**
+   - ~~**E1.3 — edições de bloco viram sinal**~~ ✅ (2026-07-08) — editar seção no Writing Room emite `writing_edit` (peso 2.5, original→edição): ensino direto de voz. Destilador + dataset (migration 033) + painel + rede neural. *(Atalho de geração inline: descartado por ora — o caminho workflow cobre.)*
 3. *(E2 — loop de criativo com Meta: **movido para "Depois", CONDICIONADO ao fechamento do deal VHITA** — decisão 2026-07-07.)*
 
 ## 🟠 Próximo — fortalece produto e pitch
@@ -20,7 +20,7 @@
 4. ~~**E3 — Edit & Enhance na galeria**~~ ✅ **JÁ EXISTIA** (constatado 2026-07-07) — a página Imagem já expõe Ampliar/Remover fundo/Variação inline em cada item da galeria (`APP_ACTIONS` → `studio-edit`), além do canvas. O gap-analysis da Pupila marcou "parcial" por engano. Só padronizado o rótulo Upscale→Ampliar.
 5. ~~**E4 — Biblioteca de assets**~~ ✅ (2026-07-07) — página **Biblioteca** no Brand Studio (`/studio/biblioteca`, `StudioLibrary.jsx`): grid de mídia/arquivos (peças salvas do Studio + uploads; cor/tipografia ficam no Brand Book), **pastas** (chips + contagem, free-solo), **tags** (#filtros) e **busca** (nome/descrição/tag/pasta). Dialog "Organizar" por asset; preview de imagem/vídeo (hover-play)/SVG inline; baixar/excluir. Migration `032` (pasta + tags[]) aplicada. Validado no browser. *(Evolução: ver "Stock assets" em Ideias.)*
 6. ~~**P4 — painel de memória como material comercial**~~ ✅ (2026-07-07) — IA LOUDR ganhou: banner-narrativa com números reais (desde {data}, N evidências → M versões → aprendizados ativos → confiança início→hoje), delta de confiança desde a v1 (▲/▼ pts), "última janela" de aprovação (metricas por versão) e contagem de aprendizados ativos. **Sem export PDF por decisão do Danilo — prova viva é na tela.**
-7. **Dogfooding competitiva** — cadastrar a **Pupila** como concorrente no Posicionamento do workspace LOUDR (diagnóstico + clipping + cérebro). ~10 min.
+7. ~~**Dogfooding competitiva**~~ ✅ (2026-07-08) — Pupila cadastrada (campos corrigidos: nome/domínio estavam invertidos), diagnóstico premium rodado (5/5/5, "a marca não conta a história que o produto vive", território "Brand Operations") e sinal `competitive` no cérebro. Clipping entra no cron de segunda.
 
 ## 🟡 Depois — fundação e escala
 
@@ -43,7 +43,7 @@
 
 ## 🧹 Higiene técnica
 
-- **Sinais órfãos** — 14 sinais `diagnostic` com `brand_id NULL` (workspaces sem marca) nunca serão consumidos: limpar + guard no trigger (`if v_brand is not null`).
+- ~~**Sinais órfãos**~~ ✅ (2026-07-08, migration 033) — órfãos removidos + guard nos triggers de diagnostic/listening.
 - **supabase CLI** — atualizar 2.106 → 2.109 (aviso recorrente).
 
 ---
