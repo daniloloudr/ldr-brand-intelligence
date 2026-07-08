@@ -136,6 +136,13 @@ O produto **prova** que está ficando mais inteligente — não é promessa, é 
 | `trg_signal_listening` | `sentiment_snapshots` | `listening_sentiment` |
 | `trg_signal_brandbook` | `brand_books` | `brandbook_edit` (peso 2) |
 
+### Rodada 08/jul ✅ — cron consertado, `writing_edit`, rede neural
+- **FIX CRÍTICO:** `brand-distill-cron` não destilava em prod — fire-and-forget `fetch` morre quando a Lambda retorna (runtime congela). Regra permanente: **sempre `await` em dispatches de function**. Duas janelas perdidas; destravado manualmente (LOUDR v4→v5; 2ª marca ganhou v1).
+- **`writing_edit`** (E1.3): editar uma seção no Writing Room emite sinal peso 2.5 — "a IA escreveu X, o humano preferiu Y" é ensino direto de voz. Destilador trata como quase-correção; dataset captura original→edição (migration 033, que também removeu sinais órfãos e pôs guard `v_brand is not null` nos triggers).
+- **Rede neural viva** (`src/components/NeuralGraph.jsx`) no painel IA LOUDR: 3 camadas com dados reais — 10 fontes de evidência (nó dimensionado pela contagem; apagado = sem evidência), facetas do aprendizado (acesas quando aprendidas), superfícies de aplicação. SVG animado (fluxo nas conexões ativas). Pedido do Danilo: "ilustrar tudo que está sendo capturado".
+- **P4:** painel ganhou banner-narrativa com números reais (desde a v1: evidências→versões→aprendizados→confiança) e delta desde o início; decisão: prova viva é NA TELA, sem export PDF.
+- **v5 real (08/jul):** brand book populado pelo Danilo → 3 `brandbook_edit` + competitive da Pupila → v5 com posicionamento/voz grounded no texto real ("provocadora, ousada e direta") e fato "Pupila reivindica Brand Operations".
+
 ### `image_regen` — regenerar é reprovação implícita ✅ (2026-07-07)
 Insight do Danilo: **quem regenera não gostou.** `studio-generate`/`studio-generate-video` aceitam `regen` (canvas acha a peça anterior pelo `workflow_id`+`node_id`) ou `regen_of` (id direto — "Reajustar" do StudioVideo, que também manda o **texto do ajuste** = correção direcionada dizendo o que faltou). Emitem sinal `image_regen` via `emitSignal` (peso 1 — mais fraco que 👎 explícito peso 2). Destilador pesa menos no win-rate e trata `ajuste` como correção de alta relevância. Dataset (migration `031`): vira exemplo julgado da peça ORIGINAL com `on conflict do nothing` — voto explícito sempre prevalece. Painel: "Regenerações (não convenceu)".
 

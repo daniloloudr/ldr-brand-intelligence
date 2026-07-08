@@ -362,3 +362,22 @@ Herda as regras do SPECS principal. Reforços:
 
 *LOUDR Studio · SPEC v2.0 · Junho 2026*
 *Documento independente — complementa o LOUDR OS SPECS v5.8.*
+
+---
+
+## Superfícies adicionadas em jul/2026 (v3.0)
+
+### Writing Room (`/studio/writing`) — copy no tom da marca
+5 frameworks guiados (`src/lib/writingFrameworks.js`): legenda de post, carrossel, roteiro de Reel, copy de anúncio Meta (3 variações), e-mail de marketing. A **estrutura** da peça vem do framework; a **voz** vem do cérebro (identidade verbal + `compileIntel` do modelo vivo no system; streaming Sonnet via proxy `anthropic.js`).
+- **Blocos editáveis** (E1.1): peça parseada por seção (`## `) — editar na mão, refazer SÓ a seção (IA vê a peça inteira), refazer tudo.
+- **"Criar workflow com as peças"** (E1.2, `src/lib/writingToWorkflow.js`): deriva prompts visuais por LLM (1/post, 1/slide, 2–4 cenas/reel, 1/variação) e compila o grafo no canvas — peça no nó Contexto (SÓ direção visual, nunca a copy), caminhos prompt→generate→preview, Reel encadeia generate→videoGen (Seedance 2). Nada gera sozinho: revisão no canvas.
+- **Regras de produto:** imagem SEMPRE sem texto (tipografia = pós-produção; peça inclui bloco "Sugestão de imagem" para o time criativo); todo "Melhorar prompt" com aviso de conferir.
+- **Sinais emitidos:** copiar/criar workflow = `content_used` (adoção); editar seção = `writing_edit` (ensino de voz, peso 2.5).
+
+### Biblioteca (`/studio/biblioteca`) — os assets organizados
+Grid de mídia/arquivos do `brand_assets` (peças salvas do Studio + uploads; cor/tipografia ficam no Brand Book): **pastas** (free-solo, chips com contagem), **tags** (#filtros), **busca** (nome/descrição/tag/pasta), dialog "Organizar" por asset, preview de imagem/vídeo (hover-play)/SVG inline, baixar/excluir. Migration 032 (`pasta`, `tags[]`).
+
+### Sinal de regeneração (studio-generate/-video)
+`regen: true` (canvas — acha a peça anterior por `workflow_id`+`node_id`) ou `regen_of` + `ajuste` ("Reajustar" do StudioVideo) → sinal `image_regen`: reprovação implícita, peso 1; o texto do ajuste é correção direcionada. Ver brand-intelligence.md.
+
+*SPEC v3.0 · Julho 2026 — complementa o LOUDR OS SPECS v6.0.*
