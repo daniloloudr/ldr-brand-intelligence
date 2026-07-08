@@ -156,7 +156,9 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
   - ✅ **Taxonomia garantida + facetas novas** — `normalizeModelo()` (o LLM propõe, o código garante o shape); facetas `territorio` (derivada de diagnóstico × mapa competitivo — o cérebro aponta o espaço livre a reivindicar) e `conteudo` (temas/ângulos que o time realmente adota).
   - ✅ **Métrica de assertividade por versão** — cada destilação grava o approval observado sob a versão anterior; o gráfico mostra confiança **e** desempenho real. A evolução é medida, não narrada.
   - ✅ **Painel admin cross-tenant ("Cérebros")** — a LOUDR enxerga todos os cérebros: versão, confiança, sinais, dataset, approval, destilação sob demanda. A visão de operar uma **rede de inteligências de marca**.
-- **Próximos:** Stripe live · recarga avulsa de créditos · P1 (loop de criativo on-brand).
+- **Writing→Mídia (07–08/jul):** Writing Room (frameworks + blocos editáveis + compilador peça→workflow) · Biblioteca de assets · sinais `image_regen` e `writing_edit` (o produto aprende até com regenerações e edições de texto) · rede neural viva no painel · cron de destilação autônomo consertado. **Flywheel rodando 100% em produção** (v5 da LOUDR grounded no brand book real + inteligência competitiva da Pupila).
+- **Fase atual (08/jul): GO-TO-MARKET.** Time de criação revê taxonomia+layout do Brand Book; criar a marca do produto e apresentar ao mercado. Em seguida: **rodada de investimento para expansão** — o material do pitch é o próprio flywheel medido (evidências→versões→assertividade, dataset proprietário, moat do cérebro).
+- **Próximos técnicos:** Stripe live · recarga avulsa · E2 (loop criativo + Meta, gatilho: deal VHITA).
 
 ---
 
