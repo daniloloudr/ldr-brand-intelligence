@@ -46,6 +46,18 @@
 - **Nurturing emails** (D+2, D+5, D+10, D+15) — jornada de ativação por e-mail.
 - **F07b — Search Listening** — análise de busca orgânica (além do social).
 
+## 🟠 Gaps de vendabilidade/escala (auditoria 2026-07-08 — revisar antes da expansão)
+
+> Nenhum bloqueia venda consultiva hoje; todos viram pré-requisito conforme contas/equipe crescem. Ordem sugerida pela dor.
+
+1. **Observabilidade** — Sentry (ou similar) + alerta "cron não destilou em Xh". O bug do cron ficou 2 dias invisível; é o gap que JÁ doeu. ~1 dia.
+2. **Testes automatizados** — zero cobertura (o `App.test.js` é resquício sem runner). O bug do cron e o da coluna `version` cairiam num CI básico. Começar por: smoke das functions críticas (_brain, studio-generate, distill) + parse de writingFrameworks. Diligência de investidor olha isso.
+3. **LGPD / ToS / Privacidade** — inexistentes no repo. Necessário para clientes maiores e para a captação.
+4. **Jornada do dia 1** — workspace novo → brand book vazio → primeiro valor: precisa ser guiada (wizard/checklist). Dói ao passar de ~10 contas.
+5. **Billing live** — Stripe validado em test mode; ativar quando a venda deixar de ser manual.
+6. **Backup por cérebro / tenant hardening** — já listado em Depois (gatilho: contas crescendo).
+7. **Responsividade mobile** — não auditada (painéis e Studio são desktop-first).
+
 ## 🧹 Higiene técnica
 
 - ~~**Sinais órfãos**~~ ✅ (2026-07-08, migration 033) — órfãos removidos + guard nos triggers de diagnostic/listening.
