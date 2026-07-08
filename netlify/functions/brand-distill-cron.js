@@ -18,13 +18,18 @@ export const handler = async () => {
   for (const r of data || []) counts[r.brand_id] = (counts[r.brand_id] || 0) + 1
   const brands = Object.entries(counts).filter(([, c]) => c >= THRESHOLD).map(([b]) => b)
 
-  // dispara a destilação (fire-and-forget) — cada uma roda como background
-  for (const brand_id of brands) {
+  // Dispara a destilação de cada marca como background function (202 imediato).
+  // PRECISA de await: fire-and-forget em Lambda morre quando o handler retorna
+  // (o runtime congela antes de o fetch sair) — bug que deixou o cron "rodando"
+  // sem destilar nada em prod (06–08/jul).
+  const results = await Promise.allSettled(brands.map(brand_id =>
     fetch(`${siteBase()}/.netlify/functions/brand-distill-background`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ brand_id }),
-    }).catch(() => {})
-  }
+    })
+  ))
+  const falhas = results.filter(r => r.status === 'rejected').length
+  if (falhas) console.error(`[distill-cron] ${falhas} disparo(s) falharam`)
 
   console.log(`[distill-cron] ${brands.length} marca(s) acima do limiar (${THRESHOLD}) → destilando`)
   return { statusCode: 200, body: JSON.stringify({ distilled: brands.length, threshold: THRESHOLD }) }
