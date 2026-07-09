@@ -16,7 +16,8 @@ const NODE_TYPES = ['prompt', 'formato', 'generate', 'preview', 'app', 'imageInp
 const FORMATOS = ['1:1', '9:16', '16:9', '4:5']
 const APP_OPS = ['upscale', 'removebg', 'variation']
 const APP_LABELS = { upscale: 'Ampliar', removebg: 'Remover fundo', variation: 'Variação' }
-const POS = (col, row) => ({ x: 40 + col * 250, y: 40 + row * 185 })
+// Nós têm 250×250px — passo 340×310 dá respiro (mesmo grid do Writing Room).
+const POS = (col, row) => ({ x: 40 + col * 340, y: 40 + row * 310 })
 
 const SYSTEM = [
   'Você projeta workflows nodais de geração de imagem para o LOUDR Studio.',
