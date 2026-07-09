@@ -68,6 +68,8 @@ export function StudioCanvas({ brandId, workflowId }) {
   const regenRef = useRef(null)                     // regenNode() estável p/ os nós
   const regenNodeCb = useCallback(id => regenRef.current?.(id), [])
   const saveRef = useRef(null)                       // save() atual p/ autosave pós-run
+  const wfIdRef = useRef(wfId)
+  useEffect(() => { wfIdRef.current = wfId }, [wfId])
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -110,6 +112,9 @@ export function StudioCanvas({ brandId, workflowId }) {
       novas.push(supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl)
     }
     updateNodeData(id, { urls: [...current, ...novas].slice(0, MAX_REF), url: undefined, uploading: false })
+    // Persiste na hora (workflow já salvo): upload é caro demais pra viver só
+    // em memória — qualquer remount/crash perderia a referência.
+    if (novas.length && wfIdRef.current) setTimeout(() => saveRef.current?.(), 0)
   }, [brandId, updateNodeData])
 
   const removeImageInput = useCallback((id, url) => {
@@ -270,7 +275,7 @@ export function StudioCanvas({ brandId, workflowId }) {
           const byNode = {}
           for (const g of gens || []) if (g.node_id) byNode[g.node_id] = { url: g.image_url, id: g.id }
 
-          const loaded = (data.nodes || []).map(attachHandlers).map(n => {
+          const loaded = (data.nodes || []).map(n => attachHandlersRef.current(n)).map(n => {
             const d = { ...n.data }
             if (d.status === 'running') d.status = 'idle'   // limpa estados transitórios
             if (d.loading) d.loading = false
@@ -299,7 +304,10 @@ export function StudioCanvas({ brandId, workflowId }) {
     }
     load()
     return () => { active = false; if (pollRef.current) clearInterval(pollRef.current) }
-  }, [wfId, updateNodeData, attachHandlers])
+    // Só wfId nas deps: recarregar por identidade de callback (attachHandlers)
+    // descartava estado não salvo do canvas — o "pisca" que perde upload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wfId])
 
   // Aviso ao fechar/recarregar a aba com alterações não salvas
   useEffect(() => {
