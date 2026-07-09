@@ -36,7 +36,7 @@
 
 **As IAs viraram commodity. A memória, não.**
 
-1. **A borda é commodity comprovada:** a Tess AI (Pareto, BR) fatura projetados **R$ 550M/ano** vendendo acesso a 250+ modelos. Quando todo mundo tem todas as IAs, nenhuma IA é diferencial.
+1. **A borda é commodity comprovada:** a Empresa X fatura projetados **R$ 550M/ano** vendendo acesso a 250+ modelos. Quando todo mundo tem todas as IAs, nenhuma IA é diferencial.
 2. **Agentes chegaram à criação:** Figma, Canva e Adobe abriram MCPs/APIs — agentes criam peças dentro das ferramentas. **Falta a camada que diz o que é on-brand.**
 3. **Guidelines morreram na prática:** documentos estáticos não guiam geração por IA. A marca precisa de um formato **vivo e legível por máquina**.
 4. **O dado certo nasce agora:** cada avaliação humana de peça gerada é dado de treino proprietário — quem capturar primeiro, com estrutura, constrói o moat.
@@ -51,7 +51,7 @@
 
 O LOUDR é a plataforma onde a marca inteira acontece: diagnóstico, posicionamento, inteligência competitiva, listening, conteúdo, estúdio de criação (imagem/vídeo/copy) e assistente — **todos alimentando e bebendo do mesmo cérebro**, que fica mais assertivo a cada uso.
 
-**O flywheel (nosso pump):**
+**O flywheel:**
 ```
 mais uso → mais evidência → cérebro mais assertivo → criação melhor → mais uso
 ```
@@ -60,7 +60,7 @@ mais uso → mais evidência → cérebro mais assertivo → criação melhor �
 - Um destilador transforma evidências em **modelo vivo versionado** da marca (posicionamento, voz, território, preferências visuais, temas, fatos — com confiança e proveniência por faceta).
 - Esse modelo é **injetado automaticamente** em tudo que a plataforma cria — e a evolução é **medida** (confiança e taxa de aprovação por versão), não prometida.
 
-> Notas: enfatizar "1 entrada · 1 cérebro · 1 estado · 1 saída". A IA de borda (fal.ai, Anthropic, 250 modelos de imagem/vídeo) é trocável; o cérebro é o produto.
+> Notas: enfatizar "1 entrada · 1 cérebro · 1 estado · 1 saída". A IA de borda (openAI, Anthropic e mais 250 modelos de imagem/vídeo/texto) é trocável; o cérebro é o produto.
 
 ---
 
@@ -70,7 +70,7 @@ mais uso → mais evidência → cérebro mais assertivo → criação melhor �
 
 | Pilar | O que faz |
 |---|---|
-| **Diagnóstico & Posicionamento** | Framework proprietário **Smart Branding** (4 práticas → scores de Singularidade, Consistência e Posicionamento 1–10) com IA + web search; territórios possíveis com tese e confiança; evolução mensal automática; relatório público para prospecção |
+| **Diagnóstico & Posicionamento** | Framework proprietário **Smart Branding** (4 práticas → scores de Singularidade, Consistência e Posicionamento 1–10) com IA, mineração de dados e web search; territórios possíveis com tese e confiança; evolução mensal automática; relatório público para prospecção |
 | **Inteligência Competitiva** | Diagnóstico dos concorrentes, mapa de território (ocupado × livre), movimentos por ciclo, clipping semanal — tudo alimentando o cérebro para afiar a diferenciação |
 | **Social Listening** | Sentimento do público como evidência contínua |
 | **Content Hub** | Keywords/território SEO, ideias e briefings on-brand |
