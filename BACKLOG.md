@@ -13,7 +13,8 @@
 
 O código está à frente do comercial — as próximas jogadas não são features:
 
-1. **Aguardando o time de criação:** taxonomia + layout novos do Brand Book. ⚠️ Ao chegar o rascunho, fazer o **de-para técnico** antes de fechar design — a taxonomia atual é consumida por `compileBrandContext` (toda geração), Writing Room, RAG, extração de manual e destilador. Mudar só a UI quebra o cérebro silenciosamente. 🟡
+1. **Nova arquitetura (Strategy·Intelligence·Studio·Copilot)** — árvore entregue pelo time 2026-07-10; de-para + decisões em [`specs/features/nova-arquitetura.md`](specs/features/nova-arquitetura.md). ~~**Onda 1 (navegação)**~~ ✅ 2026-07-10 — sidebar nos 4 grupos, IA LOUDR movida p/ Intelligence, Copilot renomeado, rótulos via i18n; rotas/schema intactos. **Onda 2** 🟡: coluna `strategy` (Personas, Storytelling, Business…) + 5 consumidores do cérebro (aditivo) + telas novas de Strategy. **Onda 3** 🟢–🔴: Copilot-modos + Review Content → Approvals (TUDO, com sinal) → Reports → Trends → Brand Kit → Consumer Insights.
+1b. **i18n completo (pt/en/es)** — fundação criada (`src/lib/i18n.js`, nav trilíngue); falta: varredura das strings do app + seletor de idioma (workspace/usuário) + conteúdo gerado no idioma do workspace. Decisão: foco PT, sistema configurável p/ expansão. 🔴 (progressivo — toda string nova já nasce via `t()`)
 2. **GTM:** marca do produto + site. Dogfooding máximo — usar o próprio LOUDR (diagnóstico, Writing Room, Studio) para construí-la: vira case e demo. Depois: **rodada de investimento**.
 3. **Operar e observar:** cron autônomo de destilação (consertado 08/07 — conferir os primeiros ciclos), clipping de segunda (inclui Pupila), usar o produto e votar (cada uso calibra o cérebro e ensaia a demo).
 4. **Roteiro de demo do flywheel** (~5 min de telas contando a história) — eu monto quando o Danilo pedir. 🟢

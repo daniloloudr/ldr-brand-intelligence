@@ -110,10 +110,10 @@ Ordem sugerida: (1) Copilot modos-atalho + Review Content 🟢 · (2) Approvals 
 
 ---
 
-## Perguntas abertas (decisão do Danilo)
+## Decisões (Danilo, 2026-07-10)
 
-- **Q1 — Onde vive a geração de Imagem?** Não aparece na árvore do Studio. Omissão ou intencional (ex.: dentro do Workflow)? Recomendo manter página própria ("Image Studio", irmã do Video Studio).
-- **Q2 — Idioma:** a árvore mistura EN (Strategy, Brand Essence) e PT (Função, Comportamento). Padronizar? (Recomendo EN nos grupos/nav e PT nos textos, ou tudo EN — decisão de marca.)
-- **Q3 — Diagnóstico/scores:** a "casa" dele é Strategy→Brand Positioning (estratégia) ou Intelligence→Reports (medição)? Recomendo: números/evolução em Intelligence; território/tese em Strategy→Positioning (mesma fonte, duas vitrines).
-- **Q4 — Painel IA LOUDR (rede neural):** continua no menu do usuário, ou ganha casa em Intelligence? (Recomendo Intelligence — combina com a promessa do grupo.)
-- **Q5 — Approvals:** aprovar O QUÊ na v1 — peças do Studio, campanhas, ou tudo (incl. copy)? Define o tamanho.
+- **Q1 — Image Studio:** ✅ criar — a geração de imagem tinha passado batido na árvore; entra como página própria no Studio, irmã do Video Studio.
+- **Q2 — Idioma:** foco em PORTUGUÊS, mas **todo o sistema deve ser configurável para PT/EN/ES** (expansão). → nasce a camada i18n (`src/lib/i18n.js`): Onda 1 já cria a fundação (rótulos da nav pelos 3 idiomas); a varredura completa de strings do app vira workstream próprio no BACKLOG.
+- **Q3 — Diagnóstico:** ✅ aprovada a recomendação — números/evolução em Intelligence (Reports), território/tese em Strategy→Positioning. Onda 1 mantém a página Posicionamento inteira sob Strategy; a cirurgia de separação fica p/ Onda 2/3.
+- **Q4 — Painel IA LOUDR:** ✅ move para o grupo Intelligence (sai do menu do usuário).
+- **Q5 — Approvals:** **TUDO** — peças, campanhas e copy. Fluxo único de aprovação (Onda 3), com cada aprovação emitindo sinal pro cérebro.
