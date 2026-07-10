@@ -260,6 +260,30 @@ export function BrandAssistant({ brandId }) {
   const [loading, setLoading]       = useState(true)
   const [chunksCount, setChunksCount] = useState(0)
   const [intelligence, setIntelligence] = useState(null)   // modelo vivo destilado (Camada de Inteligência)
+
+  // Copilot em MODOS (nova arquitetura): a nav manda ?m=<modo> e o chat abre
+  // com o prompt do modo pré-carregado — mesma infra, entradas curadas.
+  useEffect(() => {
+    const MODE_PROMPTS = {
+      search:   'Busque no conhecimento da marca: ',
+      qa:       'Pergunta sobre a marca: ',
+      copy:     'Gere uma copy no tom da marca para: [descreva a peça — ou use o Writing Room para frameworks completos]',
+      campaign: 'Crie o conceito de uma campanha para: [objetivo]. Inclua mote, mensagens-chave por canal e desdobramentos.',
+      review:   'Revise este conteúdo e diga se está on-brand (aponte desvios de tom, território e do/don\'ts):\n\n',
+      analyze:  'Analise a marca hoje: pontos fortes, fragilidades e o que o mercado está dizendo. Use tudo que você sabe sobre ela.',
+      brief:    'Crie um brief criativo para: [peça/campanha]. Inclua objetivo, público (personas), mensagem, tom e critérios de aprovação.',
+      research: 'Pesquise e resuma para a marca: [tema]. Conecte as conclusões ao nosso território e posicionamento.',
+      agents:   'O que são os Agents do Copilot e o que vão fazer por esta marca quando chegarem?',
+    }
+    const applyMode = () => {
+      const q = window.location.hash.split('?')[1]
+      const m = q ? new URLSearchParams(q).get('m') : null
+      if (m && MODE_PROMPTS[m]) setInput(MODE_PROMPTS[m])
+    }
+    applyMode()
+    window.addEventListener('hashchange', applyMode)
+    return () => window.removeEventListener('hashchange', applyMode)
+  }, [])
   const bottomRef = useRef(null)
 
   useEffect(() => {

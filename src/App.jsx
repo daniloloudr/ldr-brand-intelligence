@@ -26,7 +26,8 @@ const WORKSPACE_ROUTES = [
   'brands-list', 'brands-new', 'brands-detail', 'brands-assistant',
   'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail',
   'brands-studio', 'brands-studio-campaigns', 'brands-studio-workflow', 'brands-studio-video',
-  'brands-studio-writing', 'brands-studio-biblioteca',
+  'brands-studio-writing', 'brands-studio-biblioteca', 'brands-studio-assets', 'brands-studio-approvals',
+  'market-intel', 'insights', 'competitors', 'trends', 'reports',
 ];
 const ADMIN_ROUTES = ['admin', 'admin-historico'];
 

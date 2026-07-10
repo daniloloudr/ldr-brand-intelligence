@@ -37,6 +37,13 @@ const StudioCampaigns = lazy(() => import('./StudioCampaigns').then(m => ({ defa
 const StudioVideo     = lazy(() => import('./StudioVideo').then(m => ({ default: m.StudioVideo })))
 const StudioWriting   = lazy(() => import('./StudioWriting').then(m => ({ default: m.StudioWriting })))
 const StudioLibrary   = lazy(() => import('./StudioLibrary').then(m => ({ default: m.StudioLibrary })))
+const StudioAssets    = lazy(() => import('./StudioAssets').then(m => ({ default: m.StudioAssets })))
+const StudioApprovals = lazy(() => import('./StudioApprovals').then(m => ({ default: m.StudioApprovals })))
+const MarketIntelligence = lazy(() => import('./IntelligencePages').then(m => ({ default: m.MarketIntelligence })))
+const CompetitorsPage = lazy(() => import('./IntelligencePages').then(m => ({ default: m.CompetitorsPage })))
+const ConsumerInsights = lazy(() => import('./IntelligencePages').then(m => ({ default: m.ConsumerInsights })))
+const TrendsPage      = lazy(() => import('./IntelligencePages').then(m => ({ default: m.TrendsPage })))
+const ReportsPage     = lazy(() => import('./IntelligencePages').then(m => ({ default: m.ReportsPage })))
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import logoNegativa from '../../assets/negativa.svg'
 import logoPositivo from '../../assets/logo-positivo-200px.png'
@@ -117,28 +124,49 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     // Onda 1 = só navegação (rotas e schema intactos). Rótulos via i18n (pt/en/es).
     { type: 'item', label: t('nav.home'), icon: IcoHome, hash: '#/app', active: route === 'app-home' },
     { type: 'group', label: t('nav.strategy'), icon: IcoBrand, active: route === 'brands-detail', children: [
-      { label: t('nav.strategy.positioning'),   hash: '#/app/posicionamento', active: route === 'posicionamento' },
+      { type: 'sub', label: t('nav.sub.culture') },
       { label: t('nav.strategy.essencia'),      hash: `${brandPath}/essencia`,      active: route === 'brands-detail' && section === 'essencia' },
+      { label: t('nav.strategy.positioning'),   hash: '#/app/posicionamento', active: route === 'posicionamento' },
+      { type: 'sub', label: t('nav.sub.business') },
       { label: t('nav.strategy.negocio'),       hash: `${brandPath}/negocio`,       active: route === 'brands-detail' && section === 'negocio' },
       { label: t('nav.strategy.experiencia'),   hash: `${brandPath}/experiencia`,   active: route === 'brands-detail' && section === 'experiencia' },
+      { label: t('nav.strategy.design_system'), hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },
+      { type: 'sub', label: t('nav.sub.communication') },
       { label: t('nav.strategy.personalidade'), hash: `${brandPath}/personalidade`, active: route === 'brands-detail' && section === 'personalidade' },
       { label: t('nav.strategy.verbal'),        hash: `${brandPath}/verbal`,        active: route === 'brands-detail' && section === 'verbal' },
       { label: t('nav.strategy.visual'),        hash: `${brandPath}/visual`,        active: route === 'brands-detail' && section === 'visual' },
-      { label: t('nav.strategy.design_system'), hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },
     ] },
     { type: 'group', label: t('nav.intelligence'), icon: IcoDiag, children: [
+      { label: t('nav.intelligence.market'),    hash: '#/app/market-intel', active: route === 'market-intel' },
+      { label: t('nav.intelligence.insights'),  hash: '#/app/insights',     active: route === 'insights' },
+      { label: t('nav.intelligence.competitors'), hash: '#/app/competitors', active: route === 'competitors' },
       { label: t('nav.intelligence.listening'), hash: '#/app/listening',   active: route === 'listening' },
+      { label: t('nav.intelligence.trends'),    hash: '#/app/trends',      active: route === 'trends' },
+      { label: t('nav.intelligence.reports'),   hash: '#/app/reports',     active: route === 'reports' },
       { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
       { label: t('nav.intelligence.ia'),        hash: '#/app/ia-loudr',    active: route === 'ia-loudr' },
     ] },
     { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [
+      { label: t('nav.studio.assets'),   hash: `${brandPath}/studio/assets`,   active: route === 'brands-studio-assets' },
       { label: t('nav.studio.image'),    hash: `${brandPath}/studio`,          active: route === 'brands-studio' },
       { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
       { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
       { label: t('nav.studio.workflow'), hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
+      { label: t('nav.studio.approvals'), hash: `${brandPath}/studio/approvals`, active: route === 'brands-studio-approvals' },
       { label: t('nav.studio.library'),  hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
     ] },
-    { type: 'item', label: t('nav.copilot'), icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
+    { type: 'group', label: t('nav.copilot'), icon: IcoAssist, children: [
+      { label: t('nav.copilot.chat'),     hash: `${brandPath}/assistant`,            active: route === 'brands-assistant' },
+      { label: t('nav.copilot.search'),   hash: `${brandPath}/assistant?m=search` },
+      { label: t('nav.copilot.qa'),       hash: `${brandPath}/assistant?m=qa` },
+      { label: t('nav.copilot.copy'),     hash: `${brandPath}/assistant?m=copy` },
+      { label: t('nav.copilot.campaign'), hash: `${brandPath}/assistant?m=campaign` },
+      { label: t('nav.copilot.review'),   hash: `${brandPath}/assistant?m=review` },
+      { label: t('nav.copilot.analyze'),  hash: `${brandPath}/assistant?m=analyze` },
+      { label: t('nav.copilot.brief'),    hash: `${brandPath}/assistant?m=brief` },
+      { label: t('nav.copilot.research'), hash: `${brandPath}/assistant?m=research` },
+      { label: t('nav.copilot.agents'),   hash: `${brandPath}/assistant?m=agents` },
+    ] },
   ]
 
   function renderPage() {
@@ -167,6 +195,13 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-studio-video')   return <StudioVideo brandId={getBrandId()} />
     if (route === 'brands-studio-writing') return <StudioWriting brandId={getBrandId()} />
     if (route === 'brands-studio-biblioteca') return <StudioLibrary brandId={getBrandId()} />
+    if (route === 'brands-studio-assets')  return <StudioAssets brandId={getBrandId()} />
+    if (route === 'brands-studio-approvals') return <StudioApprovals brandId={getBrandId()} />
+    if (route === 'market-intel')          return <MarketIntelligence />
+    if (route === 'insights')              return <ConsumerInsights />
+    if (route === 'competitors')           return <CompetitorsPage />
+    if (route === 'trends')                return <TrendsPage />
+    if (route === 'reports')               return <ReportsPage />
     if (route === 'brands-studio-campaigns') return <StudioCampaigns brandId={getBrandId()} />
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />

@@ -149,7 +149,13 @@ export function AppLayout({
                     {Icon && <Box sx={{ display: "flex", alignItems: "center", opacity: 0.7 }}><Icon /></Box>}
                     <Box sx={{ flex: 1, fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{entry.label}</Box>
                   </Box>
-                  {entry.children.map(c => (
+                  {entry.children.map(c => c.type === "sub" ? (
+                    // Subtítulo (3º nível da árvore — ex.: Culture/Business/Communication)
+                    <Box key={`sub-${c.label}`} sx={{
+                      pl: 4, pr: 1.5, pt: 1.25, pb: 0.4, fontSize: 9.5, fontWeight: 800,
+                      letterSpacing: "0.12em", textTransform: "uppercase", color: "text.disabled",
+                    }}>{c.label}</Box>
+                  ) : (
                     <Box key={c.hash} component="button" onClick={() => !c.locked && onNavigate(c.hash)} disabled={c.locked}
                       sx={{
                         display: "flex", alignItems: "center", gap: 1, width: "100%", pl: 4, pr: 1.5, py: 0.8, mb: 0.1,

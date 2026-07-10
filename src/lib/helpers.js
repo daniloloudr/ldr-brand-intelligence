@@ -14,6 +14,11 @@ export function getRoute() {
   if (h === '#/app/concorrentes')    return 'posicionamento';
   if (h === '#/app/listening')       return 'listening';
   if (h === '#/app/content-hub')     return 'content-hub';
+  if (h === '#/app/market-intel')    return 'market-intel';
+  if (h === '#/app/insights')        return 'insights';
+  if (h === '#/app/competitors')     return 'competitors';
+  if (h === '#/app/trends')          return 'trends';
+  if (h === '#/app/reports')         return 'reports';
   if (h === '#/app/workspace')       return 'workspace';
   if (h === '#/app/conta')           return 'conta';
   if (h === '#/app/time')            return 'time';
@@ -31,6 +36,8 @@ export function getRoute() {
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/writing/))         return 'brands-studio-writing';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio\/biblioteca/))      return 'brands-studio-biblioteca';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/assets/))          return 'brands-studio-assets';
+  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/approvals/))       return 'brands-studio-approvals';
   if (h.match(/^#\/app\/brands\/[^/]+\/studio/))                  return 'brands-studio';
   if (h.startsWith('#/app/brands/'))                               return 'brands-detail';
   if (h === '#/admin')               return 'admin';
