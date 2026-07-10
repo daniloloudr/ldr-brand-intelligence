@@ -110,6 +110,13 @@ Ordem sugerida: (1) Copilot modos-atalho + Review Content 🟢 · (2) Approvals 
 
 ---
 
+## Ressignificações (Danilo, 2026-07-10 — 2ª rodada: menu FIEL aos nós-folha da árvore)
+
+- **Brand Positioning saiu do menu** — é CAMPO dentro de Brand Essence, não página. A antiga página Posicionamento (diagnóstico/scores/concorrentes) foi **ressignificada como Intelligence → Reports** (a medição da marca — coerente com Q3). Rota antiga segue funcionando.
+- **Design System saiu do menu** — vive DENTRO de Experience (a página Experience = UX/UI/Journey + Design System embaixo).
+- **Verbal/Visual Identity viraram abas de Expression** (Communication → Expression, uma página com 2 abas). Rotas antigas (`/verbal`, `/visual`, `/design_system`) mapeadas via `mapLegacySection`.
+- **Rótulos fiéis:** Brand Essence · Função · Experience · Personality · Expression (iguais nos 3 idiomas — nomes de produto).
+
 ## Decisões (Danilo, 2026-07-10)
 
 - **Q1 — Image Studio:** ✅ criar — a geração de imagem tinha passado batido na árvore; entra como página própria no Studio, irmã do Video Studio.

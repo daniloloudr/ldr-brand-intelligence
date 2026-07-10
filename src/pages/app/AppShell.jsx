@@ -126,15 +126,12 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     { type: 'group', label: t('nav.strategy'), icon: IcoBrand, active: route === 'brands-detail', children: [
       { type: 'sub', label: t('nav.sub.culture') },
       { label: t('nav.strategy.essencia'),      hash: `${brandPath}/essencia`,      active: route === 'brands-detail' && section === 'essencia' },
-      { label: t('nav.strategy.positioning'),   hash: '#/app/posicionamento', active: route === 'posicionamento' },
       { type: 'sub', label: t('nav.sub.business') },
       { label: t('nav.strategy.negocio'),       hash: `${brandPath}/negocio`,       active: route === 'brands-detail' && section === 'negocio' },
       { label: t('nav.strategy.experiencia'),   hash: `${brandPath}/experiencia`,   active: route === 'brands-detail' && section === 'experiencia' },
-      { label: t('nav.strategy.design_system'), hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },
       { type: 'sub', label: t('nav.sub.communication') },
       { label: t('nav.strategy.personalidade'), hash: `${brandPath}/personalidade`, active: route === 'brands-detail' && section === 'personalidade' },
-      { label: t('nav.strategy.verbal'),        hash: `${brandPath}/verbal`,        active: route === 'brands-detail' && section === 'verbal' },
-      { label: t('nav.strategy.visual'),        hash: `${brandPath}/visual`,        active: route === 'brands-detail' && section === 'visual' },
+      { label: t('nav.strategy.expression'),    hash: `${brandPath}/expression`,    active: route === 'brands-detail' && section === 'expression' },
     ] },
     { type: 'group', label: t('nav.intelligence'), icon: IcoDiag, children: [
       { label: t('nav.intelligence.market'),    hash: '#/app/market-intel', active: route === 'market-intel' },
@@ -142,7 +139,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.intelligence.competitors'), hash: '#/app/competitors', active: route === 'competitors' },
       { label: t('nav.intelligence.listening'), hash: '#/app/listening',   active: route === 'listening' },
       { label: t('nav.intelligence.trends'),    hash: '#/app/trends',      active: route === 'trends' },
-      { label: t('nav.intelligence.reports'),   hash: '#/app/reports',     active: route === 'reports' },
+      // Reports = a medição da marca (ressignificação da antiga página Posicionamento — decisão Q3)
+      { label: t('nav.intelligence.reports'),   hash: '#/app/reports',     active: route === 'reports' || route === 'posicionamento' },
       { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
       { label: t('nav.intelligence.ia'),        hash: '#/app/ia-loudr',    active: route === 'ia-loudr' },
     ] },
@@ -201,7 +199,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'insights')              return <ConsumerInsights />
     if (route === 'competitors')           return <CompetitorsPage />
     if (route === 'trends')                return <TrendsPage />
-    if (route === 'reports')               return <ReportsPage />
+    if (route === 'reports')               return <Posicionamento />   // ressignificado: a medição da marca vive em Intelligence
     if (route === 'brands-studio-campaigns') return <StudioCampaigns brandId={getBrandId()} />
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
