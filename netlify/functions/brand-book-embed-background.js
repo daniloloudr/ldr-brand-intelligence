@@ -12,6 +12,30 @@ export function extractChunks(book) {
   const chunks = []
   const v  = book.verbal_identity || {}
   const vi = book.visual_identity || {}
+  const st = book.strategy || {}
+
+  // ── Strategy (Onda 2 — nova arquitetura) ───────────────────────────
+  if (st.meaning)             chunks.push({ section: 'strategy', text: `Brand Meaning — o significado da marca: ${st.meaning}` })
+  if (st.business_model)      chunks.push({ section: 'strategy', text: `Modelo de negócio da marca: ${st.business_model}` })
+  if (st.portfolio)           chunks.push({ section: 'strategy', text: `Portfólio de produtos/serviços: ${st.portfolio}` })
+  if (st.brand_architecture)  chunks.push({ section: 'strategy', text: `Arquitetura de marca: ${st.brand_architecture}` })
+  if (arr(st.stakeholders).length) chunks.push({ section: 'strategy', text: `Stakeholders da marca: ${joinArr(st.stakeholders)}` })
+  for (const p of arr(st.personas)) {
+    if (!p?.nome) continue
+    chunks.push({ section: 'strategy', text: `Persona da marca — ${p.nome}: ${[p.descricao, p.dores && `Dores: ${p.dores}`, p.objetivos && `Objetivos: ${p.objetivos}`].filter(Boolean).join(' · ')}` })
+  }
+  for (const g of arr(st.goals_kpis)) {
+    if (!g?.objetivo) continue
+    chunks.push({ section: 'strategy', text: `Objetivo da marca: ${g.objetivo}${g.kpi ? ` · KPI: ${g.kpi}` : ''}${g.meta ? ` · Meta: ${g.meta}` : ''}` })
+  }
+  const exp = [st.ux && `UX: ${st.ux}`, st.ui && `UI: ${st.ui}`, st.customer_journey && `Jornada do cliente: ${st.customer_journey}`].filter(Boolean)
+  if (exp.length)             chunks.push({ section: 'strategy', text: `Princípios de experiência da marca — ${exp.join(' · ')}` })
+  if (st.storytelling_overview) chunks.push({ section: 'strategy', text: `Storytelling — a narrativa da marca: ${st.storytelling_overview}` })
+  for (const sz of arr(st.seasons)) {
+    if (!sz?.nome) continue
+    chunks.push({ section: 'strategy', text: `Season narrativa "${sz.nome}"${sz.periodo ? ` (${sz.periodo})` : ''}: ${sz.narrativa || ''}` })
+  }
+  if (st.territorio_notas)    chunks.push({ section: 'strategy', text: `Territórios — direcionamento do time: ${st.territorio_notas}` })
 
   // ── Identidade Verbal ──────────────────────────────────────────────
   const essencia = [

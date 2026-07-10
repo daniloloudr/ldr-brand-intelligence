@@ -18,15 +18,21 @@ import { DesignTokensSection }  from './DesignTokensSection'
 import { BrandSection }         from './BrandSection'
 import { DesignSystemSection }  from './DesignSystemSection'
 import { VerbalIdentitySection } from './VerbalIdentitySection'
+import { EssenciaSection, NegocioSection, ExperienciaSection, PersonalidadeSection } from './StrategySections'
 import { VisualIdentitySection } from './VisualIdentitySection'
 import { PageHeader }           from '../../components/shell/PageHeader'
 import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 
 const SECTIONS = [
-  { key: 'verbal',       label: 'Identidade Verbal', color: '#0D9E7A' },
-  { key: 'visual',       label: 'Identidade Visual', color: '#7F77DD' },
+  // Árvore Strategy (2026-07-10): Culture · Business · Communication
+  { key: 'essencia',      label: 'Essência',          color: '#0D9E7A' },
+  { key: 'negocio',       label: 'Negócio',           color: '#E8185A' },
+  { key: 'experiencia',   label: 'Experiência',       color: '#EF9F27' },
+  { key: 'personalidade', label: 'Personalidade',     color: '#7F77DD' },
+  { key: 'verbal',        label: 'Identidade Verbal', color: '#0D9E7A' },
+  { key: 'visual',        label: 'Identidade Visual', color: '#7F77DD' },
   { key: 'design_system', label: 'Design System',     color: '#EF9F27' },
-  { key: 'history',      label: 'Histórico',          color: '#8A9AB0' },
+  { key: 'history',       label: 'Histórico',         color: '#8A9AB0' },
 ]
 
 // Map legacy section keys → new keys
@@ -175,6 +181,7 @@ export function BrandBook({ brandId }) {
         verbal_identity: book.verbal_identity || {},
         visual_identity: book.visual_identity || {},
         design_system:   book.design_system || {},
+        strategy:        book.strategy || {},
         // legacy mirrors (manter por compat até deprecar)
         identity:        book.identity,
         positioning:     book.positioning,
@@ -185,7 +192,8 @@ export function BrandBook({ brandId }) {
       if (upErr) throw upErr
       setBook(saved)
 
-      const histSectionMap = { verbal: 'verbal_identity', visual: 'visual_identity', design_system: 'design_system' }
+      const histSectionMap = { verbal: 'verbal_identity', visual: 'visual_identity', design_system: 'design_system',
+        essencia: 'strategy', negocio: 'strategy', experiencia: 'strategy', personalidade: 'strategy' }
       const histSection = histSectionMap[activeSection]
       if (histSection && saved?.id) {
         await supabase.from('brand_book_history').insert({
@@ -259,6 +267,21 @@ export function BrandBook({ brandId }) {
       <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+        {activeSection === 'essencia' && (
+          <EssenciaSection verbal={book?.verbal_identity} strategy={book?.strategy}
+            onVerbal={d => updateSection('verbal_identity', d)} onStrategy={d => updateSection('strategy', d)} />
+        )}
+        {activeSection === 'negocio' && (
+          <NegocioSection verbal={book?.verbal_identity} strategy={book?.strategy}
+            onVerbal={d => updateSection('verbal_identity', d)} onStrategy={d => updateSection('strategy', d)} />
+        )}
+        {activeSection === 'experiencia' && (
+          <ExperienciaSection strategy={book?.strategy} onStrategy={d => updateSection('strategy', d)} />
+        )}
+        {activeSection === 'personalidade' && (
+          <PersonalidadeSection verbal={book?.verbal_identity} strategy={book?.strategy} brandId={brandId}
+            onVerbal={d => updateSection('verbal_identity', d)} onStrategy={d => updateSection('strategy', d)} />
+        )}
         {activeSection === 'verbal' && (
           <VerbalIdentitySection data={book?.verbal_identity} onChange={d => updateSection('verbal_identity', d)} />
         )}

@@ -42,11 +42,19 @@ export function compileBrandContext({ brandBook, tokens, brandNome, facets }) {
     ...(useVisual ? [arr(vi.usos_proibidos).join('; '), arr(vi.foto_dont).join('; ')] : []),
   ].filter(Boolean)
 
+  // Strategy (Onda 2): personas e narrativa afiam o alvo de toda geração
+  const st = brandBook?.strategy || {}
+  const personas = (Array.isArray(st.personas) ? st.personas : [])
+    .filter(p => p?.nome).slice(0, 3)
+    .map(p => `${p.nome}${p.dores ? ` (dor: ${String(p.dores).slice(0, 80)})` : ''}`)
+
   const linhas = []
   linhas.push(`Marca: ${brandNome || ''}`)
   if (useVerbal && (v.posicionamento || v.proposta_valor)) linhas.push(`Posicionamento: ${v.posicionamento || v.proposta_valor}`)
   if (useVerbal && personalidade.length) linhas.push(`Personalidade: ${personalidade.join(', ')} — a peça deve transmitir isso`)
   if (useVerbal && v.tom_voz) linhas.push(`Tom: ${v.tom_voz}`)
+  if (useVerbal && personas.length) linhas.push(`Personas-alvo: ${personas.join(' · ')}`)
+  if (useVerbal && st.storytelling_overview) linhas.push(`Narrativa da marca: ${String(st.storytelling_overview).slice(0, 240)}`)
   if (useVisual && todasCores.length) linhas.push(`Paleta (use como cores dominantes): ${todasCores.join(', ')}`)
   if (useVisual && tipografia.length) linhas.push(`Tipografia (se houver texto): ${tipografia.join(', ')}`)
   if (useVisual && estetica.length) linhas.push(`Estética visual: ${estetica.join('; ')}`)
@@ -60,7 +68,7 @@ export function compileBrandContext({ brandBook, tokens, brandNome, facets }) {
 /** Lê brand_book (linha mais recente) + tokens e compila o brand context. */
 export async function resolveBrandContext(supabase, brand_id, brandNome, facets) {
   const [{ data: bbRows }, { data: tokens }] = await Promise.all([
-    supabase.from('brand_books').select('verbal_identity, visual_identity')
+    supabase.from('brand_books').select('verbal_identity, visual_identity, strategy')
       .eq('brand_id', brand_id).order('updated_at', { ascending: false }).limit(1),
     supabase.from('design_tokens').select('nome, valor, categoria').eq('brand_id', brand_id),
   ])
