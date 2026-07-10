@@ -118,6 +118,10 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     { type: 'item', label: t('nav.home'), icon: IcoHome, hash: '#/app', active: route === 'app-home' },
     { type: 'group', label: t('nav.strategy'), icon: IcoBrand, active: route === 'brands-detail', children: [
       { label: t('nav.strategy.positioning'),   hash: '#/app/posicionamento', active: route === 'posicionamento' },
+      { label: t('nav.strategy.essencia'),      hash: `${brandPath}/essencia`,      active: route === 'brands-detail' && section === 'essencia' },
+      { label: t('nav.strategy.negocio'),       hash: `${brandPath}/negocio`,       active: route === 'brands-detail' && section === 'negocio' },
+      { label: t('nav.strategy.experiencia'),   hash: `${brandPath}/experiencia`,   active: route === 'brands-detail' && section === 'experiencia' },
+      { label: t('nav.strategy.personalidade'), hash: `${brandPath}/personalidade`, active: route === 'brands-detail' && section === 'personalidade' },
       { label: t('nav.strategy.verbal'),        hash: `${brandPath}/verbal`,        active: route === 'brands-detail' && section === 'verbal' },
       { label: t('nav.strategy.visual'),        hash: `${brandPath}/visual`,        active: route === 'brands-detail' && section === 'visual' },
       { label: t('nav.strategy.design_system'), hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },

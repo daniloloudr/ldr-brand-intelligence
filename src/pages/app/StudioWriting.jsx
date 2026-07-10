@@ -40,6 +40,11 @@ function buildWriterSystem(brand, book, intelligence) {
   if (v.tom_voz)            lines.push(`Tom de voz: ${v.tom_voz}`)
   if (_arr(v.valores).length) lines.push(`Valores: ${_arr(v.valores).map(x => typeof x === 'object' ? (x.nome || x.valor || '') : x).filter(Boolean).join(', ')}`)
   if (v.tom_evitar)         lines.push(`NUNCA soar assim: ${v.tom_evitar}`)
+  // Strategy (Onda 2): a copy mira as personas e a narrativa da marca
+  const st = book?.strategy || {}
+  const personas = (Array.isArray(st.personas) ? st.personas : []).filter(p => p?.nome).slice(0, 3)
+  if (personas.length) lines.push(`Escreva PARA estas personas: ${personas.map(p => `${p.nome}${p.dores ? ` (dor: ${String(p.dores).slice(0, 100)})` : ''}`).join(' · ')}`)
+  if (st.storytelling_overview) lines.push(`Narrativa da marca (conecte a peça a ela): ${String(st.storytelling_overview).slice(0, 300)}`)
   lines.push('Regras: português brasileiro; siga EXATAMENTE a estrutura pedida (headers markdown); frases curtas e concretas; zero clichê de marketing ("não perca", "imperdível"); especifique, não infle.')
   const intel = compileIntel(intelligence?.modelo, intelligence?.versao)
   return lines.join('\n') + (intel || '')
@@ -198,7 +203,7 @@ export function StudioWriting({ brandId }) {
     ;(async () => {
       const [{ data: b }, { data: bbRows }] = await Promise.all([
         supabase.from('brands').select('id, nome, workspace_id').eq('id', brandId).maybeSingle(),
-        supabase.from('brand_books').select('verbal_identity, visual_identity').eq('brand_id', brandId)
+        supabase.from('brand_books').select('verbal_identity, visual_identity, strategy').eq('brand_id', brandId)
           .order('updated_at', { ascending: false }).limit(1),
       ])
       setBrand(b || null)
