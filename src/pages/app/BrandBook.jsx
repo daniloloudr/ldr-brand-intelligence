@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Box, Typography, CircularProgress, Button, Chip, Alert, Paper, Stack,
+  Box, Typography, CircularProgress, Button, Chip, Alert, Paper, Stack, Tabs, Tab,
 } from '@mui/material'
 import ArrowBackIcon    from '@mui/icons-material/ArrowBack'
 import SaveIcon          from '@mui/icons-material/Save'
@@ -24,23 +24,20 @@ import { PageHeader }           from '../../components/shell/PageHeader'
 import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 
 const SECTIONS = [
-  // Árvore Strategy (2026-07-10): Culture · Business · Communication
-  { key: 'essencia',      label: 'Essência',          color: '#0D9E7A' },
-  { key: 'negocio',       label: 'Negócio',           color: '#E8185A' },
-  { key: 'experiencia',   label: 'Experiência',       color: '#EF9F27' },
-  { key: 'personalidade', label: 'Personalidade',     color: '#7F77DD' },
-  { key: 'verbal',        label: 'Identidade Verbal', color: '#0D9E7A' },
-  { key: 'visual',        label: 'Identidade Visual', color: '#7F77DD' },
-  { key: 'design_system', label: 'Design System',     color: '#EF9F27' },
-  { key: 'history',       label: 'Histórico',         color: '#8A9AB0' },
+  // Árvore Strategy (2026-07-10, fiel): Culture→Brand Essence · Business→Função+Experience · Communication→Personality+Expression
+  { key: 'essencia',      label: 'Brand Essence', color: '#0D9E7A' },
+  { key: 'negocio',       label: 'Função',        color: '#E8185A' },
+  { key: 'experiencia',   label: 'Experience',    color: '#EF9F27' },
+  { key: 'personalidade', label: 'Personality',   color: '#7F77DD' },
+  { key: 'expression',    label: 'Expression',    color: '#0D9E7A' },
+  { key: 'history',       label: 'Histórico',     color: '#8A9AB0' },
 ]
 
-// Map legacy section keys → new keys
+// Map legacy section keys → estrutura nova (rotas antigas continuam funcionando)
 function mapLegacySection(s) {
-  if (!s) return 'verbal'
-  if (['identity', 'positioning', 'brand'].includes(s)) return 'verbal'
-  if (['references', 'assets'].includes(s)) return 'visual'
-  if (s === 'tokens') return 'design_system'
+  if (!s) return 'essencia'
+  if (['identity', 'positioning', 'brand', 'verbal', 'visual', 'references', 'assets'].includes(s)) return 'expression'
+  if (['tokens', 'design_system'].includes(s)) return 'experiencia'
   return s
 }
 
@@ -86,6 +83,7 @@ export function BrandBook({ brandId }) {
 
   const sectionFromHash = getBrandSection()
   const [activeSection, setActiveSection] = useState(mapLegacySection(sectionFromHash))
+  const [expressionTab, setExpressionTab] = useState(sectionFromHash === 'visual' ? 1 : 0)
 
   // Reage à navegação da sidebar global (mesma rota, hash muda)
   useEffect(() => {
@@ -192,7 +190,7 @@ export function BrandBook({ brandId }) {
       if (upErr) throw upErr
       setBook(saved)
 
-      const histSectionMap = { verbal: 'verbal_identity', visual: 'visual_identity', design_system: 'design_system',
+      const histSectionMap = { expression: 'verbal_identity',
         essencia: 'strategy', negocio: 'strategy', experiencia: 'strategy', personalidade: 'strategy' }
       const histSection = histSectionMap[activeSection]
       if (histSection && saved?.id) {
@@ -276,21 +274,34 @@ export function BrandBook({ brandId }) {
             onVerbal={d => updateSection('verbal_identity', d)} onStrategy={d => updateSection('strategy', d)} />
         )}
         {activeSection === 'experiencia' && (
-          <ExperienciaSection strategy={book?.strategy} onStrategy={d => updateSection('strategy', d)} />
+          <>
+            <ExperienciaSection strategy={book?.strategy} onStrategy={d => updateSection('strategy', d)} />
+            {/* Design System vive DENTRO do Experience (árvore nova) */}
+            <Box sx={{ mt: 5 }}>
+              <DesignSystemSection data={book?.design_system} onChange={d => updateSection('design_system', d)} />
+            </Box>
+          </>
         )}
         {activeSection === 'personalidade' && (
           <PersonalidadeSection verbal={book?.verbal_identity} strategy={book?.strategy} brandId={brandId}
             onVerbal={d => updateSection('verbal_identity', d)} onStrategy={d => updateSection('strategy', d)} />
         )}
-        {activeSection === 'verbal' && (
-          <VerbalIdentitySection data={book?.verbal_identity} onChange={d => updateSection('verbal_identity', d)} />
-        )}
-        {activeSection === 'visual' && (
-          <VisualIdentitySection data={book?.visual_identity} onChange={d => updateSection('visual_identity', d)}
-            assets={assets} brandId={brandId} onAssetSave={saveAsset} onAssetDelete={deleteAsset} />
-        )}
-        {activeSection === 'design_system' && (
-          <DesignSystemSection data={book?.design_system} onChange={d => updateSection('design_system', d)} />
+        {activeSection === 'expression' && (
+          <>
+            {/* Expression = Verbal + Visual Identity (abas internas — árvore nova) */}
+            <Tabs value={expressionTab} onChange={(_, v) => setExpressionTab(v)}
+              sx={{ mb: 3, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13 } }}>
+              <Tab label="Verbal Identity" />
+              <Tab label="Visual Identity" />
+            </Tabs>
+            {expressionTab === 0 && (
+              <VerbalIdentitySection data={book?.verbal_identity} onChange={d => updateSection('verbal_identity', d)} />
+            )}
+            {expressionTab === 1 && (
+              <VisualIdentitySection data={book?.visual_identity} onChange={d => updateSection('visual_identity', d)}
+                assets={assets} brandId={brandId} onAssetSave={saveAsset} onAssetDelete={deleteAsset} />
+            )}
+          </>
         )}
         {activeSection === 'history' && (
           <>
