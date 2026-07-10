@@ -6,6 +6,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { theme as themeDark, themeLight } from '../../lib/theme'
 import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, fmtDate } from '../../lib/helpers'
+import { t } from '../../lib/i18n'
 import { supabase } from '../../lib/supabase'
 import { PLANOS } from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
@@ -53,7 +54,7 @@ const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
-  { label: 'IA LOUDR',               hash: '#/app/ia-loudr' },
+  // IA LOUDR movida para o grupo Intelligence da nav (decisão 2026-07-10)
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
@@ -112,25 +113,28 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const section   = getBrandSection()
 
   const nav = [
-    { type: 'item', label: 'Home', icon: IcoHome, hash: '#/app', active: route === 'app-home' },
-    { type: 'group', label: 'Brand Book', icon: IcoBrand, active: route === 'brands-detail', children: [
-      { label: 'Identidade Verbal', hash: `${brandPath}/verbal`,        active: route === 'brands-detail' && section === 'verbal' },
-      { label: 'Identidade Visual', hash: `${brandPath}/visual`,        active: route === 'brands-detail' && section === 'visual' },
-      { label: 'Design System',     hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },
+    // Nova arquitetura (2026-07-10): Strategy · Intelligence · Studio · Copilot
+    // Onda 1 = só navegação (rotas e schema intactos). Rótulos via i18n (pt/en/es).
+    { type: 'item', label: t('nav.home'), icon: IcoHome, hash: '#/app', active: route === 'app-home' },
+    { type: 'group', label: t('nav.strategy'), icon: IcoBrand, active: route === 'brands-detail', children: [
+      { label: t('nav.strategy.positioning'),   hash: '#/app/posicionamento', active: route === 'posicionamento' },
+      { label: t('nav.strategy.verbal'),        hash: `${brandPath}/verbal`,        active: route === 'brands-detail' && section === 'verbal' },
+      { label: t('nav.strategy.visual'),        hash: `${brandPath}/visual`,        active: route === 'brands-detail' && section === 'visual' },
+      { label: t('nav.strategy.design_system'), hash: `${brandPath}/design_system`, active: route === 'brands-detail' && section === 'design_system' },
     ] },
-    { type: 'group', label: 'Brand Positioning', icon: IcoDiag, children: [
-      { label: 'Posicionamento',   hash: '#/app/posicionamento', active: route === 'posicionamento' },
-      { label: 'Social Listening', hash: '#/app/listening',      active: route === 'listening' },
-      { label: 'Content Hub',      hash: '#/app/content-hub',    active: route === 'content-hub' },
+    { type: 'group', label: t('nav.intelligence'), icon: IcoDiag, children: [
+      { label: t('nav.intelligence.listening'), hash: '#/app/listening',   active: route === 'listening' },
+      { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
+      { label: t('nav.intelligence.ia'),        hash: '#/app/ia-loudr',    active: route === 'ia-loudr' },
     ] },
-    { type: 'group', label: 'Brand Studio', icon: IcoStudio, children: [
-      { label: 'Imagem',       hash: `${brandPath}/studio`,          active: route === 'brands-studio' },
-      { label: 'Vídeos',       hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
-      { label: 'Writing Room', hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
-      { label: 'Workflow',     hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
-      { label: 'Biblioteca',   hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
+    { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [
+      { label: t('nav.studio.image'),    hash: `${brandPath}/studio`,          active: route === 'brands-studio' },
+      { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
+      { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
+      { label: t('nav.studio.workflow'), hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
+      { label: t('nav.studio.library'),  hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
     ] },
-    { type: 'item', label: 'Brand Assistant', icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
+    { type: 'item', label: t('nav.copilot'), icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
   ]
 
   function renderPage() {
