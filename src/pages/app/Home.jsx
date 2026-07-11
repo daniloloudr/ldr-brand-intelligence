@@ -1,423 +1,240 @@
-import { useState, useEffect, useCallback } from 'react'
-import Box            from '@mui/material/Box'
-import Typography     from '@mui/material/Typography'
-import Card           from '@mui/material/Card'
-import CardContent    from '@mui/material/CardContent'
-import Button         from '@mui/material/Button'
-import Chip           from '@mui/material/Chip'
-import CircularProgress from '@mui/material/CircularProgress'
-import LinearProgress from '@mui/material/LinearProgress'
-import Divider        from '@mui/material/Divider'
-import Alert          from '@mui/material/Alert'
-import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-} from 'recharts'
+// Home v1 (repensada 2026-07-10): espinha fixa + conteúdo dinâmico.
+// Responde 3 perguntas em 10 segundos:
+//   1. Como está a minha marca?      → PULSO (scores · inteligência · sentimento · evidências)
+//   2. O que aconteceu desde então?  → FEED (aprendizados novos, mercado, julgamentos pendentes)
+//   3. O que eu faço agora?          → CONTINUAR + atalhos por frequência + 1 recomendação
+// v2/v3 (backlog): recomendação via cérebro (LLM) e blocos se reordenando pelo perfil.
+import { useState, useEffect } from 'react'
+import { Box, Paper, Typography, Stack, CircularProgress, Chip, Button } from '@mui/material'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { supabase } from '../../lib/supabase'
+import { useWorkspace } from '../../lib/WorkspaceContext'
+import { PageHeader } from '../../components/shell/PageHeader'
 
-import { useWorkspace }      from '../../lib/WorkspaceContext'
-import { supabase }          from '../../lib/supabase'
-import { PRATICAS, PLANOS }  from '../../lib/constants'
-import { fmtDate }           from '../../lib/helpers'
-import { IdentityGapCard }   from '../../components/intelligence/IdentityGapCard'
-import { PageHeader }        from '../../components/shell/PageHeader'
-
-/* ── helpers ─────────────────────────────────────────────────────── */
-
-function scoreColor(s) {
-  if (s >= 7) return 'success.main'
-  if (s >= 5) return 'warning.main'
-  return 'secondary.main'
+const TEAL = '#0D9E7A', CORAL = '#E8185A', AMBER = '#EF9F27', PURPLE = '#7F77DD'
+const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
+const scoreCor = s => (s >= 7 ? TEAL : s >= 4 ? AMBER : s != null ? CORAL : 'text.disabled')
+const rel = iso => {
+  if (!iso) return ''
+  const d = Math.floor((Date.now() - new Date(iso)) / 86400000)
+  return d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`
 }
-function scoreHex(s) {
-  if (s >= 7) return '#0D9E7A'
-  if (s >= 5) return '#EF9F27'
-  return '#E8185A'
-}
-function scoreLabel(s) {
-  if (s >= 7) return 'Sólido'
-  if (s >= 5) return 'Em desenvolvimento'
-  return 'Crítico'
-}
-function alertColor(sev) {
-  if (sev === 'critical' || sev === 'error') return '#E8185A'
-  if (sev === 'warning') return '#EF9F27'
-  if (sev === 'success') return '#0D9E7A'
-  return '#96AABF'
-}
-
-/* ── RadarPilares ────────────────────────────────────────────────── */
-
-function RadarPilares({ singularidade, consistencia, posicionamento }) {
-  const data = [
-    { subject: 'Singularidade',  value: singularidade  ?? 0 },
-    { subject: 'Consistência',   value: consistencia   ?? 0 },
-    { subject: 'Posicionamento', value: posicionamento ?? 0 },
-  ]
-  return (
-    <Card variant="outlined" sx={{ flex: 1, minWidth: 0 }}>
-      <CardContent>
-        <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
-          Radar de pilares
-        </Typography>
-        <ResponsiveContainer width="100%" height={180}>
-          <RadarChart data={data} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
-            <PolarGrid stroke="rgba(255,255,255,0.08)" />
-            <PolarAngleAxis dataKey="subject" tick={{ fill: '#8A9AB0', fontSize: 11, fontWeight: 700 }} />
-            <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
-            <Radar dataKey="value" stroke="#7F77DD" fill="#7F77DD" fillOpacity={0.18} dot={{ fill: '#7F77DD', r: 3 }} />
-          </RadarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-/* ── SentimentDonut ──────────────────────────────────────────────── */
-
-const DONUT_COLORS = { positivo: '#0D9E7A', neutro: '#EF9F27', negativo: '#E8185A' }
-
-function SentimentDonut({ sentimento }) {
-  if (!sentimento) return null
-  const slices = [
-    { name: 'Positivo', value: sentimento.positivo ?? 0, color: DONUT_COLORS.positivo },
-    { name: 'Neutro',   value: sentimento.neutro   ?? 0, color: DONUT_COLORS.neutro   },
-    { name: 'Negativo', value: sentimento.negativo ?? 0, color: DONUT_COLORS.negativo  },
-  ].filter(s => s.value > 0)
-
-  if (slices.length === 0) return null
-
-  const dominant = slices.reduce((a, b) => a.value > b.value ? a : b)
-
-  return (
-    <Card variant="outlined" sx={{ flex: 1, minWidth: 0 }}>
-      <CardContent>
-        <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
-          Sentimento público
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
-            <ResponsiveContainer width={120} height={120}>
-              <PieChart>
-                <Pie data={slices} cx={55} cy={55} innerRadius={36} outerRadius={54} dataKey="value" stroke="none">
-                  {slices.map((s, i) => <Cell key={i} fill={s.color} />)}
-                </Pie>
-                <Tooltip formatter={(v) => `${v}%`} contentStyle={{ background: '#1A2436', border: 'none', fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-              <Typography sx={{ fontSize: 18, fontWeight: 900, color: dominant.color, lineHeight: 1 }}>
-                {dominant.value}%
-              </Typography>
-              <Typography sx={{ fontSize: 9, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {dominant.name}
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            {slices.map(s => (
-              <Box key={s.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: s.color, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>
-                  {s.name} <span style={{ color: s.color, fontWeight: 900 }}>{s.value}%</span>
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  )
-}
-
-/* ── ScoreCard ───────────────────────────────────────────────────── */
-
-function ScoreCard({ label, value }) {
-  const hex = scoreHex(value ?? 0)
-  const pct = Math.round(((value ?? 0) / 10) * 100)
-  return (
-    <Card variant="outlined" sx={{ flex: 1, borderTop: `2px solid ${hex}`, borderRadius: 0 }}>
-      <CardContent>
-        <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
-          {label}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.5 }}>
-          <Typography sx={{ fontSize: 'clamp(48px,5vw,68px)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em', color: hex }}>
-            {value ?? '—'}
-          </Typography>
-          <Typography sx={{ fontSize: 16, color: 'text.disabled', fontWeight: 400 }}>/10</Typography>
-        </Box>
-        <Chip
-          label={scoreLabel(value ?? 0)}
-          size="small"
-          sx={{ background: hex + '18', color: hex, fontWeight: 700, fontSize: '0.625rem', height: 20, mb: 1.5 }}
-        />
-        <LinearProgress
-          variant="determinate"
-          value={pct}
-          sx={{ height: 2, backgroundColor: 'divider', '& .MuiLinearProgress-bar': { backgroundColor: hex } }}
-        />
-      </CardContent>
-    </Card>
-  )
-}
-
-/* ── AlertRow ────────────────────────────────────────────────────── */
-
-function AlertRow({ alerta, onMarkRead }) {
-  const [loading, setLoading] = useState(false)
-  async function mark() {
-    setLoading(true)
-    await supabase.from('alertas').update({ lido: true }).eq('id', alerta.id)
-    onMarkRead(alerta.id)
-    setLoading(false)
-  }
-  return (
-    <Box sx={{
-      display: 'flex', alignItems: 'flex-start', gap: 1.5,
-      p: '12px 16px', border: '1px solid', borderColor: 'divider',
-      opacity: alerta.lido ? 0.4 : 1, transition: 'opacity 0.3s',
-    }}>
-      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: alertColor(alerta.severidade), flexShrink: 0, mt: '6px' }} />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary', mb: 0.25 }}>
-          {alerta.titulo}
-        </Typography>
-        {alerta.descricao && (
-          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{alerta.descricao}</Typography>
-        )}
-        <Typography variant="overline" sx={{ color: 'text.disabled', mt: 0.5, display: 'block' }}>
-          {fmtDate(alerta.created_at)}
-        </Typography>
-      </Box>
-      {!alerta.lido && (
-        <Button size="small" variant="outlined" onClick={mark} disabled={loading} sx={{ ml: 'auto', flexShrink: 0, alignSelf: 'center', minWidth: 0 }}>
-          {loading ? '...' : 'Lido'}
-        </Button>
-      )}
-    </Box>
-  )
-}
-
-/* ── SectionTitle ────────────────────────────────────────────────── */
-
-function SectionTitle({ children }) {
-  return (
-    <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1.5, mt: 3.5, pt: 3.5, borderTop: '1px solid', borderColor: 'divider' }}>
-      {children}
-    </Typography>
-  )
-}
-
-/* ── Home ────────────────────────────────────────────────────────── */
 
 export function Home() {
-  const { workspace }         = useWorkspace()
-  const [loading, setLoading]       = useState(true)
-  const [loadError, setLoadError]   = useState('')
-  const [diag, setDiag]             = useState(null)
-  const [alertas, setAlertas]       = useState([])
-  const [sentimento, setSentimento] = useState(null)
+  const { workspace } = useWorkspace()
+  const [d, setD] = useState(null)   // todos os dados da home
 
-  const load = useCallback(async () => {
+  useEffect(() => {
     if (!workspace?.id) return
-    setLoading(true)
-    setLoadError('')
-    try {
-      const [{ data: d, error: e1 }, { data: a, error: e2 }, { data: s, error: e3 }] = await Promise.all([
-        supabase.from('diagnosticos').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
-        supabase.from('alertas').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(5),
-        supabase.from('sentiment_snapshots').select('avg_positivo,avg_neutro,avg_negativo').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).single(),
+    let on = true
+    ;(async () => {
+      const { data: brand } = await supabase.from('brands').select('id, nome').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: true }).limit(1).maybeSingle()
+      const brandId = brand?.id
+      const semana = new Date(Date.now() - 7 * 86400000).toISOString()
+      const [diag, sent, intel, sigSemana, sigPend, clips, concs, pendJulg, wf, conv, book] = await Promise.all([
+        supabase.from('diagnosticos').select('score_singularidade, score_consistencia, score_posicionamento, created_at')
+          .eq('workspace_id', workspace.id).eq('status', 'done').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('sentiment_snapshots').select('avg_positivo, avg_neutro, avg_negativo')
+          .eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        brandId ? supabase.from('brand_intelligence').select('versao, confianca_media, metricas, gerado_de, created_at')
+          .eq('brand_id', brandId).order('versao', { ascending: false }).limit(2) : { data: [] },
+        brandId ? supabase.from('brand_signals').select('id', { count: 'exact', head: true })
+          .eq('brand_id', brandId).gte('created_at', semana) : { count: 0 },
+        brandId ? supabase.from('brand_signals').select('id', { count: 'exact', head: true })
+          .eq('brand_id', brandId).is('consumido_em', null) : { count: 0 },
+        supabase.from('concorrente_clipping').select('titulo, score_impacto, concorrente_id, created_at')
+          .eq('workspace_id', workspace.id).gte('created_at', semana).order('score_impacto', { ascending: false }).limit(3),
+        supabase.from('concorrentes').select('id, nome, ativo').eq('workspace_id', workspace.id),
+        brandId ? supabase.from('studio_generations').select('id', { count: 'exact', head: true })
+          .eq('brand_id', brandId).eq('status', 'done').is('feedback', null).not('image_url', 'is', null) : { count: 0 },
+        supabase.from('studio_workflows').select('id, nome, updated_at, brand_id').eq('workspace_id', workspace.id)
+          .eq('is_template', false).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+        brandId ? supabase.from('conversations').select('id, titulo, created_at').eq('brand_id', brandId)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
+        brandId ? supabase.from('brand_books').select('verbal_identity, strategy').eq('brand_id', brandId)
+          .order('updated_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
       ])
-      // PGRST116 = no rows found from .single() — expected when no data exists yet
-      const realErr = [e1, e2, e3].find(e => e && e.code !== 'PGRST116')
-      if (realErr) throw new Error(realErr.message)
-      setDiag(d ?? null)
-      setAlertas(a ?? [])
-      if (s) setSentimento({ positivo: Math.round(s.avg_positivo ?? 0), neutro: Math.round(s.avg_neutro ?? 0), negativo: Math.round(s.avg_negativo ?? 0) })
-    } catch (e) {
-      setLoadError('Erro ao carregar o dashboard. Verifique sua conexão e tente novamente.')
-    } finally {
-      setLoading(false)
-    }
+      if (!on) return
+      setD({
+        brand, brandId,
+        diag: diag.data, sent: sent.data,
+        intel: intel.data?.[0] || null, intelPrev: intel.data?.[1] || null,
+        evidSemana: sigSemana.count || 0, sigPendentes: sigPend.count || 0,
+        clips: clips.data || [], concs: concs.data || [],
+        pendJulg: pendJulg.count || 0, wf: wf.data, conv: conv.data, book: book.data,
+      })
+    })()
+    return () => { on = false }
   }, [workspace?.id])
 
-  useEffect(() => { load() }, [load])
+  if (!d) return <Stack alignItems="center" py={10}><CircularProgress size={24} sx={{ color: TEAL }} /></Stack>
 
-  function markRead(id) {
-    setAlertas(prev => prev.map(a => a.id === id ? { ...a, lido: true } : a))
-  }
+  const brandPath = d.brandId ? `#/app/brands/${d.brandId}` : null
+  const concNome = Object.fromEntries(d.concs.map(c => [c.id, c.nome]))
+  const intelDelta = d.intel && d.intelPrev && d.intel.confianca_media != null && d.intelPrev.confianca_media != null
+    ? Math.round((d.intel.confianca_media - d.intelPrev.confianca_media) * 100) : null
 
-  const planoNome     = PLANOS[workspace?.plano]?.nome ?? 'Trial'
-  const dados         = diag ? { ...diag, ...(diag.dados || diag.data || {}) } : null
-  const CONF_CHIP = { alta: { l: 'Sólido', c: '#0D9E7A' }, media: { l: 'Promissor', c: '#EF9F27' }, hipotese: { l: 'Hipótese', c: '#7A8899' } }
-  const territorios   = Array.isArray(dados?.territorios_possiveis) ? dados.territorios_possiveis : []
-  const oportunidades = territorios.length
-    ? territorios.slice(0, 3).map(t => ({ titulo: t.nome, descricao: t.tese, confianca: t.confianca }))
-    : (Array.isArray(dados?.oportunidades) ? dados.oportunidades.slice(0, 3) : [])
+  // Sentimento dominante
+  const s = d.sent || {}
+  const sentDom = [['positivo', s.avg_positivo, TEAL], ['neutro', s.avg_neutro, AMBER], ['negativo', s.avg_negativo, CORAL]]
+    .filter(x => x[1] != null).sort((a, b) => b[1] - a[1])[0]
+
+  // ── FEED: o que aconteceu ──
+  const feed = []
+  if (d.intel && (Date.now() - new Date(d.intel.created_at)) < 14 * 86400000)
+    feed.push({ e: '🧠', t: `A inteligência evoluiu para a v${d.intel.versao} — ${d.intel.gerado_de?.count || '?'} evidências viraram aprendizado`, q: d.intel.created_at, hash: '#/app/ia-loudr' })
+  const ap = d.intel?.metricas?.approval_sob_versao_anterior
+  if (ap != null && d.intel?.metricas?.votos_janela > 0)
+    feed.push({ e: '📈', t: `Aprovação das peças criadas sob a v${d.intel.versao - 1}: ${pct(ap)} (${d.intel.metricas.votos_janela} avaliações)`, q: d.intel.created_at, hash: '#/app/ia-loudr' })
+  for (const c of d.clips)
+    feed.push({ e: '⚔️', t: `${concNome[c.concorrente_id] || 'Concorrente'}: ${c.titulo}${c.score_impacto ? ` (impacto ${c.score_impacto}/10)` : ''}`, q: c.created_at, hash: '#/app/market-intel' })
+  if (d.pendJulg > 0 && brandPath)
+    feed.push({ e: '👍', t: `${d.pendJulg} peça${d.pendJulg > 1 ? 's' : ''} esperando seu julgamento — cada avaliação ensina a marca`, q: null, hash: `${brandPath}/studio/approvals` })
+  feed.sort((a, b) => new Date(b.q || 0) - new Date(a.q || 0))
+
+  // ── RECOMENDAÇÃO (1 por vez, regras — v2 vira cérebro/LLM) ──
+  const st = d.book?.strategy || {}, v = d.book?.verbal_identity || {}
+  let reco = null
+  if (brandPath && !(st.personas?.length)) reco = { t: 'Preencha as Personas da marca — toda geração de copy e imagem fica mais precisa quando a inteligência sabe PARA QUEM cria.', cta: 'Ir para Função', hash: `${brandPath}/negocio` }
+  else if (brandPath && !v.tom_voz) reco = { t: 'Defina o tom de voz em Expressão — é a base de tudo que a marca escreve.', cta: 'Ir para Expressão', hash: `${brandPath}/expression` }
+  else if (d.pendJulg > 3 && brandPath) reco = { t: `${d.pendJulg} peças aguardam julgamento — julgar acelera o aprendizado da marca.`, cta: 'Julgar agora', hash: `${brandPath}/studio/approvals` }
+  else if (!d.concs.some(c => c.ativo)) reco = { t: 'Cadastre concorrentes — a marca aprende o território do mercado e afia a diferenciação.', cta: 'Ir para Relatórios', hash: '#/app/reports' }
+  else if (d.sigPendentes >= 5) reco = { t: `${d.sigPendentes} evidências novas acumuladas — a próxima versão da inteligência nasce em breve.`, cta: 'Ver inteligência', hash: '#/app/ia-loudr' }
+  else if (brandPath) reco = { t: 'Crie uma peça na Redação — a marca escreve com a voz que aprendeu com você.', cta: 'Abrir Redação', hash: `${brandPath}/studio/writing` }
+
+  // ── ATALHOS por frequência de uso (adaptativo, client-side) ──
+  let freq = {}
+  try { freq = JSON.parse(localStorage.getItem('s1ngulr-nav-freq') || '{}') } catch { /* ok */ }
+  const atalhos = !brandPath ? [] : [
+    { label: 'Redação', hash: `${brandPath}/studio/writing`, k: '#brand/studio/writing' },
+    { label: 'Imagem', hash: `${brandPath}/studio`, k: '#brand/studio' },
+    { label: 'Vídeo', hash: `${brandPath}/studio/video`, k: '#brand/studio/video' },
+    { label: 'Fluxos', hash: `${brandPath}/studio/workflow`, k: '#brand/studio/workflow' },
+    { label: 'Copiloto', hash: `${brandPath}/assistant`, k: '#brand/assistant' },
+    { label: 'Relatórios', hash: '#/app/reports', k: '#/app/reports' },
+    { label: 'Concorrentes', hash: '#/app/competitors', k: '#/app/competitors' },
+    { label: 'Biblioteca', hash: `${brandPath}/studio/biblioteca`, k: '#brand/studio/biblioteca' },
+  ].sort((a, b) => (freq[b.k] || 0) - (freq[a.k] || 0)).slice(0, 6)
+
+  const Card = ({ children, hash, sx }) => (
+    <Paper variant="outlined" onClick={hash ? () => { window.location.hash = hash } : undefined}
+      sx={{ p: 2, borderRadius: 2, cursor: hash ? 'pointer' : 'default', '&:hover': hash ? { borderColor: TEAL } : {}, ...sx }}>
+      {children}
+    </Paper>
+  )
+  const Rotulo = ({ children }) => (
+    <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.disabled', mb: 1 }}>{children}</Typography>
+  )
 
   return (
-    <Box>
-      <PageHeader
-        title={workspace?.nome || 'Home'}
-        subtitle={`Plano ${planoNome}${diag ? ` · último diagnóstico ${fmtDate(diag.created_at)}` : ' · nenhum diagnóstico gerado'}`}
-      />
-      <Box sx={{ p: { xs: '24px 20px 60px', md: '32px 52px 80px' }, maxWidth: 1060 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+      <PageHeader title={d.brand?.nome || workspace?.nome || 'Início'}
+        subtitle={`Plano ${workspace?.plano ? workspace.plano.charAt(0).toUpperCase() + workspace.plano.slice(1) : ''}${d.diag ? ` · último diagnóstico ${rel(d.diag.created_at)}` : ''}`} />
 
-      {loadError && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setLoadError('')}>
-          {loadError}
-        </Alert>
-      )}
+      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
+        <Stack spacing={3}>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-          <CircularProgress color="primary" size={32} />
-        </Box>
-      ) : !diag ? (
-        /* ── Empty state ── */
-        <Box sx={{ border: '1px dashed', borderColor: 'divider', p: '60px 32px', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 15, fontWeight: 800, color: 'text.primary', mb: 1 }}>
-            Nenhum diagnóstico ainda
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-            Gere o primeiro diagnóstico e descubra oportunidades de crescimento.
-          </Typography>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="large"
-            onClick={() => { window.location.hash = '#/app/diagnostico' }}
-          >
-            Gerar primeiro diagnóstico →
-          </Button>
-        </Box>
-      ) : (
-        <>
-          {/* ── Score cards ── */}
-          <Box sx={{ display: 'flex', gap: '2px', mb: '2px', flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
-            <ScoreCard label="Singularidade"  value={diag.score_singularidade} />
-            <ScoreCard label="Consistência"   value={diag.score_consistencia} />
-            <ScoreCard label="Posicionamento" value={diag.score_posicionamento} />
+          {/* ── 1. PULSO ── */}
+          <Box>
+            <Rotulo>O pulso da marca</Rotulo>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+              <Card hash="#/app/reports">
+                <Typography fontSize={11} fontWeight={800} color="text.secondary">Diagnóstico</Typography>
+                {d.diag ? (
+                  <Stack direction="row" spacing={1.5} mt={0.5}>
+                    {[['Sing', d.diag.score_singularidade], ['Cons', d.diag.score_consistencia], ['Pos', d.diag.score_posicionamento]].map(([l, sc]) => (
+                      <Box key={l}><Typography fontSize={22} fontWeight={900} sx={{ color: scoreCor(sc), lineHeight: 1 }}>{sc ?? '—'}</Typography>
+                        <Typography fontSize={9.5} color="text.disabled">{l}</Typography></Box>
+                    ))}
+                  </Stack>
+                ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>sem diagnóstico ainda</Typography>}
+              </Card>
+              <Card hash="#/app/ia-loudr">
+                <Typography fontSize={11} fontWeight={800} color="text.secondary">Inteligência</Typography>
+                {d.intel ? (
+                  <>
+                    <Typography fontSize={22} fontWeight={900} sx={{ color: PURPLE, lineHeight: 1.2 }}>
+                      v{d.intel.versao} · {pct(d.intel.confianca_media)}
+                      {intelDelta != null && intelDelta !== 0 && (
+                        <Typography component="span" fontSize={12} fontWeight={800} sx={{ ml: 0.5, color: intelDelta > 0 ? TEAL : CORAL }}>
+                          {intelDelta > 0 ? '▲' : '▼'}{Math.abs(intelDelta)}</Typography>
+                      )}
+                    </Typography>
+                    <Typography fontSize={9.5} color="text.disabled">confiança do aprendizado</Typography>
+                  </>
+                ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>ainda formando</Typography>}
+              </Card>
+              <Card hash="#/app/listening">
+                <Typography fontSize={11} fontWeight={800} color="text.secondary">Sentimento</Typography>
+                {sentDom ? (
+                  <>
+                    <Typography fontSize={22} fontWeight={900} sx={{ color: sentDom[2], lineHeight: 1.2 }}>{Math.round(sentDom[1])}%</Typography>
+                    <Typography fontSize={9.5} color="text.disabled">{sentDom[0]} domina</Typography>
+                  </>
+                ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>sem escuta ainda</Typography>}
+              </Card>
+              <Card hash="#/app/ia-loudr">
+                <Typography fontSize={11} fontWeight={800} color="text.secondary">Evidências · 7 dias</Typography>
+                <Typography fontSize={22} fontWeight={900} sx={{ lineHeight: 1.2 }}>{d.evidSemana}</Typography>
+                <Typography fontSize={9.5} color="text.disabled">tudo que a marca vive vira aprendizado</Typography>
+              </Card>
+            </Box>
           </Box>
 
-          {/* ── Charts row ── */}
-          <Box sx={{ display: 'flex', gap: '2px', mt: '2px', mb: '2px', flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
-            <RadarPilares
-              singularidade={diag.score_singularidade}
-              consistencia={diag.score_consistencia}
-              posicionamento={diag.score_posicionamento}
-            />
-            {sentimento && <SentimentDonut sentimento={sentimento} />}
-          </Box>
+          {/* ── 2. FEED ── */}
+          {feed.length > 0 && (
+            <Box>
+              <Rotulo>O que aconteceu</Rotulo>
+              <Stack spacing={1}>
+                {feed.slice(0, 6).map((f, i) => (
+                  <Card key={i} hash={f.hash} sx={{ py: 1.5 }}>
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Typography fontSize={16}>{f.e}</Typography>
+                      <Typography fontSize={13.5} sx={{ flex: 1, lineHeight: 1.5 }}>{f.t}</Typography>
+                      {f.q && <Typography fontSize={11} color="text.disabled" sx={{ flexShrink: 0 }}>{rel(f.q)}</Typography>}
+                    </Stack>
+                  </Card>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
-          {/* ── Frase diagnóstico ── */}
-          {dados?.frase_diagnostico && (
-            <Box sx={{
-              bgcolor: 'background.paper',
-              border: '1px solid', borderColor: 'divider',
-              borderLeft: '3px solid', borderLeftColor: 'primary.main',
-              p: '20px 24px', mb: 4, mt: '2px',
-            }}>
-              <Typography sx={{ fontSize: 15, fontWeight: 600, fontStyle: 'italic', color: '#E8ECF0', lineHeight: 1.6, mb: 0.75 }}>
-                "{dados.frase_diagnostico}"
-              </Typography>
-              {dados.empresa && (
-                <Typography variant="overline" sx={{ color: 'text.disabled' }}>
-                  {dados.empresa}
-                </Typography>
+          {/* ── 3. AGORA: recomendação + continuar + atalhos ── */}
+          <Box>
+            <Rotulo>E agora?</Rotulo>
+            <Stack spacing={1.5}>
+              {reco && (
+                <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid rgba(127,119,221,0.35)', bgcolor: 'rgba(127,119,221,0.06)' }}>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <TrendingUpIcon sx={{ color: PURPLE, fontSize: 20 }} />
+                    <Typography fontSize={13.5} sx={{ flex: 1, lineHeight: 1.5 }}>{reco.t}</Typography>
+                    <Button size="small" endIcon={<ArrowForwardIcon sx={{ fontSize: '14px !important' }} />}
+                      onClick={() => { window.location.hash = reco.hash }}
+                      sx={{ fontWeight: 800, color: PURPLE, flexShrink: 0 }}>{reco.cta}</Button>
+                  </Stack>
+                </Paper>
               )}
-            </Box>
-          )}
 
-          {/* ── Oportunidades ── */}
-          {oportunidades.length > 0 && (
-            <>
-              <SectionTitle>{territorios.length ? 'Territórios para explorar' : 'Top 3 oportunidades'}</SectionTitle>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                {oportunidades.map((op, i) => {
-                  const pratica = PRATICAS.find(p => p.key === op.pratica_loudr)
-                  return (
-                    <Box
-                      key={i}
-                      sx={{
-                        display: 'flex', alignItems: 'flex-start', gap: 2,
-                        bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider',
-                        p: '16px 20px',
-                        '&:hover': { bgcolor: 'background.default' },
-                        transition: 'background 0.15s',
-                      }}
-                    >
-                      <Box sx={{
-                        fontSize: 11, fontWeight: 900, color: 'text.disabled',
-                        bgcolor: 'background.default', width: 24, height: 24,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        {i + 1}
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: 13, fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
-                          {op.titulo}
-                        </Typography>
-                        <Typography sx={{ fontSize: 12, color: 'text.secondary', lineHeight: 1.55, mb: 1 }}>
-                          {op.descricao}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                          {op.confianca && CONF_CHIP[op.confianca] && (
-                            <Chip label={CONF_CHIP[op.confianca].l} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700,
-                              bgcolor: CONF_CHIP[op.confianca].c + '18', color: CONF_CHIP[op.confianca].c }} />
-                          )}
-                          {op.impacto && (
-                            <Chip label={`Impacto ${op.impacto}`} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700,
-                              bgcolor: op.impacto === 'alto' ? 'rgba(232,24,90,0.1)' : op.impacto === 'medio' ? 'rgba(239,159,39,0.1)' : 'rgba(122,136,153,0.1)',
-                              color:   op.impacto === 'alto' ? '#E8185A' : op.impacto === 'medio' ? '#EF9F27' : '#96AABF',
-                            }} />
-                          )}
-                          {op.prazo && (
-                            <Chip label={op.prazo} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: 'primary.main' }} />
-                          )}
-                          {pratica && (
-                            <Chip label={pratica.label} size="small" sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700, bgcolor: pratica.color + '18', color: pratica.color }} />
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-                  )
-                })}
-              </Box>
-            </>
-          )}
-
-          {/* ── Identity Gap ── */}
-          <SectionTitle>Identity Gap</SectionTitle>
-          <IdentityGapCard workspaceId={workspace?.id} compact />
-
-          {/* ── Alertas ── */}
-          <SectionTitle>Alertas recentes</SectionTitle>
-          {alertas.length === 0 ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: '14px 16px', border: '1px solid', borderColor: 'divider' }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
-              <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>Nenhum alerta — tudo certo.</Typography>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              {alertas.map(a => <AlertRow key={a.id} alerta={a} onMarkRead={markRead} />)}
-            </Box>
-          )}
-
-          {/* ── CTA ── */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 4, mt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Button
-              variant="contained"
-              color="secondary"
-              size="large"
-              onClick={() => { window.location.hash = '#/app/diagnostico' }}
-            >
-              Gerar novo diagnóstico →
-            </Button>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {d.wf && (
+                  <Chip label={`Continuar no fluxo "${(d.wf.nome || '').slice(0, 32)}"`} onClick={() => { window.location.hash = `#/app/brands/${d.wf.brand_id}/studio/workflow/${d.wf.id}` }}
+                    sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
+                )}
+                {d.conv && brandPath && (
+                  <Chip label="Continuar conversa no Copiloto" onClick={() => { window.location.hash = `${brandPath}/assistant` }}
+                    sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
+                )}
+                {atalhos.map(a => (
+                  <Chip key={a.label} label={a.label} variant="outlined" onClick={() => { window.location.hash = a.hash }}
+                    sx={{ fontWeight: 700 }} />
+                ))}
+              </Stack>
+            </Stack>
           </Box>
-        </>
-      )}
+
+        </Stack>
       </Box>
     </Box>
   )

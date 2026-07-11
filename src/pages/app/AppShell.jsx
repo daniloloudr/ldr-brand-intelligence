@@ -142,7 +142,17 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const limite   = plano.diagnosticos_mes === Infinity ? null : plano.diagnosticos_mes
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '?'
 
-  function handleNavigate(hash) { if (hash) window.location.hash = hash }
+  function handleNavigate(hash) {
+    if (!hash) return
+    // Frequência de uso por destino — alimenta os atalhos adaptativos da Home
+    try {
+      const freq = JSON.parse(localStorage.getItem('s1ngulr-nav-freq') || '{}')
+      const key = hash.replace(/#\/app\/brands\/[^/]+/, '#brand')   // normaliza por marca
+      freq[key] = (freq[key] || 0) + 1
+      localStorage.setItem('s1ngulr-nav-freq', JSON.stringify(freq))
+    } catch { /* localStorage indisponível não bloqueia navegação */ }
+    window.location.hash = hash
+  }
 
   const brandPath = brandId ? `#/app/brands/${brandId}` : '#/app/brands'
   const section   = getBrandSection()
