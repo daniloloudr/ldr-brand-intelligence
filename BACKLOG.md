@@ -56,6 +56,12 @@ Critério de priorização: **usa o que o cérebro já sabe × devolve sinais no
 | 6 | **E-mail/CRM** | sequências (boas-vindas, nutrição, carrinho) no tom da marca | formato de altíssimo volume nas empresas |
 | 7 | **Peça final com texto (Canva-lite)** | editor visual: tipografia aplicada na imagem gerada | o mais caro; já anotado como futuro na regra "imagem sem texto"; NÃO começar por ele |
 
+### 🎯 Piloto Hering (Rafael Passos, dir. digital — call 2026-07-09)
+Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fidedigna** de produto que ainda não existe (foto simples no cabide + ficha técnica); depois manequim fantasma, troca de modelo A/B, close — **em escala**, API depois. Rafael validou a tese: quer o cérebro no meio + subir referências como ensino (novo sinal `reference_upload`). Detalhe na memória (`project_hering_pilot`).
+- **F0** 🟢 — corrigir bug da área de referências (visto na call) + testar fidelidade com 3-5 peças reais ANTES de prometer escala (make-or-break: alucinação de estampa/cor = pedido errado). Verificar modelos especializados da fal (try-on, ghost mannequin).
+- **F1** — template de Fluxo "Guia de Compras" (foto+ficha → still fiel, manequim fantasma, variação de modelo, close) com **juiz de fidelidade** (= diretor de arte F1/F2 abaixo).
+- **F2** — lote via planilha/Drive (puxa a F3 dos agentes). **F3** — API in/out (puxa a F0 do MCP).
+
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
 
