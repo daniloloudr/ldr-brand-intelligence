@@ -24,7 +24,7 @@ import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 
 const SECTIONS = [
   // Árvore Strategy (2026-07-10, fiel): Culture→Brand Essence · Business→Função+Experience · Communication→Personality+Expression
-  { key: 'essencia',      label: 'Essence',       color: '#0D9E7A' },
+  { key: 'essencia',      label: 'Essência',      color: '#0D9E7A' },
   { key: 'negocio',       label: 'Função',        color: '#E8185A' },
   { key: 'experiencia',   label: 'Experiência',   color: '#EF9F27' },
   { key: 'personalidade', label: 'Personalidade', color: '#7F77DD' },
