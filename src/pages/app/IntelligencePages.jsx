@@ -35,113 +35,456 @@ function EmConstrucao({ desc, vem }) {
   )
 }
 
-// ── Market Intelligence — o clipping do mercado (dados reais) ─────────
+// ── Inteligência de Mercado — o briefing do campo de jogo (fase 1) ────
+// Pulso (7 dias) + síntese do ciclo pelo cérebro + share of voice + feed filtrável.
 export function MarketIntelligence() {
   const { workspace } = useWorkspace()
-  const [items, setItems] = useState(null)
-  const [concs, setConcs] = useState({})
+  const [d, setD] = useState(null)
+  const [gerando, setGerando] = useState(false)
+  const [fConc, setFConc] = useState(null)       // filtro: concorrente
+  const [fAlto, setFAlto] = useState(false)      // filtro: impacto >= 6
+  const [fPeriodo, setFPeriodo] = useState(30)   // filtro: 7 | 30 | 0 (tudo)
+
+  const load = useCallback(async () => {
+    const [{ data: cs }, { data: clips }, { data: sint }] = await Promise.all([
+      supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspace.id),
+      supabase.from('concorrente_clipping').select('*').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false }).limit(200),
+      supabase.from('market_sinteses').select('*').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false }).limit(1),
+    ])
+    const next = {
+      concs: Object.fromEntries((cs || []).map(c => [c.id, c.nome])),
+      items: clips || [], sintese: sint?.[0] || null,
+    }
+    setD(next)
+    return next
+  }, [workspace?.id])
 
   useEffect(() => {
     if (!workspace?.id) return
-    let on = true
-    ;(async () => {
-      const [{ data: cs }, { data: clips }] = await Promise.all([
-        supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspace.id),
-        supabase.from('concorrente_clipping').select('*').eq('workspace_id', workspace.id)
-          .order('created_at', { ascending: false }).limit(60),
-      ])
-      if (!on) return
-      setConcs(Object.fromEntries((cs || []).map(c => [c.id, c.nome])))
-      setItems(clips || [])
-    })()
-    return () => { on = false }
-  }, [workspace?.id])
+    load()
+  }, [workspace?.id, load])
+
+  const gerarSintese = async () => {
+    setGerando(true)
+    const antes = d?.sintese?.id || null
+    const { data: { session } } = await supabase.auth.getSession()
+    fetch('/.netlify/functions/market-sintese-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ workspace_id: workspace.id }),
+    }).catch(() => {})
+    for (let i = 0; i < 12; i++) {                    // até ~60s
+      await new Promise(r => setTimeout(r, 5000))
+      const next = await load()
+      if (next.sintese && next.sintese.id !== antes) break
+    }
+    setGerando(false)
+  }
+
+  if (!d) return (
+    <Shell title="Inteligência de Mercado" subtitle="O campo de jogo: movimentos do mercado e dos concorrentes, lidos pela inteligência da marca">
+      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+    </Shell>
+  )
+
+  // Pulso: janela fixa de 7 dias (independe dos filtros do feed)
+  const semana = Date.now() - 7 * 86400000
+  const daSemana = d.items.filter(i => new Date(i.created_at) >= semana)
+  const altoImpacto = daSemana.filter(i => (i.score_impacto ?? 0) >= 8)
+  const negativos = daSemana.filter(i => i.sentiment === 'negativo')
+  const porConc = {}
+  for (const i of daSemana) porConc[i.concorrente_id] = (porConc[i.concorrente_id] || 0) + 1
+  const maisAtivo = Object.entries(porConc).sort((a, b) => b[1] - a[1])[0]
+
+  // Share of voice: 30 dias, por concorrente (contagem + impacto médio)
+  const mes = Date.now() - 30 * 86400000
+  const sov = {}
+  for (const i of d.items.filter(x => new Date(x.created_at) >= mes)) {
+    const k = i.concorrente_id
+    sov[k] = sov[k] || { n: 0, imp: 0 }
+    sov[k].n++; sov[k].imp += i.score_impacto ?? 0
+  }
+  const sovList = Object.entries(sov).map(([id, v]) => ({ id, nome: d.concs[id] || 'Concorrente', n: v.n, imp: v.n ? v.imp / v.n : 0 }))
+    .sort((a, b) => b.n - a.n)
+  const sovMax = sovList[0]?.n || 1
+
+  // Feed filtrado
+  const corte = fPeriodo ? Date.now() - fPeriodo * 86400000 : 0
+  const feed = d.items.filter(i =>
+    (!fConc || i.concorrente_id === fConc) &&
+    (!fAlto || (i.score_impacto ?? 0) >= 6) &&
+    (!corte || new Date(i.created_at) >= corte))
+
+  const PulsoCard = ({ label, valor, sub, cor }) => (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+      <Typography fontSize={11} fontWeight={800} color="text.secondary">{label}</Typography>
+      <Typography fontSize={22} fontWeight={900} sx={{ lineHeight: 1.2, color: cor || 'text.primary' }}>{valor}</Typography>
+      <Typography fontSize={9.5} color="text.disabled">{sub}</Typography>
+    </Paper>
+  )
 
   return (
-    <Shell title="Inteligência de Mercado" subtitle="Movimentos recentes do mercado e dos concorrentes — coletados toda semana">
-      {items === null ? (
-        <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-      ) : items.length === 0 ? (
-        <EmConstrucao desc="Ainda não há movimentos coletados. O clipping roda toda segunda para os concorrentes ativos — cadastre concorrentes no Brand Positioning para alimentar esta página."
-          vem="alertas de movimento de alto impacto e resumo semanal do mercado" />
+    <Shell title="Inteligência de Mercado" subtitle="O campo de jogo: movimentos do mercado e dos concorrentes, lidos pela inteligência da marca">
+      {d.items.length === 0 ? (
+        <EmConstrucao desc="Ainda não há movimentos coletados. O clipping roda toda segunda para os concorrentes ativos — cadastre concorrentes em Relatórios para alimentar esta página."
+          vem="pulso do mercado, síntese do ciclo pelo cérebro e share of voice" />
       ) : (
-        <Stack spacing={1.5}>
-          {items.map(it => (
-            <Paper key={it.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
-                <Chip label={concs[it.concorrente_id] || 'Concorrente'} size="small" sx={{ fontWeight: 800, fontSize: 11 }} />
-                {it.fonte && <Typography fontSize={11} color="text.disabled">{it.fonte}</Typography>}
-                {it.sentiment && <Chip label={it.sentiment} size="small" variant="outlined"
-                  sx={{ fontSize: 10, fontWeight: 700, color: SENT[it.sentiment], borderColor: SENT[it.sentiment] }} />}
-                {it.score_impacto != null && <Typography fontSize={11} sx={{ color: it.score_impacto >= 6 ? CORAL : 'text.disabled', fontWeight: 700 }}>impacto {it.score_impacto}/10</Typography>}
-                <Box flex={1} />
-                <Typography fontSize={11} color="text.disabled">{new Date(it.created_at).toLocaleDateString('pt-BR')}</Typography>
+        <Stack spacing={3}>
+          {/* pulso da semana */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+            <PulsoCard label="Movimentos · 7 dias" valor={daSemana.length} sub="itens novos no radar" />
+            <PulsoCard label="Alto impacto" valor={altoImpacto.length} sub="impacto 8+ na semana" cor={altoImpacto.length ? CORAL : undefined} />
+            <PulsoCard label="Mais ativo" valor={maisAtivo ? (d.concs[maisAtivo[0]] || '—') : '—'} sub={maisAtivo ? `${maisAtivo[1]} movimentos na semana` : 'semana quieta'} />
+            <PulsoCard label="Sinais negativos" valor={negativos.length} sub="menções negativas de concorrentes" cor={negativos.length ? TEAL : undefined} />
+          </Box>
+
+          {/* síntese do ciclo pelo cérebro */}
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'rgba(127,119,221,0.35)' }}>
+            <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+              <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 18 }} />
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ flex: 1 }}>
+                SÍNTESE DO CICLO{d.sintese ? ` — ${new Date(d.sintese.created_at).toLocaleDateString('pt-BR')} · ${d.sintese.mencoes} itens lidos` : ''}
+              </Typography>
+              <Button size="small" variant="text" disabled={gerando} onClick={gerarSintese}
+                startIcon={gerando ? <CircularProgress size={13} /> : null} sx={{ fontWeight: 700 }}>
+                {gerando ? 'Lendo o ciclo…' : d.sintese ? 'Gerar de novo' : 'Gerar síntese'}
+              </Button>
+            </Stack>
+            {d.sintese ? (
+              <>
+                <Stack spacing={0.75}>
+                  {(d.sintese.bullets || []).map((b, i) => (
+                    <Typography key={i} fontSize={13.5} sx={{ lineHeight: 1.55 }}>• {b}</Typography>
+                  ))}
+                </Stack>
+                {d.sintese.para_marca && (
+                  <Typography fontSize={13} sx={{ mt: 1.25, fontWeight: 700, color: '#7F77DD', lineHeight: 1.55 }}>
+                    → {d.sintese.para_marca}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <Typography fontSize={13} color="text.secondary">
+                A inteligência da marca lê os movimentos do ciclo e escreve o briefing: o que importa e o que fazer. Toda segunda sai um automático — ou gere agora.
+              </Typography>
+            )}
+          </Paper>
+
+          {/* share of voice */}
+          {sovList.length > 1 && (
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25}>QUEM MAIS SE MOVEU · 30 DIAS</Typography>
+              <Stack spacing={1}>
+                {sovList.map(s => (
+                  <Stack key={s.id} direction="row" alignItems="center" spacing={1.25}>
+                    <Typography fontSize={12.5} fontWeight={700} sx={{ width: 140, flexShrink: 0 }} noWrap>{s.nome}</Typography>
+                    <Box sx={{ flex: 1, height: 8, borderRadius: 4, bgcolor: 'action.hover', overflow: 'hidden' }}>
+                      <Box sx={{ width: `${(s.n / sovMax) * 100}%`, height: '100%', borderRadius: 4, bgcolor: s.imp >= 6 ? CORAL : TEAL, opacity: 0.75 }} />
+                    </Box>
+                    <Typography fontSize={11.5} color="text.secondary" sx={{ width: 130, flexShrink: 0, textAlign: 'right' }}>
+                      {s.n} mov · impacto {s.imp.toFixed(1)}</Typography>
+                  </Stack>
+                ))}
               </Stack>
-              <Typography fontSize={14} fontWeight={800}>{it.titulo}</Typography>
-              {it.conteudo && <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{it.conteudo}</Typography>}
-              {it.url && <Link href={it.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
-                fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
             </Paper>
-          ))}
+          )}
+
+          {/* feed com filtros */}
+          <Box>
+            <Stack direction="row" spacing={0.75} alignItems="center" mb={1.25} flexWrap="wrap" useFlexGap>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ mr: 1 }}>MOVIMENTOS</Typography>
+              {[...new Set(d.items.map(i => i.concorrente_id))].filter(id => d.concs[id]).map(id => (
+                <Chip key={id} label={d.concs[id]} size="small" variant={fConc === id ? 'filled' : 'outlined'}
+                  onClick={() => setFConc(fConc === id ? null : id)} sx={{ fontSize: 10.5, fontWeight: 700 }} />
+              ))}
+              <Chip label="impacto 6+" size="small" variant={fAlto ? 'filled' : 'outlined'}
+                onClick={() => setFAlto(!fAlto)} sx={{ fontSize: 10.5, fontWeight: 700, color: fAlto ? undefined : CORAL, borderColor: CORAL }} />
+              <Box flex={1} />
+              {[[7, '7d'], [30, '30d'], [0, 'tudo']].map(([v, l]) => (
+                <Chip key={l} label={l} size="small" variant={fPeriodo === v ? 'filled' : 'outlined'}
+                  onClick={() => setFPeriodo(v)} sx={{ fontSize: 10.5, fontWeight: 700 }} />
+              ))}
+            </Stack>
+            <Stack spacing={1.5}>
+              {feed.map(it => (
+                <Paper key={it.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
+                    <Chip label={d.concs[it.concorrente_id] || 'Concorrente'} size="small" sx={{ fontWeight: 800, fontSize: 11 }} />
+                    {it.fonte && <Typography fontSize={11} color="text.disabled">{it.fonte}</Typography>}
+                    {it.sentiment && <Chip label={it.sentiment} size="small" variant="outlined"
+                      sx={{ fontSize: 10, fontWeight: 700, color: SENT[it.sentiment], borderColor: SENT[it.sentiment] }} />}
+                    {it.score_impacto != null && <Typography fontSize={11} sx={{ color: it.score_impacto >= 6 ? CORAL : 'text.disabled', fontWeight: 700 }}>impacto {it.score_impacto}/10</Typography>}
+                    <Box flex={1} />
+                    <Typography fontSize={11} color="text.disabled">{new Date(it.created_at).toLocaleDateString('pt-BR')}</Typography>
+                  </Stack>
+                  <Typography fontSize={14} fontWeight={800}>{it.titulo}</Typography>
+                  {it.conteudo && <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{it.conteudo}</Typography>}
+                  {it.url && <Link href={it.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                    fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
+                </Paper>
+              ))}
+              {feed.length === 0 && <Typography fontSize={13} color="text.disabled" py={2}>Nenhum movimento com esses filtros.</Typography>}
+            </Stack>
+          </Box>
         </Stack>
       )}
     </Shell>
   )
 }
 
-// ── Competitors — visão rápida (dados reais; análise completa no Positioning) ──
+// ── Concorrentes — o dossiê de cada adversário (fase 1) ──────────────
+// Comparativo lado a lado + dossiê expandível (frase, territórios, forças/
+// fraquezas, evolução por ciclo, movimentos) + colisão de território.
+
+// Heurística de colisão: interseção de palavras significativas (sem acento,
+// >3 letras) entre o território aprendido da marca e o reivindicado pelo rival.
+// Compara só o NÚCLEO da reivindicação — o território aprendido costuma citar
+// os territórios rivais nas cláusulas "Diferenciação/Evitar", o que marcaria
+// colisão com todo mundo (alerta em tudo = alerta em nada).
+const STOPWORDS = new Set(['para', 'como', 'mais', 'marca', 'marcas', 'brand', 'branding', 'brands', 'empresa', 'empresas', 'mercado'])
+const tokens = s => new Set(String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .split(/[^a-z0-9]+/).filter(w => w.length > 3 && !STOPWORDS.has(w)))
+const nucleoTerritorio = s => String(s || '').split(/Diferencia|Evitar/i)[0]
+const colide = (meuNucleo, dele) => {
+  const a = tokens(meuNucleo), b = tokens(dele)
+  let n = 0
+  for (const t of a) if (b.has(t)) n++
+  return n >= 2
+}
+
 export function CompetitorsPage() {
   const { workspace } = useWorkspace()
-  const [rows, setRows] = useState(null)
+  const [d, setD] = useState(null)
+  const [aberto, setAberto] = useState(null)   // concorrente_id expandido
 
   useEffect(() => {
     if (!workspace?.id) return
     let on = true
     ;(async () => {
-      const [{ data: cs }, { data: diags }] = await Promise.all([
+      const { data: brand } = await supabase.from('brands').select('id, nome').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: true }).limit(1).maybeSingle()
+      const [{ data: cs }, { data: diags }, { data: meuDiag }, { data: intel }, { data: clips }] = await Promise.all([
         supabase.from('concorrentes').select('id, nome, dominio, ativo').eq('workspace_id', workspace.id).order('created_at'),
-        supabase.from('diagnosticos_concorrentes').select('concorrente_id, scores, created_at')
+        supabase.from('diagnosticos_concorrentes').select('concorrente_id, scores, dados, created_at')
           .eq('workspace_id', workspace.id).order('created_at', { ascending: false }),
+        supabase.from('diagnosticos').select('score_singularidade, score_consistencia, score_posicionamento, created_at')
+          .eq('workspace_id', workspace.id).eq('status', 'done').order('created_at', { ascending: false }).limit(1),
+        brand ? supabase.from('brand_intelligence').select('modelo, versao').eq('brand_id', brand.id)
+          .order('versao', { ascending: false }).limit(1) : { data: [] },
+        supabase.from('concorrente_clipping').select('concorrente_id, titulo, sentiment, score_impacto, url, created_at')
+          .eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
       ])
       if (!on) return
-      const lastDiag = {}
-      for (const d of diags || []) if (!lastDiag[d.concorrente_id]) lastDiag[d.concorrente_id] = d
-      setRows((cs || []).filter(c => c.ativo).map(c => ({ ...c, diag: lastDiag[c.id] })))
+      // histórico por concorrente: [0] = último ciclo, [1] = anterior (para os deltas)
+      const hist = {}
+      for (const dg of diags || []) (hist[dg.concorrente_id] = hist[dg.concorrente_id] || []).push(dg)
+      const modelo = intel?.[0]?.modelo || {}
+      setD({
+        brandNome: brand?.nome || 'Sua marca',
+        rows: (cs || []).filter(c => c.ativo).map(c => ({ ...c, hist: hist[c.id] || [] })),
+        meu: meuDiag?.[0] || null,
+        meuTerritorio: modelo?.territorio?.valor || null,
+        fatos: (modelo?.fatos || []).map(f => f?.fato).filter(Boolean),
+        clips: clips || [],
+      })
     })()
     return () => { on = false }
   }, [workspace?.id])
 
-  const Score = ({ label, v }) => (
-    <Chip size="small" label={`${label} ${v ?? '—'}`} variant="outlined"
-      sx={{ fontSize: 10.5, fontWeight: 700, color: v >= 7 ? TEAL : v >= 4 ? AMBER : v != null ? CORAL : 'text.disabled' }} />
+  if (!d) return (
+    <Shell title="Concorrentes" subtitle="O dossiê de cada adversário — quem disputa o seu território e como se move">
+      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+    </Shell>
   )
 
+  const scoreCor = v => (v >= 7 ? TEAL : v >= 4 ? AMBER : v != null ? CORAL : 'text.disabled')
+  const Delta = ({ atual, prev }) => {
+    if (atual == null || prev == null || atual === prev) return null
+    const up = atual > prev
+    return <Typography component="span" fontSize={10.5} fontWeight={800} sx={{ ml: 0.25, color: up ? TEAL : CORAL }}>{up ? '▲' : '▼'}{Math.abs(atual - prev)}</Typography>
+  }
+
+  const METRICAS = [['singularidade', 'Singularidade'], ['consistencia', 'Consistência'], ['posicionamento', 'Posicionamento']]
+  const meuScore = { singularidade: d.meu?.score_singularidade, consistencia: d.meu?.score_consistencia, posicionamento: d.meu?.score_posicionamento }
+
   return (
-    <Shell title="Concorrentes" subtitle="Quem disputa o seu território — scores do último diagnóstico de cada concorrente">
-      {rows === null ? (
-        <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-      ) : rows.length === 0 ? (
-        <EmConstrucao desc="Nenhum concorrente ativo. Cadastre no Brand Positioning — cada concorrente ganha diagnóstico, clipping semanal e entra no mapa de território." />
+    <Shell title="Concorrentes" subtitle="O dossiê de cada adversário — quem disputa o seu território e como se move">
+      {d.rows.length === 0 ? (
+        <EmConstrucao desc="Nenhum concorrente ativo. Cadastre em Relatórios — cada concorrente ganha diagnóstico automático, clipping semanal e dossiê aqui." />
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 1.5 }}>
-          {rows.map(c => (
-            <Paper key={c.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Typography fontWeight={900} fontSize={15}>{c.nome}</Typography>
-              {c.dominio && <Typography fontSize={12} color="text.secondary">{c.dominio}</Typography>}
-              <Stack direction="row" spacing={0.75} mt={1.25} flexWrap="wrap" useFlexGap>
-                <Score label="Singularidade" v={c.diag?.scores?.singularidade} />
-                <Score label="Consistência" v={c.diag?.scores?.consistencia} />
-                <Score label="Posicionamento" v={c.diag?.scores?.posicionamento} />
-              </Stack>
-              <Typography fontSize={11} color="text.disabled" mt={1}>
-                {c.diag ? `analisado em ${new Date(c.diag.created_at).toLocaleDateString('pt-BR')}` : 'aguardando diagnóstico (fila automática)'}
-              </Typography>
+        <Stack spacing={3}>
+          {/* seu território aprendido — a régua da colisão */}
+          {d.meuTerritorio && (
+            <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 2, borderColor: 'rgba(127,119,221,0.35)' }}>
+              <Typography fontSize={10.5} fontWeight={800} sx={{ color: '#7F77DD', letterSpacing: '0.06em' }}>O SEU TERRITÓRIO (APRENDIDO PELA INTELIGÊNCIA)</Typography>
+              <Typography fontSize={13.5} sx={{ mt: 0.25, lineHeight: 1.55 }}>{d.meuTerritorio}</Typography>
             </Paper>
-          ))}
-        </Box>
+          )}
+
+          {/* comparativo lado a lado */}
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, overflowX: 'auto' }}>
+            <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25}>ONDE VOCÊ GANHA, ONDE PERDE</Typography>
+            <Box component="table" sx={{ borderCollapse: 'collapse', width: '100%', minWidth: 480 }}>
+              <Box component="thead">
+                <Box component="tr">
+                  <Box component="th" sx={{ textAlign: 'left', fontSize: 11, color: 'text.disabled', fontWeight: 700, pb: 1, pr: 2 }} />
+                  <Box component="th" sx={{ textAlign: 'center', fontSize: 12, fontWeight: 900, pb: 1, px: 1.5, color: '#7F77DD' }}>{d.brandNome}</Box>
+                  {d.rows.map(c => (
+                    <Box key={c.id} component="th" sx={{ textAlign: 'center', fontSize: 12, fontWeight: 800, pb: 1, px: 1.5 }}>{c.nome}</Box>
+                  ))}
+                </Box>
+              </Box>
+              <Box component="tbody">
+                {METRICAS.map(([k, label]) => (
+                  <Box component="tr" key={k}>
+                    <Box component="td" sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 700, py: 0.75, pr: 2 }}>{label}</Box>
+                    <Box component="td" sx={{ textAlign: 'center', fontSize: 15, fontWeight: 900, color: scoreCor(meuScore[k]) }}>{meuScore[k] ?? '—'}</Box>
+                    {d.rows.map(c => {
+                      const v = c.hist[0]?.scores?.[k]
+                      const ganha = meuScore[k] != null && v != null && meuScore[k] !== v
+                      return (
+                        <Box key={c.id} component="td" sx={{ textAlign: 'center', fontSize: 14, fontWeight: 800, color: scoreCor(v),
+                          bgcolor: ganha ? (meuScore[k] > v ? 'rgba(13,158,122,0.07)' : 'rgba(232,24,90,0.07)') : undefined }}>
+                          {v ?? '—'}<Delta atual={v} prev={c.hist[1]?.scores?.[k]} />
+                        </Box>
+                      )
+                    })}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+            <Typography fontSize={10.5} color="text.disabled" mt={1}>fundo verde = você ganha · vermelho = você perde · ▲▼ = evolução do concorrente vs ciclo anterior</Typography>
+          </Paper>
+
+          {/* dossiês */}
+          <Stack spacing={1.5}>
+            {d.rows.map(c => {
+              const ult = c.hist[0], dados = ult?.dados || {}
+              const terrs = Array.isArray(dados.territorios_possiveis) ? dados.territorios_possiveis : []
+              const meuNucleo = nucleoTerritorio(d.meuTerritorio)
+              const colisoes = meuNucleo ? terrs.filter(t => colide(meuNucleo, `${t?.nome || ''} ${t?.tese || ''}`)) : []
+              const fatosDele = d.fatos.filter(f => f.toLowerCase().includes(c.nome.toLowerCase())).slice(0, 3)
+              const movs = d.clips.filter(x => x.concorrente_id === c.id).slice(0, 3)
+              const exp = aberto === c.id
+              return (
+                <Paper key={c.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden',
+                  borderColor: colisoes.length ? 'rgba(232,24,90,0.4)' : undefined }}>
+                  {/* cabeçalho clicável */}
+                  <Box onClick={() => setAberto(exp ? null : c.id)}
+                    sx={{ p: 2, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Box sx={{ minWidth: 160 }}>
+                        <Typography fontWeight={900} fontSize={15}>{c.nome}</Typography>
+                        <Typography fontSize={11.5} color="text.secondary">{dados.porte ? `${dados.porte} · ` : ''}{c.dominio || dados.setor || ''}</Typography>
+                      </Box>
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1 }}>
+                        {METRICAS.map(([k, label]) => (
+                          <Chip key={k} size="small" variant="outlined"
+                            label={<>{label.slice(0, 4)} {ult?.scores?.[k] ?? '—'}<Delta atual={ult?.scores?.[k]} prev={c.hist[1]?.scores?.[k]} /></>}
+                            sx={{ fontSize: 10.5, fontWeight: 700, color: scoreCor(ult?.scores?.[k]) }} />
+                        ))}
+                        {colisoes.length > 0 && <Chip size="small" label="⚠ encosta no seu território"
+                          sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: 'rgba(232,24,90,0.12)', color: CORAL }} />}
+                      </Stack>
+                      <Typography fontSize={11} color="text.disabled" sx={{ flexShrink: 0 }}>
+                        {ult ? new Date(ult.created_at).toLocaleDateString('pt-BR') : 'na fila'} {exp ? '▴' : '▾'}
+                      </Typography>
+                    </Stack>
+                    {dados.frase_diagnostico && (
+                      <Typography fontSize={12.5} color="text.secondary" sx={{ mt: 1, fontStyle: 'italic', lineHeight: 1.5 }}>
+                        "{dados.frase_diagnostico}"
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {/* dossiê expandido */}
+                  {exp && ult && (
+                    <Box sx={{ px: 2, pb: 2, borderTop: '1px solid', borderColor: 'divider', pt: 1.75 }}>
+                      <Stack spacing={2}>
+                        {terrs.length > 0 && (
+                          <Box>
+                            <Typography fontSize={10.5} fontWeight={800} color="text.disabled" mb={0.75}>TERRITÓRIOS QUE ELE REIVINDICA</Typography>
+                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                              {terrs.map((t, i) => {
+                                const briga = colisoes.includes(t)
+                                return <Chip key={i} size="small" label={t?.nome || t}
+                                  title={t?.tese || ''}
+                                  sx={{ fontSize: 11, fontWeight: 700, ...(briga ? { bgcolor: 'rgba(232,24,90,0.12)', color: CORAL } : {}) }} />
+                              })}
+                            </Stack>
+                            {colisoes.length > 0 && (
+                              <Typography fontSize={12} sx={{ mt: 0.75, color: CORAL, fontWeight: 700 }}>
+                                ⚠ {colisoes.map(t => `"${t?.nome}"`).join(', ')} disputa espaço com o seu território — diferencie ou acelere a ocupação.
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                          {Array.isArray(dados.diferenciais_ativos) && dados.diferenciais_ativos.length > 0 && (
+                            <Box>
+                              <Typography fontSize={10.5} fontWeight={800} sx={{ color: TEAL }} mb={0.75}>FORÇAS DELE</Typography>
+                              <Stack spacing={0.5}>
+                                {dados.diferenciais_ativos.slice(0, 3).map((x, i) => (
+                                  <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>• {typeof x === 'string' ? x : x?.titulo || JSON.stringify(x)}</Typography>
+                                ))}
+                              </Stack>
+                            </Box>
+                          )}
+                          {Array.isArray(dados.zona_ruido) && dados.zona_ruido.length > 0 && (
+                            <Box>
+                              <Typography fontSize={10.5} fontWeight={800} sx={{ color: CORAL }} mb={0.75}>FRAQUEZAS DELE (SUA JANELA)</Typography>
+                              <Stack spacing={0.5}>
+                                {dados.zona_ruido.slice(0, 3).map((x, i) => (
+                                  <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>• {typeof x === 'string' ? x : x?.titulo || JSON.stringify(x)}</Typography>
+                                ))}
+                              </Stack>
+                            </Box>
+                          )}
+                        </Box>
+
+                        {dados.momento_atual && (
+                          <Box>
+                            <Typography fontSize={10.5} fontWeight={800} color="text.disabled" mb={0.5}>MOMENTO DELE</Typography>
+                            <Typography fontSize={12.5} color="text.secondary" sx={{ lineHeight: 1.55 }}>{String(dados.momento_atual).slice(0, 400)}</Typography>
+                          </Box>
+                        )}
+
+                        {fatosDele.length > 0 && (
+                          <Box>
+                            <Typography fontSize={10.5} fontWeight={800} sx={{ color: '#7F77DD' }} mb={0.5}>O QUE A INTELIGÊNCIA JÁ SABE SOBRE ELE</Typography>
+                            <Stack spacing={0.5}>
+                              {fatosDele.map((f, i) => <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>• {f}</Typography>)}
+                            </Stack>
+                          </Box>
+                        )}
+
+                        {movs.length > 0 && (
+                          <Box>
+                            <Typography fontSize={10.5} fontWeight={800} color="text.disabled" mb={0.5}>MOVIMENTOS RECENTES</Typography>
+                            <Stack spacing={0.5}>
+                              {movs.map((m, i) => (
+                                <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>
+                                  • {m.titulo}{m.score_impacto ? ` (impacto ${m.score_impacto}/10)` : ''} — {new Date(m.created_at).toLocaleDateString('pt-BR')}
+                                </Typography>
+                              ))}
+                            </Stack>
+                            <Link href="#/app/market-intel" sx={{ fontSize: 12, fontWeight: 700, mt: 0.5, display: 'inline-block' }}>ver no feed do mercado →</Link>
+                          </Box>
+                        )}
+                      </Stack>
+                    </Box>
+                  )}
+                </Paper>
+              )
+            })}
+          </Stack>
+        </Stack>
       )}
       <Typography fontSize={12} color="text.secondary" mt={2.5}>
-        Mapa de território, movimentos por ciclo e gestão dos concorrentes: <Link href="#/app/posicionamento" sx={{ fontWeight: 700 }}>Brand Positioning</Link>.
+        Mapa de território, ciclos completos e gestão dos concorrentes: <Link href="#/app/reports" sx={{ fontWeight: 700 }}>Relatórios</Link>.
       </Typography>
     </Shell>
   )
