@@ -18,19 +18,6 @@ const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
   : '/.netlify/functions/anthropic'
 
-// Modos do Copilot (decisão 2026-07-10): sugestões na LATERAL do chat —
-// mesma infra, entradas curadas. Agents & Automações entram quando existirem.
-const COPILOT_MODES = [
-  { label: 'Generate Copy',     prompt: 'Gere uma copy no tom da marca para: ' },
-  { label: 'Generate Campaign', prompt: 'Crie o conceito de uma campanha para: [objetivo]. Inclua mote, mensagens-chave por canal e desdobramentos.' },
-  { label: 'Review Content',    prompt: 'Revise este conteúdo e diga se está on-brand (aponte desvios de tom, território e do/don\'ts):\n\n' },
-  { label: 'Analyze Brand',     prompt: 'Analise a marca hoje: pontos fortes, fragilidades e o que o mercado está dizendo. Use tudo que você sabe sobre ela.' },
-  { label: 'Create Brief',      prompt: 'Crie um brief criativo para: [peça/campanha]. Inclua objetivo, público (personas), mensagem, tom e critérios de aprovação.' },
-  { label: 'Brand Q&A',         prompt: 'Pergunta sobre a marca: ' },
-  { label: 'Search Knowledge',  prompt: 'Busque no conhecimento da marca: ' },
-  { label: 'Research',          prompt: 'Pesquise e resuma para a marca: [tema]. Conecte as conclusões ao nosso território e posicionamento.' },
-]
-
 const SUGESTOES = [
   'Crie um briefing de campanha para redes sociais alinhado com a nossa identidade',
   'Quais são os pontos mais importantes do nosso posicionamento?',
@@ -446,11 +433,6 @@ export function BrandAssistant({ brandId }) {
   }
 
   const systemPrompt = buildSystemPrompt(brand, book, [], intelligence)
-  const bookSections = book ? [
-    { label: 'Identidade Verbal', filled: !!(book.verbal_identity?.tom_voz || book.verbal_identity?.valores?.length || book.identity?.missao) },
-    { label: 'Posicionamento', filled: !!(book.verbal_identity?.posicionamento || book.positioning?.posicionamento) },
-    { label: 'Identidade Visual', filled: !!(book.visual_identity?.paleta?.length || book.visual_identity?.tipo_principal_nome || book.design_system?.colors) },
-  ] : []
 
   if (loading) {
     return (
@@ -487,23 +469,6 @@ export function BrandAssistant({ brandId }) {
           >
             Nova conversa
           </Button>
-        </Box>
-
-        {/* Modos do Copilot — um clique carrega o prompt do modo */}
-        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="overline" color="text.disabled" display="block" mb={0.75}>Sugestões</Typography>
-          <Stack spacing={0.5}>
-            {COPILOT_MODES.map(m => (
-              <Box key={m.label} component="button" onClick={() => setInput(m.prompt)}
-                sx={{
-                  border: 'none', bgcolor: 'transparent', textAlign: 'left', cursor: 'pointer',
-                  fontSize: 11.5, fontWeight: 700, color: 'text.secondary', px: 0.75, py: 0.5, borderRadius: 1,
-                  '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
-                }}>
-                {m.label}
-              </Box>
-            ))}
-          </Stack>
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
@@ -623,76 +588,6 @@ export function BrandAssistant({ brandId }) {
         </Box>
       </Box>
 
-      {/* ── Direita: painel de contexto ── */}
-      <Box sx={{
-        width: 240, flexShrink: 0, borderLeft: '1px solid', borderColor: 'divider',
-        p: 2.5, overflowY: 'auto',
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="overline" color="text.disabled">Contexto RAG</Typography>
-          <Chip
-            label={chunksCount > 0 ? `${chunksCount} chunks` : 'sem índice'}
-            size="small"
-            sx={{
-              height: 18, fontSize: '0.58rem', fontWeight: 800,
-              bgcolor: chunksCount > 0 ? 'rgba(13,158,122,0.12)' : 'rgba(255,255,255,0.06)',
-              color:   chunksCount > 0 ? '#0D9E7A' : 'text.disabled',
-            }}
-          />
-        </Box>
-
-        {bookSections.length > 0 ? (
-          <>
-            <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-              Seções do brand book em uso:
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
-              {bookSections.map(({ label, filled }) => (
-                <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: filled ? '#0D9E7A' : 'divider', flexShrink: 0 }} />
-                  <Typography variant="caption" color={filled ? 'text.primary' : 'text.disabled'} fontWeight={filled ? 700 : 400}>
-                    {label}
-                  </Typography>
-                  {!filled && (
-                    <Chip label="vazio" size="small"
-                      sx={{ height: 14, fontSize: '0.55rem', fontWeight: 700, color: '#EF9F27', bgcolor: 'rgba(239,159,39,0.1)', ml: 'auto' }} />
-                  )}
-                </Box>
-              ))}
-            </Box>
-
-            {bookSections.some(s => !s.filled) && (
-              <Box sx={{ p: 1.5, bgcolor: 'rgba(239,159,39,0.06)', borderRadius: 1, border: '1px solid rgba(239,159,39,0.2)' }}>
-                <Typography variant="caption" color="#EF9F27" fontWeight={700} display="block" mb={0.5}>
-                  Gaps no brand book
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Preencha as seções vazias para respostas mais precisas.
-                </Typography>
-                <Button
-                  size="small" color="warning" onClick={() => { window.location.hash = `#/app/brands/${brandId}` }}
-                  sx={{ mt: 1, fontSize: 10, fontWeight: 800, px: 1.5, py: 0.5 }}
-                >
-                  Editar brand book →
-                </Button>
-              </Box>
-            )}
-          </>
-        ) : (
-          <Box sx={{ textAlign: 'center', py: 3 }}>
-            <Typography variant="caption" color="text.disabled">
-              Brand book não configurado. Configure para contexto mais rico.
-            </Typography>
-            <Button
-              fullWidth size="small" variant="outlined"
-              onClick={() => { window.location.hash = `#/app/brands/${brandId}` }}
-              sx={{ mt: 2, borderColor: 'divider', fontSize: 10, fontWeight: 800 }}
-            >
-              Configurar brand book
-            </Button>
-          </Box>
-        )}
-      </Box>
     </Box>
     </Box>
   )
