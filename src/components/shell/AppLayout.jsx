@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Box, Typography, IconButton, InputBase, Popover, Stack, Divider, Button, Tooltip, Menu, MenuItem, ListItemIcon } from "@mui/material";
+import { useState, useEffect } from "react";
+import { Box, Typography, IconButton, InputBase, Popover, Stack, Divider, Button, Tooltip, Menu, MenuItem, ListItemIcon, Collapse } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
@@ -27,6 +27,11 @@ export function AppLayout({
 }) {
   const [bellAnchor, setBellAnchor] = useState(null);
   const [userAnchor, setUserAnchor] = useState(null);
+
+  // Acordeão da nav: um grupo aberto por vez; o grupo da rota ativa abre sozinho
+  const activeGroupIdx = nav.findIndex(e => e.type === "group" && (e.active || e.children?.some(c => c.active)));
+  const [openGroup, setOpenGroup] = useState(activeGroupIdx >= 0 ? activeGroupIdx : 0);
+  useEffect(() => { if (activeGroupIdx >= 0) setOpenGroup(activeGroupIdx); }, [activeGroupIdx]);
   const initial = (userName || "?").charAt(0).toUpperCase();
 
   return (
@@ -140,15 +145,23 @@ export function AppLayout({
 
         <Box component="nav" sx={{ flex: 1, px: 1.25, py: 0.5 }}>
           {nav.map((entry, i) => {
-            // ── Grupo: cabeçalho + filhos indentados ──
+            // ── Grupo: cabeçalho clicável (acordeão) + filhos indentados ──
             if (entry.type === "group") {
               const Icon = entry.icon;
+              const open = openGroup === i;
               return (
                 <Box key={i} sx={{ mt: 1.25 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 1.5, py: 0.75, color: "text.secondary" }}>
+                  <Box component="button" onClick={() => setOpenGroup(open ? -1 : i)} sx={{
+                    display: "flex", alignItems: "center", gap: 1.25, px: 1.5, py: 0.75, width: "100%",
+                    border: "none", bgcolor: "transparent", cursor: "pointer", borderRadius: 1,
+                    color: "text.secondary", textAlign: "left",
+                    "&:hover": { color: "text.primary", bgcolor: theme => theme.palette.action.hover },
+                  }}>
                     {Icon && <Box sx={{ display: "flex", alignItems: "center", opacity: 0.7 }}><Icon /></Box>}
                     <Box sx={{ flex: 1, fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{entry.label}</Box>
+                    <KeyboardArrowDownIcon sx={{ fontSize: 15, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "none", opacity: 0.6 }} />
                   </Box>
+                  <Collapse in={open} timeout={150}>
                   {entry.children.map(c => c.type === "sub" ? (
                     // Subtítulo (3º nível da árvore — ex.: Culture/Business/Communication)
                     <Box key={`sub-${c.label}`} sx={{
@@ -171,6 +184,7 @@ export function AppLayout({
                       {c.locked && <Box sx={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: PINK, border: `1px solid ${PINK}33`, px: 0.6, py: 0.05, textTransform: "uppercase" }}>Pro</Box>}
                     </Box>
                   ))}
+                  </Collapse>
                 </Box>
               );
             }
