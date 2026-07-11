@@ -23,6 +23,7 @@ export function AppLayout({
   topBanner,
   onSearch, searchValue,
   bellCount, bellContent,
+  brandLockup,   // { nome, logoUrl?, logoSvg? } — lockup MARCA.s1ngulr no topo
   children,
 }) {
   const [bellAnchor, setBellAnchor] = useState(null);
@@ -49,10 +50,26 @@ export function AppLayout({
         {/* Logo (alinhado com sidebar) */}
         <Box sx={{
           width: NAV_W, flexShrink: 0, height: "100%",
-          px: 2.5, display: "flex", alignItems: "center", gap: 1.25,
-          borderRight: 1, borderColor: "divider",
+          px: 2.5, display: "flex", alignItems: "center", gap: 1,
+          borderRight: 1, borderColor: "divider", overflow: "hidden",
         }}>
-          <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 22, display: "block" }} />
+          {/* Lockup do produto: MARCA.s1ngulr — usa o logo cadastrado da marca
+              quando existir; senão o nome do workspace; fallback = logo LOUDR */}
+          {brandLockup?.logoSvg ? (
+            <Box sx={{ height: 22, display: "flex", alignItems: "center", "& svg": { height: 22, width: "auto", maxWidth: 110 } }}
+              dangerouslySetInnerHTML={{ __html: brandLockup.logoSvg }} />
+          ) : brandLockup?.logoUrl ? (
+            <Box component="img" src={brandLockup.logoUrl} alt={brandLockup?.nome || ""} sx={{ height: 22, maxWidth: 110, objectFit: "contain", display: "block" }} />
+          ) : brandLockup?.nome ? (
+            <Typography sx={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.02em", color: "text.primary", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {brandLockup.nome}
+            </Typography>
+          ) : (
+            <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 22, display: "block" }} />
+          )}
+          <Typography sx={{ fontSize: 13, fontWeight: 800, color: PINK, whiteSpace: "nowrap", mb: "-2px" }}>
+            .s1ngulr
+          </Typography>
         </Box>
 
         {/* Search */}

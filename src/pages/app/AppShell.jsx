@@ -66,6 +66,30 @@ const USER_MENU = [
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const { workspace, loading, user, onLogout } = useWorkspace()
+
+  // Lockup do produto: MARCA.s1ngulr — nome do workspace + logo cadastrado (se houver)
+  const [brandLockup, setBrandLockup] = useState(null)
+  useEffect(() => {
+    if (!workspace?.id) return
+    let on = true
+    ;(async () => {
+      const { data: b } = await supabase.from('brands').select('id, nome').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: true }).limit(1).maybeSingle()
+      let logoUrl = null, logoSvg = null
+      if (b?.id) {
+        const { data: logo } = await supabase.from('brand_assets').select('valor, mime_type')
+          .eq('brand_id', b.id).eq('tipo', 'logo').order('created_at', { ascending: true }).limit(1).maybeSingle()
+        if (logo?.valor?.includes('<svg')) logoSvg = logo.valor.slice(logo.valor.indexOf('<svg'))
+        else if (/^https?:\/\//.test(logo?.valor || '')) logoUrl = logo.valor
+      }
+      if (on) {
+        const nome = b?.nome || workspace?.nome || null
+        setBrandLockup({ nome, logoUrl, logoSvg })
+        if (nome) document.title = `${nome}.s1ngulr`
+      }
+    })()
+    return () => { on = false }
+  }, [workspace?.id])
   const [route, setRoute] = useState(getRoute)
   const [, setHashTick] = useState(0)   // força re-render mesmo quando a rota-id não muda (ex. seções do Brand Book)
   const { jobs, processing } = useBrandManualJobs(workspace?.id)
@@ -219,6 +243,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       user={user}
       userName={userName}
       workspace={workspace}
+      brandLockup={brandLockup}
       planoLabel={plano.nome}
       planoUsoText={limite ? `${uso}/${limite} diagn./mês` : null}
       onLogout={onLogout}
