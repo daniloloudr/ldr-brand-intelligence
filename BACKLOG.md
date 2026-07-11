@@ -56,6 +56,16 @@ Critério de priorização: **usa o que o cérebro já sabe × devolve sinais no
 | 6 | **E-mail/CRM** | sequências (boas-vindas, nutrição, carrinho) no tom da marca | formato de altíssimo volume nas empresas |
 | 7 | **Peça final com texto (Canva-lite)** | editor visual: tipografia aplicada na imagem gerada | o mais caro; já anotado como futuro na regra "imagem sem texto"; NÃO começar por ele |
 
+### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
+Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
+
+| Fase | O quê | Notas |
+|---|---|---|
+| **F1** | **Chat diretor de arte (imagem)** — upload OU peça da Biblioteca → parecer groundado no cérebro (veredito + porquês + ajustes concretos) → botão "aplicar ajustes" regenera | peça EXTERNA entrando p/ julgamento = "marca no meio da operação" sem MCP; parecer do AI = sinal de peso MENOR que humano; humano aceitar ajuste = ensino forte |
+| **F2** | **Nó "portão do diretor de arte" no Workflow** — gate automático: só passa peça on-brand; reprovada volta com parecer p/ regenerar | mesmo juiz da F1 como nó |
+| **F3** | **Gatilhos + lote + aba Agentes** — nós de gatilho (agenda "toda seg 8h"; evento "tendência ≥8", "insight oportunidade"), nó de lote (para cada item da pauta → peça), aba Agentes em Fluxos (status, última execução, produzidas, barradas pelo juiz) | produção em massa estilo n8n criativo; caso-demo: "toda seg o agente lê síntese+tendências, gera 5 peças, juiz aprova 3, time chega com elas prontas". ⚠️ GUARDA: teto de créditos por execução/semana |
+| F4 | Vídeo no chat (frames amostrados) | depois — mais caro |
+
 ## H2 — REDE DE CÉREBROS (3–12 meses) · *dezenas de marcas aprendendo; fase que a captação financia*
 
 | Item | O quê | Tamanho / gatilho |
