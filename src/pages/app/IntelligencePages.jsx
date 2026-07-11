@@ -147,65 +147,145 @@ export function CompetitorsPage() {
   )
 }
 
-// ── Insights do Consumidor — a escuta social virando leitura (dados reais) ──
+// ── Insights do Consumidor — a LEITURA da escuta (a coleta bruta mora na
+// Escuta Social; aqui o cérebro destila o que as menções SIGNIFICAM) ──
+const INSIGHT_TIPO = {
+  elogio:       { label: 'Elogio',        cor: TEAL,      dica: 'dobrar a aposta' },
+  atrito:       { label: 'Atrito',        cor: CORAL,     dica: 'consertar' },
+  oportunidade: { label: 'Oportunidade',  cor: '#7F77DD', dica: 'ocupar' },
+  tema:         { label: 'Tema',          cor: AMBER,     dica: 'usar no conteúdo' },
+  alerta:       { label: 'Alerta',        cor: CORAL,     dica: 'monitorar já' },
+}
+
 export function ConsumerInsights() {
   const { workspace } = useWorkspace()
   const [d, setD] = useState(null)
-  const [filtro, setFiltro] = useState(null)   // positivo | neutro | negativo | null
+  const [gerando, setGerando] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data: brand } = await supabase.from('brands').select('id').eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: true }).limit(1).maybeSingle()
+    const [{ data: snaps }, { data: ins }, nEventos, { data: intel }, { data: book }] = await Promise.all([
+      supabase.from('sentiment_snapshots').select('data, positivo_pct, neutro_pct, negativo_pct, avg_positivo, avg_neutro, avg_negativo, total_mencoes')
+        .eq('workspace_id', workspace.id).order('created_at', { ascending: true }).limit(60),
+      supabase.from('consumer_insights').select('*').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false }).limit(30),
+      supabase.from('listening_events').select('id', { count: 'exact', head: true }).eq('workspace_id', workspace.id),
+      brand ? supabase.from('brand_intelligence').select('modelo').eq('brand_id', brand.id)
+        .order('versao', { ascending: false }).limit(1) : { data: [] },
+      brand ? supabase.from('brand_books').select('strategy').eq('brand_id', brand.id)
+        .order('updated_at', { ascending: false }).limit(1) : { data: [] },
+    ])
+    // Snapshots antigos não têm *_pct (colunas posteriores) — cai para avg_*.
+    const norm = (snaps || []).map(s => ({
+      data: s.data,
+      positivo_pct: s.positivo_pct ?? s.avg_positivo ?? 0,
+      neutro_pct:   s.neutro_pct   ?? s.avg_neutro   ?? 0,
+      negativo_pct: s.negativo_pct ?? s.avg_negativo ?? 0,
+      total_mencoes: s.total_mencoes,
+    }))
+    // A página mostra o LOTE mais recente (batch_id da linha mais nova)
+    const lote = ins?.length ? ins.filter(i => i.batch_id === ins[0].batch_id) : []
+    const next = {
+      brandId: brand?.id,
+      snaps: norm, insights: lote, geradoEm: lote[0]?.created_at || null,
+      totalMencoes: nEventos.count || 0,
+      temas: intel?.[0]?.modelo?.conteudo?.temas || [],
+      personas: (book?.[0]?.strategy?.personas || []).filter(p => p?.nome),
+    }
+    setD(next)
+    return next
+  }, [workspace?.id])
 
   useEffect(() => {
     if (!workspace?.id) return
-    let on = true
-    ;(async () => {
-      const { data: brand } = await supabase.from('brands').select('id').eq('workspace_id', workspace.id)
-        .order('created_at', { ascending: true }).limit(1).maybeSingle()
-      const [{ data: snaps }, { data: eventos }, { data: intel }, { data: book }] = await Promise.all([
-        supabase.from('sentiment_snapshots').select('data, positivo_pct, neutro_pct, negativo_pct, avg_positivo, avg_neutro, avg_negativo, total_mencoes')
-          .eq('workspace_id', workspace.id).order('created_at', { ascending: true }).limit(60),
-        supabase.from('listening_events').select('id, fonte, conteudo, sentimento, score, url, created_at')
-          .eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(40),
-        brand ? supabase.from('brand_intelligence').select('modelo').eq('brand_id', brand.id)
-          .order('versao', { ascending: false }).limit(1) : { data: [] },
-        brand ? supabase.from('brand_books').select('strategy').eq('brand_id', brand.id)
-          .order('updated_at', { ascending: false }).limit(1) : { data: [] },
-      ])
-      if (!on) return
-      // Snapshots antigos não têm *_pct (colunas posteriores) — cai para avg_*.
-      const norm = (snaps || []).map(s => ({
-        data: s.data,
-        positivo_pct: s.positivo_pct ?? s.avg_positivo ?? 0,
-        neutro_pct:   s.neutro_pct   ?? s.avg_neutro   ?? 0,
-        negativo_pct: s.negativo_pct ?? s.avg_negativo ?? 0,
-        total_mencoes: s.total_mencoes,
-      }))
-      setD({
-        brandId: brand?.id,
-        snaps: norm, eventos: eventos || [],
-        temas: intel?.[0]?.modelo?.conteudo?.temas || [],
-        angulos: intel?.[0]?.modelo?.conteudo?.angulos || [],
-        personas: (book?.[0]?.strategy?.personas || []).filter(p => p?.nome),
-      })
-    })()
-    return () => { on = false }
-  }, [workspace?.id])
+    load()
+  }, [workspace?.id, load])
+
+  // Dispara a destilação (background) e faz polling até o lote novo chegar.
+  const gerar = async () => {
+    setGerando(true)
+    const antes = d?.geradoEm || null
+    const { data: { session } } = await supabase.auth.getSession()
+    fetch('/.netlify/functions/insights-gerar-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ workspace_id: workspace.id }),
+    }).catch(() => {})
+    for (let i = 0; i < 18; i++) {                    // até ~90s
+      await new Promise(r => setTimeout(r, 5000))
+      const next = await load()
+      if (next.geradoEm && next.geradoEm !== antes) break
+    }
+    setGerando(false)
+  }
 
   if (!d) return (
-    <Shell title="Insights do Consumidor" subtitle="O que o público sente e diz — direto da escuta social">
+    <Shell title="Insights do Consumidor" subtitle="O que a escuta social significa — insights nomeados pela inteligência da marca">
       <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
     </Shell>
   )
 
   const ultimo = d.snaps[d.snaps.length - 1]
-  const fontes = [...new Set(d.eventos.map(e => e.fonte).filter(Boolean))]
-  const eventos = filtro ? d.eventos.filter(e => e.sentimento === filtro) : d.eventos
 
   return (
-    <Shell title="Insights do Consumidor" subtitle="O que o público sente e diz — direto da escuta social, lido pela inteligência da marca">
-      {d.eventos.length === 0 && d.snaps.length === 0 ? (
-        <EmConstrucao desc="Ainda não há escuta coletada. Rode o Social Listening — cada ciclo alimenta esta página e vira aprendizado para a marca."
-          vem="menções por fonte, evolução do sentimento e temas que o público puxa" />
+    <Shell title="Insights do Consumidor" subtitle="O que a escuta social significa — insights nomeados pela inteligência da marca">
+      {/* a divisão de trabalho com a Escuta, explícita na tela */}
+      <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography fontSize={12.5} color="text.secondary" sx={{ flex: 1, minWidth: 260 }}>
+          A <b>Escuta Social</b> coleta o que disseram ({d.totalMencoes} menções até agora). Aqui a inteligência da marca lê tudo e nomeia <b>o que isso significa</b>.
+        </Typography>
+        <Button size="small" variant="text" onClick={() => { window.location.hash = '#/app/listening' }} sx={{ fontWeight: 700, flexShrink: 0 }}>
+          Ver a coleta bruta →
+        </Button>
+        <Button size="small" variant="contained" disableElevation disabled={gerando || !d.totalMencoes} onClick={gerar}
+          startIcon={gerando ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : <AutoAwesomeIcon />}
+          sx={{ fontWeight: 800, flexShrink: 0 }}>
+          {gerando ? 'Lendo a escuta…' : 'Gerar insights'}
+        </Button>
+      </Paper>
+
+      {d.totalMencoes === 0 && d.snaps.length === 0 ? (
+        <EmConstrucao desc="Ainda não há escuta coletada. Rode a Escuta Social — cada ciclo alimenta esta leitura."
+          vem="insights nomeados (elogio · atrito · oportunidade · tema · alerta), conectados às personas" />
       ) : (
         <Stack spacing={3}>
+          {/* os insights nomeados — o coração da página */}
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} mb={1.25}>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary">INSIGHTS DA ÚLTIMA LEITURA</Typography>
+              {d.geradoEm && <Typography fontSize={11} color="text.disabled">gerados em {new Date(d.geradoEm).toLocaleDateString('pt-BR')}</Typography>}
+            </Stack>
+            {d.insights.length === 0 ? (
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
+                <Typography fontSize={13.5} color="text.secondary">
+                  {d.totalMencoes} menções coletadas esperando leitura — clique em <b>Gerar insights</b> para a inteligência da marca nomear o que o público sente, quer e rejeita.
+                </Typography>
+              </Paper>
+            ) : (
+              <Stack spacing={1.5}>
+                {d.insights.map(i => {
+                  const tp = INSIGHT_TIPO[i.tipo] || INSIGHT_TIPO.tema
+                  return (
+                    <Paper key={i.id} variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: `3px solid ${tp.cor}` }}>
+                      <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
+                        <Chip label={tp.label} size="small" sx={{ fontWeight: 800, fontSize: 10.5, color: tp.cor, bgcolor: `${tp.cor}18` }} />
+                        <Typography fontSize={10.5} color="text.disabled" fontWeight={700}>{tp.dica}</Typography>
+                        {i.persona && <Chip label={`persona: ${i.persona}`} size="small" variant="outlined" sx={{ fontSize: 10.5 }} />}
+                        <Box flex={1} />
+                        {i.evidencias != null && <Typography fontSize={11} color="text.disabled">{i.evidencias} menç{i.evidencias === 1 ? 'ão' : 'ões'}</Typography>}
+                      </Stack>
+                      <Typography fontSize={14} fontWeight={800}>{i.titulo}</Typography>
+                      <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{i.insight}</Typography>
+                      {i.acao && (
+                        <Typography fontSize={12.5} sx={{ mt: 1, fontWeight: 700, color: tp.cor }}>→ {i.acao}</Typography>
+                      )}
+                    </Paper>
+                  )
+                })}
+              </Stack>
+            )}
+          </Box>
           {/* evolução do sentimento */}
           {d.snaps.length >= 2 && (
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
@@ -250,35 +330,6 @@ export function ConsumerInsights() {
             </Paper>
           )}
 
-          {/* menções recentes */}
-          <Box>
-            <Stack direction="row" spacing={0.75} alignItems="center" mb={1.25} flexWrap="wrap" useFlexGap>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ mr: 1 }}>MENÇÕES RECENTES</Typography>
-              {['positivo', 'neutro', 'negativo'].map(s => (
-                <Chip key={s} label={s} size="small" variant={filtro === s ? 'filled' : 'outlined'}
-                  onClick={() => setFiltro(filtro === s ? null : s)}
-                  sx={{ fontSize: 10.5, fontWeight: 700, color: SENT[s], borderColor: SENT[s], ...(filtro === s ? { bgcolor: `${SENT[s]}22` } : {}) }} />
-              ))}
-              {fontes.length > 0 && <Typography fontSize={11} color="text.disabled" sx={{ ml: 'auto' }}>{fontes.join(' · ')}</Typography>}
-            </Stack>
-            <Stack spacing={1}>
-              {eventos.slice(0, 20).map(e => (
-                <Paper key={e.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
-                    {e.fonte && <Chip label={e.fonte} size="small" sx={{ fontWeight: 800, fontSize: 10.5 }} />}
-                    {e.sentimento && <Chip label={e.sentimento} size="small" variant="outlined"
-                      sx={{ fontSize: 10, fontWeight: 700, color: SENT[e.sentimento], borderColor: SENT[e.sentimento] }} />}
-                    <Box flex={1} />
-                    <Typography fontSize={11} color="text.disabled">{new Date(e.created_at).toLocaleDateString('pt-BR')}</Typography>
-                  </Stack>
-                  <Typography fontSize={13} sx={{ lineHeight: 1.55 }}>{e.conteudo}</Typography>
-                  {e.url && <Link href={e.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                    fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
-                </Paper>
-              ))}
-              {eventos.length === 0 && <Typography fontSize={13} color="text.disabled" py={2}>Nenhuma menção {filtro} no período.</Typography>}
-            </Stack>
-          </Box>
         </Stack>
       )}
     </Shell>

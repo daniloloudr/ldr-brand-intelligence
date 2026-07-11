@@ -317,16 +317,21 @@ export function SocialListening() {
     <Box>
       <PageHeader
         title="Escuta Social"
-        subtitle="Monitoramento de sentimento e menções da sua marca no mercado."
+        subtitle="A coleta: o que estão dizendo da sua marca, menção por menção. A leitura do que isso significa mora nos Insights do Consumidor."
         action={
-          <Button
-            variant="contained" color="primary"
-            startIcon={collecting ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
-            onClick={handleCollect} disabled={collecting}
-            sx={{ fontWeight: 800 }}
-          >
-            {collecting ? (collectStep || 'Coletando…') : 'Coletar menções'}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button variant="text" onClick={() => { window.location.hash = '#/app/insights' }} sx={{ fontWeight: 700 }}>
+              Ler os insights →
+            </Button>
+            <Button
+              variant="contained" color="primary"
+              startIcon={collecting ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
+              onClick={handleCollect} disabled={collecting}
+              sx={{ fontWeight: 800 }}
+            >
+              {collecting ? (collectStep || 'Coletando…') : 'Coletar menções'}
+            </Button>
+          </Box>
         }
       />
       <Box sx={{ p: 4 }}>
