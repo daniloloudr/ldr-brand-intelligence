@@ -61,7 +61,7 @@ const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
-  // IA LOUDR movida para o grupo Intelligence da nav (decisão 2026-07-10)
+  { label: 'IA LOUDR',               hash: '#/app/ia-loudr' },   // de volta (decisão 2026-07-10, 2ª rodada)
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
@@ -142,7 +142,6 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       // Reports = a medição da marca (ressignificação da antiga página Posicionamento — decisão Q3)
       { label: t('nav.intelligence.reports'),   hash: '#/app/reports',     active: route === 'reports' || route === 'posicionamento' },
       { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
-      { label: t('nav.intelligence.ia'),        hash: '#/app/ia-loudr',    active: route === 'ia-loudr' },
     ] },
     { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [
       { label: t('nav.studio.assets'),   hash: `${brandPath}/studio/assets`,   active: route === 'brands-studio-assets' },
@@ -150,21 +149,11 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
       { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
       { label: t('nav.studio.workflow'), hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
-      { label: t('nav.studio.approvals'), hash: `${brandPath}/studio/approvals`, active: route === 'brands-studio-approvals' },
       { label: t('nav.studio.library'),  hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
     ] },
-    { type: 'group', label: t('nav.copilot'), icon: IcoAssist, children: [
-      { label: t('nav.copilot.chat'),     hash: `${brandPath}/assistant`,            active: route === 'brands-assistant' },
-      { label: t('nav.copilot.search'),   hash: `${brandPath}/assistant?m=search` },
-      { label: t('nav.copilot.qa'),       hash: `${brandPath}/assistant?m=qa` },
-      { label: t('nav.copilot.copy'),     hash: `${brandPath}/assistant?m=copy` },
-      { label: t('nav.copilot.campaign'), hash: `${brandPath}/assistant?m=campaign` },
-      { label: t('nav.copilot.review'),   hash: `${brandPath}/assistant?m=review` },
-      { label: t('nav.copilot.analyze'),  hash: `${brandPath}/assistant?m=analyze` },
-      { label: t('nav.copilot.brief'),    hash: `${brandPath}/assistant?m=brief` },
-      { label: t('nav.copilot.research'), hash: `${brandPath}/assistant?m=research` },
-      { label: t('nav.copilot.agents'),   hash: `${brandPath}/assistant?m=agents` },
-    ] },
+    // Copilot enxuto (decisão 2026-07-10): só o Chat — modos viraram sugestões
+    // na lateral do chat; Agents & Automações entram quando existirem de verdade.
+    { type: 'item', label: t('nav.copilot'), icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
   ]
 
   function renderPage() {

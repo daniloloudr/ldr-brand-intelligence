@@ -16,7 +16,6 @@ import { BrandManualImport }    from './BrandManualImport'
 import { BrandAssetsSection }   from './BrandAssetsSection'
 import { DesignTokensSection }  from './DesignTokensSection'
 import { BrandSection }         from './BrandSection'
-import { DesignSystemSection }  from './DesignSystemSection'
 import { VerbalIdentitySection } from './VerbalIdentitySection'
 import { EssenciaSection, NegocioSection, ExperienciaSection, PersonalidadeSection } from './StrategySections'
 import { VisualIdentitySection } from './VisualIdentitySection'
@@ -274,13 +273,8 @@ export function BrandBook({ brandId }) {
             onVerbal={d => updateSection('verbal_identity', d)} onStrategy={d => updateSection('strategy', d)} />
         )}
         {activeSection === 'experiencia' && (
-          <>
-            <ExperienciaSection strategy={book?.strategy} onStrategy={d => updateSection('strategy', d)} />
-            {/* Design System vive DENTRO do Experience (árvore nova) */}
-            <Box sx={{ mt: 5 }}>
-              <DesignSystemSection data={book?.design_system} onChange={d => updateSection('design_system', d)} />
-            </Box>
-          </>
+          <ExperienciaSection strategy={book?.strategy} onStrategy={d => updateSection('strategy', d)}
+            brandNome={brand?.nome} visual={book?.visual_identity} tokens={tokens} assets={assets} />
         )}
         {activeSection === 'personalidade' && (
           <PersonalidadeSection verbal={book?.verbal_identity} strategy={book?.strategy} brandId={brandId}

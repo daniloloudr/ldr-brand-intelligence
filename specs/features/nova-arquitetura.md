@@ -117,6 +117,13 @@ Ordem sugerida: (1) Copilot modos-atalho + Review Content 🟢 · (2) Approvals 
 - **Verbal/Visual Identity viraram abas de Expression** (Communication → Expression, uma página com 2 abas). Rotas antigas (`/verbal`, `/visual`, `/design_system`) mapeadas via `mapLegacySection`.
 - **Rótulos fiéis:** Brand Essence · Função · Experience · Personality · Expression (iguais nos 3 idiomas — nomes de produto).
 
+## Refinamentos (Danilo, 2026-07-10 — 3ª rodada, conversados antes de executar)
+
+1. **Design System = `design.md` GERADO** (dentro do Experience): deixa de ser formulário repetitivo — compila automaticamente paleta/tipografia/tokens/logos/princípios do que a marca já tem (`src/lib/designMd.js`), com Copiar/Baixar .md, campo de Storybook (importação via IA = Onda 3) e notas manuais. Padrão de mercado, consumível por agentes (candidato a tool do MCP: `get_design_system`).
+2. **IA LOUDR volta ao menu do usuário** (perto de Configurações) — é meta-produto, não fluxo diário; menu lateral 100% fiel à árvore.
+3. **Copilot enxuto:** só Chat no menu; os modos viraram **sugestões na lateral do chat** (COPILOT_MODES — um clique carrega o prompt). Agents & Automações entram no menu quando existirem de verdade.
+4. **Approvals fora do menu** — julgamento já acontece inline (👍/👎 nas peças, aprovação no fluxo da campanha) e alimenta o cérebro. Página fica dormant; **gatilho de reativação: cliente pedir fluxo de aprovação com papéis (criador × aprovador)**.
+
 ## Decisões (Danilo, 2026-07-10)
 
 - **Q1 — Image Studio:** ✅ criar — a geração de imagem tinha passado batido na árvore; entra como página própria no Studio, irmã do Video Studio.
