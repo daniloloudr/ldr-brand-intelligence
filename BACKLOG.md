@@ -38,6 +38,11 @@ O código está à frente do comercial — as próximas jogadas não são featur
 
 ---
 
+### Home adaptativa (estrutura aprovada 2026-07-10; v1 ✅ entregue)
+- ~~**v1**~~ ✅ — pulso + feed "o que aconteceu" + recomendação por regras + atalhos por frequência (localStorage).
+- **v2** 🟡 — recomendação gerada pelo cérebro (LLM) + "continuar de onde parou" profundo (última peça da Redação, último item editado).
+- **v3** 🟡 — blocos se reordenando pelo perfil de uso (a adaptação total da visão do Danilo).
+
 ## H2 — REDE DE CÉREBROS (3–12 meses) · *dezenas de marcas aprendendo; fase que a captação financia*
 
 | Item | O quê | Tamanho / gatilho |
