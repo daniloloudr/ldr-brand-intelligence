@@ -12,7 +12,7 @@ const DICT = {
     'nav.strategy.visual': 'Identidade Visual',
     'nav.strategy.design_system': 'Design System',
     'nav.strategy.positioning': 'Brand Positioning',
-    'nav.strategy.essencia': 'Essence',
+    'nav.strategy.essencia': 'Essência',
     'nav.strategy.negocio': 'Função',
     'nav.strategy.experiencia': 'Experiência',
     'nav.strategy.personalidade': 'Personalidade',
