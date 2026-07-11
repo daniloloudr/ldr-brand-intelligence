@@ -18,6 +18,7 @@ O código está à frente do comercial — as próximas jogadas não são featur
 2. **GTM:** marca do produto + site. Dogfooding máximo — usar o próprio LOUDR (diagnóstico, Writing Room, Studio) para construí-la: vira case e demo. Depois: **rodada de investimento**.
 3. **Operar e observar:** cron autônomo de destilação (consertado 08/07 — conferir os primeiros ciclos), clipping de segunda (inclui Pupila), usar o produto e votar (cada uso calibra o cérebro e ensaia a demo).
 4. **Roteiro de demo do flywheel** (~5 min de telas contando a história) — eu monto quando o Danilo pedir. 🟢
+5. **🔥 PILOTO HERING — prioridade de produto (decisão 2026-07-10):** o caso-âncora do H1 puxa a fila; atividades detalhadas na seção [Piloto Hering](#-piloto-hering-rafael-passos-dir-digital--call-2026-07-09) abaixo. F0 começa já (bug das referências + mapa de modelos de fidelidade).
 
 ---
 
@@ -58,9 +59,24 @@ Critério de priorização: **usa o que o cérebro já sabe × devolve sinais no
 
 ### 🎯 Piloto Hering (Rafael Passos, dir. digital — call 2026-07-09)
 Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fidedigna** de produto que ainda não existe (foto simples no cabide + ficha técnica); depois manequim fantasma, troca de modelo A/B, close — **em escala**, API depois. Rafael validou a tese: quer o cérebro no meio + subir referências como ensino (novo sinal `reference_upload`). Detalhe na memória (`project_hering_pilot`).
-- **F0** 🟢 — corrigir bug da área de referências (visto na call) + testar fidelidade com 3-5 peças reais ANTES de prometer escala (make-or-break: alucinação de estampa/cor = pedido errado). Verificar modelos especializados da fal (try-on, ghost mannequin).
-- **F1** — template de Fluxo "Guia de Compras" (foto+ficha → still fiel, manequim fantasma, variação de modelo, close) com **juiz de fidelidade** (= diretor de arte F1/F2 abaixo).
-- **F2** — lote via planilha/Drive (puxa a F3 dos agentes). **F3** — API in/out (puxa a F0 do MCP).
+**Atividades (priorizado 2026-07-10 — o case puxa a fila do produto):**
+
+*F0 — validar fidelidade (já):*
+- [ ] F0.1 🟢 corrigir o bug da área de referências (visto na call)
+- [ ] F0.2 🟢 mapear modelos de fidelidade na fal (try-on, ghost mannequin, i2i de alta fidelidade) + custo por peça — vira argumento de venda ("melhor modelo ativo + custo do processo", prometido na call)
+- [ ] F0.3 🟢 pilotinho: 3-5 peças reais (foto no cabide + ficha técnica) → still fiel; validação com o time de marca da Hering + Rod · *gatilho: Rafael marcar a conversa*
+
+*F1 — o processo (Fluxo "Guia de Compras"):*
+- [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
+- [ ] F1.2 template "Guia de Compras": still fiel → manequim fantasma → variação de modelo (teste A/B) → close
+- [ ] F1.3 **juiz de fidelidade** (gerada vs foto original — reprova alucinação de estampa/cor) = primeira encarnação do diretor de arte (F1/F2 da seção Copiloto)
+
+*F2 — escala:* lote via planilha/CSV ou pasta do Drive → fila de gerações com progresso + **teto de créditos por lote** (guarda)
+*F3 — integração:* API key por workspace (compartilha a F0 do plano MCP) + endpoint de entrada e endpoint de consulta + docs mínimos
+
+**Fundações que o caso puxa (valem para TODAS as marcas — pedidos do Danilo 2026-07-10):**
+- [ ] **Ativos como referência e aprendizado** 🟢 — a área de Ativos vira FONTE do cérebro: subir referência = ensino curatorial (novo sinal `reference_upload`, peso alto — "isto É a marca", mais forte que like em gerada); referências aprovadas entram nos hints visuais de toda geração (`brandVisualHints`); curadoria por pasta/tag (referência de estilo ≠ logo ≠ template). Exatamente o que o Rafael pediu na call.
+- [ ] **Manual da marca (PDF) — área própria** 🟡 — marcas que JÁ têm manual: (a) upload do PDF salvo no storage + visualização embutida (a "casa" do manual dentro do produto, provável aba no Brand Kit dos Ativos ou na Expressão); (b) a raspagem de texto já existe (`brand-manual-extract-background` — pendência F11 de aprender o schema novo); (c) **NOVO: o VISUAL do manual popula o cérebro** — páginas renderizadas como imagens viram referências visuais (alimentam `reference_upload` + hints de geração). O manual ensina pelo texto E pela estética.
 
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
