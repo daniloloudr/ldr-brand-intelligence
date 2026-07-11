@@ -56,7 +56,7 @@ export function MarketIntelligence() {
   }, [workspace?.id])
 
   return (
-    <Shell title="Market Intelligence" subtitle="Movimentos recentes do mercado e dos concorrentes — coletados toda semana">
+    <Shell title="Inteligência de Mercado" subtitle="Movimentos recentes do mercado e dos concorrentes — coletados toda semana">
       {items === null ? (
         <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
       ) : items.length === 0 ? (
@@ -115,7 +115,7 @@ export function CompetitorsPage() {
   )
 
   return (
-    <Shell title="Competitors" subtitle="Quem disputa o seu território — scores do último diagnóstico de cada concorrente">
+    <Shell title="Concorrentes" subtitle="Quem disputa o seu território — scores do último diagnóstico de cada concorrente">
       {rows === null ? (
         <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
       ) : rows.length === 0 ? (
@@ -148,7 +148,7 @@ export function CompetitorsPage() {
 // ── Em construção (Onda 3) ───────────────────────────────────────────
 export function ConsumerInsights() {
   return (
-    <Shell title="Consumer Insights" subtitle="O que o público sente e diz — destilado em insights acionáveis">
+    <Shell title="Insights do Consumidor" subtitle="O que o público sente e diz — destilado em insights acionáveis">
       <EmConstrucao desc="Os insights de consumidor serão destilados do Social Listening + evidências do cérebro da marca: temas recorrentes, mudanças de sentimento e oportunidades nomeadas."
         vem="insights automáticos por ciclo, conectados às personas da Strategy" />
     </Shell>
@@ -157,7 +157,7 @@ export function ConsumerInsights() {
 
 export function TrendsPage() {
   return (
-    <Shell title="Trends" subtitle="Tendências do setor antes de virarem lugar-comum">
+    <Shell title="Tendências" subtitle="Tendências do setor antes de virarem lugar-comum">
       <EmConstrucao desc="Radar de tendências do seu setor via pesquisa recorrente — as relevantes viram evidência para o cérebro e sugestões de conteúdo no Content Hub."
         vem="radar semanal por setor + 'como a sua marca surfa isso' gerado no seu tom" />
     </Shell>
@@ -166,7 +166,7 @@ export function TrendsPage() {
 
 export function ReportsPage() {
   return (
-    <Shell title="Reports" subtitle="A evolução da marca, medida e apresentável">
+    <Shell title="Relatórios" subtitle="A evolução da marca, medida e apresentável">
       <EmConstrucao desc="Relatórios periódicos consolidando scores do diagnóstico, evolução do aprendizado da marca, aprovação de peças e movimentos do mercado — prontos para levar ao board."
         vem="relatório mensal automático + comparativo entre ciclos. Hoje: os scores vivem no Brand Positioning e a evolução do aprendizado em IA LOUDR" />
     </Shell>

@@ -24,11 +24,11 @@ import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 
 const SECTIONS = [
   // Árvore Strategy (2026-07-10, fiel): Culture→Brand Essence · Business→Função+Experience · Communication→Personality+Expression
-  { key: 'essencia',      label: 'Brand Essence', color: '#0D9E7A' },
+  { key: 'essencia',      label: 'Essence',       color: '#0D9E7A' },
   { key: 'negocio',       label: 'Função',        color: '#E8185A' },
-  { key: 'experiencia',   label: 'Experience',    color: '#EF9F27' },
-  { key: 'personalidade', label: 'Personality',   color: '#7F77DD' },
-  { key: 'expression',    label: 'Expression',    color: '#0D9E7A' },
+  { key: 'experiencia',   label: 'Experiência',   color: '#EF9F27' },
+  { key: 'personalidade', label: 'Personalidade', color: '#7F77DD' },
+  { key: 'expression',    label: 'Expressão',     color: '#0D9E7A' },
   { key: 'history',       label: 'Histórico',     color: '#8A9AB0' },
 ]
 
@@ -285,8 +285,8 @@ export function BrandBook({ brandId }) {
             {/* Expression = Verbal + Visual Identity (abas internas — árvore nova) */}
             <Tabs value={expressionTab} onChange={(_, v) => setExpressionTab(v)}
               sx={{ mb: 3, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13 } }}>
-              <Tab label="Verbal Identity" />
-              <Tab label="Visual Identity" />
+              <Tab label="Identidade Verbal" />
+              <Tab label="Identidade Visual" />
             </Tabs>
             {expressionTab === 0 && (
               <VerbalIdentitySection data={book?.verbal_identity} onChange={d => updateSection('verbal_identity', d)} />
