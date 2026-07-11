@@ -110,7 +110,7 @@ export function ContentHub() {
   return (
     <Box>
       <PageHeader
-        title="Hub de Conteúdo"
+        title="Palavras-Chave"
         subtitle="Territórios de keywords identificados a partir do seu site."
         action={
           <Button

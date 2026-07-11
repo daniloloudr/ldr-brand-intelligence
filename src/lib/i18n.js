@@ -19,7 +19,7 @@ const DICT = {
     'nav.strategy.expression': 'Expressão',
     'nav.intelligence': 'Inteligência',
     'nav.intelligence.listening': 'Escuta Social',
-    'nav.intelligence.content': 'Hub de Conteúdo',
+    'nav.intelligence.content': 'Palavras-Chave',
     'nav.intelligence.ia': 'IA LOUDR',
     'nav.studio': 'Estúdio',
     'nav.studio.image': 'Imagem',
