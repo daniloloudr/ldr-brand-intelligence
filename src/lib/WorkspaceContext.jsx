@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
 
 const WorkspaceContext = createContext(null)
@@ -7,10 +7,14 @@ export function WorkspaceProvider({ user, onLogout, children, overrideWorkspaceI
   const [workspace, setWorkspace] = useState(null)
   const [role, setRole]           = useState(null)
   const [loading, setLoading]     = useState(true)
+  const carregouRef = useRef(false)
 
   const load = useCallback(async () => {
     if (!user?.id) { setLoading(false); return }
-    setLoading(true)
+    // loading=true só no PRIMEIRO load: o AppShell desmonta a árvore inteira no
+    // loading, então um reload() de rotina (ex.: saldo de créditos após gerar)
+    // piscava a tela e matava o polling do canvas — refresh seguinte é silencioso.
+    if (!carregouRef.current) setLoading(true)
 
     if (overrideWorkspaceId) {
       // Admin impersonando: carrega workspace diretamente por ID
@@ -31,6 +35,7 @@ export function WorkspaceProvider({ user, onLogout, children, overrideWorkspaceI
       if (data?.workspaces) { setWorkspace(data.workspaces); setRole(data.role) }
     }
 
+    carregouRef.current = true
     setLoading(false)
   }, [user?.id, overrideWorkspaceId])
 
