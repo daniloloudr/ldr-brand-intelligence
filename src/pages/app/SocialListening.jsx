@@ -316,7 +316,7 @@ export function SocialListening() {
   return (
     <Box>
       <PageHeader
-        title="Social Listening"
+        title="Escuta Social"
         subtitle="Monitoramento de sentimento e menções da sua marca no mercado."
         action={
           <Button

@@ -49,7 +49,7 @@ export function StudioAssets({ brandId }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Assets" subtitle="Os ativos oficiais da marca — organizados por tipo" />
+      <PageHeader title="Ativos" subtitle="Os ativos oficiais da marca — organizados por tipo" />
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2.5, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13 } }}>
           {TABS.map(t => <Tab key={t.key} label={t.label} />)}
