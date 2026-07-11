@@ -188,20 +188,20 @@ export function AppLayout({
                 </Box>
               );
             }
-            // ── Item simples ──
+            // ── Item simples de 1º nível — MESMO peso visual dos grupos ──
             const Icon = entry.icon;
             return (
               <Box key={i} component="button" onClick={() => onNavigate(entry.hash)}
                 sx={{
-                  display: "flex", alignItems: "center", gap: 1.25, width: "100%", px: 1.5, py: 1.1, mb: 0.25, mt: 0.5,
+                  display: "flex", alignItems: "center", gap: 1.25, width: "100%", px: 1.5, py: 0.75, mt: 1.25,
                   border: "none", borderLeft: 3, borderLeftColor: entry.active ? TEAL : "transparent",
                   bgcolor: entry.active ? theme => theme.palette.action.selected : "transparent",
                   color: entry.active ? "text.primary" : "text.secondary",
-                  fontWeight: entry.active ? 700 : 500, fontSize: 13,
+                  fontWeight: 800, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
                   textAlign: "left", cursor: "pointer", borderRadius: 1, transition: "all 0.15s",
                   "&:hover": { color: "text.primary", bgcolor: theme => theme.palette.action.hover },
                 }}>
-                {Icon && <Box sx={{ display: "flex", alignItems: "center", color: entry.active ? TEAL : "currentColor", opacity: entry.active ? 1 : 0.65 }}><Icon /></Box>}
+                {Icon && <Box sx={{ display: "flex", alignItems: "center", color: entry.active ? TEAL : "currentColor", opacity: entry.active ? 1 : 0.7 }}><Icon /></Box>}
                 <Box sx={{ flex: 1 }}>{entry.label}</Box>
               </Box>
             );
