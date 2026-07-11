@@ -1,11 +1,13 @@
 // IntelligencePages — as páginas do grupo Intelligence da nova árvore.
-// Market Intelligence e Competitors são REAIS (dados que já existem, nova
-// vitrine); Consumer Insights, Trends e Reports nascem "em construção"
-// (copy honesta do que vem) — Onda 3 do plano.
-import { useState, useEffect } from 'react'
-import { Box, Paper, Typography, Stack, CircularProgress, Chip, Link } from '@mui/material'
+// Onda 3 (2026-07-10): Consumer Insights e Trends viram REAIS — insights da
+// escuta social + radar de tendências por setor (coleta semanal + on-demand).
+import { useState, useEffect, useCallback } from 'react'
+import { Box, Paper, Typography, Stack, CircularProgress, Chip, Link, Button } from '@mui/material'
+import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import ConstructionOutlinedIcon from '@mui/icons-material/ConstructionOutlined'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import RadarIcon from '@mui/icons-material/Radar'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -145,21 +147,236 @@ export function CompetitorsPage() {
   )
 }
 
-// ── Em construção (Onda 3) ───────────────────────────────────────────
+// ── Insights do Consumidor — a escuta social virando leitura (dados reais) ──
 export function ConsumerInsights() {
+  const { workspace } = useWorkspace()
+  const [d, setD] = useState(null)
+  const [filtro, setFiltro] = useState(null)   // positivo | neutro | negativo | null
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    let on = true
+    ;(async () => {
+      const { data: brand } = await supabase.from('brands').select('id').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: true }).limit(1).maybeSingle()
+      const [{ data: snaps }, { data: eventos }, { data: intel }, { data: book }] = await Promise.all([
+        supabase.from('sentiment_snapshots').select('data, positivo_pct, neutro_pct, negativo_pct, avg_positivo, avg_neutro, avg_negativo, total_mencoes')
+          .eq('workspace_id', workspace.id).order('created_at', { ascending: true }).limit(60),
+        supabase.from('listening_events').select('id, fonte, conteudo, sentimento, score, url, created_at')
+          .eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(40),
+        brand ? supabase.from('brand_intelligence').select('modelo').eq('brand_id', brand.id)
+          .order('versao', { ascending: false }).limit(1) : { data: [] },
+        brand ? supabase.from('brand_books').select('strategy').eq('brand_id', brand.id)
+          .order('updated_at', { ascending: false }).limit(1) : { data: [] },
+      ])
+      if (!on) return
+      // Snapshots antigos não têm *_pct (colunas posteriores) — cai para avg_*.
+      const norm = (snaps || []).map(s => ({
+        data: s.data,
+        positivo_pct: s.positivo_pct ?? s.avg_positivo ?? 0,
+        neutro_pct:   s.neutro_pct   ?? s.avg_neutro   ?? 0,
+        negativo_pct: s.negativo_pct ?? s.avg_negativo ?? 0,
+        total_mencoes: s.total_mencoes,
+      }))
+      setD({
+        brandId: brand?.id,
+        snaps: norm, eventos: eventos || [],
+        temas: intel?.[0]?.modelo?.conteudo?.temas || [],
+        angulos: intel?.[0]?.modelo?.conteudo?.angulos || [],
+        personas: (book?.[0]?.strategy?.personas || []).filter(p => p?.nome),
+      })
+    })()
+    return () => { on = false }
+  }, [workspace?.id])
+
+  if (!d) return (
+    <Shell title="Insights do Consumidor" subtitle="O que o público sente e diz — direto da escuta social">
+      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+    </Shell>
+  )
+
+  const ultimo = d.snaps[d.snaps.length - 1]
+  const fontes = [...new Set(d.eventos.map(e => e.fonte).filter(Boolean))]
+  const eventos = filtro ? d.eventos.filter(e => e.sentimento === filtro) : d.eventos
+
   return (
-    <Shell title="Insights do Consumidor" subtitle="O que o público sente e diz — destilado em insights acionáveis">
-      <EmConstrucao desc="Os insights de consumidor serão destilados do Social Listening + evidências do cérebro da marca: temas recorrentes, mudanças de sentimento e oportunidades nomeadas."
-        vem="insights automáticos por ciclo, conectados às personas da Strategy" />
+    <Shell title="Insights do Consumidor" subtitle="O que o público sente e diz — direto da escuta social, lido pela inteligência da marca">
+      {d.eventos.length === 0 && d.snaps.length === 0 ? (
+        <EmConstrucao desc="Ainda não há escuta coletada. Rode o Social Listening — cada ciclo alimenta esta página e vira aprendizado para a marca."
+          vem="menções por fonte, evolução do sentimento e temas que o público puxa" />
+      ) : (
+        <Stack spacing={3}>
+          {/* evolução do sentimento */}
+          {d.snaps.length >= 2 && (
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1}>EVOLUÇÃO DO SENTIMENTO</Typography>
+              <Box sx={{ height: 180 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={d.snaps} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="data" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+                    <RTooltip contentStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="positivo_pct" name="positivo" stroke={TEAL} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="neutro_pct" name="neutro" stroke={AMBER} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="negativo_pct" name="negativo" stroke={CORAL} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+              {ultimo && <Typography fontSize={11.5} color="text.secondary" mt={0.5}>
+                Última leitura ({ultimo.data}): {ultimo.positivo_pct}% positivo · {ultimo.neutro_pct}% neutro · {ultimo.negativo_pct}% negativo — {ultimo.total_mencoes} menções</Typography>}
+            </Paper>
+          )}
+
+          {/* o que a marca aprendeu do público */}
+          {(d.temas.length > 0 || d.personas.length > 0) && (
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1}>O QUE A MARCA JÁ SABE DO PÚBLICO</Typography>
+              {d.personas.length > 0 && (
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mb={d.temas.length ? 1.25 : 0}>
+                  <Typography fontSize={12.5} color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Personas:</Typography>
+                  {d.personas.slice(0, 4).map((p, i) => (
+                    <Chip key={i} label={p.nome} size="small" onClick={() => { if (d.brandId) window.location.hash = `#/app/brands/${d.brandId}/negocio` }}
+                      sx={{ fontWeight: 700, fontSize: 11 }} />
+                  ))}
+                </Stack>
+              )}
+              {d.temas.length > 0 && (
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                  <Typography fontSize={12.5} color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Temas que funcionam:</Typography>
+                  {d.temas.slice(0, 8).map((t, i) => <Chip key={i} label={t} size="small" variant="outlined" sx={{ fontSize: 11 }} />)}
+                </Stack>
+              )}
+            </Paper>
+          )}
+
+          {/* menções recentes */}
+          <Box>
+            <Stack direction="row" spacing={0.75} alignItems="center" mb={1.25} flexWrap="wrap" useFlexGap>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ mr: 1 }}>MENÇÕES RECENTES</Typography>
+              {['positivo', 'neutro', 'negativo'].map(s => (
+                <Chip key={s} label={s} size="small" variant={filtro === s ? 'filled' : 'outlined'}
+                  onClick={() => setFiltro(filtro === s ? null : s)}
+                  sx={{ fontSize: 10.5, fontWeight: 700, color: SENT[s], borderColor: SENT[s], ...(filtro === s ? { bgcolor: `${SENT[s]}22` } : {}) }} />
+              ))}
+              {fontes.length > 0 && <Typography fontSize={11} color="text.disabled" sx={{ ml: 'auto' }}>{fontes.join(' · ')}</Typography>}
+            </Stack>
+            <Stack spacing={1}>
+              {eventos.slice(0, 20).map(e => (
+                <Paper key={e.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                    {e.fonte && <Chip label={e.fonte} size="small" sx={{ fontWeight: 800, fontSize: 10.5 }} />}
+                    {e.sentimento && <Chip label={e.sentimento} size="small" variant="outlined"
+                      sx={{ fontSize: 10, fontWeight: 700, color: SENT[e.sentimento], borderColor: SENT[e.sentimento] }} />}
+                    <Box flex={1} />
+                    <Typography fontSize={11} color="text.disabled">{new Date(e.created_at).toLocaleDateString('pt-BR')}</Typography>
+                  </Stack>
+                  <Typography fontSize={13} sx={{ lineHeight: 1.55 }}>{e.conteudo}</Typography>
+                  {e.url && <Link href={e.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                    fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
+                </Paper>
+              ))}
+              {eventos.length === 0 && <Typography fontSize={13} color="text.disabled" py={2}>Nenhuma menção {filtro} no período.</Typography>}
+            </Stack>
+          </Box>
+        </Stack>
+      )}
     </Shell>
   )
 }
 
+// ── Tendências — radar do setor com "como a sua marca surfa" (dados reais) ──
+const CAT_LABEL = { comportamento: 'Comportamento', tecnologia: 'Tecnologia', estetica: 'Estética', mercado: 'Mercado', conteudo: 'Conteúdo' }
+const HOR_LABEL = { agora: 'agora', '6m': 'próximos 6 meses', '1a+': '1 ano ou mais' }
+
 export function TrendsPage() {
+  const { workspace } = useWorkspace()
+  const [items, setItems] = useState(null)
+  const [buscando, setBuscando] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('tendencias').select('*')
+      .eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(60)
+    setItems(data || [])
+    return data || []
+  }, [workspace?.id])
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    load()
+  }, [workspace?.id, load])
+
+  // Dispara a coleta (background) e faz polling da tabela até chegarem itens novos.
+  const buscar = async () => {
+    setBuscando(true)
+    const antes = items?.length || 0
+    const { data: { session } } = await supabase.auth.getSession()
+    fetch('/.netlify/functions/trends-coletar-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ workspace_id: workspace.id }),
+    }).catch(() => {})
+    for (let i = 0; i < 24; i++) {                    // até ~2 min
+      await new Promise(r => setTimeout(r, 5000))
+      const rows = await load()
+      if (rows.length > antes) break
+    }
+    setBuscando(false)
+  }
+
+  const semSetor = !workspace?.setor
+
   return (
-    <Shell title="Tendências" subtitle="Tendências do setor antes de virarem lugar-comum">
-      <EmConstrucao desc="Radar de tendências do seu setor via pesquisa recorrente — as relevantes viram evidência para o cérebro e sugestões de conteúdo no Content Hub."
-        vem="radar semanal por setor + 'como a sua marca surfa isso' gerado no seu tom" />
+    <Shell title="Tendências" subtitle="Tendências do setor antes de virarem lugar-comum — com o 'como surfar' no tom da sua marca">
+      <Stack direction="row" justifyContent="flex-end" mb={2}>
+        <Button variant="outlined" size="small" startIcon={buscando ? <CircularProgress size={14} /> : <RadarIcon />}
+          disabled={buscando || semSetor} onClick={buscar} sx={{ fontWeight: 700 }}>
+          {buscando ? 'Buscando tendências…' : 'Buscar tendências agora'}
+        </Button>
+      </Stack>
+      {semSetor && (
+        <Typography fontSize={12.5} color="text.secondary" mb={2}>
+          Defina o <b>setor</b> do workspace para ativar o radar — é ele que direciona a pesquisa.
+        </Typography>
+      )}
+      {items === null ? (
+        <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+      ) : items.length === 0 ? (
+        <EmConstrucao desc="Nenhuma tendência coletada ainda. O radar roda toda segunda para workspaces com setor definido — ou busque agora no botão acima."
+          vem="cada tendência chega com 'como a sua marca surfa isso', escrito no tom aprendido" />
+      ) : (
+        <Stack spacing={1.5}>
+          {items.map(t => (
+            <Paper key={t.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
+                {t.categoria && <Chip label={CAT_LABEL[t.categoria] || t.categoria} size="small" sx={{ fontWeight: 800, fontSize: 11 }} />}
+                {t.horizonte && <Chip label={HOR_LABEL[t.horizonte] || t.horizonte} size="small" variant="outlined" sx={{ fontSize: 10.5 }} />}
+                {t.relevancia != null && <Typography fontSize={11} sx={{ color: t.relevancia >= 7 ? CORAL : 'text.disabled', fontWeight: 700 }}>relevância {t.relevancia}/10</Typography>}
+                <Box flex={1} />
+                <Typography fontSize={11} color="text.disabled">{new Date(t.created_at).toLocaleDateString('pt-BR')}</Typography>
+              </Stack>
+              <Typography fontSize={14} fontWeight={800}>{t.titulo}</Typography>
+              {t.conteudo && <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{t.conteudo}</Typography>}
+              {t.como_surfar && (
+                <Box sx={{ mt: 1.25, p: 1.5, borderRadius: 1.5, border: '1px solid rgba(127,119,221,0.3)', bgcolor: 'rgba(127,119,221,0.06)' }}>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 16, mt: 0.25 }} />
+                    <Box>
+                      <Typography fontSize={10.5} fontWeight={800} sx={{ color: '#7F77DD', letterSpacing: '0.06em' }}>COMO A SUA MARCA SURFA ISSO</Typography>
+                      <Typography fontSize={13} sx={{ lineHeight: 1.55, mt: 0.25 }}>{t.como_surfar}</Typography>
+                    </Box>
+                  </Stack>
+                </Box>
+              )}
+              <Stack direction="row" spacing={1.5} mt={0.75}>
+                {t.fonte && <Typography fontSize={11} color="text.disabled">{t.fonte}</Typography>}
+                {t.url && <Link href={t.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
+      )}
     </Shell>
   )
 }

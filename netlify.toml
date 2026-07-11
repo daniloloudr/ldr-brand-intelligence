@@ -25,6 +25,9 @@
 [functions."concorrente-clipping-cron"]
   schedule = "0 9 * * 1"
 
+[functions."trends-cron"]
+  schedule = "0 10 * * 1"
+
 [functions."diagnostico-reaper"]
   schedule = "*/15 * * * *"
 

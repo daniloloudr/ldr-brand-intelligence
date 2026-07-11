@@ -1,12 +1,15 @@
-// Home v1 (repensada 2026-07-10): espinha fixa + conteúdo dinâmico.
+// Home v2 (2026-07-10): espinha fixa + conteúdo dinâmico.
 // Responde 3 perguntas em 10 segundos:
 //   1. Como está a minha marca?      → PULSO (scores · inteligência · sentimento · evidências)
 //   2. O que aconteceu desde então?  → FEED (aprendizados novos, mercado, julgamentos pendentes)
 //   3. O que eu faço agora?          → CONTINUAR + atalhos por frequência + 1 recomendação
-// v2/v3 (backlog): recomendação via cérebro (LLM) e blocos se reordenando pelo perfil.
+// v2: a recomendação vem do CÉREBRO (home-recommendation, cache 12h) — as regras
+// ficam como fallback instantâneo e trocam quando o cérebro responde.
+// v3 (backlog): blocos se reordenando pelo perfil de uso.
 import { useState, useEffect } from 'react'
 import { Box, Paper, Typography, Stack, CircularProgress, Chip, Button } from '@mui/material'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
@@ -21,9 +24,31 @@ const rel = iso => {
   return d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`
 }
 
+// Recomendação do cérebro com cache de 12h por marca (localStorage). Retorna
+// null enquanto não há resposta — o caller usa as regras como fallback.
+const RECO_TTL = 12 * 3600000
+async function fetchRecoCerebro(workspaceId, brandId) {
+  const key = `s1ngulr-home-reco-${brandId}`
+  try {
+    const c = JSON.parse(localStorage.getItem(key) || 'null')
+    if (c && Date.now() - c.at < RECO_TTL) return c.reco
+  } catch { /* cache inválido */ }
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/.netlify/functions/home-recommendation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ workspace_id: workspaceId }),
+  })
+  if (!res.ok) return null
+  const { reco } = await res.json()
+  if (reco) try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), reco })) } catch { /* cheio */ }
+  return reco
+}
+
 export function Home() {
   const { workspace } = useWorkspace()
   const [d, setD] = useState(null)   // todos os dados da home
+  const [recoIA, setRecoIA] = useState(null)
 
   useEffect(() => {
     if (!workspace?.id) return
@@ -33,7 +58,7 @@ export function Home() {
         .order('created_at', { ascending: true }).limit(1).maybeSingle()
       const brandId = brand?.id
       const semana = new Date(Date.now() - 7 * 86400000).toISOString()
-      const [diag, sent, intel, sigSemana, sigPend, clips, concs, pendJulg, wf, conv, book] = await Promise.all([
+      const [diag, sent, intel, sigSemana, sigPend, clips, concs, pendJulg, wf, conv, book, ultimaPeca, trends] = await Promise.all([
         supabase.from('diagnosticos').select('score_singularidade, score_consistencia, score_posicionamento, created_at')
           .eq('workspace_id', workspace.id).eq('status', 'done').order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('sentiment_snapshots').select('avg_positivo, avg_neutro, avg_negativo')
@@ -55,6 +80,10 @@ export function Home() {
           .order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
         brandId ? supabase.from('brand_books').select('verbal_identity, strategy').eq('brand_id', brandId)
           .order('updated_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
+        brandId ? supabase.from('studio_generations').select('id, media_type, created_at').eq('brand_id', brandId)
+          .eq('status', 'done').not('image_url', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle() : { data: null },
+        supabase.from('tendencias').select('titulo, relevancia, created_at').eq('workspace_id', workspace.id)
+          .gte('created_at', semana).order('relevancia', { ascending: false }).limit(2),
       ])
       if (!on) return
       setD({
@@ -64,10 +93,19 @@ export function Home() {
         evidSemana: sigSemana.count || 0, sigPendentes: sigPend.count || 0,
         clips: clips.data || [], concs: concs.data || [],
         pendJulg: pendJulg.count || 0, wf: wf.data, conv: conv.data, book: book.data,
+        ultimaPeca: ultimaPeca.data, trends: trends.data || [],
       })
     })()
     return () => { on = false }
   }, [workspace?.id])
+
+  // v2: recomendação do cérebro (assíncrona — as regras seguram a tela até chegar)
+  useEffect(() => {
+    if (!workspace?.id || !d?.brandId) return
+    let on = true
+    fetchRecoCerebro(workspace.id, d.brandId).then(r => { if (on && r) setRecoIA(r) }).catch(() => {})
+    return () => { on = false }
+  }, [workspace?.id, d?.brandId])
 
   if (!d) return <Stack alignItems="center" py={10}><CircularProgress size={24} sx={{ color: TEAL }} /></Stack>
 
@@ -90,11 +128,13 @@ export function Home() {
     feed.push({ e: '📈', t: `Aprovação das peças criadas sob a v${d.intel.versao - 1}: ${pct(ap)} (${d.intel.metricas.votos_janela} avaliações)`, q: d.intel.created_at, hash: '#/app/ia-loudr' })
   for (const c of d.clips)
     feed.push({ e: '⚔️', t: `${concNome[c.concorrente_id] || 'Concorrente'}: ${c.titulo}${c.score_impacto ? ` (impacto ${c.score_impacto}/10)` : ''}`, q: c.created_at, hash: '#/app/market-intel' })
+  for (const t of d.trends)
+    feed.push({ e: '📡', t: `Tendência do setor: ${t.titulo}${t.relevancia ? ` (relevância ${t.relevancia}/10)` : ''}`, q: t.created_at, hash: '#/app/trends' })
   if (d.pendJulg > 0 && brandPath)
     feed.push({ e: '👍', t: `${d.pendJulg} peça${d.pendJulg > 1 ? 's' : ''} esperando seu julgamento — cada avaliação ensina a marca`, q: null, hash: `${brandPath}/studio/approvals` })
   feed.sort((a, b) => new Date(b.q || 0) - new Date(a.q || 0))
 
-  // ── RECOMENDAÇÃO (1 por vez, regras — v2 vira cérebro/LLM) ──
+  // ── RECOMENDAÇÃO: o cérebro decide (v2); as regras são o fallback instantâneo ──
   const st = d.book?.strategy || {}, v = d.book?.verbal_identity || {}
   let reco = null
   if (brandPath && !(st.personas?.length)) reco = { t: 'Preencha as Personas da marca — toda geração de copy e imagem fica mais precisa quando a inteligência sabe PARA QUEM cria.', cta: 'Ir para Função', hash: `${brandPath}/negocio` }
@@ -103,6 +143,7 @@ export function Home() {
   else if (!d.concs.some(c => c.ativo)) reco = { t: 'Cadastre concorrentes — a marca aprende o território do mercado e afia a diferenciação.', cta: 'Ir para Relatórios', hash: '#/app/reports' }
   else if (d.sigPendentes >= 5) reco = { t: `${d.sigPendentes} evidências novas acumuladas — a próxima versão da inteligência nasce em breve.`, cta: 'Ver inteligência', hash: '#/app/ia-loudr' }
   else if (brandPath) reco = { t: 'Crie uma peça na Redação — a marca escreve com a voz que aprendeu com você.', cta: 'Abrir Redação', hash: `${brandPath}/studio/writing` }
+  if (recoIA) reco = recoIA   // o cérebro fala mais alto que as regras
 
   // ── ATALHOS por frequência de uso (adaptativo, client-side) ──
   let freq = {}
@@ -208,7 +249,9 @@ export function Home() {
               {reco && (
                 <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid rgba(127,119,221,0.35)', bgcolor: 'rgba(127,119,221,0.06)' }}>
                   <Stack direction="row" spacing={1.5} alignItems="center">
-                    <TrendingUpIcon sx={{ color: PURPLE, fontSize: 20 }} />
+                    {reco.origem === 'cerebro'
+                      ? <AutoAwesomeIcon sx={{ color: PURPLE, fontSize: 20 }} />
+                      : <TrendingUpIcon sx={{ color: PURPLE, fontSize: 20 }} />}
                     <Typography fontSize={13.5} sx={{ flex: 1, lineHeight: 1.5 }}>{reco.t}</Typography>
                     <Button size="small" endIcon={<ArrowForwardIcon sx={{ fontSize: '14px !important' }} />}
                       onClick={() => { window.location.hash = reco.hash }}
@@ -224,6 +267,11 @@ export function Home() {
                 )}
                 {d.conv && brandPath && (
                   <Chip label="Continuar conversa no Copiloto" onClick={() => { window.location.hash = `${brandPath}/assistant` }}
+                    sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
+                )}
+                {d.ultimaPeca && brandPath && (
+                  <Chip label={`Ver última peça criada (${rel(d.ultimaPeca.created_at)})`}
+                    onClick={() => { window.location.hash = `${brandPath}/studio/biblioteca` }}
                     sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
                 )}
                 {atalhos.map(a => (

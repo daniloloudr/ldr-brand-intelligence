@@ -11,6 +11,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@aws-sdk/client-s3@^3.1075.0",
         "npm:@emotion/react@^11.14.0",
         "npm:@emotion/styled@^11.14.0",
         "npm:@mui/icons-material@^6.4.0",
@@ -18,6 +19,7 @@
         "npm:@stripe/stripe-js@^9.6.0",
         "npm:@supabase/supabase-js@^2.105.1",
         "npm:@vitejs/plugin-react@^4.3.4",
+        "npm:@xyflow/react@^12.11.1",
         "npm:jspdf@^4.2.1",
         "npm:pptxgenjs@^4.0.1",
         "npm:react-dom@19",
