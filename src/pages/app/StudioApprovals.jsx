@@ -57,7 +57,7 @@ export function StudioApprovals({ brandId }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Approvals" subtitle="Tudo que espera o seu julgamento — cada aprovação ensina a marca" />
+      <PageHeader title="Aprovações" subtitle="Tudo que espera o seu julgamento — cada aprovação ensina a marca" />
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {pecas === null ? (
           <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>

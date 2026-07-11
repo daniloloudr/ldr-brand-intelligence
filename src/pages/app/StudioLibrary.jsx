@@ -110,7 +110,7 @@ export function StudioLibrary({ brandId }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Studio" subtitle="Biblioteca — as peças e arquivos da marca, organizados" />
+      <PageHeader title="Estúdio" subtitle="Biblioteca — as peças e arquivos da marca, organizados" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         {/* Busca + pastas + tags */}

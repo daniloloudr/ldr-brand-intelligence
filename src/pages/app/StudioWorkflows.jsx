@@ -160,7 +160,7 @@ export function StudioWorkflows({ brandId }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
       <PageHeader
-        title="Workflow"
+        title="Fluxos"
         subtitle="Pipelines nodais de geração — construa em pedaços"
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={novo}

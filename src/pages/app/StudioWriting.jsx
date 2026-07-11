@@ -341,7 +341,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Studio" subtitle="Writing Room — copy no tom da marca" />
+      <PageHeader title="Estúdio" subtitle="Redação — copy no tom da marca" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
       {intel?.versao && (

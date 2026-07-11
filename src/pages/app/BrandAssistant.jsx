@@ -445,7 +445,7 @@ export function BrandAssistant({ brandId }) {
   return (
     <Box>
       <PageHeader
-        title={`${brand?.nome || ''} — Brand Assistant`}
+        title={`${brand?.nome || ''} — Copiloto`}
         subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
         action={
           <Button onClick={() => { window.location.hash = `#/app/brands/${brand?.id}` }} sx={{ color: 'text.secondary', fontWeight: 700 }}>

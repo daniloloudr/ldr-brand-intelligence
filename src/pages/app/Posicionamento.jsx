@@ -1149,7 +1149,7 @@ export function Posicionamento() {
   return (
     <Box>
       <PageHeader
-        title="Posicionamento"
+        title="Relatórios"
         subtitle={plano.diagnosticos_mes === Infinity
           ? `${workspace?.diagnosticos_mes ?? 0} diagnósticos gerados este mês · ilimitado`
           : `${workspace?.diagnosticos_mes ?? 0} de ${plano.diagnosticos_mes} usados este mês · plano ${plano.nome}`}
