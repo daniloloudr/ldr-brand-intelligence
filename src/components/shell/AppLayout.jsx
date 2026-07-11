@@ -56,10 +56,10 @@ export function AppLayout({
           {/* Lockup do produto: MARCA.s1ngulr — usa o logo cadastrado da marca
               quando existir; senão o nome do workspace; fallback = logo LOUDR */}
           {brandLockup?.logoSvg ? (
-            <Box sx={{ height: 22, display: "flex", alignItems: "center", "& svg": { height: 22, width: "auto", maxWidth: 110 } }}
+            <Box sx={{ height: 36, display: "flex", alignItems: "center", "& svg": { height: 36, width: "auto", maxWidth: 150 } }}
               dangerouslySetInnerHTML={{ __html: brandLockup.logoSvg }} />
           ) : brandLockup?.logoUrl ? (
-            <Box component="img" src={brandLockup.logoUrl} alt={brandLockup?.nome || ""} sx={{ height: 22, maxWidth: 110, objectFit: "contain", display: "block" }} />
+            <Box component="img" src={brandLockup.logoUrl} alt={brandLockup?.nome || ""} sx={{ height: 36, maxWidth: 150, objectFit: "contain", display: "block" }} />
           ) : brandLockup?.nome ? (
             <Typography sx={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.02em", color: "text.primary", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {brandLockup.nome}
