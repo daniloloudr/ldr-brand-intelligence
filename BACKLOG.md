@@ -78,6 +78,11 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 - [ ] **Ativos como referência e aprendizado** 🟢 — a área de Ativos vira FONTE do cérebro: subir referência = ensino curatorial (novo sinal `reference_upload`, peso alto — "isto É a marca", mais forte que like em gerada); referências aprovadas entram nos hints visuais de toda geração (`brandVisualHints`); curadoria por pasta/tag (referência de estilo ≠ logo ≠ template). Exatamente o que o Rafael pediu na call.
 - [ ] **Manual da marca (PDF) — área própria** 🟡 — marcas que JÁ têm manual: (a) upload do PDF salvo no storage + visualização embutida (a "casa" do manual dentro do produto, provável aba no Brand Kit dos Ativos ou na Expressão); (b) a raspagem de texto já existe (`brand-manual-extract-background` — pendência F11 de aprender o schema novo); (c) **NOVO: o VISUAL do manual popula o cérebro** — páginas renderizadas como imagens viram referências visuais (alimentam `reference_upload` + hints de geração). O manual ensina pelo texto E pela estética.
 
+### Regerar com motivo (anotado 2026-07-11 — rever e entender antes de fazer)
+Hoje o regen JÁ é capturado (sinal `image_regen` peso 1 + dataset via migration 031; voto explícito sobrepõe; campo "ajuste" livre vira correção direcionada). O gap: no regen "seco" sabemos QUE falhou, não POR QUÊ. Propostas a avaliar:
+- **Motivo estruturado no clique** 🟢 — popover de 1 clique ao regerar: *Fora da marca · Não é fiel ao produto · Qualidade baixa · Composição ruim · Outro (livre)* → categoria no payload; destilador aprende padrões por tipo de falha; o chip "não é fiel" é a telemetria do juiz de fidelidade do piloto Hering.
+- **Métrica de convergência** 🟢 — regens referenciam a peça original (ref_id): medir tentativas até aprovação por marca/modelo/tipo de peça. Prova o cérebro melhorando ("v3 = 4 tentativas/peça → v6 = 1,8") e vira argumento de custo na venda.
+
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
 
