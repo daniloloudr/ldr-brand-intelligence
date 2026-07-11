@@ -43,7 +43,9 @@ export function MarketIntelligence() {
   const [gerando, setGerando] = useState(false)
   const [fConc, setFConc] = useState(null)       // filtro: concorrente
   const [fAlto, setFAlto] = useState(false)      // filtro: impacto >= 6
+  const [fSent, setFSent] = useState(null)       // filtro: sentimento
   const [fPeriodo, setFPeriodo] = useState(30)   // filtro: 7 | 30 | 0 (tudo)
+  const [pagina, setPagina] = useState(0)        // paginação do feed (10/pág)
 
   const load = useCallback(async () => {
     const [{ data: cs }, { data: clips }, { data: sint }] = await Promise.all([
@@ -110,12 +112,18 @@ export function MarketIntelligence() {
     .sort((a, b) => b.n - a.n)
   const sovMax = sovList[0]?.n || 1
 
-  // Feed filtrado
+  // Feed filtrado + paginado (10/pág; qualquer filtro volta à página 0)
   const corte = fPeriodo ? Date.now() - fPeriodo * 86400000 : 0
   const feed = d.items.filter(i =>
     (!fConc || i.concorrente_id === fConc) &&
     (!fAlto || (i.score_impacto ?? 0) >= 6) &&
+    (!fSent || i.sentiment === fSent) &&
     (!corte || new Date(i.created_at) >= corte))
+  const POR_PAG = 10
+  const maxPag = Math.max(0, Math.ceil(feed.length / POR_PAG) - 1)
+  const pagSafe = Math.min(pagina, maxPag)
+  const feedPag = feed.slice(pagSafe * POR_PAG, pagSafe * POR_PAG + POR_PAG)
+  const filtra = fn => { fn(); setPagina(0) }
 
   const PulsoCard = ({ label, valor, sub, cor }) => (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
@@ -194,21 +202,26 @@ export function MarketIntelligence() {
           {/* feed com filtros */}
           <Box>
             <Stack direction="row" spacing={0.75} alignItems="center" mb={1.25} flexWrap="wrap" useFlexGap>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ mr: 1 }}>MOVIMENTOS</Typography>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ mr: 1 }}>MOVIMENTOS · {feed.length}</Typography>
               {[...new Set(d.items.map(i => i.concorrente_id))].filter(id => d.concs[id]).map(id => (
                 <Chip key={id} label={d.concs[id]} size="small" variant={fConc === id ? 'filled' : 'outlined'}
-                  onClick={() => setFConc(fConc === id ? null : id)} sx={{ fontSize: 10.5, fontWeight: 700 }} />
+                  onClick={() => filtra(() => setFConc(fConc === id ? null : id))} sx={{ fontSize: 10.5, fontWeight: 700 }} />
               ))}
               <Chip label="impacto 6+" size="small" variant={fAlto ? 'filled' : 'outlined'}
-                onClick={() => setFAlto(!fAlto)} sx={{ fontSize: 10.5, fontWeight: 700, color: fAlto ? undefined : CORAL, borderColor: CORAL }} />
+                onClick={() => filtra(() => setFAlto(!fAlto))} sx={{ fontSize: 10.5, fontWeight: 700, color: fAlto ? undefined : CORAL, borderColor: CORAL }} />
+              {['positivo', 'neutro', 'negativo'].map(sn => (
+                <Chip key={sn} label={sn} size="small" variant={fSent === sn ? 'filled' : 'outlined'}
+                  onClick={() => filtra(() => setFSent(fSent === sn ? null : sn))}
+                  sx={{ fontSize: 10.5, fontWeight: 700, color: fSent === sn ? undefined : SENT[sn], borderColor: SENT[sn] }} />
+              ))}
               <Box flex={1} />
               {[[7, '7d'], [30, '30d'], [0, 'tudo']].map(([v, l]) => (
                 <Chip key={l} label={l} size="small" variant={fPeriodo === v ? 'filled' : 'outlined'}
-                  onClick={() => setFPeriodo(v)} sx={{ fontSize: 10.5, fontWeight: 700 }} />
+                  onClick={() => filtra(() => setFPeriodo(v))} sx={{ fontSize: 10.5, fontWeight: 700 }} />
               ))}
             </Stack>
             <Stack spacing={1.5}>
-              {feed.map(it => (
+              {feedPag.map(it => (
                 <Paper key={it.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                   <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
                     <Chip label={d.concs[it.concorrente_id] || 'Concorrente'} size="small" sx={{ fontWeight: 800, fontSize: 11 }} />
@@ -227,6 +240,17 @@ export function MarketIntelligence() {
               ))}
               {feed.length === 0 && <Typography fontSize={13} color="text.disabled" py={2}>Nenhum movimento com esses filtros.</Typography>}
             </Stack>
+            {feed.length > POR_PAG && (
+              <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" mt={2}>
+                <Button size="small" variant="text" color="inherit" disabled={pagSafe === 0}
+                  onClick={() => setPagina(pagSafe - 1)} sx={{ fontWeight: 700 }}>← anterior</Button>
+                <Typography fontSize={12} color="text.secondary">
+                  {pagSafe * POR_PAG + 1}–{Math.min(feed.length, pagSafe * POR_PAG + POR_PAG)} de {feed.length}
+                </Typography>
+                <Button size="small" variant="text" color="inherit" disabled={pagSafe >= maxPag}
+                  onClick={() => setPagina(pagSafe + 1)} sx={{ fontWeight: 700 }}>próxima →</Button>
+              </Stack>
+            )}
           </Box>
         </Stack>
       )}
