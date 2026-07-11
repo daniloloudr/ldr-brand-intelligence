@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react'
 import { Box, Paper, Typography, Stack, CircularProgress, Tabs, Tab, IconButton, Tooltip } from '@mui/material'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
+import StarIcon from '@mui/icons-material/Star'
+import StarBorderIcon from '@mui/icons-material/StarBorder'
 import ConstructionOutlinedIcon from '@mui/icons-material/ConstructionOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import { supabase } from '../../lib/supabase'
@@ -44,6 +46,24 @@ export function StudioAssets({ brandId }) {
     return () => { on = false }
   }, [brandId])
 
+  // Escolhe qual logo aparece no header (MARCA.s1ngulr). Padrão: o primeiro.
+  async function usarNoHeader(asset) {
+    const atual = (assets || []).find(a => a.tipo === 'logo' && a.metadata?.header)
+    if (atual && atual.id !== asset.id) {
+      await supabase.from('brand_assets').update({ metadata: { ...(atual.metadata || {}), header: false } }).eq('id', atual.id)
+    }
+    const { error } = await supabase.from('brand_assets')
+      .update({ metadata: { ...(asset.metadata || {}), header: true } }).eq('id', asset.id)
+    if (!error) {
+      setAssets(prev => prev.map(a => a.tipo === 'logo'
+        ? { ...a, metadata: { ...(a.metadata || {}), header: a.id === asset.id } } : a))
+      window.dispatchEvent(new Event('brand-lockup-refresh'))
+    }
+  }
+
+  const headerLogoId = (assets || []).find(a => a.tipo === 'logo' && a.metadata?.header)?.id
+    || (assets || []).find(a => a.tipo === 'logo')?.id
+
   const cfg = TABS[tab]
   const list = cfg.tipos ? (assets || []).filter(a => cfg.tipos.includes(a.tipo)) : []
 
@@ -78,6 +98,15 @@ export function StudioAssets({ brandId }) {
                 </Box>
                 <Stack direction="row" alignItems="center" sx={{ px: 1.25, py: 0.75 }}>
                   <Typography fontSize={12} fontWeight={800} noWrap sx={{ flex: 1 }}>{a.nome}</Typography>
+                  {a.tipo === 'logo' && (
+                    <Tooltip title={headerLogoId === a.id ? 'Este logo aparece no header (antes do .s1ngulr)' : 'Usar no header'}>
+                      <IconButton size="small" onClick={() => usarNoHeader(a)}>
+                        {headerLogoId === a.id
+                          ? <StarIcon sx={{ fontSize: 16, color: '#E8185A' }} />
+                          : <StarBorderIcon sx={{ fontSize: 16 }} />}
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   {isUrl(a.valor) && (
                     <Tooltip title="Baixar"><IconButton size="small" component="a" href={a.valor} target="_blank" rel="noopener">
                       <DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
