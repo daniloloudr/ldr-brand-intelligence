@@ -18,6 +18,19 @@ const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
   : '/.netlify/functions/anthropic'
 
+// Modos do Copilot (decisão 2026-07-10): sugestões na LATERAL do chat —
+// mesma infra, entradas curadas. Agents & Automações entram quando existirem.
+const COPILOT_MODES = [
+  { label: 'Generate Copy',     prompt: 'Gere uma copy no tom da marca para: ' },
+  { label: 'Generate Campaign', prompt: 'Crie o conceito de uma campanha para: [objetivo]. Inclua mote, mensagens-chave por canal e desdobramentos.' },
+  { label: 'Review Content',    prompt: 'Revise este conteúdo e diga se está on-brand (aponte desvios de tom, território e do/don\'ts):\n\n' },
+  { label: 'Analyze Brand',     prompt: 'Analise a marca hoje: pontos fortes, fragilidades e o que o mercado está dizendo. Use tudo que você sabe sobre ela.' },
+  { label: 'Create Brief',      prompt: 'Crie um brief criativo para: [peça/campanha]. Inclua objetivo, público (personas), mensagem, tom e critérios de aprovação.' },
+  { label: 'Brand Q&A',         prompt: 'Pergunta sobre a marca: ' },
+  { label: 'Search Knowledge',  prompt: 'Busque no conhecimento da marca: ' },
+  { label: 'Research',          prompt: 'Pesquise e resuma para a marca: [tema]. Conecte as conclusões ao nosso território e posicionamento.' },
+]
+
 const SUGESTOES = [
   'Crie um briefing de campanha para redes sociais alinhado com a nossa identidade',
   'Quais são os pontos mais importantes do nosso posicionamento?',
@@ -261,29 +274,6 @@ export function BrandAssistant({ brandId }) {
   const [chunksCount, setChunksCount] = useState(0)
   const [intelligence, setIntelligence] = useState(null)   // modelo vivo destilado (Camada de Inteligência)
 
-  // Copilot em MODOS (nova arquitetura): a nav manda ?m=<modo> e o chat abre
-  // com o prompt do modo pré-carregado — mesma infra, entradas curadas.
-  useEffect(() => {
-    const MODE_PROMPTS = {
-      search:   'Busque no conhecimento da marca: ',
-      qa:       'Pergunta sobre a marca: ',
-      copy:     'Gere uma copy no tom da marca para: [descreva a peça — ou use o Writing Room para frameworks completos]',
-      campaign: 'Crie o conceito de uma campanha para: [objetivo]. Inclua mote, mensagens-chave por canal e desdobramentos.',
-      review:   'Revise este conteúdo e diga se está on-brand (aponte desvios de tom, território e do/don\'ts):\n\n',
-      analyze:  'Analise a marca hoje: pontos fortes, fragilidades e o que o mercado está dizendo. Use tudo que você sabe sobre ela.',
-      brief:    'Crie um brief criativo para: [peça/campanha]. Inclua objetivo, público (personas), mensagem, tom e critérios de aprovação.',
-      research: 'Pesquise e resuma para a marca: [tema]. Conecte as conclusões ao nosso território e posicionamento.',
-      agents:   'O que são os Agents do Copilot e o que vão fazer por esta marca quando chegarem?',
-    }
-    const applyMode = () => {
-      const q = window.location.hash.split('?')[1]
-      const m = q ? new URLSearchParams(q).get('m') : null
-      if (m && MODE_PROMPTS[m]) setInput(MODE_PROMPTS[m])
-    }
-    applyMode()
-    window.addEventListener('hashchange', applyMode)
-    return () => window.removeEventListener('hashchange', applyMode)
-  }, [])
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -497,6 +487,23 @@ export function BrandAssistant({ brandId }) {
           >
             Nova conversa
           </Button>
+        </Box>
+
+        {/* Modos do Copilot — um clique carrega o prompt do modo */}
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="overline" color="text.disabled" display="block" mb={0.75}>Sugestões</Typography>
+          <Stack spacing={0.5}>
+            {COPILOT_MODES.map(m => (
+              <Box key={m.label} component="button" onClick={() => setInput(m.prompt)}
+                sx={{
+                  border: 'none', bgcolor: 'transparent', textAlign: 'left', cursor: 'pointer',
+                  fontSize: 11.5, fontWeight: 700, color: 'text.secondary', px: 0.75, py: 0.5, borderRadius: 1,
+                  '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+                }}>
+                {m.label}
+              </Box>
+            ))}
+          </Stack>
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>

@@ -8,6 +8,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import AddIcon from '@mui/icons-material/Add'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import { supabase } from '../../lib/supabase'
+import { buildDesignMd } from '../../lib/designMd'
 import { FieldLabel, SectionDivider, ChipInput } from './BrandSection'
 
 const tf = { '& .MuiInputBase-input': { fontSize: 14 } }
@@ -124,9 +125,23 @@ export function NegocioSection({ verbal = {}, strategy = {}, onVerbal, onStrateg
   )
 }
 
-// ── Business → Experience ────────────────────────────────────────────
-export function ExperienciaSection({ strategy = {}, onStrategy }) {
+// ── Business → Experience (UX · UI · Journey · Design.md gerado) ─────
+export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visual, tokens, assets }) {
   const s = k => val => onStrategy({ ...strategy, [k]: val })
+  const [copied, setCopied] = useState(false)
+  const md = buildDesignMd({ brandNome, visual, strategy, tokens, assets })
+
+  async function copiar() {
+    await navigator.clipboard.writeText(md).catch(() => {})
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+  function baixar() {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }))
+    a.download = 'design.md'
+    a.click(); URL.revokeObjectURL(a.href)
+  }
+
   return (
     <Stack spacing={4}>
       <SectionDivider>Experience</SectionDivider>
@@ -134,13 +149,36 @@ export function ExperienciaSection({ strategy = {}, onStrategy }) {
         <Area label="UX — princípios de experiência" value={strategy.ux} onChange={s('ux')}
           placeholder="Como deve ser a experiência de usar/consumir a marca" />
         <Area label="UI — princípios de interface" value={strategy.ui} onChange={s('ui')}
-          placeholder="Diretrizes de interface e interação (o Design System detalha)" />
+          placeholder="Diretrizes de interface e interação" />
       </Grid2>
       <Area label="Customer Journey" value={strategy.customer_journey} onChange={s('customer_journey')} rows={5}
         placeholder="A jornada do cliente — do primeiro contato ao pós-venda, com os momentos-chave da marca" />
-      <Typography variant="caption" color="text.disabled">
-        O Design System (cores, tipografia, tokens) tem seção própria no menu Strategy.
+
+      <SectionDivider>Design System — design.md</SectionDivider>
+      <Typography fontSize={12.5} color="text.secondary" sx={{ mt: -2 }}>
+        Gerado automaticamente do que a marca já tem (paleta, tipografia, tokens, logos, princípios) — nada para preencher duas vezes.
+        É o artefato que times de produto e agentes de IA consomem.
       </Typography>
+      <Grid2>
+        <Box>
+          <FieldLabel>Storybook (opcional)</FieldLabel>
+          <TextField value={strategy.storybook_url || ''} onChange={e => s('storybook_url')(e.target.value)}
+            placeholder="https://storybook.suamarca.com — importação automática em breve" fullWidth sx={tf} />
+        </Box>
+        <Area label="Notas de design (entram no design.md)" value={strategy.design_notes} onChange={s('design_notes')} rows={2}
+          placeholder="Regras extras que o time quer registrar" />
+      </Grid2>
+      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography fontSize={12} fontWeight={800} sx={{ flex: 1 }}>design.md</Typography>
+          <Chip label={copied ? 'Copiado!' : 'Copiar'} size="small" onClick={copiar} sx={{ fontWeight: 700, mr: 1 }} />
+          <Chip label="Baixar .md" size="small" onClick={baixar} variant="outlined" sx={{ fontWeight: 700 }} />
+        </Stack>
+        <Box component="pre" sx={{ m: 0, p: 2, fontSize: 12, lineHeight: 1.6, fontFamily: 'ui-monospace, Menlo, monospace',
+          whiteSpace: 'pre-wrap', maxHeight: 420, overflowY: 'auto', bgcolor: 'background.default' }}>
+          {md}
+        </Box>
+      </Paper>
     </Stack>
   )
 }
