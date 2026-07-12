@@ -27,6 +27,7 @@ O código está à frente do comercial — as próximas jogadas não são featur
 | Item | O quê | Tamanho / gatilho |
 |---|---|---|
 | **⭐ Duelo de Modelos** | mesma peça em 2–3 providers lado a lado + voto do vencedor. Gera **preferência pareada** (ouro p/ win-rate do cérebro e p/ dataset de fine-tune). Inspiração Tess passada pelo cérebro | 🟢 dias |
+| **Conector OpenRouter no `_ai.js`** | passo 2 do módulo de IA (decisão 2026-07-12): OpenRouter como 2º conector = GPT/DeepSeek/Sonar(Perplexity) atrás de uma API — destrava Duelo de Modelos p/ TEXTO (preferência pareada de escrita → voz aprendida). Regra: Anthropic segue DIRETA no núcleo (prompt caching + web search nativos, que gateway não repassa intacto); OpenRouter é amplitude, não substituição. Custo: ~5% + 1 hop. LiteLLM anotado p/ fase enterprise/self-host | 🟢 ~1 dia |
 | **Gap 1 — Observabilidade** | Sentry + alerta "cron não destilou em Xh" (o bug do cron ficou 2 dias invisível). **Decisão 2026-07-10: entra na PRÉ-PRODUÇÃO** (antes do go-live comercial) | 🟢 ~1 dia |
 | **Gap 2 — Testes** | CI básico: smoke das functions críticas (_brain, studio-generate, distill) + parses. Diligência de investidor olha | 🟡 |
 | **Gap 3 — LGPD/ToS/Privacidade** | inexistentes no repo; pré-requisito p/ clientes maiores e captação | 🟡 (+ jurídico) |
