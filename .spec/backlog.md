@@ -87,6 +87,16 @@ Hoje o regen JÁ é capturado (sinal `image_regen` peso 1 + dataset via migratio
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
 
+**Copiloto com MÃOS — tool use (teste do Danilo 2026-07-12: pediu "construa post + carrossel + roteiro UGC" e levou Erro 504):**
+| Fase | O quê | Notas |
+|---|---|---|
+| **A0** 🟢 | **Curar o 504 do chat** — resposta longa estoura o teto síncrono (~26s); migrar p/ background+polling (padrão da casa) ou streaming | BUG real, pré-requisito de tudo |
+| **A1** 🟢 | **Mãos de LEITURA** — tools de consulta: síntese de mercado, tendências, insights, concorrentes, biblioteca ("o que o mercado fez essa semana?" → busca o dado real) | zero risco, respostas muito mais ricas |
+| **A2** | **Mãos de CRIAÇÃO com confirmação** — pedido de produção vira PLANO ("3 entregáveis, ~X créditos — confirma?") → executa em background → cards clicáveis no chat (peça na Redação, fluxo montado, roteiro salvo). GUARDA: ação que gasta crédito SEMPRE confirma | o "construa" do teste funciona de ponta a ponta |
+| **A3** | **Encadeamento** — diretor de arte (F1/F2) julga o que o Copiloto produziu; pedido recorrente vira agente no Fluxos (F3) | fecha o elo com as fases abaixo |
+
+**Decisão de arquitetura:** as tools internas do Copiloto = as MESMAS que o MCP externo expõe (F1 do plano MCP). Um catálogo de ferramentas, duas superfícies — o chat por dentro, Figma/Canva por fora.
+
 | Fase | O quê | Notas |
 |---|---|---|
 | **F1** | **Chat diretor de arte (imagem)** — upload OU peça da Biblioteca → parecer groundado no cérebro (veredito + porquês + ajustes concretos) → botão "aplicar ajustes" regenera | peça EXTERNA entrando p/ julgamento = "marca no meio da operação" sem MCP; parecer do AI = sinal de peso MENOR que humano; humano aceitar ajuste = ensino forte |
