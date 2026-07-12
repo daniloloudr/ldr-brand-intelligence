@@ -47,9 +47,31 @@ const READ_TOOLS = [
     description: 'Dossiê dos concorrentes: scores (singularidade/consistência/posicionamento), territórios que cada um reivindica e frase-diagnóstico. Use para comparações e posicionamento competitivo.',
     input_schema: { type: 'object', properties: {} } },
 ]
+// ── A2: ferramentas de CRIAÇÃO — o Copiloto executa, mas SÓ com confirmação
+// explícita do usuário (ação que gasta crédito nunca roda sozinha).
+const CREATE_TOOLS = [
+  { name: 'gerar_imagem',
+    description: 'GERA uma imagem on-brand no Estúdio (1 crédito). Use quando pedirem para criar/gerar uma peça visual — chame DIRETAMENTE, sem pedir permissão em texto: a plataforma exibe a confirmação ao usuário automaticamente. O prompt descreve a cena em detalhe e NUNCA inclui texto/tipografia na imagem (texto é pós-produção). A estética da marca é aplicada automaticamente.',
+    input_schema: { type: 'object', properties: {
+      prompt:  { type: 'string', description: 'Descrição detalhada da cena, sem nenhum texto na imagem' },
+      formato: { type: 'string', enum: ['1:1', '9:16', '16:9', '4:5'], description: 'Proporção (padrão 4:5)' },
+    }, required: ['prompt'] } },
+  { name: 'criar_fluxo',
+    description: 'CRIA um fluxo nodal no Estúdio a partir de um objetivo (sem custo até rodar). Use para pedidos de pipeline/carrossel/campanha multi-peça — chame DIRETAMENTE, sem pedir permissão em texto: a plataforma exibe a confirmação. Retorna o link do fluxo pronto para abrir.',
+    input_schema: { type: 'object', properties: {
+      objetivo: { type: 'string', description: 'O que o fluxo deve produzir, em 1-2 frases' },
+    }, required: ['objetivo'] } },
+]
+const CREATE_NAMES = new Set(CREATE_TOOLS.map(t => t.name))
+
 const TOOL_LABEL = {
   consultar_mercado: 'o mercado', consultar_tendencias: 'as tendências',
   consultar_insights: 'os insights do consumidor', consultar_concorrentes: 'os concorrentes',
+  gerar_imagem: 'o Estúdio (gerando imagem)', criar_fluxo: 'o Estúdio (montando fluxo)',
+}
+const ACTION_LABEL = {
+  gerar_imagem: { titulo: 'Gerar imagem no Estúdio', custo: '1 crédito' },
+  criar_fluxo:  { titulo: 'Criar fluxo no Estúdio',  custo: 'sem custo até rodar' },
 }
 
 async function execReadTool(name, input, workspaceId) {
@@ -109,6 +131,54 @@ async function execReadTool(name, input, workspaceId) {
       })
     }
     return JSON.stringify({ erro: `ferramenta desconhecida: ${name}` })
+  } catch (e) {
+    return JSON.stringify({ erro: e.message })
+  }
+}
+
+// Executa uma ação de CRIAÇÃO já confirmada pelo usuário.
+async function execCreateTool(name, input, { brandId }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
+
+    if (name === 'gerar_imagem') {
+      const res = await fetch('/.netlify/functions/studio-generate', {
+        method: 'POST', headers: auth,
+        // sem `model`: cai no DEFAULT_MODEL do servidor ('auto' não é id do fal — dava 502)
+        body: JSON.stringify({ brand_id: brandId, prompt: input?.prompt || '', formato: input?.formato || '4:5', use_brand: true, references: [] }),
+      })
+      const j = await res.json()
+      if (!res.ok) return JSON.stringify({ erro: j.error || `Erro ${res.status}` })
+      // aguarda a geração concluir (fila + webhook; até ~3 min)
+      for (let i = 0; i < 36; i++) {
+        await new Promise(r => setTimeout(r, 5000))
+        const { data: g } = await supabase.from('studio_generations')
+          .select('status, image_url, error').eq('id', j.generation_id).maybeSingle()
+        if (g?.status === 'done' && g.image_url)
+          return JSON.stringify({ status: 'pronta', image_url: g.image_url, instrucao: 'Inclua a URL da imagem na resposta para o usuário vê-la. Lembre que ela também fica na galeria do Estúdio.' })
+        if (g?.status === 'error') return JSON.stringify({ erro: g.error || 'falha na geração' })
+      }
+      return JSON.stringify({ erro: 'tempo esgotado aguardando a geração (a peça pode aparecer na galeria do Estúdio em instantes)' })
+    }
+
+    if (name === 'criar_fluxo') {
+      const res = await fetch('/.netlify/functions/studio-workflow-build', {
+        method: 'POST', headers: auth,
+        body: JSON.stringify({ brand_id: brandId, prompt: input?.objetivo || '' }),
+      })
+      const j = await res.json()
+      if (!res.ok) return JSON.stringify({ erro: j.error || `Erro ${res.status}` })
+      const { data: brand } = await supabase.from('brands').select('workspace_id').eq('id', brandId).single()
+      const { data: wf, error } = await supabase.from('studio_workflows').insert({
+        workspace_id: brand?.workspace_id, brand_id: brandId, is_template: false,
+        nome: j.nome || 'Fluxo do Copiloto', nodes: j.nodes || [], edges: j.edges || [],
+      }).select('id, nome').single()
+      if (error) return JSON.stringify({ erro: error.message })
+      return JSON.stringify({ status: 'criado', nome: wf.nome, link: `#/app/brands/${brandId}/studio/workflow/${wf.id}`, instrucao: 'Inclua o link na resposta para o usuário abrir o fluxo.' })
+    }
+
+    return JSON.stringify({ erro: `ação desconhecida: ${name}` })
   } catch (e) {
     return JSON.stringify({ erro: e.message })
   }
@@ -181,7 +251,8 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
     if (vi.foto_mood)  prompt += `\n- Mood fotográfico: ${vi.foto_mood}`
   }
 
-  prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.`
+  prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
+Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Imagens geradas NUNCA contêm texto ou tipografia.`
 
   if (ragChunks?.length) {
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
@@ -280,7 +351,8 @@ async function runAssistantStream({ messages, systemPrompt, tools, execTool, onT
 
     const results = []
     for (const tu of assistantContent.filter(c => c.type === 'tool_use')) {
-      onStatus?.(`Consultando ${TOOL_LABEL[tu.name] || tu.name}…`)
+      // criação: o card de confirmação é o status; o spinner entra só após confirmar
+      if (!CREATE_NAMES.has(tu.name)) onStatus?.(`Consultando ${TOOL_LABEL[tu.name] || tu.name}…`)
       const out = await execTool(tu.name, tu.input)
       results.push({ type: 'tool_result', tool_use_id: tu.id, content: out })
     }
@@ -289,6 +361,27 @@ async function runAssistantStream({ messages, systemPrompt, tools, execTool, onT
     if (fullText && !fullText.endsWith('\n\n')) { fullText += '\n\n'; onText(fullText) }
   }
   onDone(fullText)
+}
+
+// Torna URLs vivas no chat: imagem geradas viram <img>, links viram âncora
+// (inclusive rotas internas #/app/… que as ações de criação devolvem).
+const IMG_URL = /(https?:\/\/[^\s)]+(?:\.png|\.jpe?g|\.webp|\.gif)(?:\?[^\s)]*)?|https?:\/\/[^\s)]*(?:fal\.media|\/storage\/v1\/object)[^\s)]*)/i
+function renderRich(text) {
+  const limpo = String(text || '').replace(/!?\[[^\]]*\]\((https?:\/\/[^\s)]+|#\/app\/[^\s)]+)\)/g, '$1')
+  const parts = limpo.split(/(https?:\/\/[^\s)]+|#\/app\/[^\s)]+)/g)
+  return parts.map((part, i) => {
+    if (IMG_URL.test(part) && /^https?:\/\//.test(part))
+      return (
+        <Box key={i} sx={{ my: 1 }}>
+          <img src={part} alt="peça gerada" style={{ maxWidth: '100%', maxHeight: 340, borderRadius: 8, display: 'block' }} />
+        </Box>
+      )
+    if (/^https?:\/\//.test(part))
+      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#7F77DD', fontWeight: 700 }}>{part}</a>
+    if (part.startsWith('#/app/'))
+      return <a key={i} href={part} style={{ color: '#7F77DD', fontWeight: 700 }}>abrir no Estúdio →</a>
+    return part
+  })
 }
 
 function ChatBubble({ msg, question, onTeach }) {
@@ -323,8 +416,8 @@ function ChatBubble({ msg, question, onTeach }) {
           borderColor: 'divider',
           borderRadius: isUser ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
         }}>
-          <Typography sx={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-            {msg.content}
+          <Typography component="div" sx={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {renderRich(msg.content)}
           </Typography>
         </Paper>
         {/* Ensinar a marca — vira sinal assistant_correction p/ a Camada de Inteligência */}
@@ -377,6 +470,7 @@ export function BrandAssistant({ brandId }) {
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
   const [toolStatus, setToolStatus] = useState('')   // "Consultando o mercado…" (tools de leitura)
+  const [pendingAction, setPendingAction] = useState(null)   // A2: ação de criação aguardando confirmação { name, input, resolve }
   const [rateLimitSec, setRateLimit] = useState(0)
   const [loading, setLoading]       = useState(true)
   const [chunksCount, setChunksCount] = useState(0)
@@ -470,6 +564,21 @@ export function BrandAssistant({ brandId }) {
     }
   }
 
+  async function confirmarAcao() {
+    const pa = pendingAction
+    if (!pa) return
+    setPendingAction(null)
+    setToolStatus(`Consultando ${TOOL_LABEL[pa.name] || pa.name}…`)
+    const out = await execCreateTool(pa.name, pa.input, { brandId })
+    pa.resolve(out)
+  }
+  function cancelarAcao() {
+    const pa = pendingAction
+    if (!pa) return
+    setPendingAction(null)
+    pa.resolve(JSON.stringify({ cancelado: true, motivo: 'O usuário NÃO confirmou a ação. Não tente de novo — pergunte se quer ajustar algo.' }))
+  }
+
   async function sendMessage() {
     if (!input.trim() || streaming) return
 
@@ -528,8 +637,12 @@ export function BrandAssistant({ brandId }) {
     await runAssistantStream({
       messages: history,
       systemPrompt,
-      tools: READ_TOOLS,
-      execTool: (name, inp) => execReadTool(name, inp, workspace?.id),
+      tools: [...READ_TOOLS, ...CREATE_TOOLS],
+      execTool: (name, inp) => {
+        if (!CREATE_NAMES.has(name)) return execReadTool(name, inp, workspace?.id)
+        // criação: pausa o loop e espera a confirmação humana (portão de crédito)
+        return new Promise(resolve => setPendingAction({ name, input: inp, resolve }))
+      },
       onStatus: st => setToolStatus(st),
       onText: text => setStreamText(text),
       onDone: async (fullText) => {
@@ -669,6 +782,28 @@ export function BrandAssistant({ brandId }) {
 
           {streaming && streamText && (
             <ChatBubble msg={{ role: 'assistant', content: streamText + '▋' }} />
+          )}
+
+          {pendingAction && (
+            <Paper sx={{ p: 2, mb: 2, ml: 4.5, maxWidth: 520, borderRadius: 2, border: '1px solid rgba(127,119,221,0.45)', bgcolor: 'rgba(127,119,221,0.06)' }}>
+              <Stack direction="row" spacing={1} alignItems="center" mb={0.75}>
+                <AutoAwesomeIcon sx={{ fontSize: 16, color: '#7F77DD' }} />
+                <Typography sx={{ fontSize: 13, fontWeight: 800 }}>
+                  {ACTION_LABEL[pendingAction.name]?.titulo || pendingAction.name}
+                </Typography>
+                <Chip label={ACTION_LABEL[pendingAction.name]?.custo || ''} size="small"
+                  sx={{ height: 18, fontSize: 10, fontWeight: 800, bgcolor: 'rgba(127,119,221,0.14)', color: '#7F77DD' }} />
+              </Stack>
+              <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.5, mb: 1.5 }}>
+                {pendingAction.input?.prompt || pendingAction.input?.objetivo || ''}
+                {pendingAction.input?.formato ? ` · formato ${pendingAction.input.formato}` : ''}
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="contained" disableElevation onClick={confirmarAcao}
+                  sx={{ fontWeight: 800, bgcolor: '#7F77DD', '&:hover': { bgcolor: '#6A62C8' } }}>Confirmar e executar</Button>
+                <Button size="small" variant="text" color="inherit" onClick={cancelarAcao} sx={{ fontWeight: 700 }}>Agora não</Button>
+              </Stack>
+            </Paper>
           )}
 
           {streaming && toolStatus && (
