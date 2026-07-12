@@ -84,6 +84,13 @@ Hoje o regen JÁ é capturado (sinal `image_regen` peso 1 + dataset via migratio
 - **Motivo estruturado no clique** 🟢 — popover de 1 clique ao regerar: *Fora da marca · Não é fiel ao produto · Qualidade baixa · Composição ruim · Outro (livre)* → categoria no payload; destilador aprende padrões por tipo de falha; o chip "não é fiel" é a telemetria do juiz de fidelidade do piloto Hering.
 - **Métrica de convergência** 🟢 — regens referenciam a peça original (ref_id): medir tentativas até aprovação por marca/modelo/tipo de peça. Prova o cérebro melhorando ("v3 = 4 tentativas/peça → v6 = 1,8") e vira argumento de custo na venda.
 
+### 🗂 Casa do Conteúdo (anotado 2026-07-12 — "ver com calma", mas PRÉ-REQUISITO do A3)
+Problema nomeado pelo Danilo: conteúdo gerado não tem casa organizada — imagem/vídeo têm a Biblioteca, mas TEXTO criado não persiste em lugar nenhum (Redação gera e não salva por design; peças escritas do Copiloto vivem só na conversa), e a página de CAMPANHAS ficou ÓRFÃ da nova arquitetura (rotas existem — Campaigns/CampaignNew/CampaignDetail — mas nenhuma entrada de menu na árvore nova). Crítico para o A3: "pedir campanha no chat e ele gerar tudo" precisa aterrissar organizado.
+- **1. Peças escritas ganham casa** 🟢 — migration `pecas_escritas` (brand_id, titulo, formato, conteudo md, origem redacao/copiloto/campanha); Redação e Copiloto passam a salvar; vira aba na Biblioteca.
+- **2. Biblioteca vira o HUB único** 🟡 — abas/filtros por tipo (imagens · vídeos · textos · campanhas), busca, agrupamento por campanha.
+- **3. Campanhas de volta ao mapa** 🟢 — decidir a porta (entrada no menu do Estúdio ou dentro da Biblioteca) e ressuscitar as rotas órfãs; campanha = agrupador de peças (o "dossiê" que o A3 preenche).
+- **4. A3 entrega NA casa** — quando o chat construir campanha completa, cada peça nasce já vinculada (campanha_id) e o card do chat aponta pra página da campanha.
+
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
 
