@@ -226,6 +226,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (['prompt', 'context', 'formato', 'generate', 'videoGen', 'note'].includes(n.type)) data.onChange = updateNodeData
     if (n.type === 'prompt') data.onImprove = improvePrompt
     if (['generate', 'videoGen', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
+    if (n.type === 'artGate') data.onRegen = regenNodeCb   // re-julgar a peça
     if (['preview', 'app', 'videoGen'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput; data.onOpen = openLightbox }
     return { ...n, style, data }
@@ -277,7 +278,7 @@ export function StudioCanvas({ brandId, workflowId }) {
 
           const loaded = (data.nodes || []).map(n => attachHandlersRef.current(n)).map(n => {
             const d = { ...n.data }
-            if (d.status === 'running') d.status = 'idle'   // limpa estados transitórios
+            if (d.status === 'running' || d.status === 'julgando') d.status = 'idle'   // limpa estados transitórios
             if (d.loading) d.loading = false
             const hit = byNode[n.id]
             if (hit) {
@@ -490,6 +491,44 @@ export function StudioCanvas({ brandId, workflowId }) {
     } catch (e) { updateNodeData(v.id, { status: 'error', error: e.message }); return null }
   }
 
+  // F2 · Portão do Diretor de Arte: julga a peça vinda de montante contra o
+  // cérebro (art-review). Aprovada/ressalvas → a imagem passa adiante; reprovada
+  // → o fluxo PARA neste ramo, com o parecer no nó. Cada parecer vira sinal.
+  async function runGate(gate, ctx) {
+    const up = imageUpstreamOf(gate.id)
+    const imageUrl = toUrls(ctx.outputs[up?.id])[0]
+    if (!imageUrl) return false
+    ctx.dispatched.add(gate.id)
+    updateNodeData(gate.id, { status: 'julgando', veredito: null, resumo: null, ajustes: null, error: null, outputUrl: null })
+    try {
+      const res = await fetch('/.netlify/functions/art-review', { method: 'POST', headers: ctx.auth,
+        body: JSON.stringify({ brand_id: brandId, image_url: imageUrl, criterio: (gate.data?.criterio || '').trim() || undefined }) })
+      const j = await res.json()
+      if (!res.ok) { updateNodeData(gate.id, { status: 'error', error: j.error || `Erro ${res.status}` }); return false }
+      const passou = j.veredito !== 'reprovada'
+      updateNodeData(gate.id, { status: 'done', veredito: j.veredito, resumo: j.resumo, ajustes: j.ajustes, outputUrl: passou ? imageUrl : null })
+      if (passou) ctx.outputs[gate.id] = imageUrl
+      return passou
+    } catch (e) {
+      updateNodeData(gate.id, { status: 'error', error: e.message })
+      return false
+    }
+  }
+
+  // Roda todos os portões prontos (upstream com imagem) ainda não julgados; em
+  // série, repetindo até estabilizar (portão atrás de portão).
+  async function runReadyGates(gateNodes, ctx) {
+    let rodou = true
+    while (rodou) {
+      rodou = false
+      for (const g of gateNodes) {
+        if (ctx.dispatched.has(g.id)) continue
+        const up = imageUpstreamOf(g.id)
+        if (up && toUrls(ctx.outputs[up.id]).length) { await runGate(g, ctx); rodou = true }
+      }
+    }
+  }
+
   // Semeia tudo que já foi produzido no grafo (imageInput, app, generate) — base
   // para regerar 1 nó usando as infos anteriores (estilo n8n).
   function seedExistingOutputs() {
@@ -497,7 +536,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     for (const n of nodes) {
       if (n.type === 'imageInput' && imgUrls(n.data).length) out[n.id] = imgUrls(n.data)
       else if (n.type === 'preview' && n.data?.imageUrl) out[n.id] = n.data.imageUrl
-      else if ((n.type === 'app' || n.type === 'generate') && n.data?.outputUrl) out[n.id] = n.data.outputUrl
+      else if ((n.type === 'app' || n.type === 'generate' || n.type === 'artGate') && n.data?.outputUrl) out[n.id] = n.data.outputUrl
     }
     return out
   }
@@ -506,13 +545,15 @@ export function StudioCanvas({ brandId, workflowId }) {
     let genNodes = nodes.filter(n => n.type === 'generate')
     let appNodes = nodes.filter(n => n.type === 'app')
     let vidNodes = nodes.filter(n => n.type === 'videoGen')
+    let gateNodes = nodes.filter(n => n.type === 'artGate')
     if (rootId) {                                  // run seletivo: só o nó + descendentes
       const keep = downstreamClosure(rootId)
       genNodes = genNodes.filter(n => keep.has(n.id))
       appNodes = appNodes.filter(n => keep.has(n.id))
       vidNodes = vidNodes.filter(n => keep.has(n.id))
+      gateNodes = gateNodes.filter(n => keep.has(n.id))
     }
-    if (!genNodes.length && !appNodes.length && !vidNodes.length) return setMsg('Adicione nós ao canvas.')
+    if (!genNodes.length && !appNodes.length && !vidNodes.length && !gateNodes.length) return setMsg('Adicione nós ao canvas.')
     setMsg('')
 
     const auth = await authHeaders()
@@ -523,7 +564,9 @@ export function StudioCanvas({ brandId, workflowId }) {
     // imageInput já tem a imagem pronta → semeia outputs (alimenta apps/refs a jusante)
     for (const n of nodes.filter(n => n.type === 'imageInput' && imgUrls(n.data).length)) outputs[n.id] = imgUrls(n.data)
     // Run seletivo: reusa imagens já produzidas a montante (apps/generates) sem reprocessar
-    if (rootId) for (const [nid, url] of Object.entries(seedExistingOutputs())) { const node = nodes.find(n => n.id === nid); if (node && !genNodes.includes(node) && !appNodes.includes(node)) outputs[nid] = url }
+    if (rootId) for (const [nid, url] of Object.entries(seedExistingOutputs())) { const node = nodes.find(n => n.id === nid); if (node && !genNodes.includes(node) && !appNodes.includes(node) && !gateNodes.includes(node)) outputs[nid] = url }
+    // Portões prontos já na largada (ex.: imagem de upload → diretor de arte)
+    await runReadyGates(gateNodes, ctx)
     // Generate só dispara quando todas as referências de imagem conectadas estão prontas
     const genReady = g => imageUpstreamsOf(g.id).every(u => toUrls(outputs[u.id]).length > 0)
 
@@ -535,8 +578,12 @@ export function StudioCanvas({ brandId, workflowId }) {
       const up = imageUpstreamOf(a.id)
       if (up && toUrls(outputs[up.id]).length) { const job = await dispatchAppNode(a, ctx); if (job) jobs.push(job) }
     }
-    if (!jobs.length) return setMsg('Nada para gerar — adicione um Generate/Vídeo ou conecte uma imagem a um app.')
-    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, vidNodes,
+    if (!jobs.length) {
+      // só portões rodaram (julgamento sem geração nova) — nada a acompanhar
+      if (gateNodes.some(g => dispatched.has(g.id))) { if (wfId) saveRef.current?.(); return }
+      return setMsg('Nada para gerar — adicione um Generate/Vídeo ou conecte uma imagem a um app.')
+    }
+    pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, vidNodes, gateNodes, auth,
       dispatchGenerate: g => dispatchGenerateNode(g, ctx), dispatchApp: a => dispatchAppNode(a, ctx), dispatchVideo: v => dispatchVideoNode(v, ctx), genReady })
     reloadWorkspace?.()   // saldo cai assim que os jobs são submetidos (débito já ocorreu)
   }
@@ -544,10 +591,15 @@ export function StudioCanvas({ brandId, workflowId }) {
   // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante)
   async function regenNode(nodeId) {
     const node = nodesRef.current.find(n => n.id === nodeId)
-    if (!node || !['generate', 'videoGen', 'app'].includes(node.type)) return
+    if (!node || !['generate', 'videoGen', 'app', 'artGate'].includes(node.type)) return
     setMsg('')
     const auth = await authHeaders()
     const outputs = seedExistingOutputs()
+    if (node.type === 'artGate') {   // re-julgar: usa a peça de montante já produzida
+      await runGate(node, { outputs, dispatched: new Set(), auth })
+      if (wfIdRef.current) saveRef.current?.()
+      return
+    }
     // regen: true → o servidor emite sinal de reprovação implícita da peça anterior
     const ctx = { outputs, auth, dispatched: new Set(), regen: true }
     const job = node.type === 'generate' ? await dispatchGenerateNode(node, ctx)
@@ -561,7 +613,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   // Poll concorrente + dispara apps/generates a jusante quando o upstream conclui
   function pollEngine(initialJobs, ctx) {
     if (pollRef.current) clearInterval(pollRef.current)
-    const { outputs, dispatched, genNodes, appNodes, vidNodes = [], dispatchGenerate, dispatchApp, dispatchVideo, genReady } = ctx
+    const { outputs, dispatched, genNodes, appNodes, vidNodes = [], gateNodes = [], auth = null, dispatchGenerate, dispatchApp, dispatchVideo, genReady } = ctx
     const jobs = [...initialJobs]
     const pending = new Set(jobs.map(j => j.genId))
     const start = Date.now()
@@ -607,6 +659,8 @@ export function StudioCanvas({ brandId, workflowId }) {
       }
       // encadeamento: re-varre tudo que ainda não rodou e cujas entradas já estão prontas
       // (cobre app←imagem, generate←referência e continuar a partir de um Preview)
+      // Portões primeiro: o veredito decide se o ramo continua (aprovada → outputs)
+      if (gateNodes.length && auth) await runReadyGates(gateNodes, { outputs, dispatched, auth })
       for (const a of appNodes) {
         if (dispatched.has(a.id)) continue
         const up = imageUpstreamOf(a.id)

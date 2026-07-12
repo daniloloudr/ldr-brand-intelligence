@@ -84,13 +84,34 @@ Hoje o regen JÁ é capturado (sinal `image_regen` peso 1 + dataset via migratio
 - **Motivo estruturado no clique** 🟢 — popover de 1 clique ao regerar: *Fora da marca · Não é fiel ao produto · Qualidade baixa · Composição ruim · Outro (livre)* → categoria no payload; destilador aprende padrões por tipo de falha; o chip "não é fiel" é a telemetria do juiz de fidelidade do piloto Hering.
 - **Métrica de convergência** 🟢 — regens referenciam a peça original (ref_id): medir tentativas até aprovação por marca/modelo/tipo de peça. Prova o cérebro melhorando ("v3 = 4 tentativas/peça → v6 = 1,8") e vira argumento de custo na venda.
 
+### 🗂 Casa do Conteúdo (anotado 2026-07-12 — "ver com calma", mas PRÉ-REQUISITO do A3)
+Problema nomeado pelo Danilo: conteúdo gerado não tem casa organizada — imagem/vídeo têm a Biblioteca, mas TEXTO criado não persiste em lugar nenhum (Redação gera e não salva por design; peças escritas do Copiloto vivem só na conversa), e a página de CAMPANHAS ficou ÓRFÃ da nova arquitetura (rotas existem — Campaigns/CampaignNew/CampaignDetail — mas nenhuma entrada de menu na árvore nova). Crítico para o A3: "pedir campanha no chat e ele gerar tudo" precisa aterrissar organizado.
+- **1. Peças escritas ganham casa** 🟢 — migration `pecas_escritas` (brand_id, titulo, formato, conteudo md, origem redacao/copiloto/campanha); Redação e Copiloto passam a salvar; vira aba na Biblioteca.
+- **2. Biblioteca vira o HUB único** 🟡 — abas/filtros por tipo (imagens · vídeos · textos · campanhas), busca, agrupamento por campanha.
+- **3. Campanhas de volta ao mapa** 🟢 — decidir a porta (entrada no menu do Estúdio ou dentro da Biblioteca) e ressuscitar as rotas órfãs; campanha = agrupador de peças (o "dossiê" que o A3 preenche).
+- **4. A3 entrega NA casa** — quando o chat construir campanha completa, cada peça nasce já vinculada (campanha_id) e o card do chat aponta pra página da campanha.
+
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
 
+**Copiloto com MÃOS — tool use (teste do Danilo 2026-07-12: pediu "construa post + carrossel + roteiro UGC" e levou Erro 504):**
 | Fase | O quê | Notas |
 |---|---|---|
-| **F1** | **Chat diretor de arte (imagem)** — upload OU peça da Biblioteca → parecer groundado no cérebro (veredito + porquês + ajustes concretos) → botão "aplicar ajustes" regenera | peça EXTERNA entrando p/ julgamento = "marca no meio da operação" sem MCP; parecer do AI = sinal de peso MENOR que humano; humano aceitar ajuste = ensino forte |
-| **F2** | **Nó "portão do diretor de arte" no Workflow** — gate automático: só passa peça on-brand; reprovada volta com parecer p/ regenerar | mesmo juiz da F1 como nó |
+| ~~**A0**~~ ✅ 2026-07-12 | **504 curado** — `anthropic.js` virou Functions 2.0 com pass-through do SSE (a antiga bufferizava com `await response.text()`) | validado via curl |
+| ~~**A1**~~ ✅ 2026-07-12 | **Mãos de LEITURA** — 4 tools client-side via supabase (RLS = perímetro): mercado (síntese+clipping), tendências, insights, concorrentes; loop de tool use no stream (4 rodadas), status "Consultando…" na UI | catálogo espelha o MCP |
+| ~~**A2**~~ ✅ 2026-07-12 | **Mãos de CRIAÇÃO com confirmação** — gerar_imagem (1 crédito, poll até pronta, imagem ENTREGUE no chat) e criar_fluxo (builder + link direto); card de confirmação com custo (crédito nunca roda sozinho); cancelou = modelo não insiste. Fix raiz: model:'auto' ia cru pro fal (502) | validado no browser: pedido → card → confirmar → imagem on-brand no balão |
+| **A3** | **Encadeamento** — diretor de arte (F1/F2) julga o que o Copiloto produziu; pedido recorrente vira agente no Fluxos (F3) | fecha o elo com as fases abaixo |
+
+**Regra da coerência juiz↔gerador (Danilo, 2026-07-12):** "não pode gerar o que não aprovaria — em TODOS os contextos." ✅ no chat: conceito confrontado com padrões reprovados antes de gerar + auto-julgamento (art-review) de toda peça antes da entrega (reprovada = entregue com parecer + oferta de regerar; nunca auto-retry que gasta crédito sem confirmação). 🟡 DECISÃO PENDENTE: estender o auto-julgamento às páginas Imagem/Vídeo e a todo nó Gerar dos fluxos — custo: +1 chamada de juiz por geração (~R$0,01-0,05); alternativa: portão opcional (já existe) vs. automático universal.
+
+**Regra de marca (Danilo, 2026-07-12):** logo NUNCA entra em imagem gerada por padrão (modelo alucina); só quando o cliente SOLICITAR — e sempre o ARQUIVO REAL dos Ativos como referência i2i (`gerar_imagem.inserir_logo` ✅). Vale para toda superfície de geração futura.
+
+**Decisão de arquitetura:** as tools internas do Copiloto = as MESMAS que o MCP externo expõe (F1 do plano MCP). Um catálogo de ferramentas, duas superfícies — o chat por dentro, Figma/Canva por fora.
+
+| Fase | O quê | Notas |
+|---|---|---|
+| ~~**F1**~~ ✅ 2026-07-12 | **Chat diretor de arte (imagem)** — anexo no chat → multimodal → parecer estruturado (VEREDITO·sustenta·foge·ajustes) → sinal `art_review` peso 0.8 via tool registrar_parecer | falta na fila: escolher peça DA BIBLIOTECA (hoje só upload) e "aplicar ajustes" regenerando |
+| ~~**F2**~~ ✅ 2026-07-12 | **Portão do Diretor de Arte no Workflow** — art-review.js (juiz como serviço, mesmo do chat) + nó artGate (chip por veredito, ajustes no nó, reprovada corta o ramo); parecer = sinal art_review; param `criterio` por portão = gancho do juiz de fidelidade Hering | validado: reprovou peça real citando o brand book |
 | **F3** | **Gatilhos + lote + aba Agentes** — nós de gatilho (agenda "toda seg 8h"; evento "tendência ≥8", "insight oportunidade"), nó de lote (para cada item da pauta → peça), aba Agentes em Fluxos (status, última execução, produzidas, barradas pelo juiz) | produção em massa estilo n8n criativo; caso-demo: "toda seg o agente lê síntese+tendências, gera 5 peças, juiz aprova 3, time chega com elas prontas". ⚠️ GUARDA: teto de créditos por execução/semana |
 | F4 | Vídeo no chat (frames amostrados) | depois — mais caro |
 
