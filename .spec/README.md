@@ -20,6 +20,7 @@
 | [nova-arquitetura.md](features/nova-arquitetura.md) | Árvore Strategy·Intelligence·Studio·Copilot — de-para e decisões |
 | [diagnostico.md](features/diagnostico.md) | Diagnóstico de marca (próprio e de concorrentes) |
 | [mcp-cerebro.md](features/mcp-cerebro.md) | Plano MCP (Figma/Canva) — aprovado, aguardando "vai" |
+| [piloto-hering.md](features/piloto-hering.md) | Piloto Hering: F0 (fix + mapa de modelos de fidelidade + custos) e protocolo do pilotinho |
 
 ## arquivo/ — histórico (não apagar, não atualizar)
 

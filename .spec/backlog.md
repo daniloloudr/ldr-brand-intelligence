@@ -63,9 +63,9 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 **Atividades (priorizado 2026-07-10 — o case puxa a fila do produto):**
 
 *F0 — validar fidelidade (já):*
-- [ ] F0.1 🟢 corrigir o bug da área de referências (visto na call)
-- [ ] F0.2 🟢 mapear modelos de fidelidade na fal (try-on, ghost mannequin, i2i de alta fidelidade) + custo por peça — vira argumento de venda ("melhor modelo ativo + custo do processo", prometido na call)
-- [ ] F0.3 🟢 pilotinho: 3-5 peças reais (foto no cabide + ficha técnica) → still fiel; validação com o time de marca da Hering + Rod · *gatilho: Rafael marcar a conversa*
+- [x] ~~F0.1~~ ✅ 2026-07-12 — o "errinho" era chunk morto pós-deploy (lazy import); ErrorBoundary agora recarrega sozinho
+- [x] ~~F0.2~~ ✅ 2026-07-12 — mapa completo em [`features/piloto-hering.md`](features/piloto-hering.md): FASHN try-on $0,075 ⭐ (veste a peça REAL, aceita cabide/flat-lay) · Nano Banana $0,039 · GPT Image 2 edit $0,07-0,41; **custo por produto (4 saídas) ≈ R$1-2** vs R$50-300 do estúdio tradicional
+- [ ] F0.3 🟢 pilotinho: 3-5 peças reais → duelo de fidelidade em 3 modelos + FASHN no try-on (protocolo pronto no spec) · *gatilho: Rafael marcar a conversa*
 
 *F1 — o processo (Fluxo "Guia de Compras"):*
 - [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
