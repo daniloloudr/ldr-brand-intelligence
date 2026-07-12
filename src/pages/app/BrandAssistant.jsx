@@ -29,6 +29,91 @@ const SUGESTOES = [
 const _arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
 const _join = x => _arr(x).map(o => typeof o === 'object' ? (o.hex || o.valor || o.nome || o.termo || '') : o).filter(Boolean).join(', ')
 
+// ── Copiloto com mãos · A1: ferramentas de LEITURA (client-side) ──────
+// As tools rodam NO CLIENTE via supabase autenticado — o RLS é o perímetro:
+// o chat só lê o que o usuário já pode ler. Este catálogo espelha o futuro
+// MCP (mesmas operações, outra superfície). Spec: .spec/backlog.md § Copiloto.
+const READ_TOOLS = [
+  { name: 'consultar_mercado',
+    description: 'Movimentos recentes do mercado e dos concorrentes (clipping) + a síntese do ciclo escrita pela inteligência da marca. Use para perguntas sobre mercado, concorrência recente, notícias, "o que aconteceu".',
+    input_schema: { type: 'object', properties: { dias: { type: 'number', description: 'Janela em dias (padrão 30)' } } } },
+  { name: 'consultar_tendencias',
+    description: 'Radar de tendências do setor, com relevância (1-10) e a recomendação "como a marca surfa isso". Use para perguntas sobre tendências, o que está em alta, oportunidades de conteúdo.',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'consultar_insights',
+    description: 'Insights nomeados do consumidor (elogio/atrito/oportunidade/tema/alerta) destilados da escuta social, + última leitura de sentimento. Use para perguntas sobre público, percepção e sentimento.',
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'consultar_concorrentes',
+    description: 'Dossiê dos concorrentes: scores (singularidade/consistência/posicionamento), territórios que cada um reivindica e frase-diagnóstico. Use para comparações e posicionamento competitivo.',
+    input_schema: { type: 'object', properties: {} } },
+]
+const TOOL_LABEL = {
+  consultar_mercado: 'o mercado', consultar_tendencias: 'as tendências',
+  consultar_insights: 'os insights do consumidor', consultar_concorrentes: 'os concorrentes',
+}
+
+async function execReadTool(name, input, workspaceId) {
+  try {
+    if (name === 'consultar_mercado') {
+      const desde = new Date(Date.now() - (input?.dias || 30) * 86400000).toISOString()
+      const [{ data: sint }, { data: clips }, { data: concs }] = await Promise.all([
+        supabase.from('market_sinteses').select('bullets, para_marca, mencoes, created_at')
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(1),
+        supabase.from('concorrente_clipping').select('concorrente_id, titulo, sentiment, score_impacto, created_at')
+          .eq('workspace_id', workspaceId).gte('created_at', desde).order('score_impacto', { ascending: false }).limit(12),
+        supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspaceId),
+      ])
+      const nome = Object.fromEntries((concs || []).map(c => [c.id, c.nome]))
+      return JSON.stringify({
+        sintese_do_ciclo: sint?.[0] || null,
+        movimentos: (clips || []).map(c => ({ quem: nome[c.concorrente_id] || '?', titulo: c.titulo, sentimento: c.sentiment, impacto: c.score_impacto, em: (c.created_at || '').slice(0, 10) })),
+      })
+    }
+    if (name === 'consultar_tendencias') {
+      const { data } = await supabase.from('tendencias')
+        .select('titulo, conteudo, categoria, relevancia, horizonte, como_surfar, created_at')
+        .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(8)
+      return JSON.stringify({ tendencias: data || [] })
+    }
+    if (name === 'consultar_insights') {
+      const [{ data: ins }, { data: snap }] = await Promise.all([
+        supabase.from('consumer_insights').select('batch_id, tipo, titulo, insight, acao, persona, evidencias, created_at')
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(20),
+        supabase.from('sentiment_snapshots').select('data, positivo_pct, neutro_pct, negativo_pct, total_mencoes')
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(1),
+      ])
+      const lote = ins?.length ? ins.filter(i => i.batch_id === ins[0].batch_id) : []
+      return JSON.stringify({
+        insights: lote.map(({ batch_id: _b, ...i }) => i),
+        sentimento_atual: snap?.[0] || null,
+      })
+    }
+    if (name === 'consultar_concorrentes') {
+      const [{ data: concs }, { data: diags }] = await Promise.all([
+        supabase.from('concorrentes').select('id, nome, dominio').eq('workspace_id', workspaceId).eq('ativo', true),
+        supabase.from('diagnosticos_concorrentes').select('concorrente_id, scores, dados, created_at')
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }),
+      ])
+      const ultimo = {}
+      for (const d of diags || []) if (!ultimo[d.concorrente_id]) ultimo[d.concorrente_id] = d
+      return JSON.stringify({
+        concorrentes: (concs || []).map(c => {
+          const d = ultimo[c.id]
+          return {
+            nome: c.nome, dominio: c.dominio,
+            scores: d?.scores || null,
+            frase: d?.dados?.frase_diagnostico || null,
+            territorios: (d?.dados?.territorios_possiveis || []).map(t => t?.nome).filter(Boolean),
+          }
+        }),
+      })
+    }
+    return JSON.stringify({ erro: `ferramenta desconhecida: ${name}` })
+  } catch (e) {
+    return JSON.stringify({ erro: e.message })
+  }
+}
+
 function buildSystemPrompt(brand, book, ragChunks, intelligence) {
   const v  = book?.verbal_identity || {}
   const vi = book?.visual_identity || {}
@@ -58,11 +143,11 @@ function buildSystemPrompt(brand, book, ragChunks, intelligence) {
     missao || proposito || paleta || (ragChunks?.length) || intelligence?.modelo)
 
   if (!hasContent) {
-    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma LOUDR OS.
+    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma s1ngulr.
 Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
   }
 
-  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma LOUDR OS.
+  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma s1ngulr.
 Você conhece profundamente esta marca e responde com base exclusivamente no brand book abaixo.
 Seja estratégico, direto e on-brand. Nunca invente informações que não estão no brand book.
 
@@ -96,7 +181,7 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
     if (vi.foto_mood)  prompt += `\n- Mood fotográfico: ${vi.foto_mood}`
   }
 
-  prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.`
+  prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.`
 
   if (ragChunks?.length) {
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
@@ -108,46 +193,54 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
   return prompt
 }
 
-async function runAssistantStream({ messages, systemPrompt, onText, onDone, onError, onRateLimit }) {
-  let attempt = 0
-  while (attempt < MAX_RETRIES) {
-    attempt++
-    try {
-      const headers = { 'Content-Type': 'application/json' }
-      if (import.meta.env.DEV) {
-        headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_KEY || ''
-      }
+// Stream + loop de tool use: quando o modelo pede uma ferramenta (stop_reason
+// 'tool_use'), executa no cliente, devolve o resultado e continua a conversa —
+// até 4 rodadas. O texto flui no MESMO balão entre as rodadas.
+async function runAssistantStream({ messages, systemPrompt, tools, execTool, onText, onStatus, onDone, onError, onRateLimit }) {
+  const msgs = messages.map(m => ({ role: m.role, content: m.content }))
+  let fullText = ''
 
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
-          max_tokens: 2048,
-          stream: true,
-          system: systemPrompt,
-          messages,
-        }),
-      })
+  for (let rodada = 0; rodada < 5; rodada++) {
+    let res, attempt = 0
+    while (true) {
+      attempt++
+      try {
+        const headers = { 'Content-Type': 'application/json' }
+        if (import.meta.env.DEV) headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_KEY || ''
+        res = await fetch(API_URL, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 4096,
+            stream: true,
+            system: systemPrompt,
+            messages: msgs,
+            ...(tools?.length ? { tools } : {}),
+          }),
+        })
+      } catch (e) { onError(e.message || 'Erro de rede'); return }
 
       if (res.status === 429 || res.status === 529) {
         if (attempt >= MAX_RETRIES) { onError('Limite de uso da API.'); return }
-        const wait = RATE_LIMIT_WAIT
         if (onRateLimit) {
-          for (let s = wait; s > 0; s--) { onRateLimit(s); await new Promise(r => setTimeout(r, 1000)) }
+          for (let s = RATE_LIMIT_WAIT; s > 0; s--) { onRateLimit(s); await new Promise(r => setTimeout(r, 1000)) }
           onRateLimit(0)
         } else {
-          await new Promise(r => setTimeout(r, wait * 1000))
+          await new Promise(r => setTimeout(r, RATE_LIMIT_WAIT * 1000))
         }
         continue
       }
+      break
+    }
+    if (!res.ok) { const e = await res.json().catch(() => ({})); onError(e?.error?.message || `Erro ${res.status}`); return }
 
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `Erro ${res.status}`) }
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = '', fullText = ''
-
+    // Lê o SSE acumulando blocos (texto + tool_use com input em JSON parcial)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = '', stopReason = null
+    const blocks = {}   // index → { type, id, name, json, text }
+    try {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -159,16 +252,43 @@ async function runAssistantStream({ messages, systemPrompt, onText, onDone, onEr
           const data = line.slice(6).trim()
           if (data === '[DONE]') continue
           let evt; try { evt = JSON.parse(data) } catch { continue }
-          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-            fullText += evt.delta.text || ''
-            onText(fullText)
+          if (evt.type === 'content_block_start')
+            blocks[evt.index] = { type: evt.content_block?.type, id: evt.content_block?.id, name: evt.content_block?.name, json: '', text: '' }
+          if (evt.type === 'content_block_delta') {
+            const b = blocks[evt.index] || (blocks[evt.index] = { type: 'text', json: '', text: '' })
+            if (evt.delta?.type === 'text_delta') { b.text += evt.delta.text || ''; fullText += evt.delta.text || ''; onText(fullText) }
+            if (evt.delta?.type === 'input_json_delta') b.json += evt.delta.partial_json || ''
           }
-          if (evt.type === 'message_stop') onDone(fullText)
+          if (evt.type === 'message_delta' && evt.delta?.stop_reason) stopReason = evt.delta.stop_reason
         }
       }
-      return
-    } catch (e) { onError(e.message || 'Erro desconhecido'); return }
+    } catch (e) { onError(e.message || 'Erro de stream'); return }
+
+    const ordered = Object.keys(blocks).sort((a, b) => a - b).map(k => blocks[k])
+    const toolUses = ordered.filter(b => b.type === 'tool_use')
+    if (stopReason !== 'tool_use' || !toolUses.length || !execTool) { onDone(fullText); return }
+
+    // O modelo pediu ferramentas: registra o turno, executa e devolve os resultados
+    const assistantContent = ordered.map(b => {
+      if (b.type === 'tool_use') {
+        let input = {}; try { input = b.json ? JSON.parse(b.json) : {} } catch { /* input vazio */ }
+        return { type: 'tool_use', id: b.id, name: b.name, input }
+      }
+      return b.text ? { type: 'text', text: b.text } : null
+    }).filter(Boolean)
+    msgs.push({ role: 'assistant', content: assistantContent })
+
+    const results = []
+    for (const tu of assistantContent.filter(c => c.type === 'tool_use')) {
+      onStatus?.(`Consultando ${TOOL_LABEL[tu.name] || tu.name}…`)
+      const out = await execTool(tu.name, tu.input)
+      results.push({ type: 'tool_result', tool_use_id: tu.id, content: out })
+    }
+    onStatus?.('')
+    msgs.push({ role: 'user', content: results })
+    if (fullText && !fullText.endsWith('\n\n')) { fullText += '\n\n'; onText(fullText) }
   }
+  onDone(fullText)
 }
 
 function ChatBubble({ msg, question, onTeach }) {
@@ -256,6 +376,7 @@ export function BrandAssistant({ brandId }) {
   const [input, setInput]           = useState('')
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
+  const [toolStatus, setToolStatus] = useState('')   // "Consultando o mercado…" (tools de leitura)
   const [rateLimitSec, setRateLimit] = useState(0)
   const [loading, setLoading]       = useState(true)
   const [chunksCount, setChunksCount] = useState(0)
@@ -374,6 +495,7 @@ export function BrandAssistant({ brandId }) {
     setInput('')
     setStreaming(true)
     setStreamText('')
+    setToolStatus('')
 
     await supabase.from('messages').insert({
       conversation_id: conv.id,
@@ -406,12 +528,16 @@ export function BrandAssistant({ brandId }) {
     await runAssistantStream({
       messages: history,
       systemPrompt,
+      tools: READ_TOOLS,
+      execTool: (name, inp) => execReadTool(name, inp, workspace?.id),
+      onStatus: st => setToolStatus(st),
       onText: text => setStreamText(text),
       onDone: async (fullText) => {
         const assistantMsg = { role: 'assistant', content: fullText, conversation_id: conv.id }
         setMessages(prev => [...prev, assistantMsg])
         setStreamText('')
         setStreaming(false)
+        setToolStatus('')
 
         await supabase.from('messages').insert({
           conversation_id: conv.id,
@@ -427,6 +553,7 @@ export function BrandAssistant({ brandId }) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Erro: ${err}`, conversation_id: conv.id }])
         setStreamText('')
         setStreaming(false)
+        setToolStatus('')
       },
       onRateLimit: (sec) => setRateLimit(sec),
     })
@@ -544,7 +671,14 @@ export function BrandAssistant({ brandId }) {
             <ChatBubble msg={{ role: 'assistant', content: streamText + '▋' }} />
           )}
 
-          {streaming && !streamText && (
+          {streaming && toolStatus && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, pl: 4.5 }}>
+              <CircularProgress size={14} sx={{ color: '#7F77DD' }} />
+              <Typography variant="caption" sx={{ color: '#7F77DD', fontWeight: 700 }}>{toolStatus}</Typography>
+            </Box>
+          )}
+
+          {streaming && !streamText && !toolStatus && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, pl: 4.5 }}>
               <CircularProgress size={14} color="primary" />
               <Typography variant="caption" color="text.secondary">
