@@ -55,6 +55,7 @@ const CREATE_TOOLS = [
     input_schema: { type: 'object', properties: {
       prompt:  { type: 'string', description: 'Descrição detalhada da cena, sem nenhum texto na imagem' },
       formato: { type: 'string', enum: ['1:1', '9:16', '16:9', '4:5'], description: 'Proporção (padrão 4:5)' },
+      inserir_logo: { type: 'boolean', description: 'true SOMENTE se o usuário pediu explicitamente a logo/marca na imagem — a plataforma compõe com o ARQUIVO REAL do repositório de Ativos (nunca desenhe/invente a logo)' },
     }, required: ['prompt'] } },
   { name: 'criar_fluxo',
     description: 'CRIA um fluxo nodal no Estúdio a partir de um objetivo (sem custo até rodar). Use para pedidos de pipeline/carrossel/campanha multi-peça — chame DIRETAMENTE, sem pedir permissão em texto: a plataforma exibe a confirmação. Retorna o link do fluxo pronto para abrir.',
@@ -143,10 +144,23 @@ async function execCreateTool(name, input, { brandId }) {
     const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
 
     if (name === 'gerar_imagem') {
+      // REGRA DE MARCA: logo só entra quando o usuário pediu — e é o ARQUIVO REAL
+      // do repositório de Ativos como referência i2i (nunca a logo "desenhada").
+      let references = []
+      let prompt = input?.prompt || ''
+      if (input?.inserir_logo) {
+        const { data: logos } = await supabase.from('brand_assets').select('valor, metadata')
+          .eq('brand_id', brandId).eq('tipo', 'logo').order('created_at', { ascending: true })
+        const comUrl = (logos || []).filter(l => /^https?:\/\//.test(l?.valor || ''))
+        const logo = comUrl.find(l => l.metadata?.header) || comUrl[0]
+        if (!logo) return JSON.stringify({ erro: 'O repositório de Ativos não tem logo em arquivo de imagem (URL). Peça ao usuário para subir a logo em Estúdio → Ativos antes de inserir na peça.' })
+        references = [logo.valor]
+        prompt += '\n\nComponha na peça a LOGO OFICIAL fornecida como imagem de referência — aplique-a fiel, discreta e bem posicionada, sem redesenhar, distorcer ou alterar cores da logo.'
+      }
       const res = await fetch('/.netlify/functions/studio-generate', {
         method: 'POST', headers: auth,
         // sem `model`: cai no DEFAULT_MODEL do servidor ('auto' não é id do fal — dava 502)
-        body: JSON.stringify({ brand_id: brandId, prompt: input?.prompt || '', formato: input?.formato || '4:5', use_brand: true, references: [] }),
+        body: JSON.stringify({ brand_id: brandId, prompt, formato: input?.formato || '4:5', use_brand: true, references }),
       })
       const j = await res.json()
       if (!res.ok) return JSON.stringify({ erro: j.error || `Erro ${res.status}` })
@@ -252,7 +266,7 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
   }
 
   prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
-Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Imagens geradas NUNCA contêm texto ou tipografia.`
+Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).`
 
   if (ragChunks?.length) {
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
@@ -797,6 +811,7 @@ export function BrandAssistant({ brandId }) {
               <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.5, mb: 1.5 }}>
                 {pendingAction.input?.prompt || pendingAction.input?.objetivo || ''}
                 {pendingAction.input?.formato ? ` · formato ${pendingAction.input.formato}` : ''}
+                {pendingAction.input?.inserir_logo ? ' · 🏷 com a logo oficial dos Ativos' : ''}
               </Typography>
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="contained" disableElevation onClick={confirmarAcao}
