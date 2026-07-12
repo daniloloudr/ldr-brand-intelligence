@@ -7,6 +7,8 @@ import SendIcon from '@mui/icons-material/Send'
 import AddIcon from '@mui/icons-material/Add'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import CloseIcon from '@mui/icons-material/Close'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
@@ -63,6 +65,17 @@ const CREATE_TOOLS = [
       objetivo: { type: 'string', description: 'O que o fluxo deve produzir, em 1-2 frases' },
     }, required: ['objetivo'] } },
 ]
+// F1 · diretor de arte: parecer estruturado vira SINAL para o cérebro (peso
+// menor que voto humano — é julgamento da IA, não ensino). Auto-executa.
+const REVIEW_TOOL = {
+  name: 'registrar_parecer',
+  description: 'REGISTRA o veredito do seu parecer de diretor de arte sobre uma imagem enviada pelo usuário. Chame SEMPRE que avaliar uma peça (antes do parecer completo em texto). Não pede confirmação.',
+  input_schema: { type: 'object', properties: {
+    veredito: { type: 'string', enum: ['aprovada', 'aprovada_com_ressalvas', 'reprovada'] },
+    resumo:   { type: 'string', description: 'O parecer em 1 frase' },
+  }, required: ['veredito', 'resumo'] },
+}
+
 const CREATE_NAMES = new Set(CREATE_TOOLS.map(t => t.name))
 
 const TOOL_LABEL = {
@@ -266,7 +279,8 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
   }
 
   prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
-Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).`
+Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovada / Aprovada com ressalvas / Reprovada) · **O que sustenta a marca** · **O que foge** · **Ajustes concretos** (lista acionável). Seja específico e franco — cite cores, composição e elementos reais da imagem.
+Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).`
 
   if (ragChunks?.length) {
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
@@ -485,6 +499,10 @@ export function BrandAssistant({ brandId }) {
   const [streamText, setStreamText] = useState('')
   const [toolStatus, setToolStatus] = useState('')   // "Consultando o mercado…" (tools de leitura)
   const [pendingAction, setPendingAction] = useState(null)   // A2: ação de criação aguardando confirmação { name, input, resolve }
+  const [anexo, setAnexo] = useState(null)                    // F1: imagem anexada { url } aguardando envio
+  const [anexando, setAnexando] = useState(false)
+  const fileRef = useRef(null)
+  const ultimaImagemRef = useRef(null)                        // última peça avaliada (vai no sinal do parecer)
   const [rateLimitSec, setRateLimit] = useState(0)
   const [loading, setLoading]       = useState(true)
   const [chunksCount, setChunksCount] = useState(0)
@@ -593,8 +611,17 @@ export function BrandAssistant({ brandId }) {
     pa.resolve(JSON.stringify({ cancelado: true, motivo: 'O usuário NÃO confirmou a ação. Não tente de novo — pergunte se quer ajustar algo.' }))
   }
 
+  async function anexarImagem(file) {
+    if (!file || !file.type?.startsWith('image/')) return
+    setAnexando(true)
+    const path = `${brandId}/chat/${Date.now()}-${(file.name || 'peca').replace(/[^\w.\-]/g, '_')}`
+    const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+    if (!error) setAnexo({ url: supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl })
+    setAnexando(false)
+  }
+
   async function sendMessage() {
-    if (!input.trim() || streaming) return
+    if ((!input.trim() && !anexo?.url) || streaming) return
 
     let conv = activeConv
     if (!conv) {
@@ -613,9 +640,14 @@ export function BrandAssistant({ brandId }) {
       setConvs(prev => [data, ...prev])
     }
 
-    const userMsg = { role: 'user', content: input.trim(), conversation_id: conv.id }
+    const imgUrl = anexo?.url || null
+    const texto = input.trim() || (imgUrl ? 'Avalie esta peça como diretor de arte da marca.' : '')
+    // display/persistência: URL no texto (renderRich mostra a imagem); API: bloco de imagem real
+    const userMsg = { role: 'user', content: imgUrl ? `${imgUrl}\n${texto}` : texto, conversation_id: conv.id }
+    if (imgUrl) ultimaImagemRef.current = imgUrl
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    setAnexo(null)
     setStreaming(true)
     setStreamText('')
     setToolStatus('')
@@ -647,12 +679,27 @@ export function BrandAssistant({ brandId }) {
     const history = [...messages, userMsg]
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }))
+    if (imgUrl) history[history.length - 1] = {
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'url', url: imgUrl } },
+        { type: 'text', text: texto },
+      ],
+    }
 
     await runAssistantStream({
       messages: history,
       systemPrompt,
-      tools: [...READ_TOOLS, ...CREATE_TOOLS],
-      execTool: (name, inp) => {
+      tools: [...READ_TOOLS, ...CREATE_TOOLS, REVIEW_TOOL],
+      execTool: async (name, inp) => {
+        if (name === 'registrar_parecer') {
+          const { error } = await supabase.from('brand_signals').insert({
+            brand_id: brand?.id, workspace_id: workspace?.id,
+            tipo: 'art_review', fonte: 'copiloto', ref_id: conv.id, peso: 0.8,
+            payload: { veredito: inp?.veredito || null, resumo: (inp?.resumo || '').slice(0, 400), image_url: ultimaImagemRef.current },
+          })
+          return JSON.stringify(error ? { erro: error.message } : { ok: true, instrucao: 'Parecer registrado. Agora escreva o parecer completo: VEREDITO · o que sustenta a marca · o que foge · ajustes concretos.' })
+        }
         if (!CREATE_NAMES.has(name)) return execReadTool(name, inp, workspace?.id)
         // criação: pausa o loop e espera a confirmação humana (portão de crédito)
         return new Promise(resolve => setPendingAction({ name, input: inp, resolve }))
@@ -842,7 +889,24 @@ export function BrandAssistant({ brandId }) {
 
         {/* Input */}
         <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          {anexo?.url && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <img src={anexo.url} alt="peça anexada" style={{ height: 44, borderRadius: 6 }} />
+              <Typography sx={{ fontSize: 12, color: 'text.secondary', flex: 1 }}>Peça anexada — o Copiloto avalia como diretor de arte</Typography>
+              <IconButton size="small" onClick={() => setAnexo(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+            </Box>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" hidden
+            onChange={e => { anexarImagem(e.target.files?.[0]); e.target.value = '' }} />
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+            <Tooltip title="Anexar peça para o diretor de arte avaliar">
+              <span>
+                <IconButton onClick={() => fileRef.current?.click()} disabled={streaming || anexando}
+                  sx={{ borderRadius: 2, width: 42, height: 42, flexShrink: 0, border: '1px solid', borderColor: 'divider' }}>
+                  {anexando ? <CircularProgress size={16} /> : <ImageOutlinedIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <TextField
               fullWidth
               multiline
@@ -858,7 +922,7 @@ export function BrandAssistant({ brandId }) {
             />
             <IconButton
               onClick={sendMessage}
-              disabled={!input.trim() || streaming}
+              disabled={(!input.trim() && !anexo?.url) || streaming}
               sx={{
                 bgcolor: 'primary.main', color: '#fff',
                 borderRadius: 2, width: 42, height: 42, flexShrink: 0,

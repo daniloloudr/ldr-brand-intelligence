@@ -259,6 +259,8 @@ function fmtSignalBody(s) {
     return `[conteúdo ADOTADO pelo time] ${p.item_tipo === 'ideia' ? 'ideia' : 'keyword'}="${(p.titulo || '').slice(0, 120)}" formato=${p.formato || '?'} intenção=${p.intencao || '?'} briefing="${(p.briefing || '').slice(0, 400)}"`
   if (s.tipo === 'writing_edit')
     return `[COPY REESCRITA PELO TIME — ensino de voz] seção="${p.secao || '?'}" formato=${p.formato || '?'} · a IA escreveu: "${(p.original || '').slice(0, 300)}" · o time preferiu: "${(p.edicao || '').slice(0, 400)}"`
+  if (s.tipo === 'art_review')
+    return `[PARECER DO DIRETOR DE ARTE (IA) sobre peça enviada] veredito=${p.veredito || '?'} "${(p.resumo || '').slice(0, 300)}"`
   if (s.tipo === 'image_regen')
     return `[REGENERADO — reprovação implícita] provider=${p.provider || '?'} formato=${p.formato || '?'} tipo=${p.media_type || 'image'}${p.ajuste ? ` · o usuário pediu para ajustar: "${p.ajuste}"` : ''} prompt="${(p.prompt || '').slice(0, 300)}" (ref:${s.ref_id})`
   return `[${s.tipo}] ${JSON.stringify(p).slice(0, 300)}`
@@ -288,6 +290,7 @@ const SYSTEM = [
   '- conteudo: derive de content_used e campanhas aprovadas — os TEMAS, formatos e ângulos de conteúdo que o time realmente adota. Se não houver sinal de conteúdo, deixe as listas vazias.',
   '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas e vence empates de recência.',
   '- content_used = o time ADOTOU um conteúdo/briefing gerado (copiou pra usar). Aprenda com ele os TEMAS, formatos e ângulos de conteúdo que a marca realmente usa — alimenta voz, do_dont e fatos de território de conteúdo.',
+  '- art_review = parecer do DIRETOR DE ARTE IA sobre peça enviada (interna ou externa). É julgamento da máquina, não do humano — pese MENOS que voto/ensino humano; use para reforçar padrões visuais quando corroborado.',
   '- trend = tendências do SETOR (radar de mercado, não a marca). Use como contexto leve: pode alimentar "conteudo" (temas/ângulos em ascensão que combinam com a marca) e "fatos" de mercado. Peso baixo — nunca deixe tendência sobrepor ensino humano ou votos.',
   '- competitive descreve CONCORRENTES e o mercado (NÃO a sua marca). Use para AFIAR A DIFERENCIAÇÃO: registre em "fatos" onde cada concorrente se posiciona e quais territórios ele reivindica; em "do_dont" derive movimentos de diferenciação (ex.: não reforçar um território já dominado por concorrente; ocupar espaço livre que nenhum concorrente reivindica); pode calibrar "posicionamento" para o que diferencia. NUNCA atribua atributos/territórios do concorrente à própria marca.',
   '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido (com sua confiança recalibrada).',
