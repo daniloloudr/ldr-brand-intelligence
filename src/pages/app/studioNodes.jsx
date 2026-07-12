@@ -376,10 +376,45 @@ const VideoGenNode = memo(({ id, data, selected }) => {
   )
 })
 
-const nodeTypes = { brandContext: BrandContextNode, prompt: PromptNode, context: ContextNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, videoGen: VideoGenNode, note: NoteNode, group: GroupNode }
+// Portão do Diretor de Arte (F2): recebe a peça do fluxo, julga contra o
+// cérebro e SÓ deixa passar o que sustenta a marca. Reprovada = fluxo para ali,
+// com o parecer e os ajustes na cara do nó.
+const GATE_COR = { aprovada: TEAL, aprovada_com_ressalvas: AMBER, reprovada: CORAL }
+const GATE_LABEL = { aprovada: 'Aprovada', aprovada_com_ressalvas: 'Com ressalvas', reprovada: 'Reprovada' }
+const ArtGateNode = memo(({ id, data, selected }) => (
+  <NodeShell id={id} color={PURPLE} title="Diretor de Arte" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
+    <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      {data.status === 'julgando' ? (
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <CircularProgress size={12} sx={{ color: PURPLE }} />
+          <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Julgando a peça…</Typography>
+        </Stack>
+      ) : data.veredito ? (
+        <>
+          <Box sx={{ alignSelf: 'flex-start', px: 0.75, py: 0.1, borderRadius: 1, fontSize: 10, fontWeight: 800, color: '#fff', bgcolor: GATE_COR[data.veredito] || GRAY }}>
+            {GATE_LABEL[data.veredito] || data.veredito}
+          </Box>
+          {data.resumo && <Typography sx={{ fontSize: 10.5, color: 'text.secondary', lineHeight: 1.35 }}>{data.resumo}</Typography>}
+          {(data.ajustes || []).slice(0, 3).map((a, i) => (
+            <Typography key={i} sx={{ fontSize: 10, color: 'text.disabled', lineHeight: 1.3 }}>• {a}</Typography>
+          ))}
+          {data.veredito === 'reprovada' && <Typography sx={{ fontSize: 9.5, color: CORAL, fontWeight: 700 }}>fluxo interrompido aqui</Typography>}
+        </>
+      ) : data.error ? (
+        <Typography sx={{ fontSize: 10.5, color: CORAL }}>{data.error}</Typography>
+      ) : (
+        <Typography sx={{ fontSize: 11, color: 'text.disabled', lineHeight: 1.4 }}>
+          Conecte uma peça gerada — só passa adiante o que sustenta a marca.
+        </Typography>
+      )}
+    </Stack>
+  </NodeShell>
+))
+
+const nodeTypes = { artGate: ArtGateNode, brandContext: BrandContextNode, prompt: PromptNode, context: ContextNode, formato: FormatoNode, generate: GenerateNode, preview: PreviewNode, app: AppNode, imageInput: ImageInputNode, videoGen: VideoGenNode, note: NoteNode, group: GroupNode }
 
 // Nós que produzem imagem (podem alimentar apps/generates a jusante)
-const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview'])
+const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview', 'artGate'])
 const MAX_REF = 5
 const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
 // Formato e Gerar têm pouco conteúdo → altura fixa compacta p/ não ficar feio
@@ -401,6 +436,7 @@ const NODE_TEMPLATES = [
   { type: 'imageInput',   label: 'Imagem (upload)', data: {} },
   { type: 'brandContext', label: 'Voz da marca',    data: { title: 'Voz da marca', desc: 'Tom de voz, personalidade e vocabulário da marca' } },
   { type: 'brandContext', label: 'Visual da marca', data: { title: 'Visual da marca', desc: 'Paleta, tipografia e estética' } },
+  { type: 'artGate',      label: 'Diretor de Arte', data: { status: 'idle' } },
   { type: 'app',          label: 'Ampliar',         data: { op: 'upscale',   label: 'Ampliar',        status: 'idle' } },
   { type: 'app',          label: 'Remover fundo',   data: { op: 'removebg',  label: 'Remover fundo',  status: 'idle' } },
   { type: 'app',          label: 'Variação',        data: { op: 'variation', label: 'Variação',       status: 'idle' } },
