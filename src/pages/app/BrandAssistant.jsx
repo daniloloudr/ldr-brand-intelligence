@@ -182,8 +182,26 @@ async function execCreateTool(name, input, { brandId }) {
         await new Promise(r => setTimeout(r, 5000))
         const { data: g } = await supabase.from('studio_generations')
           .select('status, image_url, error').eq('id', j.generation_id).maybeSingle()
-        if (g?.status === 'done' && g.image_url)
-          return JSON.stringify({ status: 'pronta', image_url: g.image_url, instrucao: 'Inclua a URL da imagem na resposta para o usuário vê-la. Lembre que ela também fica na galeria do Estúdio.' })
+        if (g?.status === 'done' && g.image_url) {
+          // REGRA (Danilo 2026-07-12): não se entrega peça sem o próprio juiz
+          // assinar — toda geração passa pelo diretor de arte ANTES de chegar
+          // ao usuário. Reprovada não é descartada: é entregue COM o parecer
+          // e a oferta de regerar com os ajustes (novo crédito = nova confirmação).
+          let parecer = null
+          try {
+            const rev = await fetch('/.netlify/functions/art-review', { method: 'POST', headers: auth,
+              body: JSON.stringify({ brand_id: brandId, image_url: g.image_url, generation_id: j.generation_id }) })
+            if (rev.ok) parecer = await rev.json()
+          } catch { /* juiz indisponível não bloqueia a entrega */ }
+          return JSON.stringify({
+            status: 'pronta', image_url: g.image_url, parecer,
+            instrucao: parecer
+              ? (parecer.veredito === 'reprovada'
+                ? 'ATENÇÃO: o diretor de arte REPROVOU esta peça. Mostre a imagem, seja transparente sobre o veredito e os motivos, e OFEREÇA regerar já incorporando os ajustes (nova geração = novo crédito, com confirmação). Não finja que ficou boa.'
+                : `O diretor de arte deu veredito "${parecer.veredito}". Mostre a imagem (URL na resposta) e o parecer em 1-2 linhas.`)
+              : 'Inclua a URL da imagem na resposta para o usuário vê-la.',
+          })
+        }
         if (g?.status === 'error') return JSON.stringify({ erro: g.error || 'falha na geração' })
       }
       return JSON.stringify({ erro: 'tempo esgotado aguardando a geração (a peça pode aparecer na galeria do Estúdio em instantes)' })
@@ -279,7 +297,8 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
   }
 
   prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
-Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovada / Aprovada com ressalvas / Reprovada) · **O que sustenta a marca** · **O que foge** · **Ajustes concretos** (lista acionável). Seja específico e franco — cite cores, composição e elementos reais da imagem.
+Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame.
+REGRA INVIOLÁVEL DE QUALIDADE: você NUNCA gera uma peça que você mesmo reprovaria como diretor de arte. ANTES de chamar gerar_imagem, confronte o conceito com os padrões que a marca REPROVA e com a paleta/estética aprendidas (estão no seu contexto) — e escreva o prompt já em conformidade (cores EXATAS da paleta, ancoragem da marca, nada dos padrões reprovados). Se o próprio pedido do usuário violar um padrão reprovado, diga isso e proponha o conceito ajustado antes de gerar. Toda peça gerada passa automaticamente pelo diretor de arte antes de chegar ao usuário — seja transparente com o veredito. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovada / Aprovada com ressalvas / Reprovada) · **O que sustenta a marca** · **O que foge** · **Ajustes concretos** (lista acionável). Seja específico e franco — cite cores, composição e elementos reais da imagem.
 Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).`
 
   if (ragChunks?.length) {
