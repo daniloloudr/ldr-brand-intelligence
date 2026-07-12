@@ -9,6 +9,7 @@
 | **[precificacao.md](precificacao.md)** | Modelo de créditos, planos, margem, break-even (custos de insumos em [`custos.csv`](custos.csv)) | pricing, proposta comercial |
 | **[pitch-deck.md](pitch-deck.md)** | Deck master de negócio (16 slides) | montar apresentação de venda/captação |
 | **[pitch-tecnologia.md](pitch-tecnologia.md)** | Deck de tecnologia: diagrama de camadas, flywheel, embeddings/RAG, dataset, rota SLM, infra | slide técnico, diligência de investidor |
+| **[pitch-futuro.md](pitch-futuro.md)** | O discurso do modelo de futuro: arco Hoje → Em breve → Futuro, cada claim ancorado no que já existe | slide de roadmap/visão, captação |
 
 ## features/ — specs de implementação
 
