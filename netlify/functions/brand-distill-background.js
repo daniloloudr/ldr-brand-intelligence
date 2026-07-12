@@ -2,7 +2,7 @@
 // brand-distill-background.js — wrapper HTTP do destilador do cérebro.
 // A destilação em si vive em _brain.js (distillBrand); aqui só o transporte:
 // background function (sem limite de 30s), idempotente pelo consumido_em.
-// Spec: specs/features/brand-intelligence.md §2/§3.
+// Spec: .spec/features/brand-intelligence.md §2/§3.
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { distillBrand } from './_brain.js'

@@ -2,7 +2,7 @@
 // studio-campaign.js — FAN-OUT: 1 conceito → N peças coerentes
 // Cria a campanha e enfileira N jobs independentes (mesmo brand context),
 // um por formato. Cada peça conclui sozinha (webhook/poll). NÃO faz loop
-// bloqueante. Spec: specs/features/studio.md §2 (Arquitetura de Escala)
+// bloqueante. Spec: .spec/features/studio.md §2 (Arquitetura de Escala)
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'

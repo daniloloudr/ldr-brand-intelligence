@@ -12,7 +12,7 @@
 //   dataset  → fetchDataset()             exemplos julgados (contexto → output → avaliação);
 //                                         captura é automática via triggers (migration 029)
 //
-// Spec: specs/features/brand-intelligence.md
+// Spec: .spec/features/brand-intelligence.md
 // ════════════════════════════════════════════════════════════════════
 import { callAI, MODELS, isDev, extractJSON } from './_ai.js'
 import { voyageEmbed, embedIntelChunks } from './_embed.js'

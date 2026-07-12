@@ -1,6 +1,7 @@
-# LOUDR — Visão, Arquitetura & Tese de Negócio
+# s1ngulr (LOUDR) — Visão, Arquitetura & Tese de Negócio
 **Documento vivo · jul/2026 · Owner: Danilo Silva**
-*Serve a dois públicos: (a) pitch de venda/investimento; (b) referência de arquitetura e produto. Detalhes de implementação nas specs de feature (`studio.md`, `brand-intelligence.md`, `planos.md`).*
+*Serve a dois públicos: (a) pitch de venda/investimento; (b) referência de arquitetura e produto. Detalhes de implementação: [`features/`](features/) · precificação: [`precificacao.md`](precificacao.md) · tarefas vivem no [`backlog.md`](backlog.md) (canônico).*
+*2026-07-12: absorveu as partes vivas do plano de desenvolvimento de 06/07 (§10–§11; histórico integral em [`arquivo/plano-de-melhoria-2026-07-06.md`](arquivo/plano-de-melhoria-2026-07-06.md)).*
 
 ---
 
@@ -161,6 +162,23 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
 - **Writing→Mídia (07–08/jul):** Writing Room (frameworks + blocos editáveis + compilador peça→workflow) · Biblioteca de assets · sinais `image_regen` e `writing_edit` (o produto aprende até com regenerações e edições de texto) · rede neural viva no painel · cron de destilação autônomo consertado. **Flywheel rodando 100% em produção** (v5 da LOUDR grounded no brand book real + inteligência competitiva da Pupila).
 - **Fase atual (08/jul): GO-TO-MARKET.** Time de criação revê taxonomia+layout do Brand Book; criar a marca do produto e apresentar ao mercado. Em seguida: **rodada de investimento para expansão** — o material do pitch é o próprio flywheel medido (evidências→versões→assertividade, dataset proprietário, moat do cérebro).
 - **Próximos técnicos:** Stripe live · recarga avulsa · E2 (loop criativo + Meta, gatilho: deal VHITA).
+
+---
+
+## 10. Estratégia de modelo: RAG + dataset primeiro, SLM adiado (decisão firmada)
+
+- **Não** construir SLM/modelo próprio como núcleo agora. O ativo é o **cérebro (dados + loop)**, não os pesos. Aposta = **frontier LLM (borda trocável) + RAG eficaz sobre dataset proprietário**.
+- **O dataset é o fio central** — `(contexto de marca → output → avaliação humana)`, capturado 100% via triggers (`brand_dataset`). Valor duplo: melhora o RAG **agora** e destrava fine-tune **depois**, sem retrabalho.
+- **"Fine-tuning" neste estágio = afinar o SISTEMA** (retrieval + montagem de contexto + prompts), não pesos.
+- **Gatilho para reabrir fine-tune/SLM:** volume alto + custo de API pesando + dataset limpo/validado + tarefa ESTREITA (classificação/tag/dedup), nunca raciocínio aberto. A rota completa em 5 estágios: [`pitch-tecnologia.md`](pitch-tecnologia.md) §5.
+
+## 11. Fundamentos não-negociáveis (com o comercial esquentando)
+
+1. **Isolamento por tenant** — cada cérebro isolado, versionado, com backup próprio. Zero vazamento entre marcas. Obrigatório antes de escalar contas (H2 do backlog).
+2. **Completude do flywheel** — toda superfície de cliente escreve+lê o mesmo cérebro. ✅ Fechado em 06/07.
+3. **Performance** — bundle monolítico ~2 MB sem code-splitting (`React.lazy` por rota + `manualChunks` para html2canvas/jspdf/pptxgenjs). Gap vivo de sustentação.
+4. **Ciclo de vida do cliente:** prospect (frio) = diagnóstico via web search como arma de topo de funil; cliente (quente) = tudo retroalimenta o cérebro. Validação da compradora (Raquel, VHITA): *"guardar o aprendizado é um dos principais valores, senão fica na cabeça da pessoa"*.
+5. **📌 Anotado para decisão futura:** trial self-service (Pupila tem; s1ngulr é invite-only por decisão). Reavaliar com pricing validado.
 
 ---
 

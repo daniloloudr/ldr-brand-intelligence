@@ -2,7 +2,7 @@
 // studio-edit.js — apps de transformação de imagem (Workflow)
 // op: upscale | removebg | variation. Recebe uma image_url (saída de outro
 // nó) e produz uma nova imagem. Mesmo padrão fila + webhook.
-// Spec: specs/features/studio.md — Bloco Workflow (apps)
+// Spec: .spec/features/studio.md — Bloco Workflow (apps)
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'

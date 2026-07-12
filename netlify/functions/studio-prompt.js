@@ -2,7 +2,7 @@
 // studio-prompt.js — "Melhorar o Prompt" de imagem (on-brand)
 // Recebe um prompt/ideia + brand context e devolve um prompt rico.
 // Usa Sonnet 4.6 (qualidade de direção de arte). Sem web search.
-// Spec: specs/features/studio.md — Bloco Imagem (melhorar prompt)
+// Spec: .spec/features/studio.md — Bloco Imagem (melhorar prompt)
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig } from './_ai.js'

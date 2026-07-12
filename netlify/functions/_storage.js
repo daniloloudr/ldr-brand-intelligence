@@ -2,7 +2,7 @@
 // _storage.js — object storage abstraído (S3-compatível)
 // Provedor atual: Cloudflare R2 (egress zero). Trocar para DO Spaces / S3
 // é só mudar as env vars — nenhuma function de negócio muda.
-// Spec: specs/features/studio.md §4 (Arquitetura de Escala)
+// Spec: .spec/features/studio.md §4 (Arquitetura de Escala)
 // ════════════════════════════════════════════════════════════════════
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 

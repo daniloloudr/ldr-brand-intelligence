@@ -197,5 +197,5 @@ concorrente consegue reconstruir.
 
 ---
 
-*Fontes internas: `specs/features/brand-intelligence.md` (o cérebro em detalhe) ·
-`specs/specs.md` (changelog) · `pitch-deck.md` (narrativa de negócio) · `BACKLOG.md` (roadmap).*
+*Fontes internas: `features/brand-intelligence.md` (o cérebro em detalhe) ·
+`produto.md` (changelog) · `pitch-deck.md` (narrativa de negócio) · `backlog.md` (roadmap).*

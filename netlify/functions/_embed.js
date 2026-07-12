@@ -4,7 +4,7 @@
 // Cérebro 2: modelo vivo APRENDIDO (brand-distill-background.js, trilho B)
 // Ambos gravam em brand_book_chunks; a re-derivação do modelo vivo usa
 // sections com prefixo "intel:" para conviver sem se sobrescrever.
-// Spec: specs/features/brand-intelligence.md §4 (RAG re-derivado do modelo vivo).
+// Spec: .spec/features/brand-intelligence.md §4 (RAG re-derivado do modelo vivo).
 // ════════════════════════════════════════════════════════════════════
 
 // Prefixo de section que identifica os chunks derivados do modelo vivo.

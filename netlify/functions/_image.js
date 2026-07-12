@@ -2,7 +2,7 @@
 // _image.js — geração de imagem via fal.ai (queue API + webhook)
 // Catálogo ABERTO: o model id vem por request (qualquer modelo do fal).
 // O IMAGE_MODELS abaixo é só atalho de UX, não limita o que dá pra usar.
-// Spec: specs/features/studio.md — Modelos & Provider
+// Spec: .spec/features/studio.md — Modelos & Provider
 // ════════════════════════════════════════════════════════════════════
 
 const FAL_KEY  = process.env.FAL_KEY

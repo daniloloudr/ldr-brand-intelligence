@@ -2,7 +2,7 @@
 
 > Reescrito a partir do **discurso de negócio** (apresentação VHITA, 03/07/2026). Ordena o desenvolvimento por **valor de negócio validado por comprador real**, não por pureza técnica. Estado atual ancorado no código (não especulativo).
 >
-> **⚠️ Tarefas vivem no [`BACKLOG.md`](./BACKLOG.md) (canônico desde 06/07/2026).** Este documento é estratégia e contexto.
+> **⚠️ Tarefas vivem no [`backlog.md`](../backlog.md) (canônico desde 06/07/2026).** Este documento é estratégia e contexto.
 
 ---
 
