@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  Box, Button, Typography, Paper, Stack, IconButton, Menu, MenuItem, CircularProgress, Chip, TextField,
+  Box, Button, Typography, Paper, Stack, IconButton, Menu, MenuItem, CircularProgress, Chip, TextField, Tabs, Tab,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -33,6 +33,7 @@ export function StudioWorkflows({ brandId }) {
   const [iaPrompt, setIaPrompt] = useState('')
   const [building, setBuilding] = useState(false)
   const [iaMsg, setIaMsg] = useState('')
+  const [aba, setAba] = useState(0)   // 0 = Meus fluxos · 1 = Templates (área própria — cresce com o usuário)
 
   useEffect(() => { load() }, [brandId])
 
@@ -171,83 +172,102 @@ export function StudioWorkflows({ brandId }) {
       />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
-        {/* Criar por prompt (IA monta o grafo) */}
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 3, borderColor: TEAL, bgcolor: 'rgba(13,158,122,0.04)' }}>
-          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
-            <AutoAwesomeIcon sx={{ fontSize: 18, color: TEAL }} />
-            <Typography sx={{ fontSize: 13, fontWeight: 800 }}>Criar workflow por prompt</Typography>
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-start' }}>
-            <TextField
-              value={iaPrompt} onChange={e => setIaPrompt(e.target.value)} disabled={building}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); criarPorPrompt() } }}
-              placeholder="Ex.: gerar 3 formatos de um post de produto on-brand a partir de uma foto…"
-              fullWidth size="small" multiline maxRows={3} sx={{ '& .MuiInputBase-input': { fontSize: 13 } }} />
-            <Button variant="contained" onClick={criarPorPrompt} disabled={building || !iaPrompt.trim()}
-              startIcon={building ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {building ? 'Montando…' : 'Criar com IA'}
-            </Button>
-          </Stack>
-          {iaMsg && <Typography sx={{ fontSize: 12, color: '#E8185A', mt: 1 }}>{iaMsg}</Typography>}
-        </Paper>
+        {/* Duas áreas: os fluxos de trabalho e a coleção de templates (que cresce
+            com o usuário — qualquer fluxo vira template pelo menu ⋮) */}
+        <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 3, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13, textTransform: 'none' } }}>
+          <Tab label="Meus fluxos" />
+          <Tab label={`Templates${templates.length ? ` · ${templates.length + WORKFLOW_TEMPLATES.length}` : ''}`} />
+        </Tabs>
 
-        {/* Templates embutidos do Studio (catálogo) */}
-        <Box sx={{ mb: 4 }}>
-          <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Templates de workflow</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-            {WORKFLOW_TEMPLATES.map(t => {
-              const cor = TEMPLATE_CAT_COLOR[t.categoria] || TEAL
-              return (
-                <Paper key={t.id} variant="outlined" onClick={() => usarBuiltin(t)}
-                  sx={{ borderRadius: 2, overflow: 'hidden', cursor: 'pointer', '&:hover': { borderColor: cor } }}>
-                  <Box sx={{ position: 'relative', aspectRatio: '16 / 10', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: `linear-gradient(135deg, ${cor}26 0%, ${cor}0D 100%)` }}>
-                    <Chip label={t.categoria} size="small" sx={{ position: 'absolute', top: 6, left: 6, height: 18, fontSize: 9, fontWeight: 800, bgcolor: cor, color: '#fff' }} />
-                    <AccountTreeOutlinedIcon sx={{ fontSize: 30, color: cor }} />
-                  </Box>
-                  <Box sx={{ px: 1.5, py: 1 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nome}</Typography>
-                    <Typography sx={{ fontSize: 11, color: 'text.disabled', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descricao}</Typography>
-                  </Box>
+        {aba === 0 && (
+          <>
+            {/* Criar por prompt (IA monta o grafo) */}
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 3, borderColor: TEAL, bgcolor: 'rgba(13,158,122,0.04)' }}>
+              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
+                <AutoAwesomeIcon sx={{ fontSize: 18, color: TEAL }} />
+                <Typography sx={{ fontSize: 13, fontWeight: 800 }}>Criar workflow por prompt</Typography>
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-start' }}>
+                <TextField
+                  value={iaPrompt} onChange={e => setIaPrompt(e.target.value)} disabled={building}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); criarPorPrompt() } }}
+                  placeholder="Ex.: gerar 3 formatos de um post de produto on-brand a partir de uma foto…"
+                  fullWidth size="small" multiline maxRows={3} sx={{ '& .MuiInputBase-input': { fontSize: 13 } }} />
+                <Button variant="contained" onClick={criarPorPrompt} disabled={building || !iaPrompt.trim()}
+                  startIcon={building ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
+                  sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {building ? 'Montando…' : 'Criar com IA'}
+                </Button>
+              </Stack>
+              {iaMsg && <Typography sx={{ fontSize: 12, color: '#E8185A', mt: 1 }}>{iaMsg}</Typography>}
+            </Paper>
+
+            {loading ? (
+              <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+            ) : regulares.length === 0 ? (
+              <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
+                <AccountTreeOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
+                <Typography variant="h6" fontWeight={900}>Nenhum fluxo ainda</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 380 }}>
+                  Crie um fluxo do zero, por prompt, ou comece de um template na aba ao lado.
+                </Typography>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={novo} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, mt: 1 }}>
+                  Novo workflow
+                </Button>
+              </Stack>
+            ) : (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
+                {regulares.map(card)}
+              </Box>
+            )}
+          </>
+        )}
+
+        {aba === 1 && (
+          <Stack spacing={4}>
+            {/* Templates pessoais — a coleção que o usuário constrói e evolui */}
+            <Box>
+              <Stack direction="row" alignItems="baseline" spacing={1.5} mb={1}>
+                <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>Seus templates</Typography>
+                <Typography sx={{ fontSize: 11.5, color: 'text.disabled' }}>qualquer fluxo vira template pelo menu ⋮ → "Salvar como template"</Typography>
+              </Stack>
+              {loading ? (
+                <Stack alignItems="center" sx={{ py: 4 }}><CircularProgress size={20} sx={{ color: TEAL }} /></Stack>
+              ) : templates.length === 0 ? (
+                <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
+                  <Typography fontSize={13} color="text.secondary">
+                    Você ainda não salvou templates. Monte um fluxo que funcionou e salve — sua coleção evolui com o uso.
+                  </Typography>
                 </Paper>
-              )
-            })}
-          </Box>
-        </Box>
-
-        {loading ? (
-          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-        ) : workflows.length === 0 ? (
-          <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
-            <AccountTreeOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
-            <Typography variant="h6" fontWeight={900}>Nenhum workflow ainda</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 380 }}>
-              Crie um workflow para montar pipelines de geração — Brand → Generate → Upscale → …
-            </Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={novo} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, mt: 1 }}>
-              Novo workflow
-            </Button>
-          </Stack>
-        ) : (
-          <Stack spacing={3}>
-            {templates.length > 0 && (
-              <Box>
-                <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Começar de um template</Typography>
+              ) : (
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
                   {templates.map(card)}
                 </Box>
-              </Box>
-            )}
-            <Box>
-              {templates.length > 0 && <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Seus workflows</Typography>}
-              {regulares.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">Nenhum workflow ainda — use um template acima ou crie um novo.</Typography>
-              ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
-                  {regulares.map(card)}
-                </Box>
               )}
+            </Box>
+
+            {/* Galeria s1ngulr (catálogo embutido — ponto de partida) */}
+            <Box>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Galeria s1ngulr</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+                {WORKFLOW_TEMPLATES.map(t => {
+                  const cor = TEMPLATE_CAT_COLOR[t.categoria] || TEAL
+                  return (
+                    <Paper key={t.id} variant="outlined" onClick={() => usarBuiltin(t)}
+                      sx={{ borderRadius: 2, overflow: 'hidden', cursor: 'pointer', '&:hover': { borderColor: cor } }}>
+                      <Box sx={{ position: 'relative', aspectRatio: '16 / 10', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: `linear-gradient(135deg, ${cor}26 0%, ${cor}0D 100%)` }}>
+                        <Chip label={t.categoria} size="small" sx={{ position: 'absolute', top: 6, left: 6, height: 18, fontSize: 9, fontWeight: 800, bgcolor: cor, color: '#fff' }} />
+                        <AccountTreeOutlinedIcon sx={{ fontSize: 30, color: cor }} />
+                      </Box>
+                      <Box sx={{ px: 1.5, py: 1 }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nome}</Typography>
+                        <Typography sx={{ fontSize: 11, color: 'text.disabled', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descricao}</Typography>
+                      </Box>
+                    </Paper>
+                  )
+                })}
+              </Box>
             </Box>
           </Stack>
         )}

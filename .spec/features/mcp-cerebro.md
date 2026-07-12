@@ -2,7 +2,7 @@
 
 > **Objetivo do teste:** um agente (Claude) cria uma peça **dentro do Figma** usando a inteligência da marca servida pelo LOUDR — e o uso volta como sinal para o cérebro. É a materialização do north star ("a marca no meio da operação") fora da plataforma, e a demo mais forte possível para a captação.
 >
-> Plano montado em 2026-07-08. Contexto estratégico: BACKLOG.md § MCP do Cérebro (arquitetura em 3 camadas).
+> Plano montado em 2026-07-08. Contexto estratégico: backlog.md § MCP do Cérebro (arquitetura em 3 camadas).
 
 ---
 

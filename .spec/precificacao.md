@@ -1,6 +1,6 @@
 # LOUDR — Modelo de Precificação (créditos)
 
-> Definido jun/2026, revisto e IMPLEMENTADO jul/2026. Custos de insumos em `specs/custos.csv`.
+> Definido jun/2026, revisto e IMPLEMENTADO jul/2026. Custos de insumos em `custos.csv`.
 > Câmbio de referência: R$5,50/USD (colchão R$6,00 na regra). Custo por crédito
 > **varia por modelo** (ver regra ×18 abaixo) — não é mais um valor fixo.
 

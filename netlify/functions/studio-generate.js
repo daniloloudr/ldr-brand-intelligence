@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════
 // studio-generate.js — dispatch SÍNCRONO (<1s) de UMA geração
 // Compila o brand context server-side, submete o job no fal e grava a linha.
-// Spec: specs/features/studio.md §1
+// Spec: .spec/features/studio.md §1
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'

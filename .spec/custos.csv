@@ -1,0 +1,53 @@
+Categoria;Item;Fornecedor;Tipo;Unidade;Custo ref (USD);Custo real (preencher);Creditos (1=1 imagem);Gasto atual/mes (USD);Onde no codigo;Observacoes
+# === IA :: GERACAO DE IMAGEM (fal.ai) ===;;;;;;;;;;Verificar precos exatos em fal.ai/pricing
+IA Imagem;Nano Banana (gemini-25-flash-image);fal.ai;Variavel;por imagem;0,039;;1;;_image.js (DEFAULT_MODEL);Modelo padrao de geracao
+IA Imagem;Flux dev (flux/dev);fal.ai;Variavel;por imagem;0,025;;1;;_image.js IMAGE_MODELS;Mais barato
+IA Imagem;Flux Pro v1.1 (flux-pro/v1.1);fal.ai;Variavel;por imagem;0,05;;1;;_image.js IMAGE_MODELS;
+IA Imagem;Ideogram v2 (ideogram/v2);fal.ai;Variavel;por imagem;0,08;;2;;_image.js IMAGE_MODELS;Forte em texto/tipografia
+IA Imagem;Recraft v3 (recraft-v3);fal.ai;Variavel;por imagem;0,04;;1;;_image.js IMAGE_MODELS;
+# === IA :: APPS DE IMAGEM (fal.ai) ===;;;;;;;;;;
+IA App;Upscale (clarity-upscaler);fal.ai;Variavel;por imagem;0,04;;1;;studio-edit.js OPS.upscale;Custo varia por megapixel
+IA App;Remove BG (birefnet);fal.ai;Variavel;por imagem;0,02;;1;;studio-edit.js OPS.removebg;
+IA App;Variacao (gemini-25-flash-image/edit);fal.ai;Variavel;por imagem;0,039;;1;;studio-edit.js OPS.variation;
+# === IA :: VIDEO (fal.ai) [FUTURO] ===;;;;;;;;;;Definir quais modelos liberar por tier
+IA Video;Kling / Seedance (basico);fal.ai;Variavel;por clipe;0,30;;8;;(a implementar);Risco de margem - tabelar por modelo
+IA Video;Qualidade media (clipe maior);fal.ai;Variavel;por clipe;0,50;;13;;(a implementar);
+IA Video;Premium (Veo / alta qualidade);fal.ai;Variavel;por clipe;1,20;;30;;(a implementar);
+# === IA :: LLM (Anthropic Claude) ===;;;;;;;;;;Preco por 1M tokens (input / output)
+IA LLM;Claude Haiku 4.5 - input;Anthropic;Variavel;por 1M tokens in;1,00;;;;_ai.js MODELS.fast;Content Hub (fast) / dev
+IA LLM;Claude Haiku 4.5 - output;Anthropic;Variavel;por 1M tokens out;5,00;;;;_ai.js MODELS.fast;
+IA LLM;Claude Sonnet 4.5 - input;Anthropic;Variavel;por 1M tokens in;3,00;;;;_ai.js MODELS.medium;Usado em dev (timeout 30s)
+IA LLM;Claude Sonnet 4.5 - output;Anthropic;Variavel;por 1M tokens out;15,00;;;;_ai.js MODELS.medium;
+IA LLM;Claude Sonnet 4.6 - input;Anthropic;Variavel;por 1M tokens in;3,00;;;;_ai.js MODELS.smart;Producao: diagnostico/listening/content/assistant
+IA LLM;Claude Sonnet 4.6 - output;Anthropic;Variavel;por 1M tokens out;15,00;;;;_ai.js MODELS.smart;
+IA LLM;Claude Opus 4.7 - input;Anthropic;Variavel;por 1M tokens in;5,00;;;;_ai.js MODELS.opus;Extracao de manual PDF
+IA LLM;Claude Opus 4.7 - output;Anthropic;Variavel;por 1M tokens out;25,00;;;;_ai.js MODELS.opus;
+# === IA :: WEB SEARCH (Anthropic) ===;;;;;;;;;;
+IA Web Search;Web search tool;Anthropic;Variavel;por 1000 buscas;10,00;;;;_ai.js TOOLS.webSearch;Usado em diagnostico e listening
+# === IA :: EMBEDDINGS (Voyage) ===;;;;;;;;;;
+IA Embeddings;voyage-3;Voyage AI;Variavel;por 1M tokens;0,06;;;20,00;brand-book-embed-background.js / brand-book-search.js;RAG do brand book. Voyage hoje ~20/mes
+# === INFRAESTRUTURA (FIXO MENSAL) ===;;;;;;;;;;Diluido entre todos os clientes
+Infra;Supabase (DB + Auth + pgvector + storage);Supabase;Fixo;por mes;25,00;;;20,00;SUPABASE_URL / SUPABASE_SERVICE_KEY;Tier atual ~20/mes. Sobe com compute/storage
+Infra;Netlify (hosting + functions + background);Netlify;Fixo;por mes;19,00;;;20,00;Todas as functions;Tier atual ~20/mes. Sobe com invocacoes
+Infra;Dominio;Registrar;Fixo;por ano;15,00;;;;—;Custo anual
+Infra;E-mail transacional;(a definir);Fixo;por mes;0,00;;;;admin-invite.js;Hoje via Supabase Auth? Confirmar
+Infra;Monitoring / erros (Sentry etc);(a definir);Fixo;por mes;0,00;;;;—;Ainda nao implementado
+# === STORAGE (Cloudflare R2) ===;;;;;;;;;;Egress ZERO
+Storage;R2 - armazenamento;Cloudflare;Variavel;por GB/mes;0,015;;;;_storage.js / R2_BUCKET;Imagens geradas acumulam
+Storage;R2 - operacoes escrita (Class A);Cloudflare;Variavel;por 1M ops;4,50;;;;_storage.js putObject;
+Storage;R2 - operacoes leitura (Class B);Cloudflare;Variavel;por 1M ops;0,36;;;;_storage.js;
+Storage;R2 - egress (saida);Cloudflare;Variavel;por GB;0,00;;;;R2_PUBLIC_URL;ZERO - vantagem do R2
+# === PAGAMENTOS (Stripe) ===;;;;;;;;;;Sai da receita - reduz margem liquida
+Pagamentos;Stripe - taxa por transacao (%);Stripe;Variavel;% da cobranca;0,0399;;;;stripe-checkout.js / stripe-webhook.js;~3,99% (cartao BR - confirmar)
+Pagamentos;Stripe - taxa fixa por transacao;Stripe;Variavel;por cobranca;0,07;;;;stripe-webhook.js;~R$0,39 fixo por cobranca
+# === DESENVOLVIMENTO ===;;;;;;;;;;Custo fixo que domina - amortizado na base
+Desenvolvimento;Build inicial (capex / sunk);Voce;Unico;total;;;;;—;Investimento ja feito - para valuation
+Desenvolvimento;Manutencao + evolucao;Voce / dev;Fixo;por mes;;;;;—;Seu tempo ou folha. PREENCHER - e o maior custo
+# === OPERACOES COMPOSTAS (insumo -> credito) ===;;;;;;;;;;Custo por feature = soma dos insumos acima
+Operacao;Imagem (1 geracao);(composto);Variavel;por imagem;0,039;;1;;studio-generate.js;fal imagem
+Operacao;Campanha (4 formatos);(composto);Variavel;por campanha;0,16;;4;;studio-campaign.js;4x imagem
+Operacao;Diagnostico;(composto);Variavel;por diagnostico;0,20;;5;;diagnostico-gerar-background.js;Sonnet 4.6 + web search
+Operacao;Coleta Social Listening;(composto);Variavel;por coleta;0,35;;9;;listening-coletar-background.js;Sonnet 4.6 + web search (varias chamadas)
+Operacao;Geracao Content Hub;(composto);Variavel;por geracao;0,08;;2;;content-hub-gerar-background.js;Haiku + Sonnet
+Operacao;Msg Brand Assistant;(composto);Variavel;por mensagem;0,03;;1;;brand-book-search.js + LLM;RAG + Sonnet
+Operacao;Extracao de manual (PDF);(composto);Variavel;por manual;0,25;;—;;brand-manual-extract-background.js;Opus 4.7 + PDF. One-time por marca

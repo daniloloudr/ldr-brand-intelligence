@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════
 // studio-workflow-build.js — monta um grafo de workflow a partir de um prompt
 // O Sonnet 4.6 devolve nós + conexões; validamos contra o schema do canvas.
-// Spec: specs/features/studio.md — Workflow (criar por prompt)
+// Spec: .spec/features/studio.md — Workflow (criar por prompt)
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig } from './_ai.js'

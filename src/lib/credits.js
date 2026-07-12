@@ -3,7 +3,7 @@
 // Espelha netlify/functions/_credits.js (MANTER OS DOIS EM SINCRONIA).
 // Regra: créditos = arredonda↑(18 × custo_USD) → garante ≥50% de margem
 // líquida de Stripe no pior caso (Custom R$0,73/cr, câmbio R$6,00).
-// Custos reais verificados na fal (jun/2026). Ver specs/planos.md + custos.csv.
+// Custos reais verificados na fal (jun/2026). Ver .spec/precificacao.md + custos.csv.
 // ════════════════════════════════════════════════════════════════════
 
 // Imagem — por id de modelo do fal. Default = 1 crédito (modelos ≤ ~$0,055).
