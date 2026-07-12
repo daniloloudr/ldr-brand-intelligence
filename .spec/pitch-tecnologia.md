@@ -1,5 +1,7 @@
 # s1ngulr — Arquitetura de Tecnologia
-### O documento-fonte para o slide de tecnologia · atualizado 2026-07-12
+### O documento-fonte para os slides/PPTs de tecnologia · atualizado 2026-07-12
+### Convenção de status em todo o documento: ✅ em produção · 🔜 em breve (gatilho definido) · 🔭 visão (rota pavimentada)
+*Par narrativo: [`pitch-futuro.md`](pitch-futuro.md) (o discurso hoje → em breve → futuro).*
 
 > **A tese técnica em uma frase:** construímos uma **camada de inteligência de marca** — um cérebro
 > por tenant que aprende com o uso — e tratamos os modelos de IA (LLMs, geradores de imagem/vídeo)
@@ -14,7 +16,9 @@
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  SUPERFÍCIES (o produto que o cliente vê)                                │
 │  Estratégia · Inteligência (Mercado/Insights/Concorrentes/Tendências)    │
-│  Estúdio (Imagem/Vídeo/Redação/Fluxos) · Copiloto · Home adaptativa      │
+│  Estúdio (Imagem/Vídeo/Redação/Fluxos) · Home adaptativa                 │
+│  Copiloto: chat que ensina a marca ✅ → diretor de arte (julga peças,    │
+│  internas e externas) 🔜 → agentes de produção em massa nos Fluxos 🔜    │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │  toda leitura/escrita de inteligência
                                │  passa por UMA porta (módulo _brain)
@@ -23,6 +27,10 @@
 │  sinais → destilação → modelo vivo versionado → RAG → dataset            │
 │  emitSignal · distillBrand · resolveBrandIntelligence ·                  │
 │  searchBrandKnowledge · fetchDataset                                     │
+│                                                                          │
+│  ──► 🔌 INTEGRAÇÕES 🔜🔭 — o cérebro FORA do produto:                    │
+│      MCP (Figma · Canva · qualquer ferramenta de criação) + API in/out  │
+│      (piloto Hering) — de produto fechado a INFRAESTRUTURA de marca     │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │  o cérebro NÃO conhece fornecedor de IA
 ┌──────────────────────────────▼──────────────────────────────────────────┐
@@ -72,6 +80,9 @@ não toca uma linha do aprendizado.
 - **Métrica que prova a tese:** a cada versão medimos a **taxa de aprovação das peças criadas
   sob a versão anterior** — a série mostra o cérebro *melhorando*, não só mudando.
 - Sinais nascem de **triggers no banco** (não dependem de código de aplicação lembrar de emitir).
+- **Sinais que chegam em breve 🔜:** performance real de mídia (`ad_performance`, E2/Meta — o sinal
+  mais valioso do dataset), referências subidas como ensino (`reference_upload` — "isto É a marca"),
+  parecer do diretor de arte (julgamento automático, peso menor que humano).
 
 ---
 
@@ -131,6 +142,26 @@ concorrente consegue reconstruir.
 
 ---
 
+## 5b · O arco de futuro (o mesmo cérebro, cada vez mais longe)
+
+```
+      HOJE ✅                      EM BREVE 🔜                     FUTURO 🔭
+  ────────●────────────────────────────●────────────────────────────●──────────▶
+  O cérebro que APRENDE        A marca que OPERA              A INFRAESTRUTURA
+  flywheel autônomo,           diretor de arte julga,         MCP + API: o cérebro
+  11 sinais, dataset por       agentes produzem em massa      dentro de Figma/Canva/
+  tenant, aprovação            com portão on-brand,           qualquer ferramenta;
+  medida POR VERSÃO            calendário editorial,          SLM por marca; rede
+                               performance de ads como        de cérebros; a categoria
+                               sinal, API (Hering)            "Smart Branding"
+```
+
+**O argumento anti-risco:** cada estágio se paga e financia o próximo; os dados que o
+futuro exige (dataset julgado por tenant) **já estão sendo capturados hoje** — quem
+começar depois não reconstrói a série. Detalhe narrativo completo: `pitch-futuro.md`.
+
+---
+
 ## 6 · Borda de IA commodity (multi-modelo por desenho)
 
 - **LLMs:** módulo central único (`aiConfig`) com *tiers* — fast (Haiku), standard
@@ -167,8 +198,11 @@ concorrente consegue reconstruir.
   taxonomia garantida por código, nunca pelo LLM; parsers tolerantes a web-search verboso.
 - **Multi-tenant por RLS:** todo dado carrega `workspace_id`; a policy é o perímetro.
   Um cérebro por marca, zero vazamento entre tenants.
-- **Créditos como unidade econômica:** cada operação debita créditos (Stripe para recarga);
-  usuários ilimitados — paga-se pelo que se cria, não por cadeira.
+- **Créditos como unidade econômica:** cada operação debita créditos; usuários ilimitados —
+  paga-se pelo que se cria, não por cadeira. Stripe validado (checkout em test mode; live 🔜
+  no go-live comercial, com recarga avulsa).
+- **Status honesto para diligência:** desktop-first (responsividade mobile 🔜 pré-produção);
+  observabilidade (Sentry + alertas de cron) 🔜 pré-produção.
 
 ---
 
@@ -194,6 +228,10 @@ concorrente consegue reconstruir.
 > trocável**; o **dataset julgado por tenant** é o ativo que nenhum concorrente reconstrói —
 > e é a rampa pronta para o **modelo próprio de cada marca** (fine-tune → SLM).
 > Infra serverless enxuta (Netlify + Supabase), multi-tenant por RLS, custo por crédito.
+>
+> **E o arco:** hoje o cérebro aprende ✅ · em breve a marca julga e produz em massa sozinha 🔜
+> · depois ela vai junto para toda ferramenta onde a criação acontecer (MCP + API) 🔭.
+> O mesmo cérebro — cada vez mais longe.
 
 ---
 
