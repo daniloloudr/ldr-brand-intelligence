@@ -90,8 +90,8 @@ Princípio: **o juiz é um módulo só, duas superfícies** — interativo no ch
 **Copiloto com MÃOS — tool use (teste do Danilo 2026-07-12: pediu "construa post + carrossel + roteiro UGC" e levou Erro 504):**
 | Fase | O quê | Notas |
 |---|---|---|
-| **A0** 🟢 | **Curar o 504 do chat** — resposta longa estoura o teto síncrono (~26s); migrar p/ background+polling (padrão da casa) ou streaming | BUG real, pré-requisito de tudo |
-| **A1** 🟢 | **Mãos de LEITURA** — tools de consulta: síntese de mercado, tendências, insights, concorrentes, biblioteca ("o que o mercado fez essa semana?" → busca o dado real) | zero risco, respostas muito mais ricas |
+| ~~**A0**~~ ✅ 2026-07-12 | **504 curado** — `anthropic.js` virou Functions 2.0 com pass-through do SSE (a antiga bufferizava com `await response.text()`) | validado via curl |
+| ~~**A1**~~ ✅ 2026-07-12 | **Mãos de LEITURA** — 4 tools client-side via supabase (RLS = perímetro): mercado (síntese+clipping), tendências, insights, concorrentes; loop de tool use no stream (4 rodadas), status "Consultando…" na UI | catálogo espelha o MCP |
 | **A2** | **Mãos de CRIAÇÃO com confirmação** — pedido de produção vira PLANO ("3 entregáveis, ~X créditos — confirma?") → executa em background → cards clicáveis no chat (peça na Redação, fluxo montado, roteiro salvo). GUARDA: ação que gasta crédito SEMPRE confirma | o "construa" do teste funciona de ponta a ponta |
 | **A3** | **Encadeamento** — diretor de arte (F1/F2) julga o que o Copiloto produziu; pedido recorrente vira agente no Fluxos (F3) | fecha o elo com as fases abaixo |
 
