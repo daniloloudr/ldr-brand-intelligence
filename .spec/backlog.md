@@ -89,7 +89,10 @@ Decisão: SEM SaaS self-service; crédito = REPASSE de custo (baliza **1 cr = R$
 - [ ] Painel admin "custo por workspace/mês" (fal + LLM + fixos) — os dados já gravam 🟢
 - [ ] Hook do Voyage no ai_usage (embeddings ~$0,06/M — barato mas cego) 🟢
 - [ ] streamAI sem rastreio (diagnóstico/chat usam stream — usage vem no SSE, capturar) 🟢
-- [ ] Decidir baliza final: R$0,33 (mapas intactos) vs R$0,30 (recalibrar vídeos +10%)
+- [x] ~~Baliza~~ ✅ DECIDIDA 2026-07-13: **R$0,33/crédito** (mapas ×18 intactos; colchão cambial até R$5,94 — revisão obrigatória se o dólar passar disso)
+- **📐 FÓRMULA DE MANUTENÇÃO POR CLIENTE (a régua do pricing):**
+  `custo/mês = (créditos CONSUMIDOS × R$0,33) + fair-use de IA (~R$50–150/workspace, medir no ai_usage) + fatia de infra fixa`
+  Regras de leitura: crédito liberado ≠ gasto (custo só no consumo real; teto = pool × 0,33); num contrato de R$5.000 c/ 5.000 créditos → pior caso ~1/3 de custo (margem ~65%), uso típico 15–25% (margem ~80–90%). O que se vende é o cérebro, não o crédito.
 - [ ] Stripe: repensar papel (recarga a custo? só faturamento manual?) — era do modelo SaaS
 
 ### 🗂 Casa do Conteúdo (anotado 2026-07-12 — "ver com calma", mas PRÉ-REQUISITO do A3)

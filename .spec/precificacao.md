@@ -4,7 +4,8 @@
 > A venda é direta/negociada. O **crédito virou REPASSE DE CUSTO** (sem margem) —
 > o ganho está na inteligência, na revisão e na redução de horas, precificadas em contrato.
 >
-> **A BALIZA: 1 crédito = R$0,33 de custo de insumo de IA.**
+> **A BALIZA: 1 crédito = R$0,33 de custo de insumo de IA.** ✅ decidida em 2026-07-13.
+> **Fórmula de manutenção/cliente:** `custo/mês = créditos consumidos × 0,33 + fair-use de IA (~R$50–150) + infra fixa` — teto de exposição = pool × 0,33; margem típica de contrato 80–90%, pior caso ~65%.
 > Matemática: o mapa de créditos segue `créditos = ⌈18 × custo_USD⌉`; com o crédito a
 > R$0,33, 18 × 0,33 = R$5,94/USD — o repasse cobre o custo real com proteção de câmbio
 > até R$5,94, sem retocar nenhum mapa. (Se preferir baliza R$0,30: multiplicador ×20 e
