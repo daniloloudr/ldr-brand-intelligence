@@ -80,6 +80,18 @@ export function imageField(model) {
  */
 export async function submitImageJob({ model, prompt, references = [], format, mode, extra, input, webhookUrl }) {
   const endpoint = modelFor(model, { references, mode })
+  // FASHN Try-On (piloto Hering): schema próprio — veste a PEÇA real no MODELO.
+  // Convenção de referências: 1ª = modelo (pessoa), 2ª = peça (roupa).
+  if (/fashn\/tryon/.test(endpoint)) {
+    if ((references || []).length < 2)
+      throw new Error('Try-on precisa de 2 imagens conectadas: 1ª = modelo (pessoa), 2ª = peça (roupa)')
+    const body = { model_image: references[0], garment_image: references[1], category: 'auto', ...(extra || {}) }
+    const url = webhookUrl ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}` : `${FAL_BASE}/${endpoint}`
+    const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+    if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`) }
+    const data = await res.json()
+    return { ...data, model: endpoint }
+  }
   // `input` (override) é usado pelos apps (upscale/remove-bg/variation) que têm
   // schema próprio (ex. image_url singular). Caso contrário, monta o default.
   let body

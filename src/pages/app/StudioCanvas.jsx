@@ -437,14 +437,17 @@ export function StudioCanvas({ brandId, workflowId }) {
   async function dispatchGenerateNode(g, ctx) {
     const { outputs, auth, dispatched } = ctx
     const { prompt, formato, hasBrand, brandFacets, context, previewNodeId } = inputsFor(g.id)
-    if (!prompt) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
-    const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
+    // FASHN try-on não usa prompt: veste a 2ª imagem (peça) na 1ª (modelo)
+    const isTryon = /fashn\/tryon/.test(model || '')
+    if (!prompt && !isTryon) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
+    const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
+    if (isTryon && references.length < 2) { updateNodeData(g.id, { status: 'error', error: 'try-on: conecte 2 imagens (1ª modelo, 2ª peça)' }); dispatched.add(g.id); return null }
     updateNodeData(g.id, { status: 'running', error: null })
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: withContext(prompt, context), formato, use_brand: hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
@@ -495,14 +498,20 @@ export function StudioCanvas({ brandId, workflowId }) {
   // cérebro (art-review). Aprovada/ressalvas → a imagem passa adiante; reprovada
   // → o fluxo PARA neste ramo, com o parecer no nó. Cada parecer vira sinal.
   async function runGate(gate, ctx) {
-    const up = imageUpstreamOf(gate.id)
-    const imageUrl = toUrls(ctx.outputs[up?.id])[0]
+    // Peça julgada = o nó PRODUTOR conectado (generate/app/gate); se também houver
+    // um imageInput conectado, ele é a REFERÊNCIA de fidelidade (piloto Hering).
+    const ups = imageUpstreamsOf(gate.id)
+    const produtor = ups.find(u => ['generate', 'app', 'artGate', 'preview'].includes(u.type))
+    const refNode = ups.find(u => u.type === 'imageInput')
+    const imageUrl = toUrls(ctx.outputs[produtor?.id])[0] || (!produtor ? toUrls(ctx.outputs[ups[0]?.id])[0] : null)
+    const referenceUrl = produtor && refNode ? toUrls(ctx.outputs[refNode.id])[0] : null
     if (!imageUrl) return false
     ctx.dispatched.add(gate.id)
     updateNodeData(gate.id, { status: 'julgando', veredito: null, resumo: null, ajustes: null, error: null, outputUrl: null })
     try {
       const res = await fetch('/.netlify/functions/art-review', { method: 'POST', headers: ctx.auth,
-        body: JSON.stringify({ brand_id: brandId, image_url: imageUrl, criterio: (gate.data?.criterio || '').trim() || undefined }) })
+        body: JSON.stringify({ brand_id: brandId, image_url: imageUrl, criterio: (gate.data?.criterio || '').trim() || undefined,
+          reference_url: referenceUrl || undefined, modo: gate.data?.modo || undefined }) })
       const j = await res.json()
       if (!res.ok) { updateNodeData(gate.id, { status: 'error', error: j.error || `Erro ${res.status}` }); return false }
       const passou = j.veredito !== 'reprovada'
@@ -523,8 +532,9 @@ export function StudioCanvas({ brandId, workflowId }) {
       rodou = false
       for (const g of gateNodes) {
         if (ctx.dispatched.has(g.id)) continue
-        const up = imageUpstreamOf(g.id)
-        if (up && toUrls(ctx.outputs[up.id]).length) { await runGate(g, ctx); rodou = true }
+        const ups = imageUpstreamsOf(g.id)
+        const produtor = ups.find(u => ['generate', 'app', 'artGate', 'preview'].includes(u.type)) || ups[0]
+        if (produtor && toUrls(ctx.outputs[produtor.id]).length) { await runGate(g, ctx); rodou = true }
       }
     }
   }
@@ -620,7 +630,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     setRunning(true); setProgress({ done: 0, total: jobs.length }); setElapsed(0)
     const stop = () => {
       clearInterval(pollRef.current); pollRef.current = null; setRunning(false); setElapsed(0)
-      if (wfId) saveRef.current?.()   // autosave após cada run
+      if (wfId) setTimeout(() => saveRef.current?.(), 400)   // autosave após o estado assentar
       reloadWorkspace?.()             // atualiza saldo de créditos ao fim do run
     }
     pollRef.current = setInterval(async () => {
