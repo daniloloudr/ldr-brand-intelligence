@@ -4,6 +4,11 @@ import {
   IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
+import { Tabs, Tab } from '@mui/material'
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
+import AddIcon from '@mui/icons-material/Add'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -46,16 +51,41 @@ export function StudioLibrary({ brandId }) {
   const [orgPasta, setOrgPasta] = useState('')
   const [orgTags, setOrgTags]   = useState([])
   const [savingOrg, setSavingOrg] = useState(false)
+  // Casa do Conteúdo: a Biblioteca é o HUB — Mídia · Textos · Campanhas
+  const [aba, setAba] = useState(0)
+  const [textos, setTextos] = useState(null)
+  const [campanhas, setCampanhas] = useState(null)
+  const [textoAberto, setTextoAberto] = useState(null)
+  const [copiado, setCopiado] = useState(false)
 
   useEffect(() => { if (brandId) load() }, [brandId])
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('brand_assets').select('*')
-      .eq('brand_id', brandId).in('tipo', TIPOS_BIBLIOTECA)
-      .order('created_at', { ascending: false })
+    const [{ data }, { data: pecas }, { data: camps }] = await Promise.all([
+      supabase.from('brand_assets').select('*')
+        .eq('brand_id', brandId).in('tipo', TIPOS_BIBLIOTECA)
+        .order('created_at', { ascending: false }),
+      supabase.from('pecas_escritas').select('*')
+        .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(100),
+      supabase.from('studio_campaigns').select('id, nome, conceito, status, created_at')
+        .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
+    ])
     setAssets(data || [])
+    setTextos(pecas || [])
+    setCampanhas(camps || [])
     setLoading(false)
+  }
+
+  async function excluirTexto(t) {
+    if (!window.confirm(`Excluir "${t.titulo}"?`)) return
+    const { error } = await supabase.from('pecas_escritas').delete().eq('id', t.id)
+    if (!error) setTextos(prev => prev.filter(x => x.id !== t.id))
+  }
+
+  function copiarTexto(t) {
+    navigator.clipboard.writeText(t.conteudo || '')
+    setCopiado(true); setTimeout(() => setCopiado(false), 1500)
   }
 
   const pastas = useMemo(() => [...new Set(assets.map(a => a.pasta).filter(Boolean))].sort(), [assets])
@@ -113,6 +143,13 @@ export function StudioLibrary({ brandId }) {
       <PageHeader title="Estúdio" subtitle="Biblioteca — as peças e arquivos da marca, organizados" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
+        <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 2.5, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13, textTransform: 'none' } }}>
+          <Tab label={`Mídia${assets.length ? ` · ${assets.length}` : ''}`} />
+          <Tab label={`Textos${textos?.length ? ` · ${textos.length}` : ''}`} />
+          <Tab label={`Campanhas${campanhas?.length ? ` · ${campanhas.length}` : ''}`} />
+        </Tabs>
+
+        {aba === 0 && (<>
         {/* Busca + pastas + tags */}
         <Stack spacing={1.5} mb={2.5}>
           <TextField size="small" fullWidth placeholder="Buscar por nome, descrição, tag ou pasta…"
@@ -181,7 +218,91 @@ export function StudioLibrary({ brandId }) {
             ))}
           </Box>
         )}
+        </>)}
+
+        {/* ── Textos: a casa das peças escritas (Redação + Copiloto) ── */}
+        {aba === 1 && (
+          textos === null ? <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          : textos.length === 0 ? (
+            <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
+              <ArticleOutlinedIcon sx={{ fontSize: 34, color: 'text.disabled', mb: 1 }} />
+              <Typography fontSize={13.5} fontWeight={800} mb={0.5}>Nenhum texto salvo ainda</Typography>
+              <Typography fontSize={12} color="text.secondary">Salve peças na Redação ("Salvar na Biblioteca") ou peça ao Copiloto — tudo que a marca escreve mora aqui.</Typography>
+            </Paper>
+          ) : (
+            <Stack spacing={1}>
+              {textos.map(t => (
+                <Paper key={t.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
+                  onClick={() => setTextoAberto(t)}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <ArticleOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography fontSize={13.5} fontWeight={800} noWrap>{t.titulo}</Typography>
+                      <Typography fontSize={11} color="text.secondary">
+                        {[t.formato, t.origem === 'copiloto' ? 'Copiloto' : t.origem === 'redacao' ? 'Redação' : t.origem].filter(Boolean).join(' · ')} · {new Date(t.created_at).toLocaleDateString('pt-BR')}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Copiar conteúdo"><IconButton size="small" onClick={e => { e.stopPropagation(); copiarTexto(t) }}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+                    <Tooltip title="Excluir"><IconButton size="small" onClick={e => { e.stopPropagation(); excluirTexto(t) }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          )
+        )}
+
+        {/* ── Campanhas: de volta ao mapa (rotas religadas) ── */}
+        {aba === 2 && (
+          campanhas === null ? <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          : (<>
+            <Stack direction="row" justifyContent="flex-end" mb={1.5}>
+              <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />}
+                onClick={() => { window.location.hash = `#/app/brands/${brandId}/campaigns/new` }}
+                sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>Nova campanha</Button>
+            </Stack>
+            {campanhas.length === 0 ? (
+              <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
+                <CampaignOutlinedIcon sx={{ fontSize: 34, color: 'text.disabled', mb: 1 }} />
+                <Typography fontSize={13.5} fontWeight={800} mb={0.5}>Nenhuma campanha ainda</Typography>
+                <Typography fontSize={12} color="text.secondary">A campanha agrupa as peças de um mesmo conceito — crie a primeira.</Typography>
+              </Paper>
+            ) : (
+              <Stack spacing={1}>
+                {campanhas.map(c => (
+                  <Paper key={c.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
+                    onClick={() => { window.location.hash = `#/app/brands/${brandId}/campaigns/${c.id}` }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CampaignOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography fontSize={13.5} fontWeight={800} noWrap>{c.nome}</Typography>
+                        <Typography fontSize={11} color="text.secondary" noWrap>{(c.conceito || '').slice(0, 120)}</Typography>
+                      </Box>
+                      <Chip label={c.status} size="small" variant="outlined" sx={{ fontSize: 10.5, fontWeight: 700 }} />
+                      <Typography fontSize={11} color="text.disabled">{new Date(c.created_at).toLocaleDateString('pt-BR')}</Typography>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </>)
+        )}
       </Box>
+
+      {/* Dialog de leitura do texto */}
+      <Dialog open={!!textoAberto} onClose={() => setTextoAberto(null)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontSize: 15, fontWeight: 900 }}>{textoAberto?.titulo}</DialogTitle>
+        <DialogContent>
+          <Typography component="pre" sx={{ fontSize: 13.5, lineHeight: 1.65, whiteSpace: 'pre-wrap', fontFamily: 'inherit', m: 0 }}>
+            {textoAberto?.conteudo}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => copiarTexto(textoAberto)} startIcon={<ContentCopyIcon sx={{ fontSize: 15 }} />} sx={{ fontWeight: 700 }}>
+            {copiado ? 'Copiado!' : 'Copiar'}
+          </Button>
+          <Button onClick={() => setTextoAberto(null)} sx={{ fontWeight: 700 }}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog Organizar: pasta (free-solo) + tags (free-solo múltiplas) */}
       <Dialog open={!!org} onClose={() => setOrg(null)} maxWidth="xs" fullWidth>

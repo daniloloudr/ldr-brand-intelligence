@@ -190,6 +190,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
       { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
       { label: t('nav.studio.workflow'), hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
+      { label: t('nav.studio.campaigns'), hash: `${brandPath}/campaigns`, active: ['brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail'].includes(route) },
       { label: t('nav.studio.library'),  hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
     ] },
     // Copilot enxuto (decisão 2026-07-10): só o Chat — modos viraram sugestões

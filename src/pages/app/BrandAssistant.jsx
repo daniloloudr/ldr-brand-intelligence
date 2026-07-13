@@ -76,6 +76,17 @@ const REVIEW_TOOL = {
   }, required: ['veredito', 'resumo'] },
 }
 
+// Casa do Conteúdo: peça escrita produzida no chat ganha endereço na Biblioteca.
+const SAVE_TOOL = {
+  name: 'salvar_peca_escrita',
+  description: 'SALVA uma peça de texto pronta (post, carrossel, roteiro, e-mail, blog) na Biblioteca da marca (aba Textos). Use SEMPRE que terminar de escrever uma peça completa que o usuário aprovou ou pediu — não pede confirmação, não custa créditos.',
+  input_schema: { type: 'object', properties: {
+    titulo:   { type: 'string', description: 'Título curto da peça' },
+    formato:  { type: 'string', description: 'post | carrossel | roteiro-ugc | email | blog | outro' },
+    conteudo: { type: 'string', description: 'A peça completa em markdown' },
+  }, required: ['titulo', 'conteudo'] },
+}
+
 const CREATE_NAMES = new Set(CREATE_TOOLS.map(t => t.name))
 
 const TOOL_LABEL = {
@@ -709,8 +720,16 @@ export function BrandAssistant({ brandId }) {
     await runAssistantStream({
       messages: history,
       systemPrompt,
-      tools: [...READ_TOOLS, ...CREATE_TOOLS, REVIEW_TOOL],
+      tools: [...READ_TOOLS, ...CREATE_TOOLS, REVIEW_TOOL, SAVE_TOOL],
       execTool: async (name, inp) => {
+        if (name === 'salvar_peca_escrita') {
+          const { data: pc, error } = await supabase.from('pecas_escritas').insert({
+            workspace_id: workspace?.id, brand_id: brand?.id,
+            titulo: (inp?.titulo || 'Peça').slice(0, 140), formato: inp?.formato || null,
+            conteudo: inp?.conteudo || '', origem: 'copiloto',
+          }).select('id').single()
+          return JSON.stringify(error ? { erro: error.message } : { ok: true, link: `#/app/brands/${brandId}/studio/biblioteca`, instrucao: 'Salva na Biblioteca → Textos. Inclua o link na resposta.' })
+        }
         if (name === 'registrar_parecer') {
           const { error } = await supabase.from('brand_signals').insert({
             brand_id: brand?.id, workspace_id: workspace?.id,
