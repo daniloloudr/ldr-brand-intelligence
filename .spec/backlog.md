@@ -97,9 +97,9 @@ Decisão: SEM SaaS self-service; crédito = REPASSE de custo (baliza **1 cr = R$
 
 ### 🗂 Casa do Conteúdo (anotado 2026-07-12 — "ver com calma", mas PRÉ-REQUISITO do A3)
 Problema nomeado pelo Danilo: conteúdo gerado não tem casa organizada — imagem/vídeo têm a Biblioteca, mas TEXTO criado não persiste em lugar nenhum (Redação gera e não salva por design; peças escritas do Copiloto vivem só na conversa), e a página de CAMPANHAS ficou ÓRFÃ da nova arquitetura (rotas existem — Campaigns/CampaignNew/CampaignDetail — mas nenhuma entrada de menu na árvore nova). Crítico para o A3: "pedir campanha no chat e ele gerar tudo" precisa aterrissar organizado.
-- **1. Peças escritas ganham casa** 🟢 — migration `pecas_escritas` (brand_id, titulo, formato, conteudo md, origem redacao/copiloto/campanha); Redação e Copiloto passam a salvar; vira aba na Biblioteca.
-- **2. Biblioteca vira o HUB único** 🟡 — abas/filtros por tipo (imagens · vídeos · textos · campanhas), busca, agrupamento por campanha.
-- **3. Campanhas de volta ao mapa** 🟢 — decidir a porta (entrada no menu do Estúdio ou dentro da Biblioteca) e ressuscitar as rotas órfãs; campanha = agrupador de peças (o "dossiê" que o A3 preenche).
+- [x] ~~1. Peças escritas ganham casa~~ ✅ 2026-07-13 — migration 040 `pecas_escritas`; Redação salva (botão) e Copiloto salva (tool `salvar_peca_escrita`, auto).
+- [x] ~~2. Biblioteca vira o HUB~~ ✅ 2026-07-13 — abas Mídia · Textos (dialog de leitura/copiar) · Campanhas.
+- [x] ~~3. Campanhas de volta ao mapa~~ ✅ 2026-07-13 — item 'Campanhas' no menu do Estúdio + aba na Biblioteca; rotas órfãs religadas (as 2 campanhas perdidas reapareceram).
 - **4. A3 entrega NA casa** — quando o chat construir campanha completa, cada peça nasce já vinculada (campanha_id) e o card do chat aponta pra página da campanha.
 
 ### 🛍 Especialistas da fal para apropriar (varredura 2026-07-12 — "depois voltamos neles")
