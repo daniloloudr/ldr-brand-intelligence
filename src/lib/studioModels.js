@@ -31,7 +31,7 @@ export const IMAGE_MODELS = [
 export const DEFAULT_IMAGE_MODEL = 'fal-ai/gemini-25-flash-image'
 
 // Ordem das seções no seletor (sem 'Automático' — só faz sentido no Workflow).
-export const IMAGE_MODEL_GROUPS = ['Mais usados', 'Fotorrealismo & edição', 'Rápidos & open', 'Design & tipografia']
+export const IMAGE_MODEL_GROUPS = ['Mais usados', 'Fotorrealismo & edição', 'Rápidos & open', 'Design & tipografia', 'Especializados']
 
 // 'auto' resolve no servidor (DEFAULT_MODEL). Enviamos null para o backend decidir.
 export const resolveModel = m => (m && m !== 'auto' ? m : null)
