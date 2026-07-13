@@ -82,11 +82,15 @@ export const handler = async (event) => {
   //        concluir (em _studio.js), usando o hero como imagem de referência.
   const formatosToSubmit = mode === 'adapt' ? formatos.slice(0, 1) : formatos
 
+  // Regra da casa: imagem SEMPRE limpa — texto/tipografia entram na pós-produção.
+  // (A campanha era anterior à regra e rasterizava headline na arte.)
+  const NO_TEXT = 'IMPORTANTE: NENHUM texto, letra, número, logotipo ou tipografia na imagem — o copy entra na pós-produção; deixe espaço negativo para ele.'
+
   const generations = []
   for (const formato of formatosToSubmit) {
     const promptFinal = useBrand
-      ? `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${conceito}\n\n[FORMATO]\n${formato}`
-      : `${conceito}\n\n[FORMATO]\n${formato}`
+      ? `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${conceito}\n\n${NO_TEXT}\n\n[FORMATO]\n${formato}`
+      : `${conceito}\n\n${NO_TEXT}\n\n[FORMATO]\n${formato}`
     const { gen, error } = await submitGeneration(supabase, {
       workspace_id, brand_id, workflow_id, campaign_id: campaign.id,
       promptFinal, snapshot, formato, model, extra,

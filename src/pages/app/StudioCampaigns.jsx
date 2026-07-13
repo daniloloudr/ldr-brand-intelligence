@@ -33,6 +33,18 @@ export function StudioCampaigns({ brandId }) {
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
   useEffect(() => { loadHistory() }, [brandId])
 
+  // Deep-link da Biblioteca: #/…/studio/campanhas?c={id} abre a campanha
+  useEffect(() => {
+    const m = window.location.hash.match(/[?&]c=([\w-]+)/)
+    if (!m) return
+    ;(async () => {
+      const { data: c } = await supabase.from('studio_campaigns')
+        .select('id, nome, status').eq('id', m[1]).maybeSingle()
+      if (c) loadCampaign(c)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandId])
+
   function toggle(v) {
     setSelected(s => s.includes(v) ? s.filter(x => x !== v) : [...s, v])
   }

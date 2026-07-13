@@ -257,7 +257,7 @@ export function StudioLibrary({ brandId }) {
           : (<>
             <Stack direction="row" justifyContent="flex-end" mb={1.5}>
               <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />}
-                onClick={() => { window.location.hash = `#/app/brands/${brandId}/campaigns/new` }}
+                onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }}
                 sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>Nova campanha</Button>
             </Stack>
             {campanhas.length === 0 ? (
@@ -270,7 +270,7 @@ export function StudioLibrary({ brandId }) {
               <Stack spacing={1}>
                 {campanhas.map(c => (
                   <Paper key={c.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
-                    onClick={() => { window.location.hash = `#/app/brands/${brandId}/campaigns/${c.id}` }}>
+                    onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas?c=${c.id}` }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <CampaignOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
