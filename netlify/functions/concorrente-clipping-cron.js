@@ -1,23 +1,25 @@
-// concorrente-clipping-cron.js — Scheduled (netlify.toml). Clipping semanal dos
-// concorrentes de TODOS os workspaces (em série, deduplicando por url).
-// Depois da coleta, gera a SÍNTESE DO CICLO por workspace (fase 1 · Inteligência
-// de Mercado): o time abre segunda-feira com o briefing pronto.
-// Lição aprendida: NUNCA fire-and-forget em Lambda; tudo await até o fim.
+// concorrente-clipping-cron.js — Scheduled (netlify.toml). DESPACHANTE puro
+// (fan-out da meta 30 marcas, 2026-07-13): acha os workspaces com concorrentes
+// ativos e dispara 1 worker em background POR workspace (coleta + síntese, cada
+// um com 15 min próprios). Antes: trabalhava inline com teto GLOBAL de 8
+// concorrentes + síntese serial — quebrava na ~5ª marca e no teto síncrono do
+// scheduled. Lição de sempre: dispatches AWAITADOS (fire-and-forget morre).
 import { createClient } from '@supabase/supabase-js'
-import { coletarClippingWorkspace } from './_clipping.js'
-import { gerarSinteseMercado } from './_market.js'
+import { siteBase } from './_studio.js'
 
 export const handler = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
-  const res = await coletarClippingWorkspace(supabase, { max: 8 })
-  console.log(`[clipping-cron] ${res.inseridos} itens de ${res.concorrentes} concorrentes`)
-
-  // Síntese por workspace com concorrentes ativos (em série; falha não derruba o cron)
   const { data: concs } = await supabase.from('concorrentes').select('workspace_id').eq('ativo', true)
-  const wss = [...new Set((concs || []).map(c => c.workspace_id))]
-  for (const ws of wss) {
-    const r = await gerarSinteseMercado(supabase, { workspace_id: ws }).catch(e => ({ status: `erro: ${e.message}` }))
-    console.log(`[clipping-cron] síntese ws ${ws}: ${r.status}`)
-  }
-  return { statusCode: 200, body: JSON.stringify({ ...res, sinteses: wss.length }) }
+  const wss = [...new Set((concs || []).map(c => c.workspace_id).filter(Boolean))]
+
+  const results = await Promise.allSettled(wss.map(workspace_id =>
+    fetch(`${siteBase()}/.netlify/functions/clipping-workspace-background`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspace_id, jitter: true }),
+    })
+  ))
+  const falhas = results.filter(r => r.status === 'rejected').length
+  if (falhas) console.error(`[clipping-cron] ${falhas} disparo(s) falharam`)
+  console.log(`[clipping-cron] fan-out: ${wss.length} workspace(s) despachado(s)`)
+  return { statusCode: 200, body: JSON.stringify({ despachados: wss.length, falhas }) }
 }

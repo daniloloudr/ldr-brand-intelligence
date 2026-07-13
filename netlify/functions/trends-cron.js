@@ -1,18 +1,22 @@
-// trends-cron.js — Scheduled (netlify.toml). Radar de tendências semanal para
-// todos os workspaces com setor definido (em série — aproveita o prompt cache).
-// Lição aprendida: NUNCA fire-and-forget em Lambda; tudo await até o fim.
+// trends-cron.js — Scheduled (netlify.toml). DESPACHANTE puro (fan-out da meta
+// 30 marcas, 2026-07-13): 1 worker em background POR workspace com setor.
+// Antes: loop serial numa função só — estourava o teto de 15 min com ~15
+// workspaces (e o teto síncrono do scheduled muito antes disso).
 import { createClient } from '@supabase/supabase-js'
-import { coletarTendenciasWorkspace } from './_trends.js'
+import { siteBase } from './_studio.js'
 
 export const handler = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
-  const { data: wss } = await supabase.from('workspaces').select('id, setor').not('setor', 'is', null)
+  const { data: wss } = await supabase.from('workspaces').select('id').not('setor', 'is', null)
 
-  let total = 0
-  for (const ws of wss || []) {                      // SÉRIE (cache do prompt)
-    const res = await coletarTendenciasWorkspace(supabase, { workspace_id: ws.id })
-    total += res.inseridos
-  }
-  console.log(`[trends-cron] ${total} tendências em ${wss?.length || 0} workspaces`)
-  return { statusCode: 200, body: JSON.stringify({ workspaces: wss?.length || 0, inseridos: total }) }
+  const results = await Promise.allSettled((wss || []).map(ws =>
+    fetch(`${siteBase()}/.netlify/functions/trends-workspace-background`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspace_id: ws.id, jitter: true }),
+    })
+  ))
+  const falhas = results.filter(r => r.status === 'rejected').length
+  if (falhas) console.error(`[trends-cron] ${falhas} disparo(s) falharam`)
+  console.log(`[trends-cron] fan-out: ${wss?.length || 0} workspace(s) despachado(s)`)
+  return { statusCode: 200, body: JSON.stringify({ despachados: wss?.length || 0, falhas }) }
 }
