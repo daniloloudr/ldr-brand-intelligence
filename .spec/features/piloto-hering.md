@@ -29,10 +29,14 @@ Corrigido no `ErrorBoundary`: erro de chunk agora **recarrega a página sozinho*
 tradicional. Mesmo com margem de créditos ×3, o argumento de venda é esmagador.
 (Mercado confirma a ordem: ferramentas de ghost mannequin cobram <$1/imagem vs $5–25 do manual.)
 
-**Nota de integração (vira tarefa da F1):** o FASHN usa schema próprio
-(`model_image` + `garment_image`), não prompt+references. O `submitImageJob` já aceita
-`input` override (é como os apps upscale/removebg funcionam) — falta expor isso como
-**nó "Vestir modelo (try-on)"** no canvas ou `mode: 'tryon'` no studio-generate.
+~~Nota de integração~~ ✅ 2026-07-12 — FASHN integrado: catálogo (grupo Especializados),
+schema próprio no `_image.js` (1ª referência = modelo, 2ª = peça), nó Gerar dispensa Prompt
+no try-on. **Teste real:** jaqueta de zodíaco vestida num modelo neutro, ~90% de fidelidade
+(texto da barra perdido por oclusão; escorpião levemente reposicionado) por $0,075.
+**Juiz de fidelidade** ✅: `art-review` com `modo: 'fidelidade'` + `reference_url` compara
+gerada vs original (texto letra a letra, estampa, cores) ignorando a estética do workspace —
+validado: apontou exatamente as divergências da análise humana. Fluxo pronto:
+"Hering — Vestir Modelo (FASHN Try-On)" (portão em modo fidelidade com a peça como referência).
 
 ## F0.3 🔜 — o pilotinho (gatilho: Rafael marcar)
 
