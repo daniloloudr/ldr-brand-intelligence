@@ -91,6 +91,18 @@ Problema nomeado pelo Danilo: conteúdo gerado não tem casa organizada — imag
 - **3. Campanhas de volta ao mapa** 🟢 — decidir a porta (entrada no menu do Estúdio ou dentro da Biblioteca) e ressuscitar as rotas órfãs; campanha = agrupador de peças (o "dossiê" que o A3 preenche).
 - **4. A3 entrega NA casa** — quando o chat construir campanha completa, cada peça nasce já vinculada (campanha_id) e o card do chat aponta pra página da campanha.
 
+### 🛍 Especialistas da fal para apropriar (varredura 2026-07-12 — "depois voltamos neles")
+A tese borda-commodity em ação: o FASHN entrou em ~1h; cada especialista abaixo é encaixe, não reconstrução. Top 3 marcado.
+
+| # | Modelo (fal) | O quê | Encaixe s1ngulr |
+|---|---|---|---|
+| **1º** ⭐ | **Recraft V3 vector** ($0,08/SVG) | ícones/padrões VETORIAIS na paleta | "Gerar ícone on-brand" na aba Ícones dos Ativos — ativo de marca permanente, não peça descartável. 🟢 horas |
+| **2º** ⭐ | **Dia TTS** (clonagem de voz) + Sync-3/PixVerse lipsync | a marca grava 1 min e ganha a PRÓPRIA voz p/ narrar reels | destrava o "vídeo completo" (output 4) e abre a faceta IDENTIDADE SONORA no brand book. 🟡 ~1 dia |
+| **3º** ⭐ | **Kling custom elements · Happy Horse 1.1** (9 refs → personagem consistente) | "modelo da casa": a MESMA modelo/mascote em todas as peças | faceta "elenco da marca" no brand book; p/ Hering: mesma modelo vestindo a coleção inteira do guia. 🟡 |
+| 4 | Bria Extract Object | isola produto com transparência | o passo que falta do manequim fantasma real (linha Hering) |
+| 5 | BiRefNet v2 · SeedVR upscale | fundo hi-res · upscaler novo | upgrades dos apps Remover fundo/Ampliar (duelo) |
+| 6 | TRELLIS-2 (3D) · LTX-2.3 (video enhance) | produto 3D · restaurar/estender vídeo | horizonte: AR/e-commerce · pós de reels |
+
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).
 
