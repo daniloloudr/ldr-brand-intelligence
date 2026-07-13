@@ -13,10 +13,13 @@
 
 Maior preocupação do Danilo: a infra aguentar 30 tenants. Gargalos JÁ MAPEADOS (2026-07-13):
 
+**🚨 AUDITORIA DE SEGUNDA 13/jul (prod, crons antigos):** a teoria confirmou na prática — **scheduled functions têm teto SÍNCRONO (segundos), não 15 min**. Evidências: clipping coletou por só 38s (11 itens, 1 workspace, 0 sínteses — morreu no meio); tendências cobriu 1 de 2 workspaces; diagnósticos de concorrentes = 0 (9 dias de staleness); destilação = 0 com 53 sinais pendentes na LOUDR (recuperação manual disparada 13/jul ~manhã — confirmar v6). **Os fixes (família fan-out, itens 1/2/2b) estão em DEV — o "sobe" é o item mais urgente da semana.**
+
 | # | Gargalo | Evidência | Fix | Quando |
 |---|---|---|---|---|
 | ~~1~~ ✅ 13/jul | ~~Cron de clipping: teto GLOBAL de 8~~ | resolvido: `clipping-workspace-background` (worker por workspace: coleta TODOS os concorrentes + síntese própria, 15 min cada, jitter 0-45s); cron = despachante puro | — |
 | ~~2~~ ✅ 13/jul | ~~trends/sínteses seriais~~ | resolvido: `trends-workspace-background` (worker por workspace) + síntese movida pro worker de clipping; crons = despachantes | — |
+| ~~2b~~ ✅ 13/jul | ~~diagnosticar-cron inline~~ | resolvido: `diagnostico-concorrentes-workspace-background` (pendentes staleDays 7, cap 4/ciclo, jitter); cron = despachante | — |
 | 3 🟠 | **Observabilidade zero** | Sentry + alerta "cron não rodou" (já decidido: pré-produção) | Gap 1 do H1 | antes da 3ª marca externa |
 | 4 🟠 | **Tenant hardening** | backup/versionamento por cérebro; hoje uma instância única sem export por tenant | Gap 6 do H2 | ~10 marcas |
 | 5 🟡 | **Custo por workspace invisível** | `ai_usage` grava desde 12/jul; falta o painel admin somando fal+LLM+fixos | pendência do pivô de créditos | ~5 marcas |
