@@ -55,7 +55,8 @@ export async function coletarTendenciasWorkspace(supabase, { workspace_id }) {
   let trends = []
   try {
     const { text } = await callAI({ ...aiConfig('standard'), maxTokens: 6000,
-      messages: [{ role: 'user', content: buildPrompt({ setor: ws.setor, nomeMarca: brand.nome, brandCtx }) }] })
+      messages: [{ role: 'user', content: buildPrompt({ setor: ws.setor, nomeMarca: brand.nome, brandCtx }) }],
+      supabase, tag: 'tendencias' })
     trends = parseTrends(text)
   } catch (e) {
     console.error(`[trends] ws ${workspace_id}: ${e.message}`)

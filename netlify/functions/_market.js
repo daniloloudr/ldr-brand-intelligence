@@ -42,6 +42,7 @@ Retorne APENAS JSON, sem markdown:
       model: isDev() ? MODELS.medium : MODELS.smart,
       maxTokens: 1500, retries: 1, retryDelay: 3000,
       messages: [{ role: 'user', content: prompt }],
+      supabase, tag: 'sintese-mercado',
     })
     out = extractJSON(text)
   } catch (e) {

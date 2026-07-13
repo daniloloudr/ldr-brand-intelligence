@@ -1,3 +1,32 @@
+# s1ngulr — Custos & Créditos (modelo revisto)
+
+> **🔄 PIVÔ DE MODELO (Danilo, 2026-07-12): NÃO é SaaS self-service.**
+> A venda é direta/negociada. O **crédito virou REPASSE DE CUSTO** (sem margem) —
+> o ganho está na inteligência, na revisão e na redução de horas, precificadas em contrato.
+>
+> **A BALIZA: 1 crédito = R$0,33 de custo de insumo de IA.**
+> Matemática: o mapa de créditos segue `créditos = ⌈18 × custo_USD⌉`; com o crédito a
+> R$0,33, 18 × 0,33 = R$5,94/USD — o repasse cobre o custo real com proteção de câmbio
+> até R$5,94, sem retocar nenhum mapa. (Se preferir baliza R$0,30: multiplicador ×20 e
+> recalibrar os vídeos ~+10%.)
+>
+> **As duas visões de custo:**
+> 1. **Uso (cliente):** créditos por geração visíveis no nó Gerar, na página Imagem,
+>    no card do Copiloto e na página Créditos & Consumo (tabela por modelo + extrato).
+> 2. **Dona (Danilo):** custo TOTAL do sistema =
+>    (a) fal/geração → rastreado em `studio_generations` + dashboard admin ✅;
+>    (b) LLM Anthropic → rastreado em `ai_usage` (migration 039) com tag por operação
+>        (distill, diagnostico, sintese-mercado, tendencias, insights, clipping,
+>        diretor-de-arte, home-reco…) ✅ desde 2026-07-12;
+>    (c) embeddings Voyage → hook pendente (barato: ~$0,06/M tokens);
+>    (d) fixos: Netlify + Supabase + R2 (anotar valores mensais no dashboard).
+>    Pendente: painel admin "custo por workspace/mês" somando (a)+(b) — dados já gravam.
+>
+> O documento abaixo é o modelo ANTERIOR (planos SaaS) — mantido como referência
+> histórica dos custos por modelo e da regra ×18.
+
+---
+
 # LOUDR — Modelo de Precificação (créditos)
 
 > Definido jun/2026, revisto e IMPLEMENTADO jul/2026. Custos de insumos em `custos.csv`.

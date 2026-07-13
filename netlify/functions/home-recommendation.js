@@ -100,7 +100,7 @@ Retorne APENAS JSON: {"acao":"<id>","texto":"<1-2 frases>"}`
 
   try {
     const { text } = await callAI({ ...aiConfig('fast'), maxTokens: 400,
-      messages: [{ role: 'user', content: prompt }] })
+      messages: [{ role: 'user', content: prompt }], supabase, tag: 'home-reco' })
     const out = extractJSON(text)
     const escolhida = actions[out?.acao]
     if (!escolhida || !out?.texto) return { statusCode: 200, headers, body: JSON.stringify({ reco: null }) }

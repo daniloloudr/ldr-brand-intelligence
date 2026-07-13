@@ -11,6 +11,9 @@
 export const INTEL_PREFIX = 'intel:'
 
 // Embedding via Voyage voyage-3 (1024 dims). Lança em erro de API.
+let _sb = null
+export const setEmbedUsageSink = supabase => { _sb = supabase }   // opcional (rastreio)
+
 export async function voyageEmbed(inputs) {
   const res = await fetch('https://api.voyageai.com/v1/embeddings', {
     method: 'POST',

@@ -63,7 +63,7 @@ export const handler = async (event) => {
     const { text } = await callAI({
       model: isDev() ? MODELS.fast : MODELS.medium,
       maxTokens: 800, retries: 1, retryDelay: 2000, timeoutMs: 25000,
-      system,
+      system, supabase, tag: 'diretor-de-arte',
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'url', url: image_url } },
         ...(reference_url ? [{ type: 'image', source: { type: 'url', url: reference_url } }] : []),
