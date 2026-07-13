@@ -57,6 +57,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [elapsed, setElapsed] = useState(0)        // segundos desde o início do run
   const pollRef = useRef(null)
+  const campaignRef = useRef(null)   // campanha dona deste fluxo (peças nascem vinculadas)
   const rfRef = useRef(null)
   const flowWrapRef = useRef(null)
   const connectSrcRef = useRef(null)
@@ -264,6 +265,9 @@ export function StudioCanvas({ brandId, workflowId }) {
     async function load() {
       if (wfId) {
         const { data } = await supabase.from('studio_workflows').select('nome, nodes, edges').eq('id', wfId).maybeSingle()
+        // Campanha → fluxo: toda peça gerada aqui nasce no dossiê da campanha
+        const { data: camp } = await supabase.from('studio_campaigns').select('id').eq('workflow_id', wfId).maybeSingle()
+        campaignRef.current = camp?.id || null
         if (active && data) {
           if (data.nome) setNome(data.nome)
           const edgesLoaded = data.edges || []
@@ -447,7 +451,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, campaign_id: campaignRef.current, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }

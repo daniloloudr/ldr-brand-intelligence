@@ -1,255 +1,292 @@
-import { useState, useRef, useEffect } from 'react'
+// Campanhas — o DOSSIÊ, não a fábrica (redesenho 2026-07-13).
+// A produção acontece SEMPRE no Fluxos (um motor só, com os padrões da casa:
+// prompts revisáveis, modelo por nó, diretor de arte, imagem limpa). Aqui a
+// campanha organiza: brief + fluxo de produção + peças agrupadas + aprovação
+// (que emite o sinal campaign_verdict pro cérebro — trigger da migration 025).
+// É a página que o A3 do Copiloto preencherá sozinho.
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip, IconButton, Tooltip,
+  Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
+  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import AddIcon from '@mui/icons-material/Add'
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
-import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import { supabase } from '../../lib/supabase'
+import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A'
-const FORMATOS = [
-  { v: '1:1',  label: 'Feed 1:1',   ar: '1 / 1' },
-  { v: '9:16', label: 'Story 9:16', ar: '9 / 16' },
-  { v: '16:9', label: 'Banner 16:9', ar: '16 / 9' },
-  { v: '4:5',  label: 'Retrato 4:5', ar: '4 / 5' },
-]
-const ar = f => (FORMATOS.find(x => x.v === f)?.ar) || '1 / 1'
+const TEAL = '#0D9E7A'
+const AMBER = '#EF9F27'
+const STATUS_COR = { rascunho: 'text.disabled', gerando: AMBER, concluida: TEAL, aprovada: TEAL }
+const isVideo = u => /\.(mp4|webm|mov)(\?|$)/i.test(u || '')
 
 export function StudioCampaigns({ brandId }) {
+  const { workspace } = useWorkspace()
+  const [campanhas, setCampanhas] = useState(null)
+  const [sel, setSel] = useState(null)            // campanha aberta (dossiê)
+  const [gens, setGens] = useState([])            // peças visuais da campanha
+  const [textos, setTextos] = useState([])        // peças escritas da campanha
+  const [novaOpen, setNovaOpen] = useState(false)
+  const [nome, setNome] = useState('')
   const [conceito, setConceito] = useState('')
-  const [selected, setSelected] = useState(['1:1', '9:16', '16:9'])
-  const [mode, setMode] = useState('independent')
-  const [generating, setGenerating] = useState(false)
-  const [pieces, setPieces] = useState([])   // { id, formato, status, image_url, error }
+  const [criando, setCriando] = useState(false)
   const [msg, setMsg] = useState('')
-  const [saved, setSaved] = useState({})    // generationId -> true
-  const [saving, setSaving] = useState({})
-  const [history, setHistory] = useState([])
-  const pollRef = useRef(null)
+  const [aprovando, setAprovando] = useState(false)
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
-  useEffect(() => { loadHistory() }, [brandId])
-
-  // Deep-link da Biblioteca: #/…/studio/campanhas?c={id} abre a campanha
-  useEffect(() => {
-    const m = window.location.hash.match(/[?&]c=([\w-]+)/)
-    if (!m) return
-    ;(async () => {
-      const { data: c } = await supabase.from('studio_campaigns')
-        .select('id, nome, status').eq('id', m[1]).maybeSingle()
-      if (c) loadCampaign(c)
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadLista = useCallback(async () => {
+    const { data } = await supabase.from('studio_campaigns')
+      .select('id, nome, conceito, status, workflow_id, created_at')
+      .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50)
+    setCampanhas(data || [])
+    return data || []
   }, [brandId])
 
-  function toggle(v) {
-    setSelected(s => s.includes(v) ? s.filter(x => x !== v) : [...s, v])
+  async function abrirDossie(c) {
+    setSel(c)
+    const [{ data: g }, { data: t }] = await Promise.all([
+      supabase.from('studio_generations').select('id, formato, status, image_url, feedback, created_at')
+        .eq('campaign_id', c.id).eq('status', 'done').not('image_url', 'is', null).order('created_at'),
+      supabase.from('pecas_escritas').select('id, titulo, formato, conteudo, created_at')
+        .eq('campaign_id', c.id).order('created_at'),
+    ])
+    setGens(g || []); setTextos(t || [])
   }
 
-  async function loadHistory() {
-    const { data } = await supabase.from('studio_campaigns')
-      .select('id, nome, status, mode, created_at, formatos')
-      .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(12)
-    setHistory(data || [])
-  }
+  useEffect(() => {
+    if (!brandId) return
+    ;(async () => {
+      const lista = await loadLista()
+      const m = window.location.hash.match(/[?&]c=([\w-]+)/)
+      if (m) { const c = lista.find(x => x.id === m[1]); if (c) abrirDossie(c) }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandId, loadLista])
 
-  async function loadCampaign(c) {
-    if (pollRef.current) clearInterval(pollRef.current)
-    setConceito(c.nome || ''); setMsg('')
-    const { data } = await supabase.from('studio_generations')
-      .select('id, formato, status, image_url, error').eq('campaign_id', c.id).order('created_at')
-    setPieces((data || []).map(d => ({ id: d.id, formato: d.formato, status: d.status, image_url: d.image_url, error: d.error })))
-    if (c.status === 'gerando') { setGenerating(true); pollCampaign(c.id) }
-  }
-
-  async function downloadImage(url, filename) {
+  // Nova campanha = dossiê + FLUXO de produção (o builder monta o grafo do conceito)
+  async function criarCampanha() {
+    if (!nome.trim() || !conceito.trim() || criando) return
+    setCriando(true); setMsg('')
     try {
-      const res = await fetch(url); const blob = await res.blob()
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click()
-      URL.revokeObjectURL(a.href)
-    } catch { window.open(url, '_blank') }
-  }
+      const { data: camp, error: e1 } = await supabase.from('studio_campaigns').insert({
+        workspace_id: workspace?.id, brand_id: brandId,
+        nome: nome.trim().slice(0, 80), conceito: conceito.trim(), formatos: [], status: 'rascunho',
+      }).select().single()
+      if (e1) throw new Error(e1.message)
 
-  async function saveToAssets(p) {
-    if (saving[p.id] || saved[p.id]) return
-    setSaving(s => ({ ...s, [p.id]: true }))
-    const label = FORMATOS.find(f => f.v === p.formato)?.label || p.formato
-    const { error } = await supabase.from('brand_assets').insert({
-      brand_id: brandId, tipo: 'foto',
-      nome: `Studio · ${label}`, descricao: (conceito || '').slice(0, 140),
-      valor: p.image_url, mime_type: 'image/png',
-      metadata: { source: 'studio', generation_id: p.id, formato: p.formato },
-    })
-    setSaving(s => ({ ...s, [p.id]: false }))
-    if (!error) setSaved(s => ({ ...s, [p.id]: true }))
-    else setMsg('Erro ao salvar nos assets: ' + error.message)
-  }
-
-  async function gerar() {
-    if (!conceito.trim()) return setMsg('Descreva o conceito da campanha.')
-    if (!selected.length) return setMsg('Selecione ao menos um formato.')
-    setMsg(''); setGenerating(true); setPieces([])
-
-    const { data: { session } } = await supabase.auth.getSession()
-    let json
-    try {
-      const res = await fetch('/.netlify/functions/studio-campaign', {
+      // o fluxo nasce do conceito (mesmo builder do "criar workflow por prompt")
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/.netlify/functions/studio-workflow-build', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ brand_id: brandId, conceito: conceito.trim(), formatos: selected, mode }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ brand_id: brandId, prompt: `Campanha "${nome.trim()}": ${conceito.trim()}` }),
       })
-      json = await res.json()
-      if (!res.ok) throw new Error(json.error || `Erro ${res.status}`)
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+
+      const { data: wf, error: e2 } = await supabase.from('studio_workflows').insert({
+        workspace_id: workspace?.id, brand_id: brandId, is_template: false,
+        nome: `Campanha — ${nome.trim().slice(0, 60)}`, nodes: j.nodes || [], edges: j.edges || [],
+      }).select('id').single()
+      if (e2) throw new Error(e2.message)
+
+      await supabase.from('studio_campaigns').update({ workflow_id: wf.id }).eq('id', camp.id)
+      // direto pro canvas: a produção acontece lá (peças nascem com campaign_id)
+      window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}`
     } catch (e) {
-      setMsg(e.message); setGenerating(false); return
+      setMsg(e.message); setCriando(false)
     }
-
-    setPieces(json.generations.map(g => ({ ...g, status: 'processing', image_url: null })))
-    pollCampaign(json.campaign_id)
   }
 
-  function pollCampaign(campaignId) {
-    if (pollRef.current) clearInterval(pollRef.current)
-    const start = Date.now()
-    pollRef.current = setInterval(async () => {
-      if (Date.now() - start > 300_000) { clearInterval(pollRef.current); setGenerating(false); return }
-      const [{ data: gens }, { data: camp }] = await Promise.all([
-        supabase.from('studio_generations').select('id, formato, status, image_url, error').eq('campaign_id', campaignId).order('created_at'),
-        supabase.from('studio_campaigns').select('status').eq('id', campaignId).maybeSingle(),
-      ])
-      if (gens) setPieces(gens.map(d => ({ id: d.id, formato: d.formato, status: d.status, image_url: d.image_url, error: d.error })))
-      // Para quando a campanha sai de "gerando" (concluida/rascunho) — robusto para
-      // o modo adapt, onde as adaptações só surgem depois do hero concluir.
-      if (camp && camp.status !== 'gerando') { clearInterval(pollRef.current); setGenerating(false); loadHistory() }
-    }, 3000)
+  async function aprovar() {
+    if (!sel || aprovando) return
+    setAprovando(true)
+    const { error } = await supabase.from('studio_campaigns').update({ status: 'aprovada' }).eq('id', sel.id)
+    setAprovando(false)
+    if (!error) { setSel(s => ({ ...s, status: 'aprovada' })); loadLista() }
   }
 
+  function baixar(url, nomeArq) {
+    const a = document.createElement('a'); a.href = url; a.download = nomeArq; a.target = '_blank'; a.click()
+  }
+
+  // ── Dossiê de uma campanha ──────────────────────────────────────────
+  if (sel) {
+    const wfHash = sel.workflow_id ? `#/app/brands/${brandId}/studio/workflow/${sel.workflow_id}` : null
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+        <PageHeader title={sel.nome} subtitle="Campanha — o dossiê: brief, produção e peças"
+          action={
+            <Stack direction="row" spacing={1}>
+              <Button startIcon={<ArrowBackIcon />} onClick={() => { setSel(null); window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }}
+                sx={{ color: 'text.secondary', fontWeight: 700 }}>Campanhas</Button>
+              {sel.status !== 'aprovada' && (
+                <Button variant="contained" disableElevation disabled={aprovando} onClick={aprovar}
+                  startIcon={aprovando ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <CheckCircleOutlineIcon />}
+                  sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+                  Aprovar campanha
+                </Button>
+              )}
+            </Stack>
+          } />
+        <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
+          <Stack spacing={3}>
+            {/* Brief */}
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+              <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ letterSpacing: '0.08em' }}>BRIEF / CONCEITO</Typography>
+                <Chip label={sel.status} size="small" sx={{ height: 20, fontSize: 10.5, fontWeight: 800, color: STATUS_COR[sel.status] || 'text.secondary' }} variant="outlined" />
+                <Box flex={1} />
+                {wfHash && (
+                  <Button size="small" variant="outlined" startIcon={<AccountTreeOutlinedIcon sx={{ fontSize: 15 }} />}
+                    onClick={() => { window.location.hash = wfHash }} sx={{ fontWeight: 700 }}>
+                    Abrir fluxo de produção
+                  </Button>
+                )}
+              </Stack>
+              <Typography fontSize={13.5} sx={{ lineHeight: 1.6 }}>{sel.conceito}</Typography>
+              {sel.status === 'aprovada' && (
+                <Typography fontSize={11.5} sx={{ mt: 1, color: TEAL, fontWeight: 700 }}>
+                  ✓ Aprovada — a decisão virou aprendizado para a marca
+                </Typography>
+              )}
+            </Paper>
+
+            {/* Peças visuais */}
+            <Box>
+              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25} sx={{ letterSpacing: '0.08em' }}>
+                PEÇAS VISUAIS · {gens.length}
+              </Typography>
+              {gens.length === 0 ? (
+                <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
+                  <Typography fontSize={13} color="text.secondary">
+                    Nenhuma peça ainda — produza no <b>fluxo da campanha</b>: cada geração de lá nasce vinculada aqui.
+                  </Typography>
+                </Paper>
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
+                  {gens.map(g => (
+                    <Paper key={g.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                      <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default' }}>
+                        {isVideo(g.image_url)
+                          ? <Box component="video" src={g.image_url} muted loop playsInline
+                              onMouseOver={e => e.currentTarget.play().catch(() => {})} onMouseOut={e => e.currentTarget.pause()}
+                              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          : <Box component="img" src={g.image_url} alt="" loading="lazy" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                      </Box>
+                      <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.5 }}>
+                        <Typography fontSize={11} fontWeight={700} sx={{ flex: 1 }}>{g.formato || 'peça'}</Typography>
+                        {g.feedback === 'up' && <Typography fontSize={11}>👍</Typography>}
+                        {g.feedback === 'down' && <Typography fontSize={11}>👎</Typography>}
+                        <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(g.image_url, `campanha-${(g.formato || 'peca').replace(':', 'x')}.png`)}>
+                          <DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
+            </Box>
+
+            {/* Peças escritas */}
+            {textos.length > 0 && (
+              <Box>
+                <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25} sx={{ letterSpacing: '0.08em' }}>
+                  PEÇAS ESCRITAS · {textos.length}
+                </Typography>
+                <Stack spacing={1}>
+                  {textos.map(t => (
+                    <Paper key={t.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ArticleOutlinedIcon sx={{ fontSize: 17, color: TEAL }} />
+                        <Typography fontSize={13} fontWeight={800} sx={{ flex: 1 }} noWrap>{t.titulo}</Typography>
+                        <Typography fontSize={11} color="text.disabled">{t.formato || ''}</Typography>
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+          </Stack>
+        </Box>
+      </Box>
+    )
+  }
+
+  // ── Lista de campanhas ──────────────────────────────────────────────
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader
-        title="Studio · Campanhas"
-        subtitle="Um conceito, várias peças coerentes"
-      />
-
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
-        {/* Brief */}
-        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-          <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>
-            Conceito da campanha
-          </Typography>
-          <TextField
-            value={conceito} onChange={e => setConceito(e.target.value)}
-            placeholder="Ex: campanha de lançamento da nova fase da marca — tom acolhedor, foco em conexão e movimento"
-            multiline minRows={2} maxRows={5} fullWidth disabled={generating}
-            sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }}
-          />
-          <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>
-            Formatos
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2.5 }}>
-            {FORMATOS.map(f => (
-              <Chip key={f.v} label={f.label} clickable disabled={generating}
-                onClick={() => toggle(f.v)}
-                variant={selected.includes(f.v) ? 'filled' : 'outlined'}
-                sx={{ fontWeight: 700, ...(selected.includes(f.v) && { bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }) }}
-              />
-            ))}
-          </Stack>
-
-          <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>
-            Modo
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2.5 }}>
-            {[
-              { v: 'independent', label: 'Variações independentes', hint: 'N peças do mesmo conceito — mais variedade' },
-              { v: 'adapt',       label: 'Adaptar de uma peça',     hint: 'gera 1 (1º formato) e reenquadra as demais — mais coerente' },
-            ].map(m => (
-              <Paper key={m.v} variant="outlined" onClick={() => !generating && setMode(m.v)}
-                sx={{ p: 1.25, flex: 1, cursor: generating ? 'default' : 'pointer', borderRadius: 2,
-                  borderColor: mode === m.v ? TEAL : 'divider', borderWidth: mode === m.v ? 2 : 1 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 800, color: mode === m.v ? TEAL : 'text.primary' }}>{m.label}</Typography>
-                <Typography sx={{ fontSize: 11, color: 'text.secondary', mt: 0.25 }}>{m.hint}</Typography>
+      <PageHeader title="Campanhas" subtitle="Um conceito, um dossiê — a produção acontece no fluxo da campanha"
+        action={
+          <Button variant="contained" disableElevation startIcon={<AddIcon />} onClick={() => setNovaOpen(true)}
+            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+            Nova campanha
+          </Button>
+        } />
+      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
+        {campanhas === null ? (
+          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+        ) : campanhas.length === 0 ? (
+          <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
+            <CampaignOutlinedIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
+            <Typography fontSize={14} fontWeight={900} mb={0.5}>Nenhuma campanha ainda</Typography>
+            <Typography fontSize={12.5} color="text.secondary">
+              A campanha é o dossiê de um conceito: o brief, o fluxo de produção e as peças, juntos.
+            </Typography>
+          </Paper>
+        ) : (
+          <Stack spacing={1.25}>
+            {campanhas.map(c => (
+              <Paper key={c.id} variant="outlined" onClick={() => abrirDossie(c)}
+                sx={{ p: 2, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <CampaignOutlinedIcon sx={{ fontSize: 20, color: TEAL }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography fontSize={14} fontWeight={800} noWrap>{c.nome}</Typography>
+                    <Typography fontSize={12} color="text.secondary" noWrap>{(c.conceito || '').slice(0, 140)}</Typography>
+                  </Box>
+                  <Chip label={c.status} size="small" variant="outlined"
+                    sx={{ fontSize: 10.5, fontWeight: 800, color: STATUS_COR[c.status] || 'text.secondary' }} />
+                  <Typography fontSize={11} color="text.disabled" sx={{ flexShrink: 0 }}>
+                    {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                  </Typography>
+                </Stack>
               </Paper>
             ))}
           </Stack>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              onClick={gerar} disabled={generating}
-              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
-              {generating ? 'Gerando campanha…' : `Gerar campanha (${selected.length})`}
-            </Button>
-            {msg && <Typography sx={{ fontSize: 13, color: CORAL }}>{msg}</Typography>}
-          </Stack>
-        </Paper>
-
-        {/* Galeria */}
-        {pieces.length > 0 && (
-          <>
-            <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1.5 }}>
-              Peças da campanha
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
-              {pieces.map(p => (
-                <Paper key={p.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                  <Box sx={{ aspectRatio: ar(p.formato), bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                    {p.status === 'done' && p.image_url
-                      ? <Box component="img" src={p.image_url} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      : p.status === 'error'
-                      ? <Typography sx={{ fontSize: 11, color: CORAL, px: 2, textAlign: 'center' }}>{p.error || 'erro'}</Typography>
-                      : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
-                  </Box>
-                  <Box sx={{ px: 1.25, py: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}>
-                    <Typography sx={{ fontSize: 11, fontWeight: 700 }}>{FORMATOS.find(f => f.v === p.formato)?.label || p.formato}</Typography>
-                    {p.status === 'done' && p.image_url && (
-                      <Stack direction="row" spacing={0}>
-                        <Tooltip title="Baixar">
-                          <IconButton size="small" onClick={() => downloadImage(p.image_url, `loudr-${p.formato.replace(':', 'x')}.png`)}>
-                            <DownloadOutlinedIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={saved[p.id] ? 'Salvo nos assets' : 'Salvar nos assets'}>
-                          <span>
-                            <IconButton size="small" disabled={saved[p.id] || saving[p.id]} onClick={() => saveToAssets(p)}>
-                              {saving[p.id]
-                                ? <CircularProgress size={14} />
-                                : <BookmarkAddOutlinedIcon sx={{ fontSize: 16, color: saved[p.id] ? TEAL : 'inherit' }} />}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    )}
-                  </Box>
-                </Paper>
-              ))}
-            </Box>
-          </>
-        )}
-
-        {/* Histórico de campanhas */}
-        {history.length > 0 && (
-          <Box sx={{ mt: 4 }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1.5 }}>
-              Campanhas anteriores
-            </Typography>
-            <Stack direction="row" spacing={1.5} sx={{ overflowX: 'auto', pb: 1 }}>
-              {history.map(c => (
-                <Paper key={c.id} variant="outlined" onClick={() => loadCampaign(c)}
-                  sx={{ p: 1.5, minWidth: 200, flexShrink: 0, cursor: 'pointer', borderRadius: 2, '&:hover': { borderColor: TEAL } }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.75, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome}</Typography>
-                  <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Chip size="small" label={c.status}
-                      sx={{ height: 18, fontSize: 9, fontWeight: 700, bgcolor: c.status === 'concluida' ? 'rgba(13,158,122,0.12)' : 'rgba(255,255,255,0.06)', color: c.status === 'concluida' ? TEAL : 'text.secondary' }} />
-                    <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>{(c.formatos || []).length} peças · {c.mode === 'adapt' ? 'adapt' : 'indep'}</Typography>
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          </Box>
         )}
       </Box>
+
+      {/* Nova campanha: brief → dossiê + fluxo de produção */}
+      <Dialog open={novaOpen} onClose={() => !criando && setNovaOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 900 }}>Nova campanha</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} mt={0.5}>
+            <TextField label="Nome da campanha" value={nome} onChange={e => setNome(e.target.value)}
+              fullWidth autoFocus disabled={criando} placeholder="Ex.: Lançamento coleção verão" />
+            <TextField label="Conceito / brief" value={conceito} onChange={e => setConceito(e.target.value)}
+              fullWidth multiline minRows={3} disabled={criando}
+              placeholder="O que a campanha comunica, para quem, com que energia — o fluxo de produção nasce disso" />
+            <Typography fontSize={11.5} color="text.secondary">
+              Ao criar, a inteligência monta o <b>fluxo de produção</b> a partir do conceito e abre o canvas —
+              cada peça gerada lá nasce vinculada a esta campanha.
+            </Typography>
+            {msg && <Typography fontSize={12} color="error">{msg}</Typography>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setNovaOpen(false)} disabled={criando} sx={{ fontWeight: 700 }}>Cancelar</Button>
+          <Button variant="contained" disableElevation onClick={criarCampanha} disabled={criando || !nome.trim() || !conceito.trim()}
+            startIcon={criando ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
+            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+            {criando ? 'Montando o fluxo…' : 'Criar campanha'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
