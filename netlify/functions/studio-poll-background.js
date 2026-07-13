@@ -36,7 +36,10 @@ export const handler = async (event) => {
     }
     await failGeneration(supabase, gen.id, 'timeout aguardando o fal (dev poll)')
   } catch (e) {
-    await failGeneration(supabase, gen.id, `dev poll: ${e.message}`)
+    let msg = e.message
+    if (/detect body pose|person_image/i.test(msg))
+      msg = 'Try-on: a 1ª imagem precisa ser uma PESSOA com pose visível (corpo inteiro ou meio corpo). Confira a ordem: 1ª = modelo, 2ª = peça.'
+    await failGeneration(supabase, gen.id, `dev poll: ${msg}`)
   }
   return { statusCode: 200 }
 }

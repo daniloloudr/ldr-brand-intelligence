@@ -27,7 +27,10 @@ export const handler = async (event) => {
 
   // status do webhook: "OK" (sucesso) | "ERROR" (falha) — distinto da fila
   if (body.status === 'ERROR') {
-    await failGeneration(supabase, gen.id, JSON.stringify(body.error || body.payload || 'erro no fal').slice(0, 500))
+    let msg = JSON.stringify(body.error || body.payload || 'erro no fal').slice(0, 500)
+    if (/detect body pose|person_image/i.test(msg))
+      msg = 'Try-on: a 1ª imagem precisa ser uma PESSOA com pose visível (corpo inteiro ou meio corpo). Confira a ordem: 1ª = modelo, 2ª = peça.'
+    await failGeneration(supabase, gen.id, msg)
     return ok
   }
 

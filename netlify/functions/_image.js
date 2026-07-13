@@ -143,7 +143,14 @@ export async function getJobStatus(model, requestId, statusUrl) {
 export async function getJobResult(model, requestId, resultUrl) {
   const url = resultUrl || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}`
   const res = await fetch(url, { headers: authHeaders() })
-  if (!res.ok) throw new Error(`fal result ${res.status}`)
+  if (!res.ok) {
+    // 422 = o job falhou na validação DENTRO do fal — o corpo traz o motivo real
+    // (ex.: try-on sem pose detectável). Propagar o detalhe, não só o status.
+    const txt = await res.text().catch(() => '')
+    let motivo = ''
+    try { motivo = (JSON.parse(txt)?.detail || []).map(d => d?.msg).filter(Boolean).join('; ') } catch { motivo = txt.slice(0, 200) }
+    throw new Error(`fal result ${res.status}${motivo ? `: ${motivo}` : ''}`)
+  }
   return res.json()
 }
 
