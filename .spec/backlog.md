@@ -9,6 +9,22 @@
 
 ---
 
+## 🏁 META OPERACIONAL 2026: 30 MARCAS (declarada 13/jul) — e o plano de INFRA
+
+Maior preocupação do Danilo: a infra aguentar 30 tenants. Gargalos JÁ MAPEADOS (2026-07-13):
+
+| # | Gargalo | Evidência | Fix | Quando |
+|---|---|---|---|---|
+| 1 🔴 | **Cron de clipping: teto GLOBAL de 8 concorrentes** | `concorrente-clipping-cron` chama `coletarClippingWorkspace({max:8})` — slice global; 30 marcas ×3-6 concorrentes ≈ 150 → só os 8 primeiros rodam | fan-out: cron dispara 1 background POR workspace (padrão do distill-cron) | antes da 5ª marca |
+| 2 🔴 | **trends-cron e sínteses SERIAIS numa função (teto 15 min)** | loop `for ws of wss` com web search ~30-60s/ws → estoura com ~15 workspaces | mesmo fan-out por workspace | antes da 10ª marca |
+| 3 🟠 | **Observabilidade zero** | Sentry + alerta "cron não rodou" (já decidido: pré-produção) | Gap 1 do H1 | antes da 3ª marca externa |
+| 4 🟠 | **Tenant hardening** | backup/versionamento por cérebro; hoje uma instância única sem export por tenant | Gap 6 do H2 | ~10 marcas |
+| 5 🟡 | **Custo por workspace invisível** | `ai_usage` grava desde 12/jul; falta o painel admin somando fal+LLM+fixos | pendência do pivô de créditos | ~5 marcas |
+| 6 🟡 | Rate limits Anthropic (destilação diária ×30 em paralelo + diagnósticos) | fan-out do distill dispara 30 backgrounds ~simultâneos às 7h | espaçar dispatches (stagger 30-60s) + retries já existem | ~15 marcas |
+| 7 🟡 | Bundle 2MB sem code-splitting · mobile não auditado | plano-de-melhoria §3 (vivo) | React.lazy já parcial; manualChunks + auditoria | pré-go-live |
+
+Custo projetado da meta: 30 × (consumo×R$0,33 + fair-use R$50–150 + infra fixa) → validar com o `ai_usage` real em ~2 semanas.
+
 ## 🎯 Em cima da mesa agora
 
 O código está à frente do comercial — as próximas jogadas não são features:

@@ -182,6 +182,16 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
 
 ---
 
+## 12. Meta operacional 2026 (declarada em 13/jul)
+
+**30 marcas no produto até o fim de 2026.** O produto está completo para isso (v7.0); os
+desbloqueadores são comerciais (pilotos Hering/VHITA, marca+site, INPI) e de INFRA — a maior
+preocupação declarada do Danilo. Endurecimento em fases no [`backlog.md`](backlog.md) § Meta 30
+marcas: fan-out dos crons (clipping tem teto global de 8 concorrentes; trends/sínteses seriais
+estouram o teto de 15 min com ~15 workspaces), observabilidade (Sentry) antes de escalar,
+tenant hardening (backup por cérebro), e o painel de custo por workspace (`ai_usage` já grava).
+Custo projetado da meta: 30 × (consumo × R$0,33 + fair-use R$50–150) — margem de contrato 65–90%.
+
 ## Resumo de bolso (para o pitch)
 
 > As IAs de borda são commodity. O LOUDR captura o que **não se copia**: um **modelo vivo da marca** que aprende de cada avaliação, aplica sozinho em tudo que gera, e **prova em gráfico** que fica mais assertivo. É a diferença entre **vender uma ferramenta** e **ser a infraestrutura de marca** de uma indústria inteira.
