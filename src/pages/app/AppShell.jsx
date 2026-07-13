@@ -59,6 +59,7 @@ const IcoAssist  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="n
 
 const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
+  { label: 'Planos & Créditos',      hash: '#/app/workspace' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
   { label: 'Inteligência s1ngulr',   hash: '#/app/ia-loudr' },

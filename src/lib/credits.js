@@ -12,6 +12,7 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v2':         2,   // ~$0,08
   'fal-ai/ideogram/v3':         2,   // $0,06 (balanced)
   'fal-ai/nano-banana-pro':     3,   // $0,15
+  'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado)
   // demais = 1 (Nano Banana, GPT Image 2, Seedream, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen)
 }
 
@@ -58,6 +59,7 @@ export const IMAGE_GUIDE = [
   { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'FLUX Pro 1.1 Ultra',       beneficio: 'Fotorrealismo premium, alta resolução.' },
   { id: 'fal-ai/ideogram/v3',                           label: 'Ideogram v3',              beneficio: 'Tipografia e texto dentro da imagem.' },
   { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               beneficio: 'Design, vetor e logotipo.' },
+  { id: 'fal-ai/fashn/tryon/v1.6',                      label: 'FASHN Try-On',             beneficio: 'Veste a peça real num modelo (moda/e-commerce).' },
   { id: 'fal-ai/flux/dev',                              label: 'FLUX.1 dev',               beneficio: 'Rápido e econômico.' },
   { id: 'fal-ai/qwen-image',                            label: 'Qwen Image',               beneficio: 'Open, bom em renderizar texto.' },
 ]

@@ -20,6 +20,7 @@ import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { CreditBadge } from '../../components/CreditBadge'
+import { creditsForImage } from '../../lib/credits'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
 
@@ -313,6 +314,9 @@ export function StudioImage({ brandId }) {
               label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
             <Box sx={{ flex: 1 }} />
             {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
+            <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 700 }}>
+              {(() => { const c = creditsForImage(resolveModel(model) || undefined) * count; return `esta rodada: ${c} crédito${c > 1 ? 's' : ''}` })()}
+            </Typography>
             <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>

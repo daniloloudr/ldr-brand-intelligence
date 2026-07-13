@@ -22,6 +22,7 @@ import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternate
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL } from '../../lib/studioModels'
+import { creditsForImage, creditsForVideo } from '../../lib/credits'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 
 const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A', INDIGO = '#6C4BE0', AMBER = '#E0B33A'
@@ -129,6 +130,10 @@ const GenerateNode = memo(({ id, data, selected }) => (
           ...IMAGE_MODELS.filter(m => m.group === g).map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>),
         ])}
       </Select>
+      {/* visão de custo: o cliente sabe quanto CADA geração consome */}
+      <Typography sx={{ fontSize: 9.5, color: 'text.disabled' }}>
+        {(() => { const c = creditsForImage((data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL); return `${c} crédito${c > 1 ? 's' : ''} por geração` })()}
+      </Typography>
       {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
       {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>✓ concluído</Typography>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
