@@ -31,6 +31,9 @@
 [functions."diagnostico-reaper"]
   schedule = "*/15 * * * *"
 
+[functions."cron-watchdog"]
+  schedule = "30 * * * *"
+
 [functions."diagnostico-gerar"]
   timeout = 120
 

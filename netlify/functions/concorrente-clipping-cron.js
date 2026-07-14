@@ -5,9 +5,10 @@
 // concorrentes + síntese serial — quebrava na ~5ª marca e no teto síncrono do
 // scheduled. Lição de sempre: dispatches AWAITADOS (fire-and-forget morre).
 import { createClient } from '@supabase/supabase-js'
+import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
 
-export const handler = async () => {
+const run = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   const { data: concs } = await supabase.from('concorrentes').select('workspace_id').eq('ativo', true)
   const wss = [...new Set((concs || []).map(c => c.workspace_id).filter(Boolean))]
@@ -23,3 +24,5 @@ export const handler = async () => {
   console.log(`[clipping-cron] fan-out: ${wss.length} workspace(s) despachado(s)`)
   return { statusCode: 200, body: JSON.stringify({ despachados: wss.length, falhas }) }
 }
+
+export const handler = withHeartbeat('concorrente-clipping-cron', run)

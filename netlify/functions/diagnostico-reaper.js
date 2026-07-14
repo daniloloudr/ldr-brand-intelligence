@@ -7,10 +7,11 @@
 // para nenhum job órfão ficar preso na tela. netlify.toml: schedule */15.
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
+import { withHeartbeat } from './_watchdog.js'
 
 const STALE_MIN = 15   // um diagnóstico completa em ~1-3 min; >15 min = morto
 
-export const handler = async () => {
+const run = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   const cutoff = new Date(Date.now() - STALE_MIN * 60_000).toISOString()
 
@@ -26,3 +27,5 @@ export const handler = async () => {
   if (data?.length) console.log(`[reaper] ${data.length} diagnóstico(s) órfão(s) marcados como erro: ${data.map(d => d.empresa).join(', ')}`)
   return { statusCode: 200, body: JSON.stringify({ reaped: data?.length || 0 }) }
 }
+
+export const handler = withHeartbeat('diagnostico-reaper', run)
