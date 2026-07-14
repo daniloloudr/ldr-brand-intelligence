@@ -86,6 +86,8 @@ export async function submitImageJob({ model, prompt, references = [], format, m
     if ((references || []).length < 2)
       throw new Error('Try-on precisa de 2 imagens conectadas: 1ª = modelo (pessoa), 2ª = peça (roupa)')
     const body = { model_image: references[0], garment_image: references[1], category: 'auto', ...(extra || {}) }
+    // schema estrito: o FASHN rejeita campos de geração comum vazados por extra
+    delete body.prompt; delete body.num_images; delete body.aspect_ratio
     const url = webhookUrl ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}` : `${FAL_BASE}/${endpoint}`
     const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
     if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`) }

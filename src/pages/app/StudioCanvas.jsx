@@ -418,8 +418,10 @@ export function StudioCanvas({ brandId, workflowId }) {
   }
   // Todos os nós produtores de imagem conectados → viram referências (image-to-image)
   function imageUpstreamsOf(nodeId) {
-    const inIds = edges.filter(e => e.target === nodeId).map(e => e.source)
-    return nodes.filter(n => inIds.includes(n.id) && PRODUCES_IMAGE.has(n.type))
+    // Ordem das EDGES (1ª conexão = 1ª referência), não do array de nós —
+    // a convenção do try-on (1ª = modelo, 2ª = peça) depende disso.
+    const inIds = [...new Set(edges.filter(e => e.target === nodeId).map(e => e.source))]
+    return inIds.map(id => nodes.find(n => n.id === id)).filter(n => n && PRODUCES_IMAGE.has(n.type))
   }
   // Fecho a jusante de um nó (ele + tudo que descende dele) — p/ run seletivo
   function downstreamClosure(rootId) {

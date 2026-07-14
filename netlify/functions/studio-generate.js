@@ -39,7 +39,11 @@ export const handler = async (event) => {
     ? { verbal: brand_facets.includes('verbal'), visual: brand_facets.includes('visual') }
     : undefined
   if (!brand_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
-  if (!prompt)   return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
+  // FASHN try-on tem schema próprio SEM prompt (modelo + peça) — prompt é
+  // dispensado e ignorado aqui, venha de que superfície vier (canvas, Imagem,
+  // Copiloto): o modelo rejeita campos fora do schema.
+  const isTryon = /fashn\/tryon/.test(model || '')
+  if (!prompt && !isTryon) return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
 
   // Brand → workspace (fonte autoritativa)
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
@@ -61,12 +65,16 @@ export const handler = async (event) => {
     if (!r.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: r.error || 'Falha ao debitar créditos' }) }
   }
 
-  // Marca como referência OPCIONAL — só injeta se useBrand
+  // Marca como referência OPCIONAL — só injeta se useBrand. Try-on não tem
+  // prompt: guarda um marcador legível no histórico e nada vai pro fal.
   let snapshot = null, prefix = ''
-  if (useBrand) ({ prefix, snapshot } = await resolveBrandIntelligence(supabase, brand_id, brand.nome, facets))
-  const promptFinal = useBrand
-    ? `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
-    : `${prompt}\n\n[FORMATO]\n${formato}`
+  const wantsBrand = useBrand && !isTryon
+  if (wantsBrand) ({ prefix, snapshot } = await resolveBrandIntelligence(supabase, brand_id, brand.nome, facets))
+  const promptFinal = isTryon
+    ? 'try-on (FASHN — sem prompt: 1ª ref = modelo, 2ª = peça)'
+    : wantsBrand
+      ? `${prefix}\n\n[PEDIDO]\n${prompt}\n\n[FORMATO]\n${formato}`
+      : `${prompt}\n\n[FORMATO]\n${formato}`
 
   const { gen, request_id, error } = await submitGeneration(supabase, {
     workspace_id, brand_id, workflow_id, node_id, campaign_id,
