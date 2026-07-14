@@ -99,7 +99,8 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 *F0 — validar fidelidade (já):*
 - [x] ~~F0.1~~ ✅ 2026-07-12 — o "errinho" era chunk morto pós-deploy (lazy import); ErrorBoundary agora recarrega sozinho
 - [x] ~~F0.2~~ ✅ 2026-07-12 — mapa completo em [`features/piloto-hering.md`](features/piloto-hering.md): FASHN try-on $0,075 ⭐ (veste a peça REAL, aceita cabide/flat-lay) · Nano Banana $0,039 · GPT Image 2 edit $0,07-0,41; **custo por produto (4 saídas) ≈ R$1-2** vs R$50-300 do estúdio tradicional
-- [ ] F0.3 🟢 pilotinho: 3-5 peças reais → duelo de fidelidade em 3 modelos + FASHN no try-on (protocolo pronto no spec) · *gatilho: Rafael marcar a conversa*
+- [~] F0.3 🟢 pilotinho: **FLUXO MONTADO 14/jul** — template "Piloto Hering: Duelo de Fidelidade (por peça)" + instância "Peça 1" no Fluxos (peça → still fiel em 3 modelos com portão de fidelidade cada + FASHN try-on com portão; nota com o protocolo; placeholder = jaqueta de zodíaco). Ensaio revelou **saldo fal ESGOTADO (403 User is locked)** → Danilo recarregar em fal.ai/dashboard/billing; depois: rodar o ensaio completo e trocar pelas peças reais · *gatilho: Rafael marcar a conversa*
+- [ ] **Alerta de saldo dos provedores** 🟢 — o 403 da fal derrubaria QUALQUER geração em prod silenciosamente (descoberto no ensaio do pilotinho). Extensão do watchdog: checagem diária de saldo/health da fal (e crédito Anthropic) OU alertar quando gerações falham em sequência com 403/402. Prioridade alta: é o tipo de falha que mata demo/piloto
 
 *F1 — o processo (Fluxo "Guia de Compras"):*
 - [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
