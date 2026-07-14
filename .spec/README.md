@@ -10,6 +10,7 @@
 | **[pitch-deck.md](pitch-deck.md)** | Deck master de negócio (16 slides) | montar apresentação de venda/captação |
 | **[pitch-tecnologia.md](pitch-tecnologia.md)** | Deck de tecnologia: diagrama de camadas, flywheel, embeddings/RAG, dataset, rota SLM, infra | slide técnico, diligência de investidor |
 | **[pitch-futuro.md](pitch-futuro.md)** | O discurso do modelo de futuro: arco Hoje → Em breve → Futuro, cada claim ancorado no que já existe | slide de roadmap/visão, captação |
+| **[deck-retail.md](deck-retail.md)** | Deck de VENDA retail (15 slides + apêndice): master p/ Hering e Worten, com variantes [HERING]/[WORTEN] e notas de apresentação | apresentar p/ Hering (Rafael) e pitch Worten vs modelo agência |
 
 ## features/ — specs de implementação
 
@@ -20,6 +21,7 @@
 | [nova-arquitetura.md](features/nova-arquitetura.md) | Árvore Strategy·Intelligence·Studio·Copilot — de-para e decisões |
 | [diagnostico.md](features/diagnostico.md) | Diagnóstico de marca (próprio e de concorrentes) |
 | [mcp-cerebro.md](features/mcp-cerebro.md) | Plano MCP (Figma/Canva) — aprovado, aguardando "vai" |
+| [piloto-hering.md](features/piloto-hering.md) | Piloto Hering: F0 (fix + mapa de modelos de fidelidade + custos) e protocolo do pilotinho |
 
 ## arquivo/ — histórico (não apagar, não atualizar)
 

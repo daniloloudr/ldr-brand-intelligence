@@ -27,6 +27,7 @@ const CampaignNew     = lazy(() => import('./CampaignNew').then(m => ({ default:
 const CampaignDetail  = lazy(() => import('./CampaignDetail').then(m => ({ default: m.CampaignDetail })))
 const WorkspacePage   = lazy(() => import('./WorkspacePage').then(m => ({ default: m.WorkspacePage })))
 const ContaPage       = lazy(() => import('./WorkspacePage').then(m => ({ default: m.ContaPage })))
+const PlanoPage       = lazy(() => import('./WorkspacePage').then(m => ({ default: m.PlanoPage })))
 const TimePage        = lazy(() => import('./WorkspacePage').then(m => ({ default: m.TimePage })))
 const AlertasPage     = lazy(() => import('./WorkspacePage').then(m => ({ default: m.AlertasPage })))
 const ContentHub      = lazy(() => import('./ContentHub').then(m => ({ default: m.ContentHub })))
@@ -59,6 +60,7 @@ const IcoAssist  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="n
 
 const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
+  { label: 'Créditos & Consumo',     hash: '#/app/plano' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
   { label: 'Inteligência s1ngulr',   hash: '#/app/ia-loudr' },
@@ -188,6 +190,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
       { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
       { label: t('nav.studio.workflow'), hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
+      { label: t('nav.studio.campaigns'), hash: `${brandPath}/studio/campanhas`, active: route === 'brands-studio-campaigns' },
       { label: t('nav.studio.library'),  hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
     ] },
     // Copilot enxuto (decisão 2026-07-10): só o Chat — modos viraram sugestões
@@ -200,6 +203,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'posicionamento')        return <Posicionamento />
     if (route === 'workspace')             return <WorkspacePage />
     if (route === 'conta')                 return <ContaPage />
+    if (route === 'plano')                 return <PlanoPage />
     if (route === 'time')                  return <TimePage />
     // Plano e cobrança: customer-facing escondido (venda sob demanda). Créditos/PLANOS/Stripe seguem por baixo.
     if (route === 'plano')                 { window.location.hash = '#/app'; return null }

@@ -337,6 +337,7 @@ export async function distillBrand(supabase, brand_id) {
       maxTokens: 6000, retries: 1, retryDelay: 3000,
       system: SYSTEM,
       messages: [{ role: 'user', content }],
+      supabase, tag: 'distill',
     })
     modelo = extractJSON(text)
     if (!modelo || typeof modelo !== 'object')

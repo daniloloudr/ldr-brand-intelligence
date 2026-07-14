@@ -322,21 +322,19 @@ function TabPlano({ workspace }) {
 
   return (
     <Box sx={{ maxWidth: 760 }}>
-      {/* 1 ─ Plano atual: preço, crédito, benefícios */}
+      {/* 1 ─ Contrato: créditos mensais + baliza de custo (sem SaaS — decisão
+          2026-07-12: crédito é REPASSE de custo; o valor do serviço é negociado) */}
       <Paper sx={{ p: 3, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Typography variant="body2" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" mb={1}>
-          Plano atual: {planoAtual.nome}
+          Créditos do contrato
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
           <Typography fontWeight={900} fontSize={28} sx={{ color: 'primary.main' }}>
-            {planoAtual.preco === 0 ? 'Grátis' : `${fmt(planoAtual.preco)}/mês`}
+            {planoAtual.creditos_mes.toLocaleString('pt-BR')} créditos/mês
           </Typography>
-          <Typography fontWeight={800} fontSize={15}>· {planoAtual.creditos_mes.toLocaleString('pt-BR')} créditos/mês</Typography>
-          {planoAtual.preco_credito > 0 && (
-            <Typography fontSize={12} color="text.secondary">
-              (R${planoAtual.preco_credito.toFixed(2).replace('.', ',')}/crédito)
-            </Typography>
-          )}
+          <Typography fontSize={12} color="text.secondary">
+            créditos cobrem o custo de geração (1 crédito ≈ R$0,33 de insumo de IA, repassado sem margem)
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
           {planoAtual.studio && <Chip label="LOUDR Studio" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
@@ -367,44 +365,10 @@ function TabPlano({ workspace }) {
         <LinearProgress variant="determinate" value={saldoPct} color={saldoBaixo ? 'secondary' : 'primary'} sx={{ height: 6, borderRadius: 3, bgcolor: 'divider' }} />
         {saldoBaixo && (
           <Typography fontSize={11} sx={{ color: 'secondary.main', mt: 1, fontWeight: 700 }}>
-            Saldo baixo — considere fazer upgrade para não interromper as gerações.
+            Saldo baixo — fale com a LOUDR para ampliar os créditos do contrato.
           </Typography>
         )}
       </Paper>
-
-      {/* 2 ─ Comparativo de planos */}
-      <Typography variant="body2" color="text.secondary" fontWeight={700} mb={1.5} textTransform="uppercase" letterSpacing="0.08em">
-        Planos
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2, mb: 4 }}>
-        {COMPARE.map(key => {
-          const p = PLANOS[key]
-          const atual = key === planoKey
-          const destaque = key === 'pro'
-          return (
-            <Card key={key} sx={{ border: '2px solid', borderColor: atual ? 'primary.main' : destaque ? 'secondary.main' : 'divider', borderRadius: 3, position: 'relative' }}>
-              {(atual || destaque) && (
-                <Chip label={atual ? 'Seu plano' : 'Recomendado'} color={atual ? 'primary' : 'secondary'} size="small"
-                  sx={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', fontWeight: 700, fontSize: 10 }} />
-              )}
-              <CardContent sx={{ p: 2.5 }}>
-                <Typography fontWeight={900} fontSize={13} textTransform="uppercase" letterSpacing="0.1em">{p.nome}</Typography>
-                <Typography fontWeight={900} fontSize={24} letterSpacing="-0.02em" my={0.25}>
-                  {fmt(p.preco)}<Typography component="span" fontSize={11} color="text.secondary">/mês</Typography>
-                </Typography>
-                <Typography fontSize={13} fontWeight={800} sx={{ color: 'primary.main' }}>{p.creditos_mes.toLocaleString('pt-BR')} créditos</Typography>
-                <Typography fontSize={11} color="text.secondary" mb={1.5}>R${p.preco_credito.toFixed(2).replace('.', ',')}/crédito</Typography>
-                {atual
-                  ? <Button fullWidth variant="outlined" disabled sx={{ fontWeight: 800, fontSize: 12, py: 1 }}>Plano atual</Button>
-                  : <Button fullWidth variant={destaque ? 'contained' : 'outlined'} color={destaque ? 'secondary' : 'primary'}
-                      onClick={() => upgrade(key)} disabled={loadingUpgrade === key} sx={{ fontWeight: 800, fontSize: 12, py: 1 }}>
-                      {loadingUpgrade === key ? <CircularProgress size={14} color="inherit" /> : `Mudar p/ ${p.nome}`}
-                    </Button>}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </Box>
 
       {/* 3 ─ Custo em créditos por modelo */}
       <Typography variant="body2" color="text.secondary" fontWeight={700} mb={0.5} textTransform="uppercase" letterSpacing="0.08em">
@@ -579,7 +543,7 @@ export function PlanoPage() {
   const { workspace } = useWorkspace()
   if (!workspace) return null
   return (
-    <PageShell title="Plano e cobrança" subtitle={`Workspace · ${workspace.nome}`}>
+    <PageShell title="Créditos & Consumo" subtitle={`Workspace · ${workspace.nome}`}>
       <TabPlano workspace={workspace} />
     </PageShell>
   )

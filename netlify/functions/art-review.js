@@ -26,7 +26,7 @@ export const handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers } }
-  const { brand_id, image_url, generation_id = null, criterio = null } = body
+  const { brand_id, image_url, generation_id = null, criterio = null, reference_url = null, modo = null } = body
   if (!brand_id || !image_url) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id e image_url obrigatórios' }) }
 
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
@@ -39,7 +39,18 @@ export const handler = async (event) => {
 
   const { prefix: brandCtx } = await resolveBrandIntelligence(supabase, brand_id, brand.nome)
 
-  const system = [
+  // Modo FIDELIDADE (piloto Hering): julga a peça contra o PRODUTO DE REFERÊNCIA
+  // (estampa/texto/cor/modelagem idênticos), IGNORANDO a estética da marca do
+  // workspace — o produto é do cliente, não nosso.
+  const fidelidade = modo === 'fidelidade' && reference_url
+  const system = fidelidade ? [
+    'Você é um INSPETOR DE FIDELIDADE DE PRODUTO para catálogo de moda/e-commerce.',
+    'Você recebe DUAS imagens: a 1ª é a PEÇA GERADA por IA; a 2ª é o PRODUTO ORIGINAL (foto real de referência).',
+    'Julgue APENAS a fidelidade da roupa/produto entre as duas: estampa e posição dos elementos, TEXTO (letra por letra), cores exatas, botões/aviamentos, costuras e modelagem. IGNORE estética de marca, fundo, pose ou qualidade artística.',
+    '"aprovada" = produto idêntico no que está visível; "aprovada_com_ressalvas" = diferenças pequenas (elemento levemente reposicionado, detalhe ocluso); "reprovada" = elemento inventado/removido/alterado, texto ilegível ou divergente, cor errada.',
+    criterio ? `CRITÉRIO ADICIONAL: ${String(criterio).slice(0, 400)}` : '',
+    'Responda APENAS com JSON estrito: {"veredito":"aprovada|aprovada_com_ressalvas|reprovada","resumo":"<1 frase>","ajustes":["<divergência concreta>", "..."]}',
+  ].join('\n') : [
     `Você é o DIRETOR DE ARTE da marca ${brand.nome}. Julga peças visuais contra o contexto da marca abaixo (brand book + o que ela APRENDEU com o uso).`,
     brandCtx,
     criterio ? `\nCRITÉRIO ADICIONAL DESTE PORTÃO: ${String(criterio).slice(0, 400)}` : '',
@@ -52,10 +63,11 @@ export const handler = async (event) => {
     const { text } = await callAI({
       model: isDev() ? MODELS.fast : MODELS.medium,
       maxTokens: 800, retries: 1, retryDelay: 2000, timeoutMs: 25000,
-      system,
+      system, supabase, tag: 'diretor-de-arte',
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'url', url: image_url } },
-        { type: 'text', text: 'Julgue esta peça.' },
+        ...(reference_url ? [{ type: 'image', source: { type: 'url', url: reference_url } }] : []),
+        { type: 'text', text: reference_url ? 'A 1ª imagem é a peça gerada; a 2ª é o produto original de referência. Julgue.' : 'Julgue esta peça.' },
       ] }],
     })
     out = extractJSON(text)
@@ -77,7 +89,7 @@ export const handler = async (event) => {
     await emitSignal(supabase, {
       brand_id, workspace_id: brand.workspace_id, tipo: 'art_review', fonte: 'workflow',
       ref_id: generation_id, peso: 0.8,
-      payload: { ...parecer, image_url },
+      payload: { ...parecer, image_url, modo: fidelidade ? 'fidelidade' : 'marca' },
     })
   } catch (e) { console.error('[art-review] signal falhou (não-fatal):', e.message) }
 

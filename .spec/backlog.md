@@ -5,9 +5,28 @@
 >
 > **Organização:** por horizonte da visão (H1 provar → H2 rede de cérebros → H3 categoria), construível **aos poucos** — cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v6.0)
-> Atualizado: 2026-07-09
+> Atualizado: 2026-07-14
 
 ---
+
+## 🏁 META OPERACIONAL 2026: 30 MARCAS (declarada 13/jul) — e o plano de INFRA
+
+Maior preocupação do Danilo: a infra aguentar 30 tenants. Gargalos JÁ MAPEADOS (2026-07-13):
+
+**🚨 AUDITORIA DE SEGUNDA 13/jul (prod, crons antigos):** a teoria confirmou na prática — **scheduled functions têm teto SÍNCRONO (segundos), não 15 min**. Evidências: clipping coletou por só 38s (11 itens, 1 workspace, 0 sínteses — morreu no meio); tendências cobriu 1 de 2 workspaces; diagnósticos de concorrentes = 0 (9 dias de staleness); destilação = 0 com 53 sinais pendentes na LOUDR (recuperação manual disparada 13/jul ~manhã — confirmar v6). **Os fixes (família fan-out, itens 1/2/2b) estão em DEV — o "sobe" é o item mais urgente da semana.**
+
+| # | Gargalo | Evidência | Fix | Quando |
+|---|---|---|---|---|
+| ~~1~~ ✅ 13/jul | ~~Cron de clipping: teto GLOBAL de 8~~ | resolvido: `clipping-workspace-background` (worker por workspace: coleta TODOS os concorrentes + síntese própria, 15 min cada, jitter 0-45s); cron = despachante puro | — |
+| ~~2~~ ✅ 13/jul | ~~trends/sínteses seriais~~ | resolvido: `trends-workspace-background` (worker por workspace) + síntese movida pro worker de clipping; crons = despachantes | — |
+| ~~2b~~ ✅ 13/jul | ~~diagnosticar-cron inline~~ | resolvido: `diagnostico-concorrentes-workspace-background` (pendentes staleDays 7, cap 4/ciclo, jitter); cron = despachante | — |
+| 3 🟠 | **Observabilidade zero** | Sentry + alerta "cron não rodou" (já decidido: pré-produção) | Gap 1 do H1 | antes da 3ª marca externa |
+| 4 🟠 | **Tenant hardening** | backup/versionamento por cérebro; hoje uma instância única sem export por tenant | Gap 6 do H2 | ~10 marcas |
+| 5 🟡 | **Custo por workspace invisível** | `ai_usage` grava desde 12/jul; falta o painel admin somando fal+LLM+fixos | pendência do pivô de créditos | ~5 marcas |
+| 6 🟡 | Rate limits Anthropic (destilação ×30 às 7h) | fan-out do distill dispara N simultâneos | jitter JÁ implementado nos workers de clipping/trends; falta no distill-background (parâmetro `jitter` do cron) | ~15 marcas |
+| 7 🟡 | Bundle 2MB sem code-splitting · mobile não auditado | plano-de-melhoria §3 (vivo) | React.lazy já parcial; manualChunks + auditoria | pré-go-live |
+
+Custo projetado da meta: 30 × (consumo×R$0,33 + fair-use R$50–150 + infra fixa) → validar com o `ai_usage` real em ~2 semanas.
 
 ## 🎯 Em cima da mesa agora
 
@@ -19,6 +38,7 @@ O código está à frente do comercial — as próximas jogadas não são featur
 3. **Operar e observar:** cron autônomo de destilação (consertado 08/07 — conferir os primeiros ciclos), clipping de segunda (inclui Pupila), usar o produto e votar (cada uso calibra o cérebro e ensaia a demo).
 4. **Roteiro de demo do flywheel** (~5 min de telas contando a história) — eu monto quando o Danilo pedir. 🟢
 5. **🔥 PILOTO HERING — prioridade de produto (decisão 2026-07-10):** o caso-âncora do H1 puxa a fila; atividades detalhadas na seção [Piloto Hering](#-piloto-hering-rafael-passos-dir-digital--call-2026-07-09) abaixo. F0 começa já (bug das referências + mapa de modelos de fidelidade).
+6. **🥊 CONTA WORTEN — disputa direta com a Fullsix/Havas (2026-07-14):** primeiro deal onde enfrentamos o AI Creative Engine deles de frente (PDFs do pitch em `.spec/competitors/`). Preparação = as [Frentes Fullsix](#-frentes-fullsix-absorver-os-diferenciais-do-concorrente--2026-07-14) abaixo (pacote de confiança + preço por asset aprovado + protocolo de calibração são os pré-requisitos do pitch); nossas vantagens mapeadas na memória `project_concorrente_fullsix`. Retail = mesmo caso de uso do Hering (visual de produto fidedigno em escala) — um pilotinho calibrado serve aos dois.
 
 ---
 
@@ -36,7 +56,21 @@ O código está à frente do comercial — as próximas jogadas não são featur
 | **E2 — Loop criativo integrado com Meta** | motor de desdobramento (criativo vencedor → N variações on-brand) + Meta Marketing API (vencedores automáticos; performance real vira sinal `ad_performance`) | 🔴 · **gatilho: deal VHITA fechar** → registrar app na Meta NO MESMO DIA (App Review = semanas) |
 | Sustentação: cron enterprise diário · tela de workspace inativo | pequenos, sem gatilho | 🟢 cada |
 
-**Narrativa sem código (usar no site/pitch):** "usuários ilimitados — pague pelo que cria, não por cadeira" (créditos ≠ assentos) · "O Tess te dá todas as IAs; o LOUDR faz as IAs conhecerem a SUA marca" · "Não competimos com Canva/Figma — somos a memória de marca que eles não têm".
+**Narrativa sem código (usar no site/pitch):** "usuários ilimitados — pague pelo que cria, não por cadeira" (créditos ≠ assentos) · "O Tess te dá todas as IAs; o LOUDR faz as IAs conhecerem a SUA marca" · "Não competimos com Canva/Figma — somos a memória de marca que eles não têm" · "A Fullsix aluga uma fábrica com humanos dentro de cada entrega; o s1ngulr entrega a fábrica com o cérebro da marca dentro — que julga sozinho e aprende a cada peça".
+
+---
+
+### 🥊 Frentes Fullsix (absorver os diferenciais do concorrente — 2026-07-14)
+
+Origem: decks do AI Creative Engine (Fullsix/Havas CX) em `.spec/competitors/` — concorrente DIRETO na conta Worten. Regra de leitura: eles vendem fábrica-com-humanos por €95–210/visual aprovado; cada frente abaixo transforma um diferencial deles em feature/embalagem nossa. O que NÃO copiar: QA humano como núcleo do modelo (é o gargalo deles; nosso juiz é a vantagem) e o portfólio full-service do AI Lab (formação/audit/experiências — moat de holding, dilui a meta 30 marcas).
+
+| # | Frente | O quê | Tamanho / gatilho |
+|---|---|---|---|
+| 1 | **Pacote de confiança enterprise** | (a) dossiê de compliance ~2 pág: licença comercial de cada modelo (fal/Anthropic/Voyage), política de dados por workspace, "assets do cliente nunca treinam modelos externos", LGPD (conversa com Gap 3); (b) **certidão do asset** na UI: trilha por peça — modelo, prompt, versão do cérebro, julgamentos (`ai_usage` + `brand_dataset` já gravam tudo; falta expor). Linguagem deles p/ roubar: *IP-safe, full traceability, audit-ready* | 🟢 · **antes do pitch Worten** |
+| 2 | **Preço por asset APROVADO (camada comercial)** | sobre o repasse de créditos, oferta enterprise: preço por imagem aprovada com bandas de volume (benchmark Fullsix: €95–210/KV, €14.280/mês por 120 KVs). Detalhe em `precificacao.md` §Benchmark | 🟢 (comercial, sem código) · deal enterprise na mesa |
+| 3 | **Protocolo de calibração no piloto** | ideia deles (esperta): o 1º lote mede a taxa real de aprovação/retoque da marca e DEFINE o tier/preço do contrato — transforma incerteza do cliente em protocolo. Encaixa direto no F0.3 Hering e num pilotinho Worten; a métrica de convergência (regens até aprovação) já é a telemetria disso | 🟢 · junto do F0.3 |
+| 4 | **Garantia de julgamento + tier curadoria** | vender o juiz como garantia formal: "nenhuma peça sai sem passar pelo julgamento da marca" (auto-julgamento + artGate já existem — é embalagem). Tier opcional com curadoria humana LOUDR por cima do juiz p/ contratos grandes (o juiz faz 90%, margem de serviço no resto) | 🟡 · contrato enterprise pedir sign-off humano |
+| 5 | **Motor de adaptação de formatos** | o gap REAL de produto vs eles: 1 master aprovado → N formatos de canal (leaderboard/quadrado/story/mobile/email), mudança propaga em todas as versões. Onde mora o volume recorrente (eles cobram €30–250/formato). Começa por recomposição/resize inteligente, NÃO por tipografia (≠ output 7 Canva-lite, que segue futuro) | 🔴 · **gatilho: deal retail (Worten/Hering) fechar** |
 
 ---
 
@@ -63,9 +97,9 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 **Atividades (priorizado 2026-07-10 — o case puxa a fila do produto):**
 
 *F0 — validar fidelidade (já):*
-- [ ] F0.1 🟢 corrigir o bug da área de referências (visto na call)
-- [ ] F0.2 🟢 mapear modelos de fidelidade na fal (try-on, ghost mannequin, i2i de alta fidelidade) + custo por peça — vira argumento de venda ("melhor modelo ativo + custo do processo", prometido na call)
-- [ ] F0.3 🟢 pilotinho: 3-5 peças reais (foto no cabide + ficha técnica) → still fiel; validação com o time de marca da Hering + Rod · *gatilho: Rafael marcar a conversa*
+- [x] ~~F0.1~~ ✅ 2026-07-12 — o "errinho" era chunk morto pós-deploy (lazy import); ErrorBoundary agora recarrega sozinho
+- [x] ~~F0.2~~ ✅ 2026-07-12 — mapa completo em [`features/piloto-hering.md`](features/piloto-hering.md): FASHN try-on $0,075 ⭐ (veste a peça REAL, aceita cabide/flat-lay) · Nano Banana $0,039 · GPT Image 2 edit $0,07-0,41; **custo por produto (4 saídas) ≈ R$1-2** vs R$50-300 do estúdio tradicional
+- [ ] F0.3 🟢 pilotinho: 3-5 peças reais → duelo de fidelidade em 3 modelos + FASHN no try-on (protocolo pronto no spec) · *gatilho: Rafael marcar a conversa*
 
 *F1 — o processo (Fluxo "Guia de Compras"):*
 - [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
@@ -84,12 +118,37 @@ Hoje o regen JÁ é capturado (sinal `image_regen` peso 1 + dataset via migratio
 - **Motivo estruturado no clique** 🟢 — popover de 1 clique ao regerar: *Fora da marca · Não é fiel ao produto · Qualidade baixa · Composição ruim · Outro (livre)* → categoria no payload; destilador aprende padrões por tipo de falha; o chip "não é fiel" é a telemetria do juiz de fidelidade do piloto Hering.
 - **Métrica de convergência** 🟢 — regens referenciam a peça original (ref_id): medir tentativas até aprovação por marca/modelo/tipo de peça. Prova o cérebro melhorando ("v3 = 4 tentativas/peça → v6 = 1,8") e vira argumento de custo na venda.
 
+### 💰 Custos & créditos — pivô de modelo (2026-07-12)
+Decisão: SEM SaaS self-service; crédito = REPASSE de custo (baliza **1 cr = R$0,33**; regra ×18 intacta, cobre câmbio até R$5,94). Ganho = contrato/inteligência. Entregue: página "Créditos & Consumo" (sem planos/upgrade), baliza visível, `ai_usage` (migration 039) rastreando LLM com tag por operação. **Pendências:**
+- [ ] Painel admin "custo por workspace/mês" (fal + LLM + fixos) — os dados já gravam 🟢
+- [ ] Hook do Voyage no ai_usage (embeddings ~$0,06/M — barato mas cego) 🟢
+- [ ] streamAI sem rastreio (diagnóstico/chat usam stream — usage vem no SSE, capturar) 🟢
+- [x] ~~Baliza~~ ✅ DECIDIDA 2026-07-13: **R$0,33/crédito** (mapas ×18 intactos; colchão cambial até R$5,94 — revisão obrigatória se o dólar passar disso)
+- **📐 FÓRMULA DE MANUTENÇÃO POR CLIENTE (a régua do pricing):**
+  `custo/mês = (créditos CONSUMIDOS × R$0,33) + fair-use de IA (~R$50–150/workspace, medir no ai_usage) + fatia de infra fixa`
+  Regras de leitura: crédito liberado ≠ gasto (custo só no consumo real; teto = pool × 0,33); num contrato de R$5.000 c/ 5.000 créditos → pior caso ~1/3 de custo (margem ~65%), uso típico 15–25% (margem ~80–90%). O que se vende é o cérebro, não o crédito.
+- [ ] Stripe: repensar papel (recarga a custo? só faturamento manual?) — era do modelo SaaS
+
 ### 🗂 Casa do Conteúdo (anotado 2026-07-12 — "ver com calma", mas PRÉ-REQUISITO do A3)
 Problema nomeado pelo Danilo: conteúdo gerado não tem casa organizada — imagem/vídeo têm a Biblioteca, mas TEXTO criado não persiste em lugar nenhum (Redação gera e não salva por design; peças escritas do Copiloto vivem só na conversa), e a página de CAMPANHAS ficou ÓRFÃ da nova arquitetura (rotas existem — Campaigns/CampaignNew/CampaignDetail — mas nenhuma entrada de menu na árvore nova). Crítico para o A3: "pedir campanha no chat e ele gerar tudo" precisa aterrissar organizado.
-- **1. Peças escritas ganham casa** 🟢 — migration `pecas_escritas` (brand_id, titulo, formato, conteudo md, origem redacao/copiloto/campanha); Redação e Copiloto passam a salvar; vira aba na Biblioteca.
-- **2. Biblioteca vira o HUB único** 🟡 — abas/filtros por tipo (imagens · vídeos · textos · campanhas), busca, agrupamento por campanha.
-- **3. Campanhas de volta ao mapa** 🟢 — decidir a porta (entrada no menu do Estúdio ou dentro da Biblioteca) e ressuscitar as rotas órfãs; campanha = agrupador de peças (o "dossiê" que o A3 preenche).
+- [x] ~~1. Peças escritas ganham casa~~ ✅ 2026-07-13 — migration 040 `pecas_escritas`; Redação salva (botão) e Copiloto salva (tool `salvar_peca_escrita`, auto).
+- [x] ~~2. Biblioteca vira o HUB~~ ✅ 2026-07-13 — abas Mídia · Textos (dialog de leitura/copiar) · Campanhas.
+- ⚠️ **DECISÃO EM OBSERVAÇÃO (Danilo, 2026-07-13):** o redesenho campanha=dossiê+Fluxos foi entregue mas "não sei se estou convencido — por enquanto deixamos ali". Tensão nomeada: ganhou-se motor único/padrões, perdeu-se a simplicidade do 1-clique (criar campanha agora abre um canvas técnico; o dossiê é passivo). Hipótese de síntese p/ revisitar: o usuário de campanha NÃO deveria ver o canvas — brief → fluxo roda sozinho → peças no dossiê (canvas = bastidores opcional). Isso é o A3/agentes; revisar quando ele existir ou quando o uso real der veredito.
+- 📌 Revisão 2026-07-13: descobertos DOIS sistemas de campanha; consolidado no **Studio Campanhas** (/studio/campanhas — menu, Biblioteca e deep-link ?c=). O legado `/campaigns` (aprovação de copy por IA, tabela `campaigns`, schema antigo) ficou SEM porta — deprecado; candidato a renascer como "diretor de arte de TEXTO" (avaliar copy externa contra o cérebro, par do de imagem). Arte de campanha agora respeita a regra imagem-limpa (NO_TEXT no prompt).
+- [x] ~~3. Campanhas de volta ao mapa~~ ✅ 2026-07-13 — item 'Campanhas' no menu do Estúdio + aba na Biblioteca; rotas órfãs religadas (as 2 campanhas perdidas reapareceram).
 - **4. A3 entrega NA casa** — quando o chat construir campanha completa, cada peça nasce já vinculada (campanha_id) e o card do chat aponta pra página da campanha.
+
+### 🛍 Especialistas da fal para apropriar (varredura 2026-07-12 — "depois voltamos neles")
+A tese borda-commodity em ação: o FASHN entrou em ~1h; cada especialista abaixo é encaixe, não reconstrução. Top 3 marcado.
+
+| # | Modelo (fal) | O quê | Encaixe s1ngulr |
+|---|---|---|---|
+| **1º** ⭐ | **Recraft V3 vector** ($0,08/SVG) | ícones/padrões VETORIAIS na paleta | "Gerar ícone on-brand" na aba Ícones dos Ativos — ativo de marca permanente, não peça descartável. 🟢 horas |
+| **2º** ⭐ | **Dia TTS** (clonagem de voz) + Sync-3/PixVerse lipsync | a marca grava 1 min e ganha a PRÓPRIA voz p/ narrar reels | destrava o "vídeo completo" (output 4) e abre a faceta IDENTIDADE SONORA no brand book. 🟡 ~1 dia |
+| **3º** ⭐ | **Kling custom elements · Happy Horse 1.1** (9 refs → personagem consistente) | "modelo da casa": a MESMA modelo/mascote em todas as peças | faceta "elenco da marca" no brand book; p/ Hering: mesma modelo vestindo a coleção inteira do guia. 🟡 |
+| 4 | Bria Extract Object | isola produto com transparência | o passo que falta do manequim fantasma real (linha Hering) |
+| 5 | BiRefNet v2 · SeedVR upscale | fundo hi-res · upscaler novo | upgrades dos apps Remover fundo/Ampliar (duelo) |
+| 6 | TRELLIS-2 (3D) · LTX-2.3 (video enhance) | produto 3D · restaurar/estender vídeo | horizonte: AR/e-commerce · pós de reels |
 
 ### Copiloto: diretor de arte + agentes (visão do Danilo, 2026-07-10)
 Princípio: **o juiz é um módulo só, duas superfícies** — interativo no chat, automático no fluxo (mesmo padrão do `_brain.js`). Materializa o "Autopilot on-brand" do H2. Agentes moram DENTRO do Fluxos (decisão: sem área separada — fluxo com gatilho ligado = agente; aba "Agentes" lista os que rodam sozinhos).

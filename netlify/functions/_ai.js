@@ -23,6 +23,29 @@ export const TOOLS = {
 
 export const isDev = () => !!process.env.NETLIFY_DEV
 
+// ── Rastreio de custo (visão da dona — migration 039) ────────────────
+// Preços por MILHÃO de tokens (USD, tabela Anthropic jul/2026). Estimativa;
+// o que importa é a ordem de grandeza por operação/tag.
+const TOKEN_PRICE = {
+  'claude-sonnet-4-6':          { in: 3,    out: 15 },
+  'claude-sonnet-4-5':          { in: 3,    out: 15 },
+  'claude-haiku-4-5-20251001':  { in: 1,    out: 5 },
+  'claude-opus-4-7':            { in: 15,   out: 75 },
+}
+export async function logAiUsage(supabase, { model, usage, tag = null }) {
+  try {
+    if (!supabase || !usage) return
+    const p = TOKEN_PRICE[model] || { in: 3, out: 15 }
+    const inTok = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0) * 0.1
+    const custo = (inTok * p.in + (usage.output_tokens || 0) * p.out) / 1_000_000
+    await supabase.from('ai_usage').insert({
+      provider: 'anthropic', model,
+      input_tokens: Math.round(inTok), output_tokens: usage.output_tokens || 0,
+      custo_usd: custo, tag,
+    })
+  } catch { /* rastreio nunca derruba a operação */ }
+}
+
 /**
  * Returns a ready-to-spread config object for callAI/streamAI based on tier + environment.
  *
@@ -120,6 +143,8 @@ export async function callAI({
   retries      = 1,
   retryDelay   = 3000,
   timeoutMs,
+  supabase     = null,   // opcional: habilita o rastreio de custo (ai_usage)
+  tag          = null,   // quem chamou (distill, diagnostico, sintese…)
 }) {
   requireApiKey(apiKey)
 
@@ -153,6 +178,7 @@ export async function callAI({
 
       const data = await resp.json()
       const text = data.content?.find(b => b.type === 'text')?.text || ''
+      await logAiUsage(supabase, { model: body.model, usage: data.usage, tag })
       return { text, usage: data.usage }
     } catch (e) {
       if (e.name === 'AbortError') throw new AIError(`Timeout após ${Math.round(timeoutMs / 1000)}s`, 408)

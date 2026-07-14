@@ -4,6 +4,7 @@ import {
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import CheckIcon from '@mui/icons-material/Check'
 import ReplayIcon from '@mui/icons-material/Replay'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
@@ -285,6 +286,19 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
 
   const pecaFinal = () => blocks.length ? assembleBlocks(blocks) : text
 
+  const [saved, setSaved] = useState(false)
+  // Casa do Conteúdo: a peça escrita agora TEM casa — salva na Biblioteca (Textos)
+  async function salvarNaBiblioteca() {
+    const t = pecaFinal()
+    if (!t.trim() || !brand?.workspace_id) return
+    const titulo = (campos[fw?.campos?.[0]?.id] || fw?.label || 'Peça').slice(0, 140)
+    const { error: e } = await supabase.from('pecas_escritas').insert({
+      workspace_id: brand.workspace_id, brand_id: brandId,
+      titulo, formato: fw?.key || null, conteudo: t, origem: 'redacao',
+    })
+    if (!e) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+  }
+
   // Copiar = adoção → sinal 'content_used' (fonte writing_room) pro cérebro +
   // dataset (trigger da 029 captura). Uma vez por versão da peça (edição reabre).
   function emitAdoption() {
@@ -457,6 +471,13 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                     startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
                     sx={{ fontWeight: 700, color: copied ? TEAL : 'text.secondary', borderColor: copied ? TEAL : 'divider' }}>
                     {copied ? 'Copiado!' : 'Copiar peça'}
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Guarda a peça na Biblioteca → Textos (a casa do conteúdo escrito)">
+                  <Button variant="outlined" size="small" onClick={salvarNaBiblioteca} disabled={redoing != null || compiling}
+                    startIcon={saved ? <CheckIcon /> : <BookmarkAddOutlinedIcon />}
+                    sx={{ fontWeight: 700, color: saved ? TEAL : 'text.secondary', borderColor: saved ? TEAL : 'divider' }}>
+                    {saved ? 'Salvo!' : 'Salvar na Biblioteca'}
                   </Button>
                 </Tooltip>
                 <Button variant="outlined" size="small" onClick={gerar} startIcon={<ReplayIcon />} disabled={redoing != null || compiling}

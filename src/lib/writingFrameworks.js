@@ -94,6 +94,56 @@ Depois das variações, adicione:
 (direção visual por variação para o time criativo: cena LIMPA e SEM NENHUM texto na imagem — headline e CTA entram na pós-produção)`,
   },
   {
+    key: 'blog',
+    label: 'Postagem de blog',
+    desc: 'Artigo completo — título SEO, estrutura H2/H3, escaneável e no tom.',
+    campos: [
+      { id: 'tema',     label: 'Tema do artigo',      placeholder: 'Ex.: por que guidelines congelados matam a consistência da marca', required: true, multiline: true },
+      { id: 'palavra',  label: 'Palavra-chave (SEO)', placeholder: 'Ex.: consistência de marca' },
+      { id: 'publico',  label: 'Para quem',           placeholder: 'Ex.: heads de marketing de PMEs' },
+      { id: 'tamanho',  label: 'Tamanho',             placeholder: 'Ex.: ~800 palavras' },
+    ],
+    build: c => `Escreva uma POSTAGEM DE BLOG completa sobre: "${c.tema}".
+${c.palavra ? `Palavra-chave principal (SEO): ${c.palavra} — use no título, no 1º parágrafo e em pelo menos 1 H2, sem stuffing.` : ''}
+${c.publico ? `Público: ${c.publico}.` : ''}
+Tamanho alvo: ${c.tamanho || '~800 palavras'}.
+Estrutura obrigatória (markdown):
+## Título
+(1 título forte, com a palavra-chave se houver — máx 60 caracteres)
+## Meta descrição
+(1–2 frases, máx 155 caracteres, com convite ao clique)
+## Introdução
+(2–3 parágrafos: dor/contexto + a promessa do artigo)
+## Desenvolvimento
+(3–5 seções com subtítulos H3 dentro deste bloco; parágrafos curtos e escaneáveis; 1 lista ou exemplo concreto em pelo menos uma seção)
+## Conclusão + CTA
+(fechamento com posição da marca + 1 chamada para ação)
+## Sugestão de imagem
+(direção da imagem de capa para o time criativo: cena LIMPA e SEM NENHUM texto na imagem — sujeito, enquadramento, luz, espaço negativo p/ título na pós-produção)`,
+  },
+  {
+    key: 'post-social',
+    label: 'Postagem de rede social',
+    desc: 'O post completo por canal — texto no formato nativo + arte descrita.',
+    campos: [
+      { id: 'tema',     label: 'Tema do post',        placeholder: 'Ex.: anúncio da nova coleção / posição sobre uma tendência', required: true, multiline: true },
+      { id: 'canal',    label: 'Canal',               placeholder: 'LinkedIn, Instagram, X…', required: true },
+      { id: 'objetivo', label: 'Objetivo',            placeholder: 'Ex.: gerar conversa / cliques / autoridade' },
+    ],
+    build: c => `Escreva uma POSTAGEM DE REDE SOCIAL completa para ${c.canal || 'o canal'} sobre: "${c.tema}".
+${c.objetivo ? `Objetivo: ${c.objetivo}.` : ''}
+Respeite o formato NATIVO do canal (LinkedIn: 1ª linha forte + parágrafos curtos + sem hashtag em excesso; Instagram: legenda com quebras + hashtags; X: fio se precisar).
+Estrutura obrigatória (markdown):
+## Post
+(o texto COMPLETO, pronto para colar no canal, no formato nativo)
+## Variação B
+(uma segunda versão com outro ângulo — para teste)
+## Hashtags / marcações
+(se fizer sentido no canal; senão escreva "não usar")
+## Sugestão de imagem
+(direção visual para o time criativo: cena LIMPA e SEM NENHUM texto na imagem — e onde o texto entra na pós-produção)`,
+  },
+  {
     key: 'email',
     label: 'E-mail de marketing',
     desc: 'Assuntos A/B/C, corpo com gancho e CTA único.',

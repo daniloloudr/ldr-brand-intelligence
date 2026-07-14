@@ -42,12 +42,13 @@ function parseEvents(txt) {
   return (events || []).filter(e => !DISCLAIMER.some(p => p.test(`${e.titulo || ''} ${e.conteudo || ''}`)))
 }
 
-async function coletarClipping(concorrente) {
+async function coletarClipping(supabase, concorrente) {
   try {
     // 'standard': web search em prod (funciona), sem em dev (retorna 0 — economia).
     // maxTokens alto: com web search a resposta (preâmbulo + JSON) é longa e não pode truncar.
     const { text } = await callAI({ ...aiConfig('standard'), maxTokens: 6000,
-      messages: [{ role: 'user', content: buildPrompt(concorrente.nome, concorrente.dominio) }] })
+      messages: [{ role: 'user', content: buildPrompt(concorrente.nome, concorrente.dominio) }],
+      supabase, tag: 'clipping' })
     return parseEvents(text)
   } catch (e) {
     console.error(`[clipping] ${concorrente.nome}: ${e.message}`)
@@ -93,7 +94,7 @@ export async function coletarClippingWorkspace(supabase, { workspace_id, max = 6
   let inseridos = 0
   const brandCache = new Map()
   for (const c of fila) {                                   // SÉRIE (cache do prompt)
-    const events = await coletarClipping(c)
+    const events = await coletarClipping(supabase, c)
     const urls = events.map(e => e.url).filter(Boolean)
     let jaExistem = new Set()
     if (urls.length) {

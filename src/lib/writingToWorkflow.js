@@ -14,7 +14,7 @@ const POS = (col, row) => ({ x: 40 + col * 340, y: 40 + row * 310 })
 // rápido e barato, i2v a partir da imagem gerada da cena.
 const REEL_VIDEO_MODEL = 'seedance-2-fast'
 
-const FORMATO = { legenda: '1:1', carrossel: '1:1', anuncio: '1:1', reel: '9:16' }
+const FORMATO = { legenda: '1:1', carrossel: '1:1', anuncio: '1:1', reel: '9:16', blog: '16:9', 'post-social': '4:5' }
 
 // Regra do produto: imagem SEMPRE limpa — texto é outra camada (pós-produção).
 // A copy da peça NÃO entra no contexto de geração (é o que faz o modelo
@@ -66,4 +66,6 @@ export const DERIVE_RULES = {
   carrossel: 'Derive 1 prompt de imagem POR SLIDE (na ordem; IGNORE a seção "Legenda do post"). O visual de cada slide serve ao conteúdo daquele slide.',
   reel:      'Derive de 2 a 4 prompts de imagem: as CENAS-CHAVE do roteiro (a imagem de cada cena vira o 1º frame de um vídeo curto).',
   anuncio:   'Derive 1 prompt de imagem POR VARIAÇÃO (A, B e C), fiel ao ângulo de cada uma.',
+  blog:          'Derive EXATAMENTE 1 prompt de imagem: a CAPA do artigo (hero image), com espaço negativo para o título entrar na pós-produção.',
+  'post-social': 'Derive EXATAMENTE 1 prompt de imagem: a arte do post (use a "Sugestão de imagem" da peça como base).',
 }
