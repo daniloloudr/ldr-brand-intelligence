@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { callAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
+import { withHeartbeat } from './_watchdog.js'
 
 // Scheduled: toda segunda-feira às 8h (configurado em netlify.toml)
 // Gera diagnóstico automático para workspaces com monitor ativo
@@ -24,7 +25,7 @@ async function gerarDiagnostico(empresa, contexto) {
   return parsed
 }
 
-export async function handler(event) {
+async function run(event) {
   const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_KEY
@@ -120,3 +121,5 @@ function verificarFrequencia(plano, diaDaSemana, hoje) {
   if (plano === 'starter')    return hoje.getDate() === 1 // mensal: dia 1
   return false
 }
+
+export const handler = withHeartbeat('cron-monitor', run)

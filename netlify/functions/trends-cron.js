@@ -3,9 +3,10 @@
 // Antes: loop serial numa função só — estourava o teto de 15 min com ~15
 // workspaces (e o teto síncrono do scheduled muito antes disso).
 import { createClient } from '@supabase/supabase-js'
+import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
 
-export const handler = async () => {
+const run = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   const { data: wss } = await supabase.from('workspaces').select('id').not('setor', 'is', null)
 
@@ -20,3 +21,5 @@ export const handler = async () => {
   console.log(`[trends-cron] fan-out: ${wss?.length || 0} workspace(s) despachado(s)`)
   return { statusCode: 200, body: JSON.stringify({ despachados: wss?.length || 0, falhas }) }
 }
+
+export const handler = withHeartbeat('trends-cron', run)

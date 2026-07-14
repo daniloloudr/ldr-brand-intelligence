@@ -4,11 +4,12 @@
 // limiar e dispara o brand-distill-background pra cada uma. Cadência + volume.
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
+import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
 
 const THRESHOLD = parseInt(process.env.BRAND_DISTILL_THRESHOLD || '5', 10)
 
-export const handler = async () => {
+const run = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
   // marcas com sinais não-consumidos suficientes
@@ -34,3 +35,5 @@ export const handler = async () => {
   console.log(`[distill-cron] ${brands.length} marca(s) acima do limiar (${THRESHOLD}) → destilando`)
   return { statusCode: 200, body: JSON.stringify({ distilled: brands.length, threshold: THRESHOLD }) }
 }
+
+export const handler = withHeartbeat('brand-distill-cron', run)
