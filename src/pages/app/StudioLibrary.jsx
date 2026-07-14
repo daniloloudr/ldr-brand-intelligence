@@ -14,6 +14,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
+import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 
@@ -57,6 +58,11 @@ export function StudioLibrary({ brandId }) {
   const [campanhas, setCampanhas] = useState(null)
   const [textoAberto, setTextoAberto] = useState(null)
   const [copiado, setCopiado] = useState(false)
+  // Certidão do asset: trilha auditável da peça (compliance.md §4)
+  const [cert, setCert] = useState(null)          // asset em exibição
+  const [certGen, setCertGen] = useState(null)    // studio_generations da peça
+  const [certSignals, setCertSignals] = useState([])
+  const [certLoading, setCertLoading] = useState(false)
 
   useEffect(() => { if (brandId) load() }, [brandId])
 
@@ -104,6 +110,34 @@ export function StudioLibrary({ brandId }) {
   })
 
   function abrirOrg(a) { setOrg(a); setOrgPasta(a.pasta || ''); setOrgTags(a.tags || []) }
+
+  // A certidão junta a geração (origem/modelo/prompt/versão do cérebro) com os
+  // julgamentos ligados a ela (art_review do diretor de arte + voto humano),
+  // todos por ref_id = generation_id. RLS = perímetro.
+  async function abrirCert(a) {
+    const genId = a.metadata?.generation_id
+    if (!genId) return
+    setCert(a); setCertGen(null); setCertSignals([]); setCertLoading(true)
+    const [{ data: gen }, { data: porRef }, { data: porUrl }] = await Promise.all([
+      supabase.from('studio_generations')
+        .select('id, created_at, provider, provider_request_id, formato, prompt_final, brand_context, media_type, status')
+        .eq('id', genId).maybeSingle(),
+      supabase.from('brand_signals')
+        .select('id, tipo, payload, created_at')
+        .eq('ref_id', genId).in('tipo', ['image_vote', 'art_review'])
+        .order('created_at', { ascending: true }),
+      // pareceres antigos sem ref_id: casa pela própria imagem
+      supabase.from('brand_signals')
+        .select('id, tipo, payload, created_at')
+        .eq('tipo', 'art_review').eq('payload->>image_url', a.valor)
+        .order('created_at', { ascending: true }),
+    ])
+    const vistos = new Set()
+    const sigs = [...(porRef || []), ...(porUrl || [])]
+      .filter(s => !vistos.has(s.id) && vistos.add(s.id))
+      .sort((x, y) => new Date(x.created_at) - new Date(y.created_at))
+    setCertGen(gen || null); setCertSignals(sigs); setCertLoading(false)
+  }
 
   async function salvarOrg() {
     if (!org) return
@@ -208,6 +242,11 @@ export function StudioLibrary({ brandId }) {
                   <Tooltip title="Organizar (pasta e tags)">
                     <IconButton size="small" onClick={() => abrirOrg(a)}><TuneOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
                   </Tooltip>
+                  {a.metadata?.generation_id && (
+                    <Tooltip title="Certidão do asset — trilha completa da peça">
+                      <IconButton size="small" onClick={() => abrirCert(a)}><VerifiedOutlinedIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton>
+                    </Tooltip>
+                  )}
                   <Box sx={{ flex: 1 }} />
                   {isUrl(a.valor) && (
                     <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(a)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
@@ -301,6 +340,89 @@ export function StudioLibrary({ brandId }) {
             {copiado ? 'Copiado!' : 'Copiar'}
           </Button>
           <Button onClick={() => setTextoAberto(null)} sx={{ fontWeight: 700 }}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Certidão do asset — a trilha auditável da peça (modelo · prompt · versão do cérebro · julgamentos) */}
+      <Dialog open={!!cert} onClose={() => setCert(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontSize: 15, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <VerifiedOutlinedIcon sx={{ fontSize: 20, color: TEAL }} /> Certidão do asset
+        </DialogTitle>
+        <DialogContent>
+          {certLoading ? (
+            <Stack alignItems="center" py={4}><CircularProgress size={20} sx={{ color: TEAL }} /></Stack>
+          ) : !certGen ? (
+            <Typography fontSize={12.5} color="text.secondary">Trilha de geração não encontrada para esta peça.</Typography>
+          ) : (
+            <Stack spacing={1.75} mt={0.5}>
+              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                {isUrl(cert?.valor) && !isVideo(cert || {}) && (
+                  <Box component="img" src={cert.valor} alt="" sx={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }} />
+                )}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  {[
+                    ['Gerada em', new Date(certGen.created_at).toLocaleString('pt-BR')],
+                    ['Modelo', certGen.provider || '—'],
+                    ['Formato', [certGen.formato, certGen.media_type].filter(Boolean).join(' · ') || '—'],
+                    ['Cérebro da marca', certGen.brand_context?.intelligence_versao ? `v${certGen.brand_context.intelligence_versao} na época da geração` : 'contexto base (sem versão destilada)'],
+                  ].map(([k, v]) => (
+                    <Stack key={k} direction="row" spacing={1} sx={{ py: 0.25 }}>
+                      <Typography fontSize={11.5} color="text.secondary" sx={{ width: 120, flexShrink: 0 }}>{k}</Typography>
+                      <Typography fontSize={11.5} fontWeight={700} sx={{ wordBreak: 'break-word' }}>{v}</Typography>
+                    </Stack>
+                  ))}
+                </Box>
+              </Stack>
+
+              <Box>
+                <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
+                  Julgamentos ({certSignals.length})
+                </Typography>
+                {certSignals.length === 0 ? (
+                  <Typography fontSize={12} color="text.secondary">Nenhum julgamento registrado para esta peça ainda.</Typography>
+                ) : (
+                  <Stack spacing={0.75}>
+                    {certSignals.map((s, i) => {
+                      const p = s.payload || {}
+                      const humano = s.tipo === 'image_vote'
+                      const aprovado = humano ? p.voto === 'like' : (p.veredito || '').toLowerCase().includes('aprov')
+                      return (
+                        <Paper key={i} variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+                          <Stack direction="row" spacing={1} alignItems="center" mb={p.resumo || p.ajustes?.length ? 0.5 : 0}>
+                            <Chip size="small" label={humano ? (aprovado ? 'Aprovada pelo time' : 'Reprovada pelo time') : `Diretor de Arte · ${p.veredito || 'parecer'}${p.modo === 'fidelidade' ? ' · fidelidade' : ''}`}
+                              sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: aprovado ? '#E5F5EF' : '#FDECEA', color: aprovado ? '#0B8567' : '#B3261E' }} />
+                            <Typography fontSize={10.5} color="text.disabled">{new Date(s.created_at).toLocaleString('pt-BR')}</Typography>
+                          </Stack>
+                          {p.resumo && <Typography fontSize={11.5} sx={{ lineHeight: 1.5 }}>{p.resumo}</Typography>}
+                          {Array.isArray(p.ajustes) && p.ajustes.length > 0 && (
+                            <Typography fontSize={11} color="text.secondary" sx={{ mt: 0.25 }}>Ajustes: {p.ajustes.join(' · ')}</Typography>
+                          )}
+                        </Paper>
+                      )
+                    })}
+                  </Stack>
+                )}
+              </Box>
+
+              <Box>
+                <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
+                  Prompt final enviado
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, maxHeight: 160, overflow: 'auto', bgcolor: 'background.default' }}>
+                  <Typography component="pre" sx={{ fontSize: 10.5, fontFamily: 'ui-monospace, monospace', whiteSpace: 'pre-wrap', m: 0, lineHeight: 1.5 }}>
+                    {certGen.prompt_final || '—'}
+                  </Typography>
+                </Paper>
+              </Box>
+
+              <Typography fontSize={10} color="text.disabled" sx={{ fontFamily: 'ui-monospace, monospace' }}>
+                geração {certGen.id}{certGen.provider_request_id ? ` · job ${certGen.provider_request_id}` : ''} — trilha auditável (compliance §4)
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCert(null)} sx={{ fontWeight: 700 }}>Fechar</Button>
         </DialogActions>
       </Dialog>
 
