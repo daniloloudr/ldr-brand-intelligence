@@ -11,6 +11,7 @@
 | **[pitch-tecnologia.md](pitch-tecnologia.md)** | Deck de tecnologia: diagrama de camadas, flywheel, embeddings/RAG, dataset, rota SLM, infra | slide técnico, diligência de investidor |
 | **[pitch-futuro.md](pitch-futuro.md)** | O discurso do modelo de futuro: arco Hoje → Em breve → Futuro, cada claim ancorado no que já existe | slide de roadmap/visão, captação |
 | **[deck-retail.md](deck-retail.md)** | Deck de VENDA retail (15 slides + apêndice): master p/ Hering e Worten, com variantes [HERING]/[WORTEN] e notas de apresentação | apresentar p/ Hering (Rafael) e pitch Worten vs modelo agência |
+| **[compliance.md](compliance.md)** | Dossiê de compliance & confiança (frente Fullsix 1): cadeia de provedores verificada, isolamento, certidão do asset, IP, LGPD + pendências internas (§7) | procurement/jurídico de cliente · pré-pitch Worten |
 
 ## features/ — specs de implementação
 

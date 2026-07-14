@@ -456,6 +456,7 @@ export function StudioCanvas({ brandId, workflowId }) {
         body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, campaign_id: campaignRef.current, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
+      ;(ctx.genIds ||= {})[g.id] = j.generation_id   // portões a jusante carimbam o parecer na geração
       return { genId: j.generation_id, nodeId: g.id, kind: 'generate', previewNodeId, formato }
     } catch (e) { updateNodeData(g.id, { status: 'error', error: e.message }); return null }
   }
@@ -471,6 +472,7 @@ export function StudioCanvas({ brandId, workflowId }) {
         body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(a.id)
+      ;(ctx.genIds ||= {})[a.id] = j.generation_id
       return { genId: j.generation_id, nodeId: a.id, kind: 'app' }
     } catch (e) { updateNodeData(a.id, { status: 'error', error: e.message }); return null }
   }
@@ -515,8 +517,13 @@ export function StudioCanvas({ brandId, workflowId }) {
     ctx.dispatched.add(gate.id)
     updateNodeData(gate.id, { status: 'julgando', veredito: null, resumo: null, ajustes: null, error: null, outputUrl: null })
     try {
+      // generation_id: liga o parecer à geração (ref_id do sinal → certidão do asset).
+      // No regen sem ctx.genIds, cai no genId do preview do produtor.
+      const previewDoProdutor = produtor ? nodes.find(n => n.type === 'preview' && edges.some(e => e.source === produtor.id && e.target === n.id)) : null
+      const generationId = ctx.genIds?.[produtor?.id] || previewDoProdutor?.data?.genId || undefined
       const res = await fetch('/.netlify/functions/art-review', { method: 'POST', headers: ctx.auth,
-        body: JSON.stringify({ brand_id: brandId, image_url: imageUrl, criterio: (gate.data?.criterio || '').trim() || undefined,
+        body: JSON.stringify({ brand_id: brandId, image_url: imageUrl, generation_id: generationId,
+          criterio: (gate.data?.criterio || '').trim() || undefined,
           reference_url: referenceUrl || undefined, modo: gate.data?.modo || undefined }) })
       const j = await res.json()
       if (!res.ok) { updateNodeData(gate.id, { status: 'error', error: j.error || `Erro ${res.status}` }); return false }
