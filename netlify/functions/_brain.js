@@ -58,6 +58,9 @@ export function compileBrandContext({ brandBook, tokens, brandNome, facets }) {
   if (useVisual && todasCores.length) linhas.push(`Paleta (use como cores dominantes): ${todasCores.join(', ')}`)
   if (useVisual && tipografia.length) linhas.push(`Tipografia (se houver texto): ${tipografia.join(', ')}`)
   if (useVisual && estetica.length) linhas.push(`Estética visual: ${estetica.join('; ')}`)
+  // Regra do logo (Danilo, 2026-07-14): diretrizes visuais SIM, construção de
+  // logo NÃO — geração sempre deforma logotipo/wordmark; elemento gráfico pode.
+  if (useVisual) linhas.push('LOGO: NUNCA desenhe, reconstrua ou escreva o logotipo nem o nome da marca como assinatura/wordmark — modelos generativos sempre os deformam (logo real entra em pós-produção). Elementos GRÁFICOS da identidade (formas, grafismos, padrões — sem letras) PODEM compor a cena.')
   if (evitar.length) linhas.push(`Evitar: ${evitar.join('; ')}`)
 
   const prefix = `[BRAND CONTEXT]\n${linhas.join('\n')}`
