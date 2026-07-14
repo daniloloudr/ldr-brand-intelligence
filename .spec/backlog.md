@@ -5,7 +5,7 @@
 >
 > **Organização:** por horizonte da visão (H1 provar → H2 rede de cérebros → H3 categoria), construível **aos poucos** — cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v6.0)
-> Atualizado: 2026-07-09
+> Atualizado: 2026-07-14
 
 ---
 
@@ -38,6 +38,7 @@ O código está à frente do comercial — as próximas jogadas não são featur
 3. **Operar e observar:** cron autônomo de destilação (consertado 08/07 — conferir os primeiros ciclos), clipping de segunda (inclui Pupila), usar o produto e votar (cada uso calibra o cérebro e ensaia a demo).
 4. **Roteiro de demo do flywheel** (~5 min de telas contando a história) — eu monto quando o Danilo pedir. 🟢
 5. **🔥 PILOTO HERING — prioridade de produto (decisão 2026-07-10):** o caso-âncora do H1 puxa a fila; atividades detalhadas na seção [Piloto Hering](#-piloto-hering-rafael-passos-dir-digital--call-2026-07-09) abaixo. F0 começa já (bug das referências + mapa de modelos de fidelidade).
+6. **🥊 CONTA WORTEN — disputa direta com a Fullsix/Havas (2026-07-14):** primeiro deal onde enfrentamos o AI Creative Engine deles de frente (PDFs do pitch em `.spec/competitors/`). Preparação = as [Frentes Fullsix](#-frentes-fullsix-absorver-os-diferenciais-do-concorrente--2026-07-14) abaixo (pacote de confiança + preço por asset aprovado + protocolo de calibração são os pré-requisitos do pitch); nossas vantagens mapeadas na memória `project_concorrente_fullsix`. Retail = mesmo caso de uso do Hering (visual de produto fidedigno em escala) — um pilotinho calibrado serve aos dois.
 
 ---
 
@@ -55,7 +56,21 @@ O código está à frente do comercial — as próximas jogadas não são featur
 | **E2 — Loop criativo integrado com Meta** | motor de desdobramento (criativo vencedor → N variações on-brand) + Meta Marketing API (vencedores automáticos; performance real vira sinal `ad_performance`) | 🔴 · **gatilho: deal VHITA fechar** → registrar app na Meta NO MESMO DIA (App Review = semanas) |
 | Sustentação: cron enterprise diário · tela de workspace inativo | pequenos, sem gatilho | 🟢 cada |
 
-**Narrativa sem código (usar no site/pitch):** "usuários ilimitados — pague pelo que cria, não por cadeira" (créditos ≠ assentos) · "O Tess te dá todas as IAs; o LOUDR faz as IAs conhecerem a SUA marca" · "Não competimos com Canva/Figma — somos a memória de marca que eles não têm".
+**Narrativa sem código (usar no site/pitch):** "usuários ilimitados — pague pelo que cria, não por cadeira" (créditos ≠ assentos) · "O Tess te dá todas as IAs; o LOUDR faz as IAs conhecerem a SUA marca" · "Não competimos com Canva/Figma — somos a memória de marca que eles não têm" · "A Fullsix aluga uma fábrica com humanos dentro de cada entrega; o s1ngulr entrega a fábrica com o cérebro da marca dentro — que julga sozinho e aprende a cada peça".
+
+---
+
+### 🥊 Frentes Fullsix (absorver os diferenciais do concorrente — 2026-07-14)
+
+Origem: decks do AI Creative Engine (Fullsix/Havas CX) em `.spec/competitors/` — concorrente DIRETO na conta Worten. Regra de leitura: eles vendem fábrica-com-humanos por €95–210/visual aprovado; cada frente abaixo transforma um diferencial deles em feature/embalagem nossa. O que NÃO copiar: QA humano como núcleo do modelo (é o gargalo deles; nosso juiz é a vantagem) e o portfólio full-service do AI Lab (formação/audit/experiências — moat de holding, dilui a meta 30 marcas).
+
+| # | Frente | O quê | Tamanho / gatilho |
+|---|---|---|---|
+| 1 | **Pacote de confiança enterprise** | (a) dossiê de compliance ~2 pág: licença comercial de cada modelo (fal/Anthropic/Voyage), política de dados por workspace, "assets do cliente nunca treinam modelos externos", LGPD (conversa com Gap 3); (b) **certidão do asset** na UI: trilha por peça — modelo, prompt, versão do cérebro, julgamentos (`ai_usage` + `brand_dataset` já gravam tudo; falta expor). Linguagem deles p/ roubar: *IP-safe, full traceability, audit-ready* | 🟢 · **antes do pitch Worten** |
+| 2 | **Preço por asset APROVADO (camada comercial)** | sobre o repasse de créditos, oferta enterprise: preço por imagem aprovada com bandas de volume (benchmark Fullsix: €95–210/KV, €14.280/mês por 120 KVs). Detalhe em `precificacao.md` §Benchmark | 🟢 (comercial, sem código) · deal enterprise na mesa |
+| 3 | **Protocolo de calibração no piloto** | ideia deles (esperta): o 1º lote mede a taxa real de aprovação/retoque da marca e DEFINE o tier/preço do contrato — transforma incerteza do cliente em protocolo. Encaixa direto no F0.3 Hering e num pilotinho Worten; a métrica de convergência (regens até aprovação) já é a telemetria disso | 🟢 · junto do F0.3 |
+| 4 | **Garantia de julgamento + tier curadoria** | vender o juiz como garantia formal: "nenhuma peça sai sem passar pelo julgamento da marca" (auto-julgamento + artGate já existem — é embalagem). Tier opcional com curadoria humana LOUDR por cima do juiz p/ contratos grandes (o juiz faz 90%, margem de serviço no resto) | 🟡 · contrato enterprise pedir sign-off humano |
+| 5 | **Motor de adaptação de formatos** | o gap REAL de produto vs eles: 1 master aprovado → N formatos de canal (leaderboard/quadrado/story/mobile/email), mudança propaga em todas as versões. Onde mora o volume recorrente (eles cobram €30–250/formato). Começa por recomposição/resize inteligente, NÃO por tipografia (≠ output 7 Canva-lite, que segue futuro) | 🔴 · **gatilho: deal retail (Worten/Hering) fechar** |
 
 ---
 

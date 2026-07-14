@@ -28,6 +28,43 @@
 
 ---
 
+## 📊 Benchmark de mercado + camada enterprise "por asset aprovado" (2026-07-14)
+
+Fonte: decks do **Fullsix AI Creative Engine** (Havas CX) em `.spec/competitors/` — concorrente
+direto na conta Worten. O modelo comercial deles é a referência do que procurement de marca
+grande já aceita pagar:
+
+**A tabela deles (indicativa, ex-VAT):**
+- Portas de entrada: **Sprint** desde €9.500 (fixo, testar) · **Visual Bank** 50 KVs €12,5k /
+  100 KVs €22,5k (biblioteca) · **Always-On** setup €7,5k–35k + preço por asset (recorrente)
+- **Preço por visual APROVADO** (não por geração/teste): Minimal €79–105 · Standard €105–140 ·
+  Complex €158–210, com bandas de volume (400+ KVs/mês → €79/€105/€158)
+- Exemplo deles: 120 KVs standard/mês = **€14.280/mês** (~R$85k)
+- Adaptação de formato à parte: template €500 · estático €30 · animado €150 · HTML5 €250
+- **Protocolo de calibração**: o 1º lote mede a taxa real de retoque da marca e define o tier
+  definitivo (Minimal 0–15% de trabalho manual · Standard 15–40%) — o setup vira instrumento
+  de pricing, não só onboarding
+
+**O que absorver (frentes 2 e 3 do backlog):**
+1. **Camada enterprise por asset aprovado** — em deal grande (Worten/Hering), oferecer POR CIMA
+   do repasse de créditos uma tabela por imagem aprovada com bandas de volume. Nosso custo por
+   produto completo ≈ **R$1–2** (mapa Hering) vs €95–210 deles: qualquer preço na casa de
+   R$40–120/imagem aprovada fica 5–15× abaixo do benchmark E com margem de 95%+. O benchmark
+   deles é o teto de referência na negociação — não precisamos ser baratos, precisamos ser
+   *obviamente* melhores em preço com a mesma garantia.
+2. **Cobrar só o aprovado** — encaixa com o que já temos: o juiz (artGate/auto-julgamento)
+   filtra antes, o voto do cliente define "aprovado", a métrica de convergência (regens até
+   aprovação) prova a eficiência. Geração reprovada = custo nosso (centavos), não do cliente.
+3. **Setup pago que calibra o contrato** — formalizar o pilotinho como "setup de cérebro"
+   (linha de contrato, referência deles €7,5k): ingestão de marca + 1º lote + medição da taxa
+   de aprovação → define a banda de preço do recorrente.
+
+> Guarda-chuva: isso NÃO reabre o SaaS. A base segue contrato + créditos-repasse; a camada
+> por asset aprovado é EMBALAGEM comercial p/ enterprise que pensa em "custo por peça"
+> (como a Worten, educada pela tabela da Fullsix).
+
+---
+
 # LOUDR — Modelo de Precificação (créditos)
 
 > Definido jun/2026, revisto e IMPLEMENTADO jul/2026. Custos de insumos em `custos.csv`.
