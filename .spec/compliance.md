@@ -39,8 +39,11 @@ O s1ngulr é a plataforma onde a marca opera a própria criação com IA. Três 
   cliente jamais lê dados de outro (política checada em migration, sem exceção).
 - **Um workspace = uma marca**: sem cruzamento de conhecimento entre marcas; o cérebro de
   cada marca aprende apenas com os dados dela.
-- **Residência**: banco na região do projeto Supabase **[A VALIDAR: região exata no dashboard]**;
-  mídia no R2 **[A VALIDAR: jurisdição do bucket]**.
+- **Residência**: banco Supabase em **us-west-2 (AWS Oregon, EUA)** — confirmado via CLI
+  2026-07-14. LGPD permite transferência internacional com salvaguardas (cláusulas do
+  provedor); para cliente que exigir residência no Brasil, avaliar migração p/ `sa-east-1`
+  (São Paulo) — decisão de infra, anotar se algum deal pedir. Mídia no R2 (Cloudflare)
+  **[A VALIDAR: location hint do bucket]**.
 - **Acesso interno**: administração da plataforma restrita (`platform_admins`), com trilha.
 
 ## 4. Rastreabilidade — a certidão do asset
@@ -80,6 +83,6 @@ Auditável a qualquer momento; exportável sob pedido.
 |---|---|---|---|
 | 1 | **OPT-OUT de treino na conta Voyage** (dashboard, exige admin + payment method). Hoje o padrão deles PERMITE treinar com nosso conteúdo — contradiz a garantia §1.1 | Danilo | 🚨 HOJE |
 | 2 | Confirmar tier/termos da conta fal (claim "never trains" é do enterprise) — se standard, avaliar upgrade ou ajustar o claim | Danilo | alta |
-| 3 | Confirmar região do projeto Supabase e jurisdição do bucket R2 | Danilo/Claude | alta |
+| 3 | ~~Região Supabase~~ ✅ us-west-2 (confirmada 14/07) · falta jurisdição do bucket R2 (dashboard Cloudflare) | Danilo | média |
 | 4 | ToS + Privacidade públicas (Gap 3) e cláusula de IP em contrato (item PI/INPI) | jurídico | antes do 1º envio |
 | 5 | Anthropic ZDR: avaliar solicitar p/ contratos enterprise (Worten/Hering) | Danilo | quando o deal pedir |

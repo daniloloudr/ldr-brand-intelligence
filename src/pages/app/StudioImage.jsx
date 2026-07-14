@@ -54,6 +54,12 @@ export function StudioImage({ brandId }) {
   const [voting, setVoting] = useState({})        // id -> bool
   const [lightbox, setLightbox] = useState(null)  // url da imagem aberta em tela cheia
   const [broken, setBroken] = useState({})        // ids de imagens que falharam ao carregar (404) → ocultas
+  // ⚔️ Duelo de Modelos: mesma peça em 2–3 providers lado a lado + voto do
+  // vencedor → preferência PAREADA (sinal model_duel, o dado mais forte pro
+  // win_rate do cérebro) + aprovação da vencedora (reusa o flywheel do voto).
+  const [duelMode, setDuelMode] = useState(false)
+  const [duelModels, setDuelModels] = useState([DEFAULT_IMAGE_MODEL, 'openai/gpt-image-2'])
+  const [duel, setDuel] = useState(null)          // { prompt, formato, entries:[{model,genId}], winner, saving }
 
   const fileRef = useRef(null)
   const pollRef = useRef(null)
@@ -93,6 +99,7 @@ export function StudioImage({ brandId }) {
   }
 
   async function gerar() {
+    if (duelMode) return gerarDuelo()
     if (!prompt.trim()) return setMsg('Escreva um prompt.')
     setMsg(''); setGenerating(true)
 
@@ -121,6 +128,60 @@ export function StudioImage({ brandId }) {
     setItems(prev => [...ids.map(id => ({ id, status: 'processing', image_url: null, formato })), ...prev])
     ensurePolling()
     reloadWorkspace?.()   // atualiza o saldo de créditos (débito já ocorreu no submit)
+  }
+
+  // ── ⚔️ Duelo: dispara a MESMA peça em cada modelo escolhido ──
+  async function gerarDuelo() {
+    if (!prompt.trim()) return setMsg('Escreva um prompt.')
+    if (duelModels.length < 2) return setMsg('Escolha 2 ou 3 modelos para o duelo.')
+    setMsg(''); setGenerating(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const entries = []
+    for (const m of duelModels) {
+      const modelId = resolveModel(m)
+      try {
+        const res = await fetch('/.netlify/functions/studio-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ brand_id: brandId, prompt: prompt.trim(), formato, use_brand: useBrand, model: modelId, references: refUrls }),
+        })
+        const j = await res.json()
+        if (res.ok) entries.push({ model: modelId, genId: j.generation_id })
+        else setMsg(j.error || `Erro ${res.status}`)
+      } catch (e) { setMsg(e.message) }
+    }
+    setGenerating(false)
+    if (entries.length < 2) return setMsg(prev => prev || 'O duelo precisa de pelo menos 2 gerações.')
+    setItems(prev => [...entries.map(e => ({ id: e.genId, status: 'processing', image_url: null, formato })), ...prev])
+    setDuel({ prompt: prompt.trim(), formato, entries, winner: null, saving: false })
+    ensurePolling()
+    reloadWorkspace?.()
+  }
+
+  // Voto do duelo: sinal model_duel (preferência pareada) + feedback 'up' na
+  // vencedora — o update dispara o trigger image_vote (flywheel existente).
+  async function escolherVencedora(entry) {
+    if (!duel || duel.winner || duel.saving) return
+    setDuel(d => ({ ...d, saving: true }))
+    const [{ data: { user } }, { data: brand }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from('brands').select('workspace_id').eq('id', brandId).single(),
+    ])
+    const perdedores = duel.entries.filter(e => e.genId !== entry.genId).map(e => e.model)
+    const [{ error: sigErr }] = await Promise.all([
+      supabase.from('brand_signals').insert({
+        brand_id: brandId, workspace_id: brand?.workspace_id, tipo: 'model_duel', fonte: 'studio-duelo',
+        ref_id: entry.genId, peso: 2,
+        payload: { vencedor: entry.model, perdedores, formato: duel.formato,
+          prompt: duel.prompt.slice(0, 2000), generation_ids: duel.entries.map(e => e.genId) },
+      }),
+      supabase.from('studio_generations')
+        .update({ feedback: 'up', feedback_at: new Date().toISOString(), feedback_by: user?.id })
+        .eq('id', entry.genId),
+    ])
+    if (sigErr) { setMsg('Não foi possível registrar a preferência.'); setDuel(d => ({ ...d, saving: false })); return }
+    setItems(prev => prev.map(it => it.id === entry.genId ? { ...it, feedback: 'up' } : it))
+    setDuel(d => ({ ...d, winner: entry.genId, saving: false }))
   }
 
   // ── Ação inline (upscale/removebg/variação) sobre uma peça pronta ──
@@ -231,9 +292,33 @@ export function StudioImage({ brandId }) {
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-          {/* Modelo */}
+          {/* Modelo (ou modelos, no duelo) */}
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.5 }}>Modelo</Typography>
+            <Stack direction="row" alignItems="center" sx={{ mb: 0.5 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>
+                {duelMode ? 'Modelos em duelo (2–3)' : 'Modelo'}
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Chip label="⚔️ Duelo de modelos" size="small" clickable disabled={generating}
+                onClick={() => setDuelMode(v => !v)} variant={duelMode ? 'filled' : 'outlined'}
+                sx={{ fontWeight: 700, fontSize: 11.5, ...(duelMode && { bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }) }} />
+            </Stack>
+            {duelMode ? (<>
+              <Select multiple value={duelModels}
+                onChange={e => { const v = e.target.value; if (v.length >= 1 && v.length <= 3) setDuelModels(v) }}
+                renderValue={sel => sel.map(id => IMAGE_MODELS.find(m => m.id === id)?.label || id).join('  ⚔️  ')}
+                fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
+                {IMAGE_MODEL_GROUPS.flatMap(g => [
+                  <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
+                  ...IMAGE_MODELS.filter(m => m.group === g && !/fashn\/tryon/.test(m.id)).map(m => (
+                    <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>{m.label}</MenuItem>
+                  )),
+                ])}
+              </Select>
+              <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.5 }}>
+                A mesma peça é gerada em todos — você escolhe a vencedora e a marca aprende qual modelo funciona melhor pra ela.
+              </Typography>
+            </>) : (
             <Select value={model} onChange={e => setModel(e.target.value)} fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
               {IMAGE_MODEL_GROUPS.flatMap(g => [
                 <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
@@ -242,6 +327,7 @@ export function StudioImage({ brandId }) {
                 )),
               ])}
             </Select>
+            )}
           </Box>
 
           {/* Templates */}
@@ -300,12 +386,14 @@ export function StudioImage({ brandId }) {
                 sx={{ fontWeight: 700, ...(formato === f.v && { bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }) }} />
             ))}
             <Box sx={{ flex: 1 }} />
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Imagens:</Typography>
-            {[1, 2, 4].map(n => (
-              <Chip key={n} label={n} clickable disabled={generating} onClick={() => setCount(n)} size="small"
-                variant={count === n ? 'filled' : 'outlined'}
-                sx={{ fontWeight: 700, ...(count === n && { bgcolor: TEAL, color: '#fff' }) }} />
-            ))}
+            {!duelMode && (<>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Imagens:</Typography>
+              {[1, 2, 4].map(n => (
+                <Chip key={n} label={n} clickable disabled={generating} onClick={() => setCount(n)} size="small"
+                  variant={count === n ? 'filled' : 'outlined'}
+                  sx={{ fontWeight: 700, ...(count === n && { bgcolor: TEAL, color: '#fff' }) }} />
+              ))}
+            </>)}
           </Stack>
 
           <Stack direction="row" spacing={2} alignItems="center">
@@ -315,15 +403,68 @@ export function StudioImage({ brandId }) {
             <Box sx={{ flex: 1 }} />
             {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
             <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 700 }}>
-              {(() => { const c = creditsForImage(resolveModel(model) || undefined) * count; return `esta rodada: ${c} crédito${c > 1 ? 's' : ''}` })()}
+              {(() => {
+                const c = duelMode
+                  ? duelModels.reduce((acc, m) => acc + creditsForImage(resolveModel(m) || undefined), 0)
+                  : creditsForImage(resolveModel(model) || undefined) * count
+                return `esta rodada: ${c} crédito${c > 1 ? 's' : ''}`
+              })()}
             </Typography>
             <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
               onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
-              {generating ? 'Gerando…' : 'Gerar'}
+              {generating ? 'Gerando…' : duelMode ? 'Gerar duelo' : 'Gerar'}
             </Button>
           </Stack>
         </Paper>
+
+        {/* ⚔️ Arena do duelo — lado a lado, voto único na vencedora */}
+        {duel && (
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 3, borderColor: duel.winner ? TEAL : 'divider', borderWidth: duel.winner ? 2 : 1 }}>
+            <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 900 }}>
+                ⚔️ Duelo de modelos {duel.winner ? '— vencedora escolhida' : '— compare e escolha a vencedora'}
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <IconButton size="small" onClick={() => setDuel(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${duel.entries.length}, 1fr)` }, gap: 1.5 }}>
+              {duel.entries.map(e => {
+                const it = items.find(i => i.id === e.genId)
+                const done = it?.status === 'done' && it.image_url
+                const isWinner = duel.winner === e.genId
+                const label = IMAGE_MODELS.find(m => m.id === e.model)?.label || e.model
+                return (
+                  <Box key={e.genId} sx={{ border: '2px solid', borderColor: isWinner ? TEAL : 'divider', borderRadius: 2, overflow: 'hidden',
+                    opacity: duel.winner && !isWinner ? 0.55 : 1, transition: 'opacity .2s' }}>
+                    <Box onClick={() => done && setLightbox(it.image_url)}
+                      sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: done ? 'zoom-in' : 'default' }}>
+                      {done
+                        ? <Box component="img" src={it.image_url} alt={label} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
+                    </Box>
+                    <Stack sx={{ p: 1 }} spacing={0.75} alignItems="center">
+                      <Typography sx={{ fontSize: 11.5, fontWeight: 800 }}>{label}</Typography>
+                      {isWinner
+                        ? <Chip size="small" label="🏆 Vencedora" sx={{ fontWeight: 800, fontSize: 11, bgcolor: TEAL, color: '#fff' }} />
+                        : !duel.winner && (
+                          <Button size="small" variant="outlined" disabled={!done || duel.saving} onClick={() => escolherVencedora(e)}
+                            sx={{ fontSize: 11, fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
+                            Escolher vencedora
+                          </Button>
+                        )}
+                    </Stack>
+                  </Box>
+                )
+              })}
+            </Box>
+            {duel.winner && (
+              <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mt: 1.25 }}>
+                Preferência registrada — o cérebro da marca aprendeu com esta escolha (vitória pareada alimenta o win-rate por modelo).
+              </Typography>
+            )}
+          </Paper>
+        )}
 
         {/* Galeria persistente */}
         {loading ? (

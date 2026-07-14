@@ -263,6 +263,8 @@ function fmtSignalBody(s) {
     return `[PARECER DO DIRETOR DE ARTE (IA) sobre peça enviada] veredito=${p.veredito || '?'} "${(p.resumo || '').slice(0, 300)}"`
   if (s.tipo === 'image_regen')
     return `[REGENERADO — reprovação implícita] provider=${p.provider || '?'} formato=${p.formato || '?'} tipo=${p.media_type || 'image'}${p.ajuste ? ` · o usuário pediu para ajustar: "${p.ajuste}"` : ''} prompt="${(p.prompt || '').slice(0, 300)}" (ref:${s.ref_id})`
+  if (s.tipo === 'model_duel')
+    return `[DUELO DE MODELOS — preferência pareada] vencedor=${p.vencedor || '?'} derrotou=[${(p.perdedores || []).join(', ')}] formato=${p.formato || '?'} prompt="${(p.prompt || '').slice(0, 300)}" (ref:${s.ref_id})`
   return `[${s.tipo}] ${JSON.stringify(p).slice(0, 300)}`
 }
 
@@ -285,6 +287,7 @@ const SYSTEM = [
   '- preferencias_visuais: derive de image_vote — padrões que recebem 👍 vão em "aprovado" (com exemplos = refs); 👎 em "reprovado". Calcule modelo_preferido.win_rate por provider (aprovações/total do provider). Votos recentes pesam mais que antigos.',
   '- writing_edit = o time REESCREVEU um trecho de copy gerado. Aprenda com a DIFERENÇA entre o que a IA escreveu e o que o humano preferiu — é ensino direto de voz e estilo (quase tão forte quanto assistant_correction); alimenta voz, do_dont e conteudo.',
   '- image_regen = o usuário REGENEROU uma peça sem votar — reprovação IMPLÍCITA, mais fraca que um 👎 explícito (pese menos no win-rate e nas preferências). Quando houver "ajuste", ele diz EXATAMENTE o que faltou — trate como correção direcionada de alta relevância para as preferências visuais.',
+  '- model_duel = o time viu a MESMA peça gerada por 2-3 modelos LADO A LADO e escolheu a vencedora — preferência PAREADA, a evidência mais forte para modelo_preferido.win_rate (vitória direta do vencedor sobre cada perdedor; pese mais que votos isolados, pois compara em condições idênticas). O que a vencedora tem que as perdedoras não têm também alimenta preferencias_visuais.',
   '- do_dont e fatos: extraia de diagnósticos, veredictos e edições. Cite as fontes (tipos de sinal) em "fontes".',
   '- territorio: o território de posicionamento que a MARCA deve reivindicar — derive de diagnostic (territórios possíveis) cruzado com competitive (não reivindique espaço dominado por concorrente; prefira espaço livre).',
   '- conteudo: derive de content_used e campanhas aprovadas — os TEMAS, formatos e ângulos de conteúdo que o time realmente adota. Se não houver sinal de conteúdo, deixe as listas vazias.',
