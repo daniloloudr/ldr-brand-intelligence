@@ -1,20 +1,25 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
-  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete,
+  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
-import { Tabs, Tab } from '@mui/material'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import AddIcon from '@mui/icons-material/Add'
+import FolderIcon from '@mui/icons-material/Folder'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
+import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined'
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
+import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 
@@ -22,9 +27,22 @@ const TEAL = '#0D9E7A'
 
 // Assets de MÍDIA/arquivo (cor e tipografia são valores de identidade — ficam no Brand Book)
 const TIPOS_BIBLIOTECA = ['logo', 'foto', 'video', 'icone', 'padrao', 'documento', 'outro']
+// Tipos que nascem como REFERÊNCIA da marca (curadoria/identidade, não peça produzida)
+const TIPOS_REFERENCIA = ['logo', 'icone', 'padrao', 'documento']
 
 const isUrl   = v => /^https?:\/\//i.test(v || '')
 const isVideo = a => a.tipo === 'video' || (a.mime_type || '').startsWith('video/')
+// Referência = o cliente subiu como identidade OU marcou como referência
+const isReferencia = a => TIPOS_REFERENCIA.includes(a.tipo) || a.metadata?.reference === true
+
+// Pastas-raiz do repositório (estilo Drive): tudo da marca mora aqui
+const ROOTS = [
+  { id: 'imagens',     label: 'Imagens',              Icon: ImageOutlinedIcon,               desc: 'peças e fotos produzidas' },
+  { id: 'videos',      label: 'Vídeos',               Icon: MovieOutlinedIcon,               desc: 'vídeos gerados e enviados' },
+  { id: 'textos',      label: 'Textos',               Icon: ArticleOutlinedIcon,             desc: 'peças escritas (Redação e Copiloto)' },
+  { id: 'referencias', label: 'Referências da marca', Icon: CollectionsBookmarkOutlinedIcon, desc: 'o que É a marca — logos, padrões e referências curadas' },
+  { id: 'campanhas',   label: 'Campanhas',            Icon: CampaignOutlinedIcon,            desc: 'dossiês de campanha' },
+]
 
 function AssetPreview({ a }) {
   if (isUrl(a.valor)) {
@@ -34,7 +52,6 @@ function AssetPreview({ a }) {
     if ((a.mime_type || 'image/').startsWith('image/')) return <Box component="img" src={a.valor} alt="" loading="lazy"
       sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
   }
-  // logo SVG inline (valor = markup, com ou sem prólogo <?xml) ou arquivo sem preview
   if ((a.valor || '').includes('<svg')) return (
     <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2,
       '& svg': { maxWidth: '100%', maxHeight: '100%' } }} dangerouslySetInnerHTML={{ __html: a.valor.slice(a.valor.indexOf('<svg')) }} />
@@ -44,23 +61,25 @@ function AssetPreview({ a }) {
 
 export function StudioLibrary({ brandId }) {
   const [assets, setAssets]   = useState([])
+  const [textos, setTextos] = useState(null)
+  const [campanhas, setCampanhas] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busca, setBusca]     = useState('')
-  const [pasta, setPasta]     = useState('__all')     // __all | __none | nome da pasta
-  const [tag, setTag]         = useState(null)
-  const [org, setOrg]         = useState(null)        // asset em organização (dialog)
+  // Navegação Drive-like: root (null = home) + pasta dentro do root
+  const [root, setRoot]   = useState(null)
+  const [pasta, setPasta] = useState(null)
+  const [novasPastas, setNovasPastas] = useState({})  // root -> [nomes criados nesta sessão]
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
+  // Dialogs
+  const [org, setOrg] = useState(null)                // { kind: 'asset'|'texto', item }
   const [orgPasta, setOrgPasta] = useState('')
   const [orgTags, setOrgTags]   = useState([])
   const [savingOrg, setSavingOrg] = useState(false)
-  // Casa do Conteúdo: a Biblioteca é o HUB — Mídia · Textos · Campanhas
-  const [aba, setAba] = useState(0)
-  const [textos, setTextos] = useState(null)
-  const [campanhas, setCampanhas] = useState(null)
   const [textoAberto, setTextoAberto] = useState(null)
   const [copiado, setCopiado] = useState(false)
-  // Certidão do asset: trilha auditável da peça (compliance.md §4)
-  const [cert, setCert] = useState(null)          // asset em exibição
-  const [certGen, setCertGen] = useState(null)    // studio_generations da peça
+  const [cert, setCert] = useState(null)
+  const [certGen, setCertGen] = useState(null)
   const [certSignals, setCertSignals] = useState([])
   const [certLoading, setCertLoading] = useState(false)
 
@@ -73,7 +92,7 @@ export function StudioLibrary({ brandId }) {
         .eq('brand_id', brandId).in('tipo', TIPOS_BIBLIOTECA)
         .order('created_at', { ascending: false }),
       supabase.from('pecas_escritas').select('*')
-        .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(100),
+        .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(200),
       supabase.from('studio_campaigns').select('id, nome, conceito, status, created_at')
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
     ])
@@ -81,6 +100,90 @@ export function StudioLibrary({ brandId }) {
     setTextos(pecas || [])
     setCampanhas(camps || [])
     setLoading(false)
+  }
+
+  // ── Classificação: cada item mora numa pasta-raiz ──
+  const porRoot = useMemo(() => ({
+    referencias: assets.filter(isReferencia),
+    videos:      assets.filter(a => !isReferencia(a) && isVideo(a)),
+    imagens:     assets.filter(a => !isReferencia(a) && !isVideo(a)),
+    textos:      textos || [],
+    campanhas:   campanhas || [],
+  }), [assets, textos, campanhas])
+
+  const escopo = root ? porRoot[root] : []
+  const temPastas = root && root !== 'campanhas'
+
+  // Subpastas do root atual (das existentes + criadas na sessão)
+  const subpastas = useMemo(() => {
+    if (!temPastas) return []
+    const existentes = [...new Set(escopo.map(i => i.pasta).filter(Boolean))]
+    return [...new Set([...existentes, ...(novasPastas[root] || [])])].sort()
+  }, [escopo, novasPastas, root, temPastas])
+
+  // Itens visíveis: da pasta atual (null = raiz do root), filtrados pela busca
+  const visiveis = useMemo(() => {
+    let list = escopo
+    if (temPastas) list = list.filter(i => (pasta ? i.pasta === pasta : !i.pasta))
+    const q = busca.trim().toLowerCase()
+    if (q) list = (temPastas && !pasta ? escopo : list).filter(i => {
+      const alvo = `${i.nome || i.titulo || ''} ${i.descricao || i.conceito || ''} ${(i.tags || []).join(' ')} ${i.pasta || ''}`.toLowerCase()
+      return alvo.includes(q)
+    })
+    return list
+  }, [escopo, pasta, busca, temPastas])
+
+  function navegar(novoRoot, novaPasta = null) { setRoot(novoRoot); setPasta(novaPasta); setBusca('') }
+
+  function novaPasta() {
+    const nome = window.prompt('Nome da nova pasta:')?.trim()
+    if (!nome) return
+    setNovasPastas(prev => ({ ...prev, [root]: [...new Set([...(prev[root] || []), nome])] }))
+  }
+
+  // ── Upload direto na pasta atual (Imagens/Vídeos/Referências) ──
+  async function uploadAqui(fileList) {
+    const files = Array.from(fileList || [])
+    if (!files.length) return
+    setUploading(true)
+    for (const file of files) {
+      const path = `${brandId}/biblioteca/${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${(file.name || 'arquivo').replace(/[^\w.\-]/g, '_')}`
+      const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+      if (error) continue
+      const url = supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl
+      const video = (file.type || '').startsWith('video/')
+      await supabase.from('brand_assets').insert({
+        brand_id: brandId, tipo: video ? 'video' : 'foto', nome: file.name,
+        valor: url, mime_type: file.type || null, pasta: pasta || null,
+        metadata: { source: 'upload', ...(root === 'referencias' ? { reference: true } : {}) },
+      })
+    }
+    setUploading(false)
+    load()
+  }
+
+  // ── Mover/organizar (assets: pasta+tags · textos: pasta) ──
+  function abrirOrg(kind, item) { setOrg({ kind, item }); setOrgPasta(item.pasta || ''); setOrgTags(item.tags || []) }
+
+  async function salvarOrg() {
+    if (!org) return
+    setSavingOrg(true)
+    const pastaFinal = (orgPasta || '').trim() || null
+    if (org.kind === 'texto') {
+      const { error } = await supabase.from('pecas_escritas').update({ pasta: pastaFinal }).eq('id', org.item.id)
+      if (!error) setTextos(prev => prev.map(t => t.id === org.item.id ? { ...t, pasta: pastaFinal } : t))
+    } else {
+      const tagsFinal = [...new Set(orgTags.map(t => (t || '').trim()).filter(Boolean))]
+      const { error } = await supabase.from('brand_assets').update({ pasta: pastaFinal, tags: tagsFinal }).eq('id', org.item.id)
+      if (!error) setAssets(prev => prev.map(a => a.id === org.item.id ? { ...a, pasta: pastaFinal, tags: tagsFinal } : a))
+    }
+    setSavingOrg(false); setOrg(null)
+  }
+
+  async function excluir(a) {
+    if (!window.confirm(`Excluir "${a.nome}" da biblioteca?`)) return
+    const { error } = await supabase.from('brand_assets').delete().eq('id', a.id)
+    if (!error) setAssets(prev => prev.filter(x => x.id !== a.id))
   }
 
   async function excluirTexto(t) {
@@ -94,26 +197,13 @@ export function StudioLibrary({ brandId }) {
     setCopiado(true); setTimeout(() => setCopiado(false), 1500)
   }
 
-  const pastas = useMemo(() => [...new Set(assets.map(a => a.pasta).filter(Boolean))].sort(), [assets])
-  const tags   = useMemo(() => [...new Set(assets.flatMap(a => a.tags || []))].sort(), [assets])
+  function baixar(a) {
+    if (!isUrl(a.valor)) return
+    const link = document.createElement('a')
+    link.href = a.valor; link.download = a.nome || 'asset'; link.target = '_blank'; link.click()
+  }
 
-  const filtered = assets.filter(a => {
-    if (pasta === '__none' && a.pasta) return false
-    if (pasta !== '__all' && pasta !== '__none' && a.pasta !== pasta) return false
-    if (tag && !(a.tags || []).includes(tag)) return false
-    if (busca.trim()) {
-      const q = busca.trim().toLowerCase()
-      const alvo = `${a.nome || ''} ${a.descricao || ''} ${(a.tags || []).join(' ')} ${a.pasta || ''}`.toLowerCase()
-      if (!alvo.includes(q)) return false
-    }
-    return true
-  })
-
-  function abrirOrg(a) { setOrg(a); setOrgPasta(a.pasta || ''); setOrgTags(a.tags || []) }
-
-  // A certidão junta a geração (origem/modelo/prompt/versão do cérebro) com os
-  // julgamentos ligados a ela (art_review do diretor de arte + voto humano),
-  // todos por ref_id = generation_id. RLS = perímetro.
+  // Certidão do asset: trilha auditável da peça (compliance.md §4)
   async function abrirCert(a) {
     const genId = a.metadata?.generation_id
     if (!genId) return
@@ -126,7 +216,6 @@ export function StudioLibrary({ brandId }) {
         .select('id, tipo, payload, created_at')
         .eq('ref_id', genId).in('tipo', ['image_vote', 'art_review'])
         .order('created_at', { ascending: true }),
-      // pareceres antigos sem ref_id: casa pela própria imagem
       supabase.from('brand_signals')
         .select('id, tipo, payload, created_at')
         .eq('tipo', 'art_review').eq('payload->>image_url', a.valor)
@@ -139,175 +228,134 @@ export function StudioLibrary({ brandId }) {
     setCertGen(gen || null); setCertSignals(sigs); setCertLoading(false)
   }
 
-  async function salvarOrg() {
-    if (!org) return
-    setSavingOrg(true)
-    const pastaFinal = (orgPasta || '').trim() || null
-    const tagsFinal  = [...new Set(orgTags.map(t => (t || '').trim()).filter(Boolean))]
-    const { error } = await supabase.from('brand_assets')
-      .update({ pasta: pastaFinal, tags: tagsFinal }).eq('id', org.id)
-    setSavingOrg(false)
-    if (!error) {
-      setAssets(prev => prev.map(a => a.id === org.id ? { ...a, pasta: pastaFinal, tags: tagsFinal } : a))
-      setOrg(null)
-    }
-  }
-
-  async function excluir(a) {
-    if (!window.confirm(`Excluir "${a.nome}" da biblioteca?`)) return
-    const { error } = await supabase.from('brand_assets').delete().eq('id', a.id)
-    if (!error) setAssets(prev => prev.filter(x => x.id !== a.id))
-  }
-
-  function baixar(a) {
-    if (!isUrl(a.valor)) return
-    const link = document.createElement('a')
-    link.href = a.valor
-    link.download = a.nome || 'asset'
-    link.target = '_blank'
-    link.click()
-  }
-
-  const chipSx = on => ({ fontWeight: 700, fontSize: 12, bgcolor: on ? TEAL : 'transparent',
-    color: on ? '#fff' : 'text.secondary', border: '1px solid', borderColor: on ? TEAL : 'divider',
-    '&:hover': { bgcolor: on ? '#0B8567' : 'action.hover' } })
+  const podeUpload = ['imagens', 'videos', 'referencias'].includes(root)
+  const rootDef = ROOTS.find(r => r.id === root)
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Estúdio" subtitle="Biblioteca — as peças e arquivos da marca, organizados" />
+      <PageHeader title="Estúdio" subtitle="Biblioteca — o repositório da marca: tudo que ela cria e tudo que a define" />
 
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
-        <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 2.5, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13, textTransform: 'none' } }}>
-          <Tab label={`Mídia${assets.length ? ` · ${assets.length}` : ''}`} />
-          <Tab label={`Textos${textos?.length ? ` · ${textos.length}` : ''}`} />
-          <Tab label={`Campanhas${campanhas?.length ? ` · ${campanhas.length}` : ''}`} />
-        </Tabs>
+      {/* Tela inteira (estilo Drive): sem maxWidth, padding lateral só */}
+      <Box sx={{ p: { xs: 2, md: 3 }, width: '100%' }}>
 
-        {aba === 0 && (<>
-        {/* Busca + pastas + tags */}
-        <Stack spacing={1.5} mb={2.5}>
-          <TextField size="small" fullWidth placeholder="Buscar por nome, descrição, tag ou pasta…"
-            value={busca} onChange={e => setBusca(e.target.value)}
-            InputProps={{ startAdornment: <SearchIcon sx={{ fontSize: 18, mr: 1, color: 'text.disabled' }} /> }} />
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
-            <FolderOutlinedIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-            <Chip label={`Todas (${assets.length})`} size="small" onClick={() => setPasta('__all')} sx={chipSx(pasta === '__all')} />
-            <Chip label={`Sem pasta (${assets.filter(a => !a.pasta).length})`} size="small" onClick={() => setPasta('__none')} sx={chipSx(pasta === '__none')} />
-            {pastas.map(p => (
-              <Chip key={p} label={`${p} (${assets.filter(a => a.pasta === p).length})`} size="small"
-                onClick={() => setPasta(pasta === p ? '__all' : p)} sx={chipSx(pasta === p)} />
-            ))}
-          </Stack>
-          {tags.length > 0 && (
-            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              {tags.map(t => (
-                <Chip key={t} label={`#${t}`} size="small" variant={tag === t ? 'filled' : 'outlined'}
-                  onClick={() => setTag(tag === t ? null : t)}
-                  sx={{ fontSize: 11, fontWeight: 700, ...(tag === t ? { bgcolor: TEAL, color: '#fff' } : {}) }} />
-              ))}
-            </Stack>
+        {/* Breadcrumb + ações contextuais */}
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+          <Breadcrumbs sx={{ '& .MuiBreadcrumbs-separator': { mx: 0.75 } }}>
+            <Link underline={root ? 'hover' : 'none'} color={root ? 'inherit' : 'text.primary'}
+              sx={{ fontSize: 13.5, fontWeight: 800, cursor: root ? 'pointer' : 'default' }}
+              onClick={() => navegar(null)}>Biblioteca</Link>
+            {root && (
+              <Link underline={pasta ? 'hover' : 'none'} color={pasta ? 'inherit' : 'text.primary'}
+                sx={{ fontSize: 13.5, fontWeight: 800, cursor: pasta ? 'pointer' : 'default' }}
+                onClick={() => navegar(root)}>{rootDef?.label}</Link>
+            )}
+            {pasta && <Typography sx={{ fontSize: 13.5, fontWeight: 800 }}>📁 {pasta}</Typography>}
+          </Breadcrumbs>
+          <Box sx={{ flex: 1 }} />
+          {root && (
+            <TextField size="small" placeholder={`Buscar em ${rootDef?.label}…`} value={busca} onChange={e => setBusca(e.target.value)}
+              sx={{ width: { xs: 160, md: 280 } }}
+              InputProps={{ startAdornment: <SearchIcon sx={{ fontSize: 17, mr: 0.75, color: 'text.disabled' }} /> }} />
+          )}
+          {temPastas && !pasta && (
+            <Button size="small" startIcon={<CreateNewFolderOutlinedIcon sx={{ fontSize: 17 }} />} onClick={novaPasta}
+              sx={{ fontWeight: 700, color: 'text.secondary' }}>Nova pasta</Button>
+          )}
+          {podeUpload && (<>
+            <input ref={fileRef} type="file" multiple hidden
+              accept={root === 'videos' ? 'video/*' : 'image/*,video/*,application/pdf'}
+              onChange={e => { uploadAqui(e.target.files); e.target.value = '' }} />
+            <Button size="small" variant="contained" disableElevation disabled={uploading}
+              startIcon={uploading ? <CircularProgress size={13} sx={{ color: '#fff' }} /> : <UploadFileOutlinedIcon sx={{ fontSize: 17 }} />}
+              onClick={() => fileRef.current?.click()}
+              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+              {uploading ? 'Enviando…' : 'Upload'}
+            </Button>
+          </>)}
+          {root === 'campanhas' && (
+            <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />}
+              onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }}
+              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>Nova campanha</Button>
           )}
         </Stack>
 
         {loading ? (
-          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-        ) : filtered.length === 0 ? (
-          <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
-            <Typography fontSize={13.5} fontWeight={800} mb={0.5}>
-              {assets.length === 0 ? 'A biblioteca ainda está vazia' : 'Nada encontrado com esses filtros'}
-            </Typography>
-            <Typography fontSize={12} color="text.secondary">
-              {assets.length === 0
-                ? 'Salve peças do Studio (ícone de bookmark) ou envie arquivos pelo Brand Book → Identidade Visual → Assets.'
-                : 'Ajuste a busca, a pasta ou a tag.'}
-            </Typography>
-          </Paper>
-        ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
-            {filtered.map(a => (
-              <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AssetPreview a={a} />
-                </Box>
-                <Box sx={{ px: 1.25, pt: 0.75 }}>
-                  <Typography fontSize={12} fontWeight={800} noWrap>{a.nome}</Typography>
-                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minHeight: 20, flexWrap: 'wrap' }}>
-                    {a.pasta && <Typography fontSize={10} color="text.secondary" noWrap>📁 {a.pasta}</Typography>}
-                    {(a.tags || []).slice(0, 3).map(t => (
-                      <Typography key={t} fontSize={10} sx={{ color: TEAL, fontWeight: 700 }}>#{t}</Typography>
-                    ))}
-                  </Stack>
-                </Box>
-                <Box sx={{ px: 0.5, pb: 0.5, display: 'flex', alignItems: 'center' }}>
-                  <Tooltip title="Organizar (pasta e tags)">
-                    <IconButton size="small" onClick={() => abrirOrg(a)}><TuneOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
-                  </Tooltip>
-                  {a.metadata?.generation_id && (
-                    <Tooltip title="Certidão do asset — trilha completa da peça">
-                      <IconButton size="small" onClick={() => abrirCert(a)}><VerifiedOutlinedIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton>
-                    </Tooltip>
-                  )}
+          <Stack alignItems="center" py={10}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+
+        ) : !root ? (
+          /* ── HOME: as pastas-raiz do repositório ── */
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 2 }}>
+            {ROOTS.map(({ id, label, Icon, desc }) => (
+              <Paper key={id} variant="outlined" onClick={() => navegar(id)}
+                sx={{ p: 2.5, borderRadius: 2.5, cursor: 'pointer', '&:hover': { borderColor: TEAL, boxShadow: 1 } }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
+                  <Icon sx={{ fontSize: 26, color: TEAL }} />
+                  <Typography fontSize={15} fontWeight={900}>{label}</Typography>
                   <Box sx={{ flex: 1 }} />
-                  {isUrl(a.valor) && (
-                    <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(a)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
-                  )}
-                  <Tooltip title="Excluir"><IconButton size="small" onClick={() => excluir(a)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
-                </Box>
+                  <Chip size="small" label={porRoot[id].length} sx={{ fontWeight: 800, fontSize: 11 }} />
+                </Stack>
+                <Typography fontSize={12} color="text.secondary">{desc}</Typography>
               </Paper>
             ))}
           </Box>
-        )}
-        </>)}
 
-        {/* ── Textos: a casa das peças escritas (Redação + Copiloto) ── */}
-        {aba === 1 && (
-          textos === null ? <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-          : textos.length === 0 ? (
-            <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
-              <ArticleOutlinedIcon sx={{ fontSize: 34, color: 'text.disabled', mb: 1 }} />
-              <Typography fontSize={13.5} fontWeight={800} mb={0.5}>Nenhum texto salvo ainda</Typography>
-              <Typography fontSize={12} color="text.secondary">Salve peças na Redação ("Salvar na Biblioteca") ou peça ao Copiloto — tudo que a marca escreve mora aqui.</Typography>
-            </Paper>
-          ) : (
-            <Stack spacing={1}>
-              {textos.map(t => (
-                <Paper key={t.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
-                  onClick={() => setTextoAberto(t)}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <ArticleOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography fontSize={13.5} fontWeight={800} noWrap>{t.titulo}</Typography>
-                      <Typography fontSize={11} color="text.secondary">
-                        {[t.formato, t.origem === 'copiloto' ? 'Copiloto' : t.origem === 'redacao' ? 'Redação' : t.origem].filter(Boolean).join(' · ')} · {new Date(t.created_at).toLocaleDateString('pt-BR')}
-                      </Typography>
-                    </Box>
-                    <Tooltip title="Copiar conteúdo"><IconButton size="small" onClick={e => { e.stopPropagation(); copiarTexto(t) }}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
-                    <Tooltip title="Excluir"><IconButton size="small" onClick={e => { e.stopPropagation(); excluirTexto(t) }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          )
-        )}
+        ) : (
+          <>
+            {/* Subpastas (Drive: pastas primeiro) — some quando busca ativa ou dentro de pasta */}
+            {temPastas && !pasta && !busca.trim() && subpastas.length > 0 && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.25, mb: 2.5 }}>
+                {subpastas.map(p => {
+                  const n = escopo.filter(i => i.pasta === p).length
+                  return (
+                    <Paper key={p} variant="outlined" onClick={() => navegar(root, p)}
+                      sx={{ px: 1.5, py: 1.25, borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
+                        '&:hover': { borderColor: TEAL } }}>
+                      <FolderIcon sx={{ fontSize: 20, color: '#F2C14E' }} />
+                      <Typography fontSize={13} fontWeight={800} noWrap sx={{ flex: 1 }}>{p}</Typography>
+                      <Typography fontSize={11} color="text.disabled">{n}</Typography>
+                    </Paper>
+                  )
+                })}
+              </Box>
+            )}
 
-        {/* ── Campanhas: de volta ao mapa (rotas religadas) ── */}
-        {aba === 2 && (
-          campanhas === null ? <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
-          : (<>
-            <Stack direction="row" justifyContent="flex-end" mb={1.5}>
-              <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />}
-                onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }}
-                sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>Nova campanha</Button>
-            </Stack>
-            {campanhas.length === 0 ? (
-              <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
-                <CampaignOutlinedIcon sx={{ fontSize: 34, color: 'text.disabled', mb: 1 }} />
-                <Typography fontSize={13.5} fontWeight={800} mb={0.5}>Nenhuma campanha ainda</Typography>
-                <Typography fontSize={12} color="text.secondary">A campanha agrupa as peças de um mesmo conceito — crie a primeira.</Typography>
+            {visiveis.length === 0 ? (
+              <Paper variant="outlined" sx={{ p: 6, borderRadius: 2, textAlign: 'center' }}>
+                <Typography fontSize={13.5} fontWeight={800} mb={0.5}>
+                  {busca.trim() ? 'Nada encontrado' : pasta ? 'Pasta vazia' : `Nada em ${rootDef?.label} ainda`}
+                </Typography>
+                <Typography fontSize={12} color="text.secondary">
+                  {root === 'textos' ? 'Salve peças na Redação ou peça ao Copiloto — tudo que a marca escreve mora aqui.'
+                    : root === 'referencias' ? 'Suba aqui o que DEFINE a marca: logos, padrões e imagens-referência que ensinam o cérebro.'
+                    : root === 'campanhas' ? 'A campanha agrupa as peças de um mesmo conceito — crie a primeira.'
+                    : podeUpload ? 'Use o Upload acima, ou salve peças do Studio (ícone de bookmark).' : ''}
+                </Typography>
               </Paper>
-            ) : (
+
+            ) : root === 'textos' ? (
               <Stack spacing={1}>
-                {campanhas.map(c => (
+                {visiveis.map(t => (
+                  <Paper key={t.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
+                    onClick={() => setTextoAberto(t)}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <ArticleOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography fontSize={13.5} fontWeight={800} noWrap>{t.titulo}</Typography>
+                        <Typography fontSize={11} color="text.secondary">
+                          {[t.formato, t.origem === 'copiloto' ? 'Copiloto' : t.origem === 'redacao' ? 'Redação' : t.origem, t.pasta && `📁 ${t.pasta}`].filter(Boolean).join(' · ')} · {new Date(t.created_at).toLocaleDateString('pt-BR')}
+                        </Typography>
+                      </Box>
+                      <Tooltip title="Mover para pasta"><IconButton size="small" onClick={e => { e.stopPropagation(); abrirOrg('texto', t) }}><DriveFileMoveOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+                      <Tooltip title="Copiar conteúdo"><IconButton size="small" onClick={e => { e.stopPropagation(); copiarTexto(t) }}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+                      <Tooltip title="Excluir"><IconButton size="small" onClick={e => { e.stopPropagation(); excluirTexto(t) }}><DeleteOutlineIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+
+            ) : root === 'campanhas' ? (
+              <Stack spacing={1}>
+                {visiveis.map(c => (
                   <Paper key={c.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
                     onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas?c=${c.id}` }}>
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -322,8 +370,44 @@ export function StudioLibrary({ brandId }) {
                   </Paper>
                 ))}
               </Stack>
+
+            ) : (
+              /* Grid de mídia (Imagens/Vídeos/Referências) — tela cheia */
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 1.5 }}>
+                {visiveis.map(a => (
+                  <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                    <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <AssetPreview a={a} />
+                    </Box>
+                    <Box sx={{ px: 1.25, pt: 0.75 }}>
+                      <Typography fontSize={12} fontWeight={800} noWrap>{a.nome}</Typography>
+                      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minHeight: 18, flexWrap: 'wrap' }}>
+                        {busca.trim() && a.pasta && <Typography fontSize={10} color="text.secondary" noWrap>📁 {a.pasta}</Typography>}
+                        {(a.tags || []).slice(0, 3).map(t => (
+                          <Typography key={t} fontSize={10} sx={{ color: TEAL, fontWeight: 700 }}>#{t}</Typography>
+                        ))}
+                      </Stack>
+                    </Box>
+                    <Box sx={{ px: 0.5, pb: 0.5, display: 'flex', alignItems: 'center' }}>
+                      <Tooltip title="Mover / organizar">
+                        <IconButton size="small" onClick={() => abrirOrg('asset', a)}><DriveFileMoveOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
+                      </Tooltip>
+                      {a.metadata?.generation_id && (
+                        <Tooltip title="Certidão do asset — trilha completa da peça">
+                          <IconButton size="small" onClick={() => abrirCert(a)}><VerifiedOutlinedIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton>
+                        </Tooltip>
+                      )}
+                      <Box sx={{ flex: 1 }} />
+                      {isUrl(a.valor) && (
+                        <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(a)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                      )}
+                      <Tooltip title="Excluir"><IconButton size="small" onClick={() => excluir(a)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                    </Box>
+                  </Paper>
+                ))}
+              </Box>
             )}
-          </>)
+          </>
         )}
       </Box>
 
@@ -343,7 +427,7 @@ export function StudioLibrary({ brandId }) {
         </DialogActions>
       </Dialog>
 
-      {/* Certidão do asset — a trilha auditável da peça (modelo · prompt · versão do cérebro · julgamentos) */}
+      {/* Certidão do asset — a trilha auditável da peça */}
       <Dialog open={!!cert} onClose={() => setCert(null)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontSize: 15, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1 }}>
           <VerifiedOutlinedIcon sx={{ fontSize: 20, color: TEAL }} /> Certidão do asset
@@ -373,7 +457,6 @@ export function StudioLibrary({ brandId }) {
                   ))}
                 </Box>
               </Stack>
-
               <Box>
                 <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
                   Julgamentos ({certSignals.length})
@@ -385,7 +468,7 @@ export function StudioLibrary({ brandId }) {
                     {certSignals.map((s, i) => {
                       const p = s.payload || {}
                       const humano = s.tipo === 'image_vote'
-                      const aprovado = humano ? p.voto === 'like' : (p.veredito || '').toLowerCase().includes('aprov')
+                      const aprovado = humano ? p.voto === 'like' || p.voto === 'up' : (p.veredito || '').toLowerCase().includes('aprov')
                       return (
                         <Paper key={i} variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
                           <Stack direction="row" spacing={1} alignItems="center" mb={p.resumo || p.ajustes?.length ? 0.5 : 0}>
@@ -403,7 +486,6 @@ export function StudioLibrary({ brandId }) {
                   </Stack>
                 )}
               </Box>
-
               <Box>
                 <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
                   Prompt final enviado
@@ -414,7 +496,6 @@ export function StudioLibrary({ brandId }) {
                   </Typography>
                 </Paper>
               </Box>
-
               <Typography fontSize={10} color="text.disabled" sx={{ fontFamily: 'ui-monospace, monospace' }}>
                 geração {certGen.id}{certGen.provider_request_id ? ` · job ${certGen.provider_request_id}` : ''} — trilha auditável (compliance §4)
               </Typography>
@@ -426,20 +507,22 @@ export function StudioLibrary({ brandId }) {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog Organizar: pasta (free-solo) + tags (free-solo múltiplas) */}
+      {/* Dialog Mover/Organizar: pasta (free-solo) + tags (só assets) */}
       <Dialog open={!!org} onClose={() => setOrg(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 15, fontWeight: 900 }}>Organizar "{org?.nome}"</DialogTitle>
+        <DialogTitle sx={{ fontSize: 15, fontWeight: 900 }}>Mover "{org?.item?.nome || org?.item?.titulo}"</DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={0.5}>
-            <Autocomplete freeSolo options={pastas} value={orgPasta}
+            <Autocomplete freeSolo options={subpastas} value={orgPasta}
               onInputChange={(_, v) => setOrgPasta(v)}
               renderInput={params => <TextField {...params} size="small" label="Pasta" placeholder="Escolha ou crie uma pasta…" />} />
-            <Autocomplete freeSolo multiple options={tags} value={orgTags}
-              onChange={(_, v) => setOrgTags(v)}
-              renderTags={(value, getTagProps) => value.map((option, index) => (
-                <Chip label={`#${option}`} size="small" {...getTagProps({ index })} key={option} />
-              ))}
-              renderInput={params => <TextField {...params} size="small" label="Tags" placeholder="Digite e Enter para adicionar…" />} />
+            {org?.kind === 'asset' && (
+              <Autocomplete freeSolo multiple options={[...new Set(assets.flatMap(a => a.tags || []))].sort()} value={orgTags}
+                onChange={(_, v) => setOrgTags(v)}
+                renderTags={(value, getTagProps) => value.map((option, index) => (
+                  <Chip label={`#${option}`} size="small" {...getTagProps({ index })} key={option} />
+                ))}
+                renderInput={params => <TextField {...params} size="small" label="Tags" placeholder="Digite e Enter para adicionar…" />} />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
