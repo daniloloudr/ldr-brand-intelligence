@@ -3,6 +3,8 @@
 // Future: add connectors for other providers (OpenAI, Grok, Meta AI).
 // All functions should import from here instead of calling the API directly.
 
+import { alertIfBalanceError, MSG_INSTABILIDADE } from './_watchdog.js'
+
 const ANTHROPIC_BASE    = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 
@@ -173,7 +175,9 @@ export async function callAI({
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}))
-        throw new AIError(err?.error?.message || `HTTP ${resp.status}`, resp.status)
+        const msg = err?.error?.message || `HTTP ${resp.status}`
+        if (await alertIfBalanceError('anthropic', resp.status, msg)) throw new AIError(MSG_INSTABILIDADE, 503)
+        throw new AIError(msg, resp.status)
       }
 
       const data = await resp.json()
@@ -252,7 +256,9 @@ export async function streamAI({
   if (!resp.ok) {
     clearIdle()
     const err = await resp.json().catch(() => ({}))
-    throw new AIError(err?.error?.message || `HTTP ${resp.status}`, resp.status)
+    const msg = err?.error?.message || `HTTP ${resp.status}`
+    if (await alertIfBalanceError('anthropic', resp.status, msg)) throw new AIError(MSG_INSTABILIDADE, 503)
+    throw new AIError(msg, resp.status)
   }
 
   const reader  = resp.body.getReader()
