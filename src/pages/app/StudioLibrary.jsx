@@ -85,31 +85,53 @@ export function StudioLibrary({ brandId }) {
 
   useEffect(() => { if (brandId) load() }, [brandId])
 
+  const [gens, setGens] = useState([])
+
   async function load() {
     setLoading(true)
-    const [{ data }, { data: pecas }, { data: camps }] = await Promise.all([
+    const [{ data }, { data: geradas }, { data: pecas }, { data: camps }] = await Promise.all([
       supabase.from('brand_assets').select('*')
         .eq('brand_id', brandId).in('tipo', TIPOS_BIBLIOTECA)
         .order('created_at', { ascending: false }),
+      // TUDO que foi gerado aparece aqui automaticamente (sem duplicar em assets)
+      supabase.from('studio_generations')
+        .select('id, created_at, image_url, thumbnail_url, media_type, formato, provider, pasta, prompt_final')
+        .eq('brand_id', brandId).eq('status', 'done').not('image_url', 'is', null)
+        .order('created_at', { ascending: false }).limit(400),
       supabase.from('pecas_escritas').select('*')
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(200),
       supabase.from('studio_campaigns').select('id, nome, conceito, status, created_at')
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
     ])
     setAssets(data || [])
+    setGens(geradas || [])
     setTextos(pecas || [])
     setCampanhas(camps || [])
     setLoading(false)
   }
 
   // ── Classificação: cada item mora numa pasta-raiz ──
-  const porRoot = useMemo(() => ({
-    referencias: assets.filter(isReferencia),
-    videos:      assets.filter(a => !isReferencia(a) && isVideo(a)),
-    imagens:     assets.filter(a => !isReferencia(a) && !isVideo(a)),
-    textos:      textos || [],
-    campanhas:   campanhas || [],
-  }), [assets, textos, campanhas])
+  const porRoot = useMemo(() => {
+    // geração já promovida a asset (bookmark) aparece pelo asset (que tem pasta/tags)
+    const promovidas = new Set(assets.map(a => a.metadata?.generation_id).filter(Boolean))
+    const genItems = gens.filter(g => !promovidas.has(g.id)).map(g => ({
+      kind: 'gen', id: g.id, created_at: g.created_at,
+      nome: `Studio · ${[g.formato, g.media_type === 'video' ? 'vídeo' : null].filter(Boolean).join(' · ') || 'peça'}`,
+      descricao: (g.prompt_final || '').slice(0, 140),
+      valor: g.image_url, mime_type: g.media_type === 'video' ? 'video/mp4' : 'image/png',
+      tipo: g.media_type === 'video' ? 'video' : 'foto',
+      pasta: g.pasta, tags: [], metadata: { generation_id: g.id, source: 'studio-auto' },
+    }))
+    const aItems = assets.map(a => ({ ...a, kind: 'asset' }))
+    const byDate = (x, y) => new Date(y.created_at) - new Date(x.created_at)
+    return {
+      referencias: aItems.filter(isReferencia),
+      videos:      [...aItems.filter(a => !isReferencia(a) && isVideo(a)), ...genItems.filter(isVideo)].sort(byDate),
+      imagens:     [...aItems.filter(a => !isReferencia(a) && !isVideo(a)), ...genItems.filter(g => !isVideo(g))].sort(byDate),
+      textos:      textos || [],
+      campanhas:   campanhas || [],
+    }
+  }, [assets, gens, textos, campanhas])
 
   const escopo = root ? porRoot[root] : []
   const temPastas = root && root !== 'campanhas'
@@ -172,6 +194,9 @@ export function StudioLibrary({ brandId }) {
     if (org.kind === 'texto') {
       const { error } = await supabase.from('pecas_escritas').update({ pasta: pastaFinal }).eq('id', org.item.id)
       if (!error) setTextos(prev => prev.map(t => t.id === org.item.id ? { ...t, pasta: pastaFinal } : t))
+    } else if (org.kind === 'gen') {
+      const { error } = await supabase.from('studio_generations').update({ pasta: pastaFinal }).eq('id', org.item.id)
+      if (!error) setGens(prev => prev.map(g => g.id === org.item.id ? { ...g, pasta: pastaFinal } : g))
     } else {
       const tagsFinal = [...new Set(orgTags.map(t => (t || '').trim()).filter(Boolean))]
       const { error } = await supabase.from('brand_assets').update({ pasta: pastaFinal, tags: tagsFinal }).eq('id', org.item.id)
@@ -182,6 +207,11 @@ export function StudioLibrary({ brandId }) {
 
   async function excluir(a) {
     if (!window.confirm(`Excluir "${a.nome}" da biblioteca?`)) return
+    if (a.kind === 'gen') {
+      const { error } = await supabase.from('studio_generations').delete().eq('id', a.id)
+      if (!error) setGens(prev => prev.filter(x => x.id !== a.id))
+      return
+    }
     const { error } = await supabase.from('brand_assets').delete().eq('id', a.id)
     if (!error) setAssets(prev => prev.filter(x => x.id !== a.id))
   }
@@ -390,7 +420,7 @@ export function StudioLibrary({ brandId }) {
                     </Box>
                     <Box sx={{ px: 0.5, pb: 0.5, display: 'flex', alignItems: 'center' }}>
                       <Tooltip title="Mover / organizar">
-                        <IconButton size="small" onClick={() => abrirOrg('asset', a)}><DriveFileMoveOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
+                        <IconButton size="small" onClick={() => abrirOrg(a.kind === 'gen' ? 'gen' : 'asset', a)}><DriveFileMoveOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
                       </Tooltip>
                       {a.metadata?.generation_id && (
                         <Tooltip title="Certidão do asset — trilha completa da peça">

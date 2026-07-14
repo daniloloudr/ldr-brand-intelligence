@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip, Tooltip,
 } from '@mui/material'
@@ -225,12 +225,13 @@ export function StudioWriting({ brandId }) {
     setBlocks([])
     setEditing(null)
     setSignaled(false)
+    savedIdRef.current = null   // geração nova = peça nova na Biblioteca
     setStreaming(true)
     streamCopy({
       system: buildWriterSystem(brand, book, intel),
       prompt: fw.build(campos),
       onText: t => setText(t),
-      onDone: t => { setText(t); setBlocks(parseBlocks(t)); setStreaming(false) },
+      onDone: t => { setText(t); setBlocks(parseBlocks(t)); setStreaming(false); autoSalvar(t) },
       onError: e => { setError(e); setStreaming(false) },
     })
   }
@@ -287,16 +288,29 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
   const pecaFinal = () => blocks.length ? assembleBlocks(blocks) : text
 
   const [saved, setSaved] = useState(false)
-  // Casa do Conteúdo: a peça escrita agora TEM casa — salva na Biblioteca (Textos)
+  const savedIdRef = useRef(null)   // peça desta geração já salva → edições atualizam a mesma linha
+  // Casa do Conteúdo: TUDO que é gerado nasce salvo na Biblioteca (Danilo 2026-07-14).
+  // Auto-save no fim da geração; o botão vira "atualizar" p/ edições da mesma peça.
+  async function autoSalvar(t) {
+    if (!t?.trim() || !brand?.workspace_id) return
+    const titulo = (campos[fw?.campos?.[0]?.id] || fw?.label || 'Peça').slice(0, 140)
+    const { data, error: e } = await supabase.from('pecas_escritas').insert({
+      workspace_id: brand.workspace_id, brand_id: brandId,
+      titulo, formato: fw?.key || null, conteudo: t, origem: 'redacao',
+    }).select('id').single()
+    if (!e) { savedIdRef.current = data?.id || null; setSaved(true); setTimeout(() => setSaved(false), 2000) }
+  }
+
   async function salvarNaBiblioteca() {
     const t = pecaFinal()
     if (!t.trim() || !brand?.workspace_id) return
-    const titulo = (campos[fw?.campos?.[0]?.id] || fw?.label || 'Peça').slice(0, 140)
-    const { error: e } = await supabase.from('pecas_escritas').insert({
-      workspace_id: brand.workspace_id, brand_id: brandId,
-      titulo, formato: fw?.key || null, conteudo: t, origem: 'redacao',
-    })
-    if (!e) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+    if (savedIdRef.current) {   // mesma peça editada → atualiza, não duplica
+      const { error: e } = await supabase.from('pecas_escritas')
+        .update({ conteudo: t }).eq('id', savedIdRef.current)
+      if (!e) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+      return
+    }
+    await autoSalvar(t)
   }
 
   // Copiar = adoção → sinal 'content_used' (fonte writing_room) pro cérebro +
