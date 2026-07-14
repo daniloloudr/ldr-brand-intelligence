@@ -5,6 +5,8 @@
 // Spec: .spec/features/studio.md — Modelos & Provider
 // ════════════════════════════════════════════════════════════════════
 
+import { alertIfBalanceError, MSG_INSTABILIDADE } from './_watchdog.js'
+
 const FAL_KEY  = process.env.FAL_KEY
 const FAL_BASE = 'https://queue.fal.run'
 
@@ -90,7 +92,11 @@ export async function submitImageJob({ model, prompt, references = [], format, m
     delete body.prompt; delete body.num_images; delete body.aspect_ratio
     const url = webhookUrl ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}` : `${FAL_BASE}/${endpoint}`
     const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
-    if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`) }
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '')
+      if (await alertIfBalanceError('fal', res.status, txt)) throw new Error(MSG_INSTABILIDADE)
+      throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
+    }
     const data = await res.json()
     return { ...data, model: endpoint }
   }
@@ -121,6 +127,7 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
+    if (await alertIfBalanceError('fal', res.status, txt)) throw new Error(MSG_INSTABILIDADE)
     throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
   }
   const data = await res.json()

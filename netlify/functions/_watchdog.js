@@ -37,6 +37,25 @@ export const withHeartbeat = (cron, fn) => async (event, context) => {
   }
 }
 
+// ── Saldo de provedor (fal/Anthropic) ───────────────────────────────
+// O 403 "Exhausted balance" da fal derruba TODA geração silenciosamente
+// (descoberto no ensaio do pilotinho Hering, 14/jul). Quem detecta chama
+// alertIfBalanceError: true = era saldo/billing (alerta disparado, dedup
+// 24h) → o caller lança MSG_INSTABILIDADE pro usuário, nunca o erro cru.
+const SALDO_RE = /exhausted balance|user is locked|insufficient credit|credit balance|payment required|billing|quota exceeded/i
+
+export const MSG_INSTABILIDADE =
+  'Estamos com uma instabilidade no sistema de geração. A equipe já foi alertada — tente novamente em alguns minutos.'
+
+export async function alertIfBalanceError(provider, status, detail) {
+  const txt = String(detail || '')
+  if (status !== 402 && status !== 403 && !SALDO_RE.test(txt)) return false
+  console.error(`[${provider}] recusa por saldo/billing (HTTP ${status}):`, txt.slice(0, 300))
+  try { await sendAlert(provider, 'saldo', `Provedor ${provider} recusando por saldo/billing (HTTP ${status}): ${txt.slice(0, 200)}`) }
+  catch (e) { console.error('[watchdog] alerta de saldo falhou:', e.message) }
+  return true
+}
+
 const DEDUP_H = 24
 
 export async function sendAlert(cron, tipo, motivo) {

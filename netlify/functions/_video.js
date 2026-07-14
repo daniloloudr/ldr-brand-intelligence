@@ -5,6 +5,8 @@
 // Slugs/params verificados na fal (jun/2026). Spec: studio.md §Bloco Vídeo
 // ════════════════════════════════════════════════════════════════════
 
+import { alertIfBalanceError, MSG_INSTABILIDADE } from './_watchdog.js'
+
 const FAL_KEY  = process.env.FAL_KEY
 const FAL_BASE = 'https://queue.fal.run'
 
@@ -97,6 +99,7 @@ export async function submitVideoJob({ modelKey, prompt, imageUrl, endImageUrl, 
   const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
+    if (await alertIfBalanceError('fal', res.status, txt)) throw new Error(MSG_INSTABILIDADE)
     throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
   }
   const data = await res.json()
