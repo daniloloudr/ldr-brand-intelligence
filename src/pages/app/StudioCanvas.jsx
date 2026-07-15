@@ -398,9 +398,15 @@ export function StudioCanvas({ brandId, workflowId }) {
     const brandFacets = []
     if (brandNodes.some(n => /voz|voice|verbal/i.test(n.data?.title || ''))) brandFacets.push('verbal')
     if (brandNodes.some(n => /visual/i.test(n.data?.title || ''))) brandFacets.push('visual')
+    // Formato personalizado: o nó manda px exatos (image_size na fal) em vez de proporção
+    const fd = formatoNode?.data || {}
+    const customSize = fd.formato === 'custom'
+      ? { width: Math.min(4096, Math.max(256, fd.width || 1080)), height: Math.min(4096, Math.max(256, fd.height || 1350)) }
+      : null
     return {
       prompt: (promptNode?.data?.text || '').trim(),
-      formato: formatoNode?.data?.formato || '1:1',
+      formato: customSize ? `${customSize.width}x${customSize.height}` : (fd.formato || '1:1'),
+      customSize,
       hasBrand: brandNodes.length > 0, brandFacets, context, previewNodeId: previewNode?.id,
     }
   }
@@ -442,7 +448,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   // ctx = { outputs, auth, dispatched }
   async function dispatchGenerateNode(g, ctx) {
     const { outputs, auth, dispatched } = ctx
-    const { prompt, formato, hasBrand, brandFacets, context, previewNodeId } = inputsFor(g.id)
+    const { prompt, formato, customSize, hasBrand, brandFacets, context, previewNodeId } = inputsFor(g.id)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
     // FASHN try-on não usa prompt: veste a 2ª imagem (peça) na 1ª (modelo)
     const isTryon = /fashn\/tryon/.test(model || '')
@@ -453,7 +459,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, campaign_id: campaignRef.current, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, campaign_id: campaignRef.current, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, custom_size: customSize || undefined, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       ;(ctx.genIds ||= {})[g.id] = j.generation_id   // portões a jusante carimbam o parecer na geração

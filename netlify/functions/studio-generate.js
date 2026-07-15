@@ -33,6 +33,14 @@ export const handler = async (event) => {
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body inválido' }) } }
 
   const { brand_id, workflow_id, node_id, prompt, formato = '1:1', references = [], campaign_id = null, mode, model, extra, brand_facets, regen = false, regen_of = null } = body
+  // Tamanho personalizado (nó Formato → "Personalizado (px)"): vira image_size
+  // exato na fal (modelos que suportam: FLUX/Seedream/Recraft…); aspect_ratio
+  // não é enviado nesse caso (guard no _image.js).
+  const cs = body.custom_size
+  const customSize = cs && Number.isFinite(+cs.width) && Number.isFinite(+cs.height)
+    ? { width: Math.min(4096, Math.max(256, Math.round(+cs.width))), height: Math.min(4096, Math.max(256, Math.round(+cs.height))) }
+    : null
+  const extraFinal = customSize ? { ...(extra || {}), image_size: customSize } : extra
   const useBrand = body.use_brand !== false   // marca opcional — default ligada
   // facets opcional: ['verbal','visual'] (Workflow). Ausente = ambas.
   const facets = Array.isArray(brand_facets) && brand_facets.length
@@ -78,7 +86,7 @@ export const handler = async (event) => {
 
   const { gen, request_id, error } = await submitGeneration(supabase, {
     workspace_id, brand_id, workflow_id, node_id, campaign_id,
-    promptFinal, snapshot, formato, references, mode, model, extra,
+    promptFinal, snapshot, formato, references, mode, model, extra: extraFinal,
   })
   if (error) {
     if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'image' })
