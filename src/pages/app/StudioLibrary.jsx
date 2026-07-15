@@ -20,6 +20,7 @@ import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
 import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
+import CloseIcon from '@mui/icons-material/Close'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 
@@ -90,6 +91,7 @@ export function StudioLibrary({ brandId }) {
   const [savingOrg, setSavingOrg] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
   const [copiado, setCopiado] = useState(false)
+  const [lightbox, setLightbox] = useState(null)   // { url, video, nome } — peça em tamanho grande (full-res)
   const [cert, setCert] = useState(null)
   const [certGen, setCertGen] = useState(null)
   const [certSignals, setCertSignals] = useState([])
@@ -434,7 +436,9 @@ export function StudioLibrary({ brandId }) {
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 1.5 }}>
                 {visiveis.slice(0, renderLimit).map(a => (
                   <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                    <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Box onClick={() => isUrl(a.full || a.valor) && setLightbox({ url: a.full || a.valor, video: isVideo(a), nome: a.nome })}
+                      sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: isUrl(a.full || a.valor) ? 'zoom-in' : 'default' }}>
                       <AssetPreview a={a} />
                     </Box>
                     <Box sx={{ px: 1.25, pt: 0.75 }}>
@@ -478,6 +482,26 @@ export function StudioLibrary({ brandId }) {
           </>
         )}
       </Box>
+
+      {/* Lightbox — peça em tamanho grande (full-res do R2) */}
+      <Dialog open={!!lightbox} onClose={() => setLightbox(null)} maxWidth="lg"
+        slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible' } } }}>
+        <Box sx={{ position: 'relative' }}>
+          <IconButton onClick={() => setLightbox(null)}
+            sx={{ position: 'absolute', top: -14, right: -14, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', zIndex: 1, '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+          {lightbox && (lightbox.video
+            ? <Box component="video" src={lightbox.url} controls autoPlay loop sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 2 }} />
+            : <Box component="img" src={lightbox.url} alt={lightbox.nome || ''} sx={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 2 }} />)}
+          {lightbox && (
+            <Button startIcon={<DownloadOutlinedIcon />} onClick={() => baixar({ full: lightbox.url, nome: lightbox.nome })}
+              sx={{ position: 'absolute', bottom: 12, right: 12, bgcolor: 'rgba(0,0,0,.6)', color: '#fff', fontWeight: 700, '&:hover': { bgcolor: 'rgba(0,0,0,.8)' } }}>
+              Baixar
+            </Button>
+          )}
+        </Box>
+      </Dialog>
 
       {/* Dialog de leitura do texto */}
       <Dialog open={!!textoAberto} onClose={() => setTextoAberto(null)} maxWidth="md" fullWidth>

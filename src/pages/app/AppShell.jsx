@@ -185,7 +185,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
     ] },
     { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [
-      { label: t('nav.studio.assets'),   hash: `${brandPath}/studio/assets`,   active: route === 'brands-studio-assets' },
+      // Ativos saiu do menu (2026-07-14): a casa é a Biblioteca > Referências da
+      // marca; a rota /studio/assets segue viva p/ links antigos
       { label: t('nav.studio.image'),    hash: `${brandPath}/studio`,          active: route === 'brands-studio' },
       { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
       { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
