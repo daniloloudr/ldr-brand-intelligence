@@ -86,6 +86,14 @@ Fonte: [`competitors/valometry.md`](competitors/valometry.md) (análise completa
 | V4 | **Painel de reputação consolidado** (P1) | Google/ReclameAqui/App Store/Play Store numa visão única — agregação do que o listening já coleta | 🟡 |
 | V5 | **Estudos setoriais publicados** (P2) | equivalente ao "Branding Brasil" deles: o motor já existe (trends por setor 036 + diagnósticos cross-tenant); falta curadoria + publicação. Amarra com GTM e a colonização do termo "Smart Branding" | 🟡 · junto do GTM/site |
 
+**Diferenciais PRÓPRIOS a amplificar (2026-07-15 — o que ninguém no mapa consegue copiar; exigem gerador+cérebro+flywheel):**
+
+| # | Diferencial | O quê | Tamanho / gatilho |
+|---|---|---|---|
+| D1 | **"Do score à peça"** — o diagnóstico que EXECUTA | cada fraqueza do diagnóstico ganha botão "resolver agora" → gera briefing/peças atacando aquele ponto (território subaproveitado → pauta; consistência baixa num canal → peças pro canal). Fecha medir→criar num clique; o Valometry mede e PARA. Tubulação: diagnóstico + Copiloto com mãos + briefing gerador (top-3) | 🟢-🟡 |
+| D2 | **Relatório de Evolução da Marca** — o tracking do APRENDIZADO | mensal, automático, exportável/compartilhável: versão do cérebro, confiança, aprovação, retrabalho (convergência), o que a marca aprendeu, peças produzidas. O CMO manda pro CEO; argumento de renovação. = IA LOUDR virando entregável recorrente; amarra com Brand Deck 1-clique (H2) | 🟡 |
+| D3 | **Medição de terceiros como INPUT** — coexistência armada | "traga seu tracking": upload de pesquisa/BVS/relatório → extração → contexto+sinais pro cérebro. A conta que já paga Valometry não escolhe — o dado deles alimenta a nossa execução (playbook Tess-como-canal na medição). Tubulação: extração de PDF do manual já existe | 🟡 · conta com tracking existente aparecer |
+
 ---
 
 ### Home adaptativa (estrutura aprovada 2026-07-10; v1 ✅ entregue)
