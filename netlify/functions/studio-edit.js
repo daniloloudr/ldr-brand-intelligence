@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 import { falConfigured } from './_image.js'
 import { submitGeneration } from './_studio.js'
 import { creditsForOp, debitCredits, refundCredits } from './_credits.js'
+import { putObject, storageConfigured } from './_storage.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -41,7 +42,7 @@ export const handler = async (event) => {
   const { brand_id, op, image_url, workflow_id = null, node_id = null } = body
   const cfg = OPS[op]
   if (!brand_id)  return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id obrigatório' }) }
-  if (!cfg)       return { statusCode: 400, headers, body: JSON.stringify({ error: `op inválida: ${op}` }) }
+  if (!cfg && op !== 'crop') return { statusCode: 400, headers, body: JSON.stringify({ error: `op inválida: ${op}` }) }
   if (!image_url) return { statusCode: 400, headers, body: JSON.stringify({ error: 'image_url obrigatória' }) }
 
   const { data: brand } = await supabase.from('brands').select('id, workspace_id').eq('id', brand_id).single()
@@ -53,6 +54,38 @@ export const handler = async (event) => {
     supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
+
+  // ── Recortar (crop determinístico com sharp): local, síncrono, 0 crédito.
+  // Corta/redimensiona em px exato (fit cover + ponto focal, inclusive smart
+  // crop 'attention') e grava como geração DONE — o poll do canvas pega no
+  // próximo tick. É o tijolo determinístico do motor de formatos.
+  if (op === 'crop') {
+    if (!storageConfigured()) return { statusCode: 503, headers, body: JSON.stringify({ error: 'Storage não configurado' }) }
+    const width  = Math.min(4096, Math.max(64, Math.round(+body.width  || 1080)))
+    const height = Math.min(4096, Math.max(64, Math.round(+body.height || 1080)))
+    const FOCAIS = ['attention', 'entropy', 'centre', 'top', 'bottom', 'left', 'right']
+    const focal = FOCAIS.includes(body.focal) ? body.focal : 'attention'
+    try {
+      const { default: sharp } = await import('sharp')
+      const res = await fetch(image_url)
+      if (!res.ok) throw new Error(`não consegui baixar a imagem de origem (${res.status})`)
+      const buf = Buffer.from(await res.arrayBuffer())
+      const out = await sharp(buf).resize(width, height, { fit: 'cover', position: focal }).webp({ quality: 92 }).toBuffer()
+      const genId = crypto.randomUUID()
+      const url = await putObject(`${workspace_id}/${brand_id}/${genId}.webp`, out, 'image/webp')
+      const { data: gen, error: insErr } = await supabase.from('studio_generations').insert({
+        id: genId, workspace_id, brand_id, workflow_id, node_id,
+        provider: 'local/recorte', formato: `${width}x${height}`, media_type: 'image',
+        prompt_final: `[recorte ${width}×${height} · foco ${focal}]`,
+        image_url: url, thumbnail_url: url, status: 'done', custo_estimado: 0,
+      }).select('id').single()
+      if (insErr) throw insErr
+      return { statusCode: 200, headers, body: JSON.stringify({ generation_id: gen.id, status: 'done' }) }
+    } catch (e) {
+      console.error('[studio-edit] crop falhou:', e.message)
+      return { statusCode: 502, headers, body: JSON.stringify({ error: `Recorte falhou: ${e.message}` }) }
+    }
+  }
 
   const amount = creditsForOp(op)
   if (!platformAdmin) {

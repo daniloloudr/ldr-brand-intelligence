@@ -475,7 +475,8 @@ export function StudioCanvas({ brandId, workflowId }) {
     updateNodeData(a.id, { status: 'running', error: null, outputUrl: null })
     try {
       const res = await fetch('/.netlify/functions/studio-edit', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl,
+          ...(a.data.op === 'crop' ? { width: a.data.width || 1080, height: a.data.height || 1080, focal: a.data.focal || 'attention' } : {}) }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(a.id)
       ;(ctx.genIds ||= {})[a.id] = j.generation_id
@@ -681,6 +682,9 @@ export function StudioCanvas({ brandId, workflowId }) {
             if (job.previewNodeId) { outputs[job.previewNodeId] = row.image_url; updateNodeData(job.previewNodeId, { imageUrl: row.image_url, genId: row.id, formato: job.formato, saved: false, loading: false }) }
           } else {
             updateNodeData(job.nodeId, { status: 'done', outputUrl: row.image_url, genId: row.id, saved: false })
+            // app/recorte com Prévia conectada a jusante: preenche também
+            const pv = nodes.find(n => n.type === 'preview' && edges.some(e => e.source === job.nodeId && e.target === n.id))
+            if (pv) { outputs[pv.id] = row.image_url; updateNodeData(pv.id, { imageUrl: row.image_url, genId: row.id, saved: false, loading: false }) }
           }
         } else if (row.status === 'error') {
           pending.delete(row.id)
