@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
-  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link,
+  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link, Checkbox,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
@@ -86,6 +86,9 @@ export function StudioLibrary({ brandId }) {
   const [novasPastas, setNovasPastas] = useState({})  // root -> [nomes criados nesta sessão]
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef(null)
+  // Seleção múltipla + drag-and-drop (estilo Drive)
+  const [sel, setSel] = useState({})   // `${kind}:${id}` -> item
+  const dragRef = useRef(null)         // itens em arrasto (a seleção inteira, se o arrastado estiver nela)
   // Dialogs
   const [org, setOrg] = useState(null)                // { kind: 'asset'|'texto', item }
   const [orgPasta, setOrgPasta] = useState('')
@@ -174,7 +177,69 @@ export function StudioLibrary({ brandId }) {
     return list
   }, [escopo, pasta, busca, temPastas])
 
-  function navegar(novoRoot, novaPasta = null) { setRoot(novoRoot); setPasta(novaPasta); setBusca(''); setRenderLimit(PAGE) }
+  function navegar(novoRoot, novaPasta = null) { setRoot(novoRoot); setPasta(novaPasta); setBusca(''); setRenderLimit(PAGE); setSel({}) }
+
+  // ── Seleção múltipla ──
+  const kindOf = i => i.kind || (i.titulo !== undefined ? 'texto' : 'asset')
+  const selKey = i => `${kindOf(i)}:${i.id}`
+  const selCount = Object.keys(sel).length
+  function toggleSel(item) {
+    setSel(prev => {
+      const k = selKey(item); const n = { ...prev }
+      if (n[k]) delete n[k]; else n[k] = item
+      return n
+    })
+  }
+
+  // ── Mover em lote (drag ou dialog) — kind-aware, uma query por tabela ──
+  async function moveItems(items, pastaFinal) {
+    const ids = k => items.filter(i => kindOf(i) === k).map(i => i.id)
+    const [aIds, gIds, tIds] = [ids('asset'), ids('gen'), ids('texto')]
+    await Promise.all([
+      aIds.length ? supabase.from('brand_assets').update({ pasta: pastaFinal }).in('id', aIds) : null,
+      gIds.length ? supabase.from('studio_generations').update({ pasta: pastaFinal }).in('id', gIds) : null,
+      tIds.length ? supabase.from('pecas_escritas').update({ pasta: pastaFinal }).in('id', tIds) : null,
+    ].filter(Boolean))
+    if (aIds.length) setAssets(prev => prev.map(a => aIds.includes(a.id) ? { ...a, pasta: pastaFinal } : a))
+    if (gIds.length) setGens(prev => prev.map(g => gIds.includes(g.id) ? { ...g, pasta: pastaFinal } : g))
+    if (tIds.length) setTextos(prev => prev.map(t => tIds.includes(t.id) ? { ...t, pasta: pastaFinal } : t))
+    setSel({})
+  }
+
+  async function excluirSelecionados() {
+    const items = Object.values(sel)
+    if (!items.length || !window.confirm(`Excluir ${items.length} item(ns) da biblioteca?`)) return
+    const ids = k => items.filter(i => kindOf(i) === k).map(i => i.id)
+    const [aIds, gIds, tIds] = [ids('asset'), ids('gen'), ids('texto')]
+    await Promise.all([
+      aIds.length ? supabase.from('brand_assets').delete().in('id', aIds) : null,
+      gIds.length ? supabase.from('studio_generations').delete().in('id', gIds) : null,
+      tIds.length ? supabase.from('pecas_escritas').delete().in('id', tIds) : null,
+    ].filter(Boolean))
+    if (aIds.length) setAssets(prev => prev.filter(a => !aIds.includes(a.id)))
+    if (gIds.length) setGens(prev => prev.filter(g => !gIds.includes(g.id)))
+    if (tIds.length) setTextos(prev => prev.filter(t => !tIds.includes(t.id)))
+    setSel({})
+  }
+
+  // ── Apagar pasta criada (as raízes são do sistema): itens voltam pra raiz do root ──
+  async function apagarPasta(p) {
+    const itens = escopo.filter(i => i.pasta === p)
+    const aviso = itens.length ? ` ${itens.length} item(ns) voltam para a raiz de ${rootDef?.label}.` : ''
+    if (!window.confirm(`Apagar a pasta "${p}"?${aviso}`)) return
+    if (itens.length) await moveItems(itens, null)
+    setNovasPastas(prev => ({ ...prev, [root]: (prev[root] || []).filter(x => x !== p) }))
+  }
+
+  // ── Drag: arrasta o item (ou a seleção inteira, se ele estiver nela) ──
+  function onDragItem(e, item) {
+    dragRef.current = sel[selKey(item)] ? Object.values(sel) : [item]
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const dropProps = destinoPasta => ({
+    onDragOver: e => e.preventDefault(),
+    onDrop: e => { e.preventDefault(); if (dragRef.current?.length) { moveItems(dragRef.current, destinoPasta); dragRef.current = null } },
+  })
 
   // Sentinela do scroll infinito: chegou perto do fim → materializa mais uma página
   useEffect(() => { setRenderLimit(PAGE) }, [busca])
@@ -222,6 +287,11 @@ export function StudioLibrary({ brandId }) {
     if (!org) return
     setSavingOrg(true)
     const pastaFinal = (orgPasta || '').trim() || null
+    if (org.kind === 'bulk') {   // mover a seleção inteira
+      await moveItems(Object.values(sel), pastaFinal)
+      setSavingOrg(false); setOrg(null)
+      return
+    }
     if (org.kind === 'texto') {
       const { error } = await supabase.from('pecas_escritas').update({ pasta: pastaFinal }).eq('id', org.item.id)
       if (!error) setTextos(prev => prev.map(t => t.id === org.item.id ? { ...t, pasta: pastaFinal } : t))
@@ -327,7 +397,7 @@ export function StudioLibrary({ brandId }) {
             {root && (
               <Link underline={pasta ? 'hover' : 'none'} color={pasta ? 'inherit' : 'text.primary'}
                 sx={{ fontSize: 13.5, fontWeight: 800, cursor: pasta ? 'pointer' : 'default' }}
-                onClick={() => navegar(root)}>{rootDef?.label}</Link>
+                onClick={() => navegar(root)} {...(pasta ? dropProps(null) : {})}>{rootDef?.label}</Link>
             )}
             {pasta && <Typography sx={{ fontSize: 13.5, fontWeight: 800 }}>📁 {pasta}</Typography>}
           </Breadcrumbs>
@@ -359,6 +429,20 @@ export function StudioLibrary({ brandId }) {
           )}
         </Stack>
 
+        {/* Barra de seleção múltipla — mover em lote, excluir em lote */}
+        {selCount > 0 && (
+          <Paper variant="outlined" sx={{ px: 1.5, py: 0.75, mb: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1, borderColor: TEAL }}>
+            <Typography fontSize={12.5} fontWeight={800}>{selCount} selecionado{selCount > 1 ? 's' : ''}</Typography>
+            <Typography fontSize={11} color="text.disabled">arraste qualquer um deles para uma pasta, ou use as ações →</Typography>
+            <Box sx={{ flex: 1 }} />
+            <Button size="small" startIcon={<DriveFileMoveOutlinedIcon sx={{ fontSize: 15 }} />}
+              onClick={() => { setOrg({ kind: 'bulk' }); setOrgPasta(''); setOrgTags([]) }} sx={{ fontWeight: 700 }}>Mover</Button>
+            <Button size="small" color="error" startIcon={<DeleteOutlineIcon sx={{ fontSize: 15 }} />}
+              onClick={excluirSelecionados} sx={{ fontWeight: 700 }}>Excluir</Button>
+            <Button size="small" onClick={() => setSel({})} sx={{ fontWeight: 700, color: 'text.secondary' }}>Limpar</Button>
+          </Paper>
+        )}
+
         {loading ? (
           <Stack alignItems="center" py={10}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
 
@@ -387,12 +471,18 @@ export function StudioLibrary({ brandId }) {
                 {subpastas.map(p => {
                   const n = escopo.filter(i => i.pasta === p).length
                   return (
-                    <Paper key={p} variant="outlined" onClick={() => navegar(root, p)}
+                    <Paper key={p} variant="outlined" onClick={() => navegar(root, p)} {...dropProps(p)}
                       sx={{ px: 1.5, py: 1.25, borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
-                        '&:hover': { borderColor: TEAL } }}>
+                        '&:hover': { borderColor: TEAL }, '&:hover .del-pasta': { opacity: 1 } }}>
                       <FolderIcon sx={{ fontSize: 20, color: '#F2C14E' }} />
                       <Typography fontSize={13} fontWeight={800} noWrap sx={{ flex: 1 }}>{p}</Typography>
                       <Typography fontSize={11} color="text.disabled">{n}</Typography>
+                      <Tooltip title="Apagar pasta (itens voltam para a raiz)">
+                        <IconButton className="del-pasta" size="small" onClick={e => { e.stopPropagation(); apagarPasta(p) }}
+                          sx={{ opacity: 0, transition: 'opacity .15s', p: 0.25 }}>
+                          <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Paper>
                   )
                 })}
@@ -415,9 +505,14 @@ export function StudioLibrary({ brandId }) {
             ) : root === 'textos' ? (
               <Stack spacing={1}>
                 {visiveis.slice(0, renderLimit).map(t => (
-                  <Paper key={t.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
+                  <Paper key={t.id} variant="outlined" draggable onDragStart={e => onDragItem(e, { ...t, kind: 'texto' })}
+                    sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL },
+                      ...(sel[`texto:${t.id}`] && { borderColor: TEAL, borderWidth: 2 }) }}
                     onClick={() => setTextoAberto(t)}>
                     <Stack direction="row" spacing={1} alignItems="center">
+                      <Checkbox size="small" checked={!!sel[`texto:${t.id}`]}
+                        onClick={e => e.stopPropagation()} onChange={() => toggleSel({ ...t, kind: 'texto' })}
+                        sx={{ p: 0.25, '&.Mui-checked': { color: TEAL } }} />
                       <ArticleOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography fontSize={13.5} fontWeight={800} noWrap>{t.titulo}</Typography>
@@ -455,7 +550,15 @@ export function StudioLibrary({ brandId }) {
               /* Grid de mídia (Imagens/Vídeos/Referências) — tela cheia, render paginado */
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 1.5 }}>
                 {visiveis.slice(0, renderLimit).map(a => (
-                  <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                  <Paper key={a.id} variant="outlined" draggable onDragStart={e => onDragItem(e, a)}
+                    sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative',
+                      ...(sel[selKey(a)] && { borderColor: TEAL, borderWidth: 2 }),
+                      '&:hover .selbox': { opacity: 1 } }}>
+                    <Checkbox className="selbox" size="small" checked={!!sel[selKey(a)]}
+                      onClick={e => e.stopPropagation()} onChange={() => toggleSel(a)}
+                      sx={{ position: 'absolute', top: 2, left: 2, zIndex: 1, p: 0.5, opacity: sel[selKey(a)] ? 1 : 0,
+                        transition: 'opacity .15s', bgcolor: 'rgba(255,255,255,.85)', borderRadius: 1,
+                        '&:hover': { bgcolor: 'rgba(255,255,255,.95)' }, '&.Mui-checked': { color: TEAL } }} />
                     <Box onClick={() => isUrl(a.full || a.valor) && setLightbox({ url: a.full || a.valor, video: isVideo(a), nome: a.nome })}
                       sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: isUrl(a.full || a.valor) ? 'zoom-in' : 'default' }}>
@@ -630,7 +733,9 @@ export function StudioLibrary({ brandId }) {
 
       {/* Dialog Mover/Organizar: pasta (free-solo) + tags (só assets) */}
       <Dialog open={!!org} onClose={() => setOrg(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 15, fontWeight: 900 }}>Mover "{org?.item?.nome || org?.item?.titulo}"</DialogTitle>
+        <DialogTitle sx={{ fontSize: 15, fontWeight: 900 }}>
+          {org?.kind === 'bulk' ? `Mover ${selCount} ${selCount > 1 ? 'itens' : 'item'}` : `Mover "${org?.item?.nome || org?.item?.titulo}"`}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={0.5}>
             <Autocomplete freeSolo options={subpastas} value={orgPasta}
