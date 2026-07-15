@@ -196,7 +196,7 @@ const PreviewNode = memo(({ id, data, selected }) => (
   </NodeShell>
 ))
 
-const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem' }
+const APP_DESC = { upscale: 'Aumenta resolução (impressão)', removebg: 'Remove o fundo', variation: 'Gera variação da imagem', crop: 'Recorta/redimensiona em px exato — sem IA, 0 crédito' }
 
 const AppNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={GRAY} title={data.label || data.op} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
@@ -225,6 +225,28 @@ const AppNode = memo(({ id, data, selected }) => (
         </>
       ) : (
         <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{APP_DESC[data.op] || ''}</Typography>
+      )}
+      {/* Recortar: alvo em px + ponto focal — determinístico, 0 crédito */}
+      {data.op === 'crop' && (
+        <Stack spacing={0.5}>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <TextField size="small" type="number" value={data.width ?? 1080}
+              onChange={e => data.onChange(id, { width: parseInt(e.target.value, 10) || 0 })}
+              inputProps={{ min: 64, max: 4096, style: { fontSize: 11, padding: '5px 8px' } }} />
+            <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>×</Typography>
+            <TextField size="small" type="number" value={data.height ?? 1080}
+              onChange={e => data.onChange(id, { height: parseInt(e.target.value, 10) || 0 })}
+              inputProps={{ min: 64, max: 4096, style: { fontSize: 11, padding: '5px 8px' } }} />
+          </Stack>
+          <Select size="small" value={data.focal || 'attention'} onChange={e => data.onChange(id, { focal: e.target.value })} sx={{ fontSize: 11 }}>
+            <MenuItem value="attention" sx={{ fontSize: 11 }}>Foco automático</MenuItem>
+            <MenuItem value="centre" sx={{ fontSize: 11 }}>Centro</MenuItem>
+            <MenuItem value="top" sx={{ fontSize: 11 }}>Topo</MenuItem>
+            <MenuItem value="bottom" sx={{ fontSize: 11 }}>Base</MenuItem>
+            <MenuItem value="left" sx={{ fontSize: 11 }}>Esquerda</MenuItem>
+            <MenuItem value="right" sx={{ fontSize: 11 }}>Direita</MenuItem>
+          </Select>
+        </Stack>
       )}
       {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: GRAY }} /><Typography sx={{ fontSize: 10, color: 'text.secondary' }}>processando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
@@ -460,6 +482,7 @@ const NODE_TEMPLATES = [
   { type: 'app',          label: 'Ampliar',         data: { op: 'upscale',   label: 'Ampliar',        status: 'idle' } },
   { type: 'app',          label: 'Remover fundo',   data: { op: 'removebg',  label: 'Remover fundo',  status: 'idle' } },
   { type: 'app',          label: 'Variação',        data: { op: 'variation', label: 'Variação',       status: 'idle' } },
+  { type: 'app',          label: 'Recortar',        data: { op: 'crop',      label: 'Recortar',       status: 'idle', width: 1080, height: 1080, focal: 'attention' } },
   { type: 'note',         label: 'Nota (sticky)', data: { text: '' }, style: { width: 250, height: 250 } },
 ]
 
