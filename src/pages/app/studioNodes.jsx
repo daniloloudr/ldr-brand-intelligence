@@ -111,12 +111,27 @@ const ContextNode = memo(({ id, data, selected }) => (
 
 const FormatoNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={GRAY} title="Formato" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
-    <Select
-      value={data.formato || '1:1'} onChange={e => data.onChange(id, { formato: e.target.value })}
-      fullWidth size="small" className="nodrag" sx={{ fontSize: 12 }}
-    >
-      {FORMATOS.map(f => <MenuItem key={f.v} value={f.v} sx={{ fontSize: 12 }}>{f.label}</MenuItem>)}
-    </Select>
+    <Stack spacing={0.5} className="nodrag">
+      <Select
+        value={data.formato || '1:1'} onChange={e => data.onChange(id, { formato: e.target.value })}
+        fullWidth size="small" sx={{ fontSize: 12 }}
+      >
+        {FORMATOS.map(f => <MenuItem key={f.v} value={f.v} sx={{ fontSize: 12 }}>{f.label}</MenuItem>)}
+        <MenuItem value="custom" sx={{ fontSize: 12 }}>Personalizado (px)</MenuItem>
+      </Select>
+      {data.formato === 'custom' && (
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <TextField size="small" type="number" value={data.width ?? 1080}
+            onChange={e => data.onChange(id, { width: parseInt(e.target.value, 10) || 0 })}
+            inputProps={{ min: 256, max: 4096, style: { fontSize: 11, padding: '5px 8px' } }} />
+          <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>×</Typography>
+          <TextField size="small" type="number" value={data.height ?? 1350}
+            onChange={e => data.onChange(id, { height: parseInt(e.target.value, 10) || 0 })}
+            inputProps={{ min: 256, max: 4096, style: { fontSize: 11, padding: '5px 8px' } }} />
+          <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>px</Typography>
+        </Stack>
+      )}
+    </Stack>
   </NodeShell>
 ))
 
@@ -423,7 +438,7 @@ const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview', 'art
 const MAX_REF = 5
 const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
 // Formato e Gerar têm pouco conteúdo → altura fixa compacta p/ não ficar feio
-const NODE_SIZE = { formato: { width: 250, height: 116 }, generate: { width: 250, height: 140 } }
+const NODE_SIZE = { formato: { width: 250, height: 150 }, generate: { width: 250, height: 140 } }
 const sizeFor = type => NODE_SIZE[type] || { width: DEFAULT_NODE, height: DEFAULT_NODE }
 const fmtElapsed = s => s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`
 // Normaliza a saída de um nó em lista de URLs (imageInput pode ter várias)

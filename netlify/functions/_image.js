@@ -110,7 +110,10 @@ export async function submitImageJob({ model, prompt, references = [], format, m
     body = { prompt, num_images: 1 }
     // Em t2i sempre envia aspect_ratio. Em edição (com referência), só para os
     // modelos que aceitam — senão o tamanho é inferido da imagem de entrada.
-    const sendAspect = format && (!hasRefs || EDIT_ACCEPTS_ASPECT.has(model || DEFAULT_MODEL))
+    // Formato personalizado: extra.image_size manda em px exatos e o
+    // aspect_ratio NÃO vai (format vira "1080x1350", que não é proporção).
+    const sendAspect = format && /^\d+:\d+$/.test(format) && !(extra && extra.image_size)
+      && (!hasRefs || EDIT_ACCEPTS_ASPECT.has(model || DEFAULT_MODEL))
     if (sendAspect) body.aspect_ratio = format               // "1:1" | "9:16" | "16:9"
     if (hasRefs) {
       const field = imageField(model)
