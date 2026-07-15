@@ -512,11 +512,13 @@ export function StudioCanvas({ brandId, workflowId }) {
   // cérebro (art-review). Aprovada/ressalvas → a imagem passa adiante; reprovada
   // → o fluxo PARA neste ramo, com o parecer no nó. Cada parecer vira sinal.
   async function runGate(gate, ctx) {
-    // Peça julgada = o nó PRODUTOR conectado (generate/app/gate); se também houver
-    // um imageInput conectado, ele é a REFERÊNCIA de fidelidade (piloto Hering).
+    // Peça julgada = o 1º PRODUTOR conectado (ordem das conexões). Referência de
+    // fidelidade: imageInput conectado OU um 2º produtor (ex.: master gerado —
+    // caso do fluxo "1 peça → N formatos", em que o gate compara adaptação vs master).
     const ups = imageUpstreamsOf(gate.id)
-    const produtor = ups.find(u => ['generate', 'app', 'artGate', 'preview'].includes(u.type))
-    const refNode = ups.find(u => u.type === 'imageInput')
+    const produtores = ups.filter(u => ['generate', 'app', 'artGate', 'preview'].includes(u.type))
+    const produtor = produtores[0]
+    const refNode = ups.find(u => u.type === 'imageInput') || produtores[1]
     const imageUrl = toUrls(ctx.outputs[produtor?.id])[0] || (!produtor ? toUrls(ctx.outputs[ups[0]?.id])[0] : null)
     const referenceUrl = produtor && refNode ? toUrls(ctx.outputs[refNode.id])[0] : null
     if (!imageUrl) return false
