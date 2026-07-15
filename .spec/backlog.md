@@ -209,6 +209,7 @@ Princípio: **o juiz é um módulo só, duas superfícies** — interativo no ch
 | **Brand Deck 1-clique** | apresentação da marca (identidade + território + aprendizados) em PPTX — `pptxgenjs` já é dep. Entregável do cliente (≠ export do painel, vetado) | 🟢 |
 | **Gap 4 — Jornada do dia 1** | onboarding guiado: workspace novo → brand book → primeiro valor | 🟡 · dói a partir de ~10 contas |
 | **Gap 6 — Tenant hardening** | backup/versionamento por cérebro, zero vazamento | 🟡 · gatilho: contas crescendo |
+| **Subdomínio por marca** (nomedamarca.s1ngulr.com) | ⏸️ DECISÃO 2026-07-15 (Danilo): **manter modelo atual** (login + RLS por workspace_id + impersonation admin) e usar internamente. Subdomínio é branding, não isolamento — o RLS já é o perímetro real. Terreno preparado: `workspaces.slug` já existe + backfill (migration 044). Reabrir quando virar experiência de cliente externo — exige wildcard DNS + SSL `*.s1ngulr.com` (custo de infra) + camada de resolução por hostname (fallback pro modelo atual, testável em localhost via ?tenant=) | 🔴 · gatilho: cliente externo / GTM |
 | **Dataset → export de fine-tune** | JSONL por tenant do `brand_dataset` + critérios de qualidade/dedup | 🟡 · gatilho: volume de exemplos |
 | **Cérebro como serviço próprio** | fila/estado durável fora do teto do Netlify (fronteira pronta no `_brain.js`) | 🔴 · gatilho: volume |
 | **Contexto de campanha persistente** | brief salvo e reutilizável entre Writing/Studio/Workflow (camada sobre o cérebro) | 🟢 |
