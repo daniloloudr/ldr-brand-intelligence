@@ -48,6 +48,8 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
   const [versions, setVersions]   = useState([])
   const [votes, setVotes]         = useState([])
   const [signalStats, setStats]   = useState({})
+  const [gensAll, setGensAll]     = useState([])   // todas as gerações c/ versão do cérebro
+  const [regenRefs, setRegenRefs] = useState([])   // ref_ids dos sinais image_regen
 
   // Resolve a marca do workspace (um acesso = uma marca) quando não vem por prop
   useEffect(() => {
@@ -67,13 +69,17 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
     const [{ data: bi }, { data: gens }, { data: sigs }] = await Promise.all([
       supabase.from('brand_intelligence').select('versao, confianca_media, gerado_de, modelo, created_at, metricas')
         .eq('brand_id', brandId).order('versao', { ascending: true }),
-      supabase.from('studio_generations').select('provider, feedback').eq('brand_id', brandId).not('feedback', 'is', null),
-      supabase.from('brand_signals').select('tipo').eq('brand_id', brandId),
+      // todas as gerações (com a versão do cérebro vigente) — alimenta aprovação E convergência
+      supabase.from('studio_generations').select('id, provider, feedback, versao:brand_context->intelligence_versao')
+        .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(1000),
+      supabase.from('brand_signals').select('tipo, ref_id').eq('brand_id', brandId),
     ])
     setVersions(bi || [])
-    setVotes(gens || [])
+    setGensAll(gens || [])
+    setVotes((gens || []).filter(g => g.feedback))
     const st = {}; for (const s of sigs || []) st[s.tipo] = (st[s.tipo] || 0) + 1
     setStats(st)
+    setRegenRefs((sigs || []).filter(s => s.tipo === 'image_regen' && s.ref_id).map(s => s.ref_id))
     setLoading(false)
   }
 
@@ -90,12 +96,22 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
     .map(([p, x]) => ({ provider: p, rate: x.up / x.total, total: x.total }))
     .sort((a, b) => b.rate - a.rate)
 
+  // Convergência: taxa de RETRABALHO por versão do cérebro — % de peças geradas
+  // sob a versão que foram regeneradas. Caindo = o cérebro acertando de primeira.
+  const gensPorVersao = {}, regensPorVersao = {}
+  const versaoDaGen = {}
+  for (const g of gensAll) { versaoDaGen[g.id] = g.versao ?? null; if (g.versao != null) gensPorVersao[g.versao] = (gensPorVersao[g.versao] || 0) + 1 }
+  for (const rid of regenRefs) { const v = versaoDaGen[rid]; if (v != null) regensPorVersao[v] = (regensPorVersao[v] || 0) + 1 }
+
   const trend = versions.map(v => ({
     v: `v${v.versao}`,
     confianca:  v.confianca_media != null ? Math.round(v.confianca_media * 100) : null,
     desempenho: v.metricas?.approval_sob_versao_anterior != null ? Math.round(v.metricas.approval_sob_versao_anterior * 100) : null,
+    retrabalho: gensPorVersao[v.versao] >= 3   // mínimo de amostra p/ não ruidar
+      ? Math.round(100 * (regensPorVersao[v.versao] || 0) / gensPorVersao[v.versao]) : null,
   }))
   const hasDesempenho = trend.some(t => t.desempenho != null)
+  const hasRetrabalho = trend.some(t => t.retrabalho != null)
 
   // ── Diff da última versão vs a anterior (trilho D) ──
   const prev = versions.length > 1 ? versions[versions.length - 2] : null
@@ -237,15 +253,16 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                       <XAxis dataKey="v" tick={{ fontSize: 11 }} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                      <RTooltip formatter={(v, name) => [`${v}%`, name === 'confianca' ? 'Confiança' : 'Aprovação das peças']} />
+                      <RTooltip formatter={(v, name) => [`${v}%`, name === 'confianca' ? 'Confiança' : name === 'desempenho' ? 'Aprovação das peças' : 'Retrabalho (regenerações)']} />
                       <Line type="monotone" dataKey="confianca" stroke={TEAL} strokeWidth={2.5} dot={{ r: 3 }} />
                       {hasDesempenho && <Line type="monotone" dataKey="desempenho" stroke={PURPLE} strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" connectNulls />}
+                      {hasRetrabalho && <Line type="monotone" dataKey="retrabalho" stroke={CORAL} strokeWidth={2} dot={{ r: 3 }} strokeDasharray="2 3" connectNulls />}
                     </LineChart>
                   </ResponsiveContainer>
                 </Box>
-                {hasDesempenho && (
+                {(hasDesempenho || hasRetrabalho) && (
                   <Typography fontSize={11} color="text.secondary" mt={1}>
-                    <span style={{ color: TEAL, fontWeight: 700 }}>—</span> Confiança do que a marca sabe · <span style={{ color: PURPLE, fontWeight: 700 }}>- -</span> Aprovação das peças criadas com cada versão
+                    <span style={{ color: TEAL, fontWeight: 700 }}>—</span> Confiança do que a marca sabe{hasDesempenho && <> · <span style={{ color: PURPLE, fontWeight: 700 }}>- -</span> Aprovação das peças</>}{hasRetrabalho && <> · <span style={{ color: CORAL, fontWeight: 700 }}>- -</span> Retrabalho por versão (quanto MENOR, mais o cérebro acerta de primeira)</>}
                   </Typography>
                 )}
               </Card>

@@ -96,7 +96,8 @@ export const handler = async (event) => {
       if (orig) await emitSignal(supabase, {
         brand_id, workspace_id, tipo: 'image_regen', fonte: 'studio', ref_id: orig.id, peso: 1,
         payload: { provider: orig.provider, formato: orig.formato, media_type: orig.media_type || 'video',
-          ajuste: (ajuste || '').slice(0, 300) || null, prompt: (orig.prompt_final || '').slice(0, 1000) },
+          ajuste: (ajuste || '').slice(0, 300) || null, prompt: (orig.prompt_final || '').slice(0, 1000),
+          ...(body.motivo ? { motivo: String(body.motivo).slice(0, 120) } : {}) },
       })
     } catch (e) { console.error('[regen] signal falhou (não-fatal):', e.message) }
   }

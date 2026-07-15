@@ -4,7 +4,7 @@ import { memo, useState } from 'react'
 import { Handle, Position, NodeResizer, NodeToolbar } from '@xyflow/react'
 import {
   Box, Button, Typography, TextField, MenuItem, Select, ListSubheader, Paper,
-  Stack, CircularProgress, Tooltip, IconButton, Chip,
+  Stack, CircularProgress, Tooltip, IconButton, Chip, Menu,
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ReplayIcon from '@mui/icons-material/Replay'
@@ -35,7 +35,12 @@ const FORMATOS = [
 ]
 
 // ── Shell visual de um nó ────────────────────────────────────────────
-function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected }) {
+// Motivos do regen (telemetria do cérebro: POR QUE a peça falhou) — o chip
+// "Não é fiel ao produto" é a telemetria do juiz de fidelidade do piloto Hering.
+const REGEN_MOTIVOS = ['Fora da marca', 'Não é fiel ao produto', 'Qualidade baixa', 'Composição ruim']
+
+function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected, regenMenu = false }) {
+  const [regenAnchor, setRegenAnchor] = useState(null)
   return (
     <Paper elevation={0} sx={{
       width: '100%', height: '100%', minWidth: 160, minHeight: 100, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
@@ -47,7 +52,16 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
         <NodeToolbar position={Position.Top} offset={6}>
           <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
             {onRun && <Tooltip title="Rodar este + jusante"><IconButton size="small" onClick={() => onRun(id)}><PlayArrowIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton></Tooltip>}
-            {onRegen && <Tooltip title="Regerar só este (usa o que já veio antes)"><IconButton size="small" onClick={() => onRegen(id)}><ReplayIcon sx={{ fontSize: 15, color: TEAL }} /></IconButton></Tooltip>}
+            {onRegen && <Tooltip title="Regerar só este (usa o que já veio antes)"><IconButton size="small" onClick={e => regenMenu ? setRegenAnchor(e.currentTarget) : onRegen(id)}><ReplayIcon sx={{ fontSize: 15, color: TEAL }} /></IconButton></Tooltip>}
+            {regenMenu && (
+              <Menu anchorEl={regenAnchor} open={!!regenAnchor} onClose={() => setRegenAnchor(null)} className="nodrag">
+                <Typography sx={{ px: 1.5, py: 0.5, fontSize: 10.5, fontWeight: 800, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: 0.4 }}>O que não funcionou?</Typography>
+                {REGEN_MOTIVOS.map(m => (
+                  <MenuItem key={m} sx={{ fontSize: 12.5 }} onClick={() => { setRegenAnchor(null); onRegen(id, m) }}>{m}</MenuItem>
+                ))}
+                <MenuItem sx={{ fontSize: 12.5, color: 'text.secondary' }} onClick={() => { setRegenAnchor(null); onRegen(id, null) }}>Só regerar</MenuItem>
+              </Menu>
+            )}
             {onDuplicate && <Tooltip title="Duplicar"><IconButton size="small" onClick={() => onDuplicate(id)}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>}
             {onDelete && <Tooltip title="Excluir"><IconButton size="small" onClick={() => onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>}
           </Paper>
@@ -136,7 +150,7 @@ const FormatoNode = memo(({ id, data, selected }) => (
 ))
 
 const GenerateNode = memo(({ id, data, selected }) => (
-  <NodeShell id={id} color={TEAL} title="Gerar" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
+  <NodeShell id={id} color={TEAL} title="Gerar" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
     <Stack spacing={0.5} className="nodrag">
       <Select value={(data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL}
         onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -338,7 +352,7 @@ const VideoGenNode = memo(({ id, data, selected }) => {
   const [adjOpen, setAdjOpen] = useState(false)
   const adjusting = data.status === 'running'
   return (
-    <NodeShell id={id} color={INDIGO} title="Vídeo" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
+    <NodeShell id={id} color={INDIGO} title="Vídeo" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
       <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
         <Select value={mk} onChange={e => data.onChange(id, { model: e.target.value, duration: videoModelByKey(e.target.value)?.defaultDuration })}
           size="small" fullWidth sx={{ fontSize: 11 }}>
