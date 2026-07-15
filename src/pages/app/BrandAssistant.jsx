@@ -424,21 +424,62 @@ async function runAssistantStream({ messages, systemPrompt, tools, execTool, onT
 // Torna URLs vivas no chat: imagem geradas viram <img>, links viram âncora
 // (inclusive rotas internas #/app/… que as ações de criação devolvem).
 const IMG_URL = /(https?:\/\/[^\s)]+(?:\.png|\.jpe?g|\.webp|\.gif)(?:\?[^\s)]*)?|https?:\/\/[^\s)]*(?:fal\.media|\/storage\/v1\/object)[^\s)]*)/i
-function renderRich(text) {
-  const limpo = String(text || '').replace(/!?\[[^\]]*\]\((https?:\/\/[^\s)]+|#\/app\/[^\s)]+)\)/g, '$1')
-  const parts = limpo.split(/(https?:\/\/[^\s)]+|#\/app\/[^\s)]+)/g)
+// O modelo responde em markdown (##, **, listas, ---) — renderizamos o
+// subconjunto que ele usa, sem lib nova, preservando imagens/links vivos.
+
+// negrito/itálico dentro de um trecho de texto puro
+function mdInline(str, keyBase) {
+  return String(str).split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g).map((t, j) => {
+    if (/^\*\*[^*\n]+\*\*$/.test(t)) return <strong key={`${keyBase}-b${j}`}>{t.slice(2, -2)}</strong>
+    if (/^\*[^*\n]+\*$/.test(t))     return <em key={`${keyBase}-i${j}`}>{t.slice(1, -1)}</em>
+    return t
+  })
+}
+
+// URLs/imagens/links internos + inline markdown no que sobra
+function inlineParts(text, keyBase) {
+  const parts = String(text).split(/(https?:\/\/[^\s)]+|#\/app\/[^\s)]+)/g)
   return parts.map((part, i) => {
     if (IMG_URL.test(part) && /^https?:\/\//.test(part))
       return (
-        <Box key={i} sx={{ my: 1 }}>
+        <Box key={`${keyBase}-img${i}`} sx={{ my: 1 }}>
           <img src={part} alt="peça gerada" style={{ maxWidth: '100%', maxHeight: 340, borderRadius: 8, display: 'block' }} />
         </Box>
       )
     if (/^https?:\/\//.test(part))
-      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#7F77DD', fontWeight: 700 }}>{part}</a>
+      return <a key={`${keyBase}-a${i}`} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#7F77DD', fontWeight: 700 }}>{part}</a>
     if (part.startsWith('#/app/'))
-      return <a key={i} href={part} style={{ color: '#7F77DD', fontWeight: 700 }}>abrir no Estúdio →</a>
-    return part
+      return <a key={`${keyBase}-e${i}`} href={part} style={{ color: '#7F77DD', fontWeight: 700 }}>abrir no Estúdio →</a>
+    return <span key={`${keyBase}-t${i}`}>{mdInline(part, `${keyBase}-${i}`)}</span>
+  })
+}
+
+function renderRich(text) {
+  const limpo = String(text || '').replace(/!?\[[^\]]*\]\((https?:\/\/[^\s)]+|#\/app\/[^\s)]+)\)/g, '$1')
+  return limpo.split('\n').map((line, i) => {
+    // separador --- vira linha visual
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line))
+      return <Box key={i} sx={{ borderBottom: '1px solid', borderColor: 'divider', my: 1.25 }} />
+    // títulos # a ####
+    const h = line.match(/^(#{1,4})\s+(.*)/)
+    if (h) {
+      const nivel = h[1].length
+      return (
+        <Typography key={i} component="div"
+          sx={{ fontWeight: nivel <= 2 ? 900 : 800, fontSize: nivel === 1 ? 16 : nivel === 2 ? 15 : 14, mt: i === 0 ? 0 : 1.5, mb: 0.5 }}>
+          {inlineParts(h[2], i)}
+        </Typography>
+      )
+    }
+    // listas com marcador
+    const li = line.match(/^\s*[-*•]\s+(.*)/)
+    if (li) return (
+      <Box key={i} sx={{ display: 'flex', gap: 0.75, pl: 1 }}>
+        <span>•</span><span style={{ flex: 1 }}>{inlineParts(li[1], i)}</span>
+      </Box>
+    )
+    if (!line.trim()) return <Box key={i} sx={{ height: 8 }} />
+    return <div key={i}>{inlineParts(line, i)}</div>
   })
 }
 
