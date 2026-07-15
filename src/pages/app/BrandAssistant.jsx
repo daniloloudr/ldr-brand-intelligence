@@ -454,33 +454,65 @@ function inlineParts(text, keyBase) {
   })
 }
 
+const isTableRow = l => /^\s*\|.*\|\s*$/.test(l || '')
+const splitRow = l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim())
+
 function renderRich(text) {
   const limpo = String(text || '').replace(/!?\[[^\]]*\]\((https?:\/\/[^\s)]+|#\/app\/[^\s)]+)\)/g, '$1')
-  return limpo.split('\n').map((line, i) => {
+  const lines = limpo.split('\n')
+  const out = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // tabela markdown: | header | + linha separadora |---|---| + linhas de corpo
+    if (isTableRow(line) && /^\s*\|[\s\-:|]+\|\s*$/.test(lines[i + 1] || '')) {
+      const header = splitRow(line)
+      const rows = []
+      let j = i + 2
+      while (j < lines.length && isTableRow(lines[j])) { rows.push(splitRow(lines[j])); j++ }
+      out.push(
+        <Box key={i} component="table" sx={{ borderCollapse: 'collapse', my: 1.25, width: '100%',
+          '& td, & th': { border: '1px solid', borderColor: 'divider', px: 1.25, py: 0.6, fontSize: 12.5, textAlign: 'left', verticalAlign: 'top', lineHeight: 1.5 },
+          '& th': { fontWeight: 800, bgcolor: 'action.hover' } }}>
+          <thead><tr>{header.map((c, k) => <th key={k}>{inlineParts(c, `${i}-h${k}`)}</th>)}</tr></thead>
+          <tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, k) => <td key={k}>{inlineParts(c, `${i}-${ri}-${k}`)}</td>)}</tr>)}</tbody>
+        </Box>
+      )
+      i = j - 1
+      continue
+    }
+
     // separador --- vira linha visual
-    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line))
-      return <Box key={i} sx={{ borderBottom: '1px solid', borderColor: 'divider', my: 1.25 }} />
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      out.push(<Box key={i} sx={{ borderBottom: '1px solid', borderColor: 'divider', my: 1.25 }} />)
+      continue
+    }
     // títulos # a ####
     const h = line.match(/^(#{1,4})\s+(.*)/)
     if (h) {
       const nivel = h[1].length
-      return (
+      out.push(
         <Typography key={i} component="div"
           sx={{ fontWeight: nivel <= 2 ? 900 : 800, fontSize: nivel === 1 ? 16 : nivel === 2 ? 15 : 14, mt: i === 0 ? 0 : 1.5, mb: 0.5 }}>
           {inlineParts(h[2], i)}
         </Typography>
       )
+      continue
     }
     // listas com marcador
     const li = line.match(/^\s*[-*•]\s+(.*)/)
-    if (li) return (
-      <Box key={i} sx={{ display: 'flex', gap: 0.75, pl: 1 }}>
-        <span>•</span><span style={{ flex: 1 }}>{inlineParts(li[1], i)}</span>
-      </Box>
-    )
-    if (!line.trim()) return <Box key={i} sx={{ height: 8 }} />
-    return <div key={i}>{inlineParts(line, i)}</div>
-  })
+    if (li) {
+      out.push(
+        <Box key={i} sx={{ display: 'flex', gap: 0.75, pl: 1 }}>
+          <span>•</span><span style={{ flex: 1 }}>{inlineParts(li[1], i)}</span>
+        </Box>
+      )
+      continue
+    }
+    if (!line.trim()) { out.push(<Box key={i} sx={{ height: 8 }} />); continue }
+    out.push(<div key={i}>{inlineParts(line, i)}</div>)
+  }
+  return out
 }
 
 function ChatBubble({ msg, question, onTeach }) {
