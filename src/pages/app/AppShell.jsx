@@ -80,9 +80,12 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
         .order('created_at', { ascending: true }).limit(1).maybeSingle()
       let logoUrl = null, logoSvg = null
       if (b?.id) {
-        const { data: logos } = await supabase.from('brand_assets').select('valor, mime_type, metadata')
-          .eq('brand_id', b.id).eq('tipo', 'logo').order('created_at', { ascending: true })
-        const logo = (logos || []).find(l => l.metadata?.header) || (logos || [])[0]
+        // header pode ser qualquer imagem marcada (estrela na Biblioteca >
+        // Referências da marca); fallback: primeiro logo (comportamento antigo)
+        const { data: logos } = await supabase.from('brand_assets').select('valor, mime_type, metadata, tipo')
+          .eq('brand_id', b.id).in('tipo', ['logo', 'icone', 'padrao', 'foto'])
+          .order('created_at', { ascending: true })
+        const logo = (logos || []).find(l => l.metadata?.header) || (logos || []).find(l => l.tipo === 'logo')
         if (logo?.valor?.includes('<svg')) logoSvg = logo.valor.slice(logo.valor.indexOf('<svg'))
         else if (/^https?:\/\//.test(logo?.valor || '')) logoUrl = logo.valor
       }
