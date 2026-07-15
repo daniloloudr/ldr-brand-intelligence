@@ -31,3 +31,8 @@ yarn-error.log*
 # planilha de custos (WIP, não versionar)
 specs/custos.csv
 supabase/.temp/
+
+# dumps de banco (nunca versionar)
+backups/
+*.dump
+*.sql.gz

@@ -1,0 +1,37 @@
+name: Backup diário do banco
+
+# Dump completo do Postgres (Supabase) → Cloudflare R2, todo dia às 06:00 UTC
+# (03:00 BRT). Roda no CI, não depende de nenhuma máquina ligada.
+# Secrets necessários (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL · R2_ACCOUNT_ID · R2_ACCESS_KEY_ID · R2_SECRET_ACCESS_KEY · R2_BACKUP_BUCKET
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}   # permite rodar manualmente pelo botão do GitHub
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # postgresql-client-17 = mesma major do Supabase (evita erro de versão no pg_dump)
+      - name: Instalar pg_dump 17 + aws-cli
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          aws --version || sudo apt-get install -y -qq awscli
+
+      - name: Dump → R2
+        env:
+          SUPABASE_DB_URL:      ${{ secrets.SUPABASE_DB_URL }}
+          R2_ACCOUNT_ID:        ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BACKUP_BUCKET:     ${{ secrets.R2_BACKUP_BUCKET }}
+          BACKUP_TAG:           daily
+        run: |
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          bash scripts/backup-db.sh
