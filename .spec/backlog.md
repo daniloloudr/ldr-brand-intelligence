@@ -70,7 +70,21 @@ Origem: decks do AI Creative Engine (Fullsix/Havas CX) em `.spec/competitors/` �
 | 2 | **Preço por asset APROVADO (camada comercial)** | sobre o repasse de créditos, oferta enterprise: preço por imagem aprovada com bandas de volume (benchmark Fullsix: €95–210/KV, €14.280/mês por 120 KVs). Detalhe em `precificacao.md` §Benchmark | 🟢 (comercial, sem código) · deal enterprise na mesa |
 | 3 | **Protocolo de calibração no piloto** | ideia deles (esperta): o 1º lote mede a taxa real de aprovação/retoque da marca e DEFINE o tier/preço do contrato — transforma incerteza do cliente em protocolo. Encaixa direto no F0.3 Hering e num pilotinho Worten; a métrica de convergência (regens até aprovação) já é a telemetria disso | 🟢 · junto do F0.3 |
 | 4 | **Garantia de julgamento + tier curadoria** | vender o juiz como garantia formal: "nenhuma peça sai sem passar pelo julgamento da marca" (auto-julgamento + artGate já existem — é embalagem). Tier opcional com curadoria humana LOUDR por cima do juiz p/ contratos grandes (o juiz faz 90%, margem de serviço no resto) | 🟡 · contrato enterprise pedir sign-off humano |
-| 5 | **Motor de adaptação de formatos** | o gap REAL de produto vs eles: 1 master aprovado → N formatos de canal (leaderboard/quadrado/story/mobile/email), mudança propaga em todas as versões. Onde mora o volume recorrente (eles cobram €30–250/formato). Começa por recomposição/resize inteligente, NÃO por tipografia (≠ output 7 Canva-lite, que segue futuro) | 🔴 · **gatilho: deal retail (Worten/Hering) fechar** |
+| 5 | **Motor de adaptação de formatos** | o gap REAL de produto vs eles: 1 master aprovado → N formatos de canal (leaderboard/quadrado/story/mobile/email), mudança propaga em todas as versões. Onde mora o volume recorrente (eles cobram €30–250/formato). Começa por recomposição/resize inteligente, NÃO por tipografia (≠ output 7 Canva-lite, que segue futuro). **1º tijolo ✅ 14/jul: nó Recortar (crop sharp 0 crédito) + template "1 peça → 6 formatos"** | 🔴→🟡 · **gatilho: deal retail (Worten/Hering) fechar** |
+
+---
+
+### 📊 Frentes Valometry (Ana Couto — análise do Danilo 2026-07-15)
+
+Fonte: [`competitors/valometry.md`](competitors/valometry.md) (análise completa: ficha, mapa de 2 eixos, munição de venda). O 4º arquétipo mapeado: dashboard de MEDIÇÃO forte que não cria nem aprende — o quadrante "mede+cria+aprende" segue exclusivamente nosso. Regra: **NÃO fazer** pesquisa primária com painel (contradiz "setup em minutos") nem mídia offline.
+
+| # | Frente | O quê | Tamanho / gatilho |
+|---|---|---|---|
+| V1 | **Benchmark de categoria no diagnóstico** (P0) | scores comparados com a média do SETOR via dados cross-tenant (os diagnósticos que já temos substituem o survey deles) — "6/10 e a média do seu setor é 5,2". Vantagem estrutural: com 30 marcas vira ativo irreplicável sem painel pago. Amarra com o painel admin Cérebros | 🟡 · ~10 marcas p/ amostra digna (começar com faixas honestas antes) |
+| V2 | **Acelerar integração de mídia** (P0) | = E2 do H1 (Meta API, deal VHITA). O Valometry adiciona o argumento: "criei — performou?" é a pergunta do CMO que só respondemos com performance real virando sinal. GA4/Google/LinkedIn depois da Meta | 🔴 · gatilho E2 (VHITA) — prioridade subiu |
+| V3 | **"Disaster Check" — nomear o juiz** (P1) | naming + tela/relatório sobre o que o artGate/diretor de arte JÁ faz: "eles testam pontualmente antes de grandes investimentos; o nosso roda em TODA peça, automático". Candidato a nome próprio no pitch | 🟢 (naming + embalagem) |
+| V4 | **Painel de reputação consolidado** (P1) | Google/ReclameAqui/App Store/Play Store numa visão única — agregação do que o listening já coleta | 🟡 |
+| V5 | **Estudos setoriais publicados** (P2) | equivalente ao "Branding Brasil" deles: o motor já existe (trends por setor 036 + diagnósticos cross-tenant); falta curadoria + publicação. Amarra com GTM e a colonização do termo "Smart Branding" | 🟡 · junto do GTM/site |
 
 ---
 
