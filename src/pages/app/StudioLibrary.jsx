@@ -21,6 +21,8 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
 import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import StarIcon from '@mui/icons-material/Star'
+import StarBorderIcon from '@mui/icons-material/StarBorder'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 
@@ -256,6 +258,24 @@ export function StudioLibrary({ brandId }) {
     setCopiado(true); setTimeout(() => setCopiado(false), 1500)
   }
 
+  // Logo/imagem do header (lockup MARCA.s1ngulr) — funcionalidade herdada dos
+  // Ativos: um asset com metadata.header=true; o AppShell ouve o evento e troca ao vivo.
+  const headerId = assets.find(a => a.metadata?.header)?.id
+    || assets.find(a => a.tipo === 'logo')?.id   // fallback: primeiro logo (comportamento padrão)
+
+  async function usarNoHeader(a) {
+    const atual = assets.find(x => x.metadata?.header)
+    if (atual && atual.id !== a.id) {
+      await supabase.from('brand_assets').update({ metadata: { ...(atual.metadata || {}), header: false } }).eq('id', atual.id)
+    }
+    const { error } = await supabase.from('brand_assets')
+      .update({ metadata: { ...(a.metadata || {}), header: true } }).eq('id', a.id)
+    if (!error) {
+      setAssets(prev => prev.map(x => ({ ...x, metadata: { ...(x.metadata || {}), header: x.id === a.id } })))
+      window.dispatchEvent(new Event('brand-lockup-refresh'))
+    }
+  }
+
   function baixar(a) {
     const url = a.full || a.valor   // gerações: download sempre em full-res
     if (!isUrl(url)) return
@@ -457,6 +477,15 @@ export function StudioLibrary({ brandId }) {
                       {a.metadata?.generation_id && (
                         <Tooltip title="Certidão do asset — trilha completa da peça">
                           <IconButton size="small" onClick={() => abrirCert(a)}><VerifiedOutlinedIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton>
+                        </Tooltip>
+                      )}
+                      {root === 'referencias' && a.kind === 'asset' && !isVideo(a) && (
+                        <Tooltip title={headerId === a.id ? 'Aparece no header (antes do .s1ngulr)' : 'Usar no header'}>
+                          <IconButton size="small" onClick={() => usarNoHeader(a)}>
+                            {headerId === a.id
+                              ? <StarIcon sx={{ fontSize: 16, color: '#E8185A' }} />
+                              : <StarBorderIcon sx={{ fontSize: 16 }} />}
+                          </IconButton>
                         </Tooltip>
                       )}
                       <Box sx={{ flex: 1 }} />
