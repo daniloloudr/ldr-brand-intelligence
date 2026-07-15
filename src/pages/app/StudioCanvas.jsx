@@ -67,7 +67,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   const runRef = useRef(null)                       // run() estável p/ os nós (run seletivo)
   const runNode = useCallback(id => runRef.current?.(id), [])
   const regenRef = useRef(null)                     // regenNode() estável p/ os nós
-  const regenNodeCb = useCallback(id => regenRef.current?.(id), [])
+  const regenNodeCb = useCallback((id, motivo) => regenRef.current?.(id, motivo), [])
   const saveRef = useRef(null)                       // save() atual p/ autosave pós-run
   const wfIdRef = useRef(wfId)
   useEffect(() => { wfIdRef.current = wfId }, [wfId])
@@ -227,6 +227,8 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (['prompt', 'context', 'formato', 'generate', 'videoGen', 'note'].includes(n.type)) data.onChange = updateNodeData
     if (n.type === 'prompt') data.onImprove = improvePrompt
     if (['generate', 'videoGen', 'app'].includes(n.type)) { data.onRun = runNode; data.onRegen = regenNodeCb }
+    // regen de GERAÇÃO pede o motivo (telemetria do juiz: por que falhou?)
+    if (['generate', 'videoGen'].includes(n.type)) data.regenMenu = true
     if (n.type === 'artGate') data.onRegen = regenNodeCb   // re-julgar a peça
     if (['preview', 'app', 'videoGen'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput; data.onOpen = openLightbox }
@@ -459,7 +461,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {
       const res = await fetch('/.netlify/functions/studio-generate', { method: 'POST', headers: auth,
-        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, campaign_id: campaignRef.current, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, custom_size: customSize || undefined, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen }) })
+        body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: g.id, campaign_id: campaignRef.current, prompt: isTryon ? 'try-on' : withContext(prompt, context), formato, custom_size: customSize || undefined, use_brand: isTryon ? false : hasBrand, brand_facets: brandFacets, model, references, regen: !!ctx.regen, motivo: ctx.motivo || undefined }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(g.id)
       ;(ctx.genIds ||= {})[g.id] = j.generation_id   // portões a jusante carimbam o parecer na geração
@@ -477,6 +479,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       const res = await fetch('/.netlify/functions/studio-edit', { method: 'POST', headers: auth,
         body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: a.id, op: a.data.op, image_url: imageUrl,
           ...(a.data.op === 'crop' ? { width: a.data.width || 1080, height: a.data.height || 1080, focal: a.data.focal || 'attention' } : {}) }) })
+      // (apps não emitem sinal de regen — reprocessar ≠ reprovar)
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(a.id)
       ;(ctx.genIds ||= {})[a.id] = j.generation_id
@@ -502,7 +505,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       const res = await fetch('/.netlify/functions/studio-generate-video', { method: 'POST', headers: auth,
         body: JSON.stringify({ brand_id: brandId, workflow_id: wfId, node_id: v.id, prompt: withAdjust(withContext(prompt, context), (v.data?.adjust || '').trim()), model: mk, use_brand: hasBrand, brand_facets: brandFacets,
           image_url: m?.modes.includes('i2v') ? imageUrl : null, duration: m?.durations ? duration : undefined,
-          regen: !!ctx.regen, ajuste: (v.data?.adjust || '').trim() || undefined }) })
+          regen: !!ctx.regen, motivo: ctx.motivo || undefined, ajuste: (v.data?.adjust || '').trim() || undefined }) })
       const j = await res.json(); if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
       dispatched.add(v.id)
       return { genId: j.generation_id, nodeId: v.id, kind: 'video' }
@@ -620,8 +623,9 @@ export function StudioCanvas({ brandId, workflowId }) {
     reloadWorkspace?.()   // saldo cai assim que os jobs são submetidos (débito já ocorreu)
   }
 
-  // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante)
-  async function regenNode(nodeId) {
+  // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante).
+  // motivo (opcional): categoria da falha escolhida no menu — vira telemetria do sinal.
+  async function regenNode(nodeId, motivo = null) {
     const node = nodesRef.current.find(n => n.id === nodeId)
     if (!node || !['generate', 'videoGen', 'app', 'artGate'].includes(node.type)) return
     setMsg('')
@@ -633,7 +637,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       return
     }
     // regen: true → o servidor emite sinal de reprovação implícita da peça anterior
-    const ctx = { outputs, auth, dispatched: new Set(), regen: true }
+    const ctx = { outputs, auth, dispatched: new Set(), regen: true, motivo }
     const job = node.type === 'generate' ? await dispatchGenerateNode(node, ctx)
       : node.type === 'videoGen' ? await dispatchVideoNode(node, ctx)
       : await dispatchAppNode(node, ctx)

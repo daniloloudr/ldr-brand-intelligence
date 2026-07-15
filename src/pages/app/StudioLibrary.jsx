@@ -264,17 +264,27 @@ export function StudioLibrary({ brandId }) {
     const files = Array.from(fileList || [])
     if (!files.length) return
     setUploading(true)
+    const { data: brand } = await supabase.from('brands').select('workspace_id').eq('id', brandId).single()
     for (const file of files) {
       const path = `${brandId}/biblioteca/${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${(file.name || 'arquivo').replace(/[^\w.\-]/g, '_')}`
       const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
       if (error) continue
       const url = supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl
       const video = (file.type || '').startsWith('video/')
-      await supabase.from('brand_assets').insert({
+      const { data: asset } = await supabase.from('brand_assets').insert({
         brand_id: brandId, tipo: video ? 'video' : 'foto', nome: file.name,
         valor: url, mime_type: file.type || null, pasta: pasta || null,
         metadata: { source: 'upload', ...(root === 'referencias' ? { reference: true } : {}) },
-      })
+      }).select('id').single()
+      // Referência subida = ENSINO curatorial ("isto É a marca") — sinal de peso
+      // alto pro cérebro (pedido do Rafael/Hering; item Ativos-como-referência)
+      if (root === 'referencias' && asset && brand?.workspace_id) {
+        supabase.from('brand_signals').insert({
+          brand_id: brandId, workspace_id: brand.workspace_id,
+          tipo: 'reference_upload', fonte: 'biblioteca', ref_id: asset.id, peso: 2.5,
+          payload: { nome: file.name, mime_type: file.type || null, url, pasta: pasta || null },
+        }).then(({ error: e }) => { if (e) console.error('[biblioteca] sinal reference_upload falhou:', e.message) })
+      }
     }
     setUploading(false)
     load()
