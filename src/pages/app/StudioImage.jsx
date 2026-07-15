@@ -72,9 +72,10 @@ export function StudioImage({ brandId }) {
   async function loadGallery() {
     setLoading(true)
     const base = 'id, formato, status, image_url, error, created_at'
+    // A página mostra só as 20 últimas — o acervo completo mora na Biblioteca
     const q = b => supabase.from('studio_generations').select(b)
       .eq('brand_id', brandId).is('workflow_id', null).is('campaign_id', null)
-      .order('created_at', { ascending: false }).limit(60)
+      .order('created_at', { ascending: false }).limit(20)
     // Tenta com `feedback`; se a coluna ainda não existir (migration 021 não rodada),
     // recarrega sem ela em vez de deixar a galeria vazia.
     let { data, error } = await q(`${base}, feedback`)
@@ -478,7 +479,7 @@ export function StudioImage({ brandId }) {
             </Typography>
           </Stack>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
+          <><Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
             {visibleItems.map(p => {
               const done = p.status === 'done' && p.image_url
               return (
@@ -525,6 +526,13 @@ export function StudioImage({ brandId }) {
               )
             })}
           </Box>
+          <Stack alignItems="center" mt={2.5}>
+            <Button variant="outlined" size="small"
+              onClick={() => { sessionStorage.setItem('biblioteca_root', 'imagens'); window.location.hash = `#/app/brands/${brandId}/studio/biblioteca` }}
+              sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
+              Ver todas na Biblioteca →
+            </Button>
+          </Stack></>
         )}
       </Box>
 

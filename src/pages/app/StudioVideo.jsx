@@ -78,9 +78,10 @@ export function StudioVideo({ brandId }) {
   async function loadGallery() {
     setLoading(true)
     const cols = 'id, formato, status, image_url, error, created_at'
+    // A página mostra só os 20 últimos — o acervo completo mora na Biblioteca
     const q = b => supabase.from('studio_generations').select(b)
       .eq('brand_id', brandId).eq('media_type', 'video').is('workflow_id', null).is('campaign_id', null)
-      .order('created_at', { ascending: false }).limit(60)
+      .order('created_at', { ascending: false }).limit(20)
     let { data, error } = await q(`${cols}, feedback`)
     if (error) ({ data, error } = await q(cols))
     setItems(error ? [] : (data || []))   // coluna media_type ausente (migration 022) → galeria vazia
@@ -344,7 +345,7 @@ export function StudioVideo({ brandId }) {
             </Typography>
           </Stack>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 2 }}>
+          <><Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 2 }}>
             {visibleItems.map(p => {
               const done = p.status === 'done' && p.image_url
               const ar = ARMAP[p.formato] || '16 / 9'
@@ -353,7 +354,7 @@ export function StudioVideo({ brandId }) {
                   <Box onClick={() => done && setLightbox(p.image_url)}
                     sx={{ aspectRatio: ar, bgcolor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: done ? 'zoom-in' : 'default' }}>
                     {done
-                      ? <Box component="video" src={p.image_url} muted loop playsInline preload="metadata"
+                      ? <Box component="video" src={p.image_url} muted loop playsInline preload="none"
                           onError={() => setBroken(b => ({ ...b, [p.id]: true }))}
                           onMouseEnter={e => e.currentTarget.play?.().catch(() => {})} onMouseLeave={e => e.currentTarget.pause?.()}
                           sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -398,6 +399,13 @@ export function StudioVideo({ brandId }) {
               )
             })}
           </Box>
+          <Stack alignItems="center" mt={2.5}>
+            <Button variant="outlined" size="small"
+              onClick={() => { sessionStorage.setItem('biblioteca_root', 'videos'); window.location.hash = `#/app/brands/${brandId}/studio/biblioteca` }}
+              sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
+              Ver todos na Biblioteca →
+            </Button>
+          </Stack></>
         )}
       </Box>
 

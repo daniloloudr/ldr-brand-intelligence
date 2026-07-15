@@ -46,7 +46,8 @@ const ROOTS = [
 
 function AssetPreview({ a }) {
   if (isUrl(a.valor)) {
-    if (isVideo(a)) return <Box component="video" src={a.valor} muted loop playsInline
+    // preload="none" + poster: o grid não baixa nenhum byte de vídeo até o hover
+    if (isVideo(a)) return <Box component="video" src={a.valor} muted loop playsInline preload="none" poster={a.poster || undefined}
       onMouseOver={e => e.currentTarget.play().catch(() => {})} onMouseOut={e => e.currentTarget.pause()}
       sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     if ((a.mime_type || 'image/').startsWith('image/')) return <Box component="img" src={a.valor} alt="" loading="lazy"
@@ -65,9 +66,20 @@ export function StudioLibrary({ brandId }) {
   const [campanhas, setCampanhas] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busca, setBusca]     = useState('')
-  // Navegação Drive-like: root (null = home) + pasta dentro do root
-  const [root, setRoot]   = useState(null)
+  // Navegação Drive-like: root (null = home) + pasta dentro do root.
+  // Deep-link dos botões "Ver todas": handoff via sessionStorage (o router
+  // normaliza o hash e derruba query params) — lê e limpa no mount.
+  const [root, setRoot]   = useState(() => {
+    const r = sessionStorage.getItem('biblioteca_root')
+    sessionStorage.removeItem('biblioteca_root')
+    return ROOTS.some(x => x.id === r) ? r : null
+  })
   const [pasta, setPasta] = useState(null)
+  // Performance: paginação infinita de RENDER — o grid só materializa o que
+  // está perto do viewport (o fetch já vem limitado; o peso é a mídia no DOM)
+  const PAGE = 40
+  const [renderLimit, setRenderLimit] = useState(PAGE)
+  const sentinelRef = useRef(null)
   const [novasPastas, setNovasPastas] = useState({})  // root -> [nomes criados nesta sessão]
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef(null)
@@ -118,7 +130,10 @@ export function StudioLibrary({ brandId }) {
       kind: 'gen', id: g.id, created_at: g.created_at,
       nome: `Studio · ${[g.formato, g.media_type === 'video' ? 'vídeo' : null].filter(Boolean).join(' · ') || 'peça'}`,
       descricao: (g.prompt_final || '').slice(0, 140),
-      valor: g.image_url, mime_type: g.media_type === 'video' ? 'video/mp4' : 'image/png',
+      // grid usa o thumbnail (corta egress); full-res fica p/ download/certidão
+      valor: g.media_type === 'video' ? g.image_url : (g.thumbnail_url || g.image_url),
+      full: g.image_url, poster: g.thumbnail_url || null,
+      mime_type: g.media_type === 'video' ? 'video/mp4' : 'image/png',
       tipo: g.media_type === 'video' ? 'video' : 'foto',
       pasta: g.pasta, tags: [], metadata: { generation_id: g.id, source: 'studio-auto' },
     }))
@@ -155,7 +170,19 @@ export function StudioLibrary({ brandId }) {
     return list
   }, [escopo, pasta, busca, temPastas])
 
-  function navegar(novoRoot, novaPasta = null) { setRoot(novoRoot); setPasta(novaPasta); setBusca('') }
+  function navegar(novoRoot, novaPasta = null) { setRoot(novoRoot); setPasta(novaPasta); setBusca(''); setRenderLimit(PAGE) }
+
+  // Sentinela do scroll infinito: chegou perto do fim → materializa mais uma página
+  useEffect(() => { setRenderLimit(PAGE) }, [busca])
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(es => {
+      if (es[0].isIntersecting) setRenderLimit(l => l + PAGE)
+    }, { rootMargin: '600px' })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [root, pasta, busca, renderLimit, loading])
 
   function novaPasta() {
     const nome = window.prompt('Nome da nova pasta:')?.trim()
@@ -228,9 +255,10 @@ export function StudioLibrary({ brandId }) {
   }
 
   function baixar(a) {
-    if (!isUrl(a.valor)) return
+    const url = a.full || a.valor   // gerações: download sempre em full-res
+    if (!isUrl(url)) return
     const link = document.createElement('a')
-    link.href = a.valor; link.download = a.nome || 'asset'; link.target = '_blank'; link.click()
+    link.href = url; link.download = a.nome || 'asset'; link.target = '_blank'; link.click()
   }
 
   // Certidão do asset: trilha auditável da peça (compliance.md §4)
@@ -248,7 +276,7 @@ export function StudioLibrary({ brandId }) {
         .order('created_at', { ascending: true }),
       supabase.from('brand_signals')
         .select('id, tipo, payload, created_at')
-        .eq('tipo', 'art_review').eq('payload->>image_url', a.valor)
+        .eq('tipo', 'art_review').eq('payload->>image_url', a.full || a.valor)
         .order('created_at', { ascending: true }),
     ])
     const vistos = new Set()
@@ -364,7 +392,7 @@ export function StudioLibrary({ brandId }) {
 
             ) : root === 'textos' ? (
               <Stack spacing={1}>
-                {visiveis.map(t => (
+                {visiveis.slice(0, renderLimit).map(t => (
                   <Paper key={t.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
                     onClick={() => setTextoAberto(t)}>
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -402,9 +430,9 @@ export function StudioLibrary({ brandId }) {
               </Stack>
 
             ) : (
-              /* Grid de mídia (Imagens/Vídeos/Referências) — tela cheia */
+              /* Grid de mídia (Imagens/Vídeos/Referências) — tela cheia, render paginado */
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 1.5 }}>
-                {visiveis.map(a => (
+                {visiveis.slice(0, renderLimit).map(a => (
                   <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                     <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <AssetPreview a={a} />
@@ -436,6 +464,16 @@ export function StudioLibrary({ brandId }) {
                   </Paper>
                 ))}
               </Box>
+            )}
+
+            {/* Sentinela do scroll infinito + contador */}
+            {visiveis.length > renderLimit && (
+              <Stack ref={sentinelRef} alignItems="center" py={3}>
+                <CircularProgress size={18} sx={{ color: TEAL }} />
+                <Typography fontSize={11} color="text.disabled" mt={0.75}>
+                  {Math.min(renderLimit, visiveis.length)} de {visiveis.length}
+                </Typography>
+              </Stack>
             )}
           </>
         )}
