@@ -18,6 +18,33 @@ async function uniqueSlug(supabase, base) {
   }
 }
 
+// Provisiona o subdomínio da marca no Netlify: adiciona {slug}.s1ngulr.com como
+// domain alias → como o s1ngulr.com está no Netlify DNS, ele cria o registro DNS
+// E o cert automaticamente. Best-effort: falha aqui NÃO bloqueia a criação do
+// workspace (dá pra provisionar depois). Netlify não tem wildcard self-serve —
+// por isso registramos subdomínio a subdomínio, mas de forma automática.
+async function provisionSubdomain(slug) {
+  const token  = process.env.NETLIFY_API_TOKEN
+  const siteId = process.env.NETLIFY_SITE_ID || '8971b5bd-05f8-4c41-9cb9-a89065457a88'
+  const root   = process.env.ROOT_DOMAIN || 's1ngulr.com'
+  if (!token) return { ok: false, reason: 'sem NETLIFY_API_TOKEN' }
+  const host = `${slug}.${root}`
+  const api  = `https://api.netlify.com/api/v1/sites/${siteId}`
+  const hdr  = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+  try {
+    const cur = await fetch(api, { headers: hdr })
+    if (!cur.ok) return { ok: false, reason: `GET ${cur.status}` }
+    const site = await cur.json()
+    const aliases = Array.isArray(site.domain_aliases) ? site.domain_aliases : []
+    if (aliases.includes(host)) return { ok: true, host, already: true }
+    const res = await fetch(api, { method: 'PATCH', headers: hdr, body: JSON.stringify({ domain_aliases: [...aliases, host] }) })
+    if (!res.ok) return { ok: false, reason: `PATCH ${res.status}` }
+    return { ok: true, host }
+  } catch (e) {
+    return { ok: false, reason: e.message }
+  }
+}
+
 async function isPlatformAdmin(supabase, token) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
@@ -82,5 +109,8 @@ export const handler = async (event) => {
     role: 'admin',
   })
 
-  return { statusCode: 200, headers, body: JSON.stringify({ workspace: ws }) }
+  // Provisiona o subdomínio (best-effort — não bloqueia se falhar)
+  const subdomain = await provisionSubdomain(slug)
+
+  return { statusCode: 200, headers, body: JSON.stringify({ workspace: ws, subdomain }) }
 }

@@ -1326,6 +1326,10 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     setShowCreate(false);
     setForm({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
     fetchWorkspaces();
+    // aviso não-bloqueante se o subdomínio não provisionou automático
+    if (json.subdomain && !json.subdomain.ok) {
+      alert(`Workspace criado, mas o subdomínio não foi provisionado automaticamente (${json.subdomain.reason}). Adicione o alias no Netlify manualmente ou configure NETLIFY_API_TOKEN.`);
+    }
   }
 
   async function handleInvite(e) {
