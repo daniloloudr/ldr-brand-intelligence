@@ -1,10 +1,10 @@
 import { useTheme } from "@mui/material/styles";
 import { DS, F } from "../lib/constants";
-import { sc, normalizeSector } from "../lib/helpers";
+import { sc, normalizeSector, navigate } from "../lib/helpers";
 import { Bar } from "../components/Bar";
 import { Tooltip } from "../components/Tooltip";
 
-const goToMetodologia = () => { window.location.hash = "#/metodologia"; };
+const goToMetodologia = () => { navigate("#/metodologia"); };
 
 const SCORE_TOOLTIPS = {
   singularidade:  { title: "Score de Singularidade",  description: "Mede o grau de diferenciação e unicidade da marca." },

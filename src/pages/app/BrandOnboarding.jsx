@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Typography, Button, Stepper, Step, StepLabel,
   TextField, Chip, CircularProgress, Paper, Alert,
@@ -333,7 +334,7 @@ export function BrandOnboarding() {
         version:      1,
       })
 
-      window.location.hash = `#/app/brands/${brand.id}`
+      navigate(`#/app/brands/${brand.id}`)
     } catch (err) {
       setError(err.message || 'Erro ao criar a marca. Tente novamente.')
     } finally {
@@ -349,7 +350,7 @@ export function BrandOnboarding() {
         action={
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => step === 0 ? (window.location.hash = '#/app/brands') : setStep(s => s - 1)}
+            onClick={() => step === 0 ? (navigate('#/app/brands')) : setStep(s => s - 1)}
             sx={{ color: 'text.secondary', fontWeight: 700 }}
           >
             {step === 0 ? 'Marcas' : 'Voltar'}
@@ -382,7 +383,7 @@ export function BrandOnboarding() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
         <Button
           variant="outlined"
-          onClick={() => step === 0 ? (window.location.hash = '#/app/brands') : setStep(s => s - 1)}
+          onClick={() => step === 0 ? (navigate('#/app/brands')) : setStep(s => s - 1)}
           sx={{ color: 'text.secondary', borderColor: 'divider' }}
         >
           {step === 0 ? 'Cancelar' : 'Anterior'}

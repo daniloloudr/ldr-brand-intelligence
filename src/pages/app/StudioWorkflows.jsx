@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, Paper, Stack, IconButton, Menu, MenuItem, CircularProgress, Chip, TextField, Tabs, Tab,
 } from '@mui/material'
@@ -55,7 +56,7 @@ export function StudioWorkflows({ brandId }) {
     const { data, error } = await supabase.from('studio_workflows')
       .insert({ workspace_id: workspace?.id, brand_id: brandId, nome, nodes, edges })
       .select().single()
-    if (!error && data) window.location.hash = `#/app/brands/${brandId}/studio/workflow/${data.id}`
+    if (!error && data) navigate(`#/app/brands/${brandId}/studio/workflow/${data.id}`)
     return { data, error }
   }
 
@@ -82,7 +83,7 @@ export function StudioWorkflows({ brandId }) {
     setBuilding(false)
   }
 
-  function abrir(wf) { window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}` }
+  function abrir(wf) { navigate(`#/app/brands/${brandId}/studio/workflow/${wf.id}`) }
 
   async function renomear(wf) {
     setMenu(null)
@@ -126,7 +127,7 @@ export function StudioWorkflows({ brandId }) {
       nome: data.nome.replace(/\s*\(template\)\s*$/i, '').trim() || 'Novo workflow',
       nodes: data.nodes || [], edges: data.edges || [],
     }).select().single()
-    if (!error && novoWf) window.location.hash = `#/app/brands/${brandId}/studio/workflow/${novoWf.id}`
+    if (!error && novoWf) navigate(`#/app/brands/${brandId}/studio/workflow/${novoWf.id}`)
   }
 
   const templates = workflows.filter(w => w.is_template)

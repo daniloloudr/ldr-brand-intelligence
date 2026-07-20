@@ -5,7 +5,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { theme as themeDark, themeLight } from '../../lib/theme'
-import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, fmtDate } from '../../lib/helpers'
+import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, fmtDate, navigate } from '../../lib/helpers'
 import { t } from '../../lib/i18n'
 import { supabase } from '../../lib/supabase'
 import { PLANOS } from '../../lib/constants'
@@ -138,7 +138,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   }
 
   if (!workspace) {
-    window.location.hash = '#/login'
+    navigate('#/login')
     return null
   }
 
@@ -169,7 +169,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       freq[key] = (freq[key] || 0) + 1
       localStorage.setItem('s1ngulr-nav-freq', JSON.stringify(freq))
     } catch { /* localStorage indisponível não bloqueia navegação */ }
-    window.location.hash = hash
+    navigate(hash)
   }
 
   const brandPath = brandId ? `#/app/brands/${brandId}` : '#/app/brands'
@@ -223,7 +223,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'plano')                 return <PlanoPage />
     if (route === 'time')                  return <TimePage />
     // Plano e cobrança: customer-facing escondido (venda sob demanda). Créditos/PLANOS/Stripe seguem por baixo.
-    if (route === 'plano')                 { window.location.hash = '#/app'; return null }
+    if (route === 'plano')                 { navigate('#/app'); return null }
     if (route === 'alertas')               return <AlertasPage />
     if (route === 'listening')             return <SocialListening />
     if (route === 'content-hub')           return <ContentHub />
@@ -326,7 +326,7 @@ function renderBellContent(jobs, close) {
               <Box key={j.id}
                 onClick={() => {
                   if (isDone && j.brand_id) {
-                    window.location.hash = `#/app/brands/${j.brand_id}`
+                    navigate(`#/app/brands/${j.brand_id}`)
                     close()
                   }
                 }}

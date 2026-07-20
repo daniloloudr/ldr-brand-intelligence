@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { navigate } from '../lib/helpers';
 import { supabase } from "../lib/supabase";
 import logoNegativa from "../assets/negativa.svg";
 import TextField from '@mui/material/TextField'
@@ -18,7 +19,7 @@ export function LoginPage({ onLogin }) {
     setLoading(false);
     if (err) { setError("E-mail ou senha incorretos."); return; }
     onLogin(data.user);
-    window.location.hash = "#/app";
+    navigate("#/app");
   }
 
   const CSS = `
@@ -384,7 +385,7 @@ export function LoginPage({ onLogin }) {
           <div className="auth-brand-footer">
             <button
               className="auth-footer-link"
-              onClick={() => { window.location.hash = ""; }}
+              onClick={() => { navigate(""); }}
             >
               Área Pública →
             </button>
@@ -447,7 +448,7 @@ export function LoginPage({ onLogin }) {
               Não tem conta?
               <button
                 className="auth-link-btn"
-                onClick={() => { window.location.hash = "#/register"; }}
+                onClick={() => { navigate("#/register"); }}
               >
                 Criar conta →
               </button>

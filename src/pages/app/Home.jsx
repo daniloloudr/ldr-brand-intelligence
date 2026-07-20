@@ -7,6 +7,7 @@
 // ficam como fallback instantâneo e trocam quando o cérebro responde.
 // v3 (backlog): blocos se reordenando pelo perfil de uso.
 import { useState, useEffect } from 'react'
+import { navigate } from '../../lib/helpers';
 import { Box, Paper, Typography, Stack, CircularProgress, Chip, Button } from '@mui/material'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -160,7 +161,7 @@ export function Home() {
   ].sort((a, b) => (freq[b.k] || 0) - (freq[a.k] || 0)).slice(0, 6)
 
   const Card = ({ children, hash, sx }) => (
-    <Paper variant="outlined" onClick={hash ? () => { window.location.hash = hash } : undefined}
+    <Paper variant="outlined" onClick={hash ? () => { navigate(hash) } : undefined}
       sx={{ p: 2, borderRadius: 2, cursor: hash ? 'pointer' : 'default', '&:hover': hash ? { borderColor: TEAL } : {}, ...sx }}>
       {children}
     </Paper>
@@ -254,7 +255,7 @@ export function Home() {
                       : <TrendingUpIcon sx={{ color: PURPLE, fontSize: 20 }} />}
                     <Typography fontSize={13.5} sx={{ flex: 1, lineHeight: 1.5 }}>{reco.t}</Typography>
                     <Button size="small" endIcon={<ArrowForwardIcon sx={{ fontSize: '14px !important' }} />}
-                      onClick={() => { window.location.hash = reco.hash }}
+                      onClick={() => { navigate(reco.hash) }}
                       sx={{ fontWeight: 800, color: PURPLE, flexShrink: 0 }}>{reco.cta}</Button>
                   </Stack>
                 </Paper>
@@ -262,20 +263,20 @@ export function Home() {
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {d.wf && (
-                  <Chip label={`Continuar no fluxo "${(d.wf.nome || '').slice(0, 32)}"`} onClick={() => { window.location.hash = `#/app/brands/${d.wf.brand_id}/studio/workflow/${d.wf.id}` }}
+                  <Chip label={`Continuar no fluxo "${(d.wf.nome || '').slice(0, 32)}"`} onClick={() => { navigate(`#/app/brands/${d.wf.brand_id}/studio/workflow/${d.wf.id}`) }}
                     sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
                 )}
                 {d.conv && brandPath && (
-                  <Chip label="Continuar conversa no Copiloto" onClick={() => { window.location.hash = `${brandPath}/assistant` }}
+                  <Chip label="Continuar conversa no Copiloto" onClick={() => { navigate(`${brandPath}/assistant`) }}
                     sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
                 )}
                 {d.ultimaPeca && brandPath && (
                   <Chip label={`Ver última peça criada (${rel(d.ultimaPeca.created_at)})`}
-                    onClick={() => { window.location.hash = `${brandPath}/studio/biblioteca` }}
+                    onClick={() => { navigate(`${brandPath}/studio/biblioteca`) }}
                     sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
                 )}
                 {atalhos.map(a => (
-                  <Chip key={a.label} label={a.label} variant="outlined" onClick={() => { window.location.hash = a.hash }}
+                  <Chip key={a.label} label={a.label} variant="outlined" onClick={() => { navigate(a.hash) }}
                     sx={{ fontWeight: 700 }} />
                 ))}
               </Stack>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Button, TextField, Typography, MenuItem, Stepper, Step, StepLabel,
   Card, CardContent, Chip, CircularProgress, Alert,
@@ -193,7 +194,7 @@ export function OnboardingPage({ user, onHasWorkspace }) {
               Você tem 14 dias de trial com acesso completo.
             </Typography>
             <Button variant="contained" color="primary" size="large"
-              onClick={() => { window.location.hash = '#/app' }}
+              onClick={() => { navigate('#/app') }}
               sx={{ fontWeight: 900, px: 4, py: 1.5, letterSpacing: '0.08em' }}>
               Acessar o workspace →
             </Button>

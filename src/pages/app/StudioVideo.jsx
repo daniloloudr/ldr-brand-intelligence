@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
   Select, MenuItem, ListSubheader, Switch, FormControlLabel, IconButton, Tooltip, Dialog,
@@ -401,7 +402,7 @@ export function StudioVideo({ brandId }) {
           </Box>
           <Stack alignItems="center" mt={2.5}>
             <Button variant="outlined" size="small"
-              onClick={() => { sessionStorage.setItem('biblioteca_root', 'videos'); window.location.hash = `#/app/brands/${brandId}/studio/biblioteca` }}
+              onClick={() => { sessionStorage.setItem('biblioteca_root', 'videos'); navigate(`#/app/brands/${brandId}/studio/biblioteca`) }}
               sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
               Ver todos na Biblioteca →
             </Button>

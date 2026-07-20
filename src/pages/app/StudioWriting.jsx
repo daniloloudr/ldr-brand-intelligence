@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip, Tooltip,
 } from '@mui/material'
@@ -360,7 +361,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
       }).select().single()
       if (e) throw new Error(e.message)
       emitAdoption()   // levar pro workflow = adoção da peça
-      window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}`
+      navigate(`#/app/brands/${brandId}/studio/workflow/${wf.id}`)
     } catch (e) {
       setError(e.message || 'Falha ao criar o workflow.')
       setCompiling(false)

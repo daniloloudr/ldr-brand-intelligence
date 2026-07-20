@@ -5,7 +5,7 @@ import logoPositivo from "../assets/logo-positivo-200px.png";
 import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";

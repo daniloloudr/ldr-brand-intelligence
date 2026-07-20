@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { navigate, currentPath } from '../../lib/helpers';
 import {
   Box, Typography, Button, TextField, CircularProgress, Alert,
   Paper, Chip, LinearProgress,
@@ -131,8 +132,7 @@ export function CampaignNew({ brandId }) {
   const [error, setError]     = useState('')
 
   function goBack() {
-    const h = window.location.hash
-    window.location.hash = h.replace('/campaigns/new', '/campaigns')
+    navigate(currentPath().replace('/campaigns/new', '/campaigns'))
   }
 
   async function submit() {
@@ -165,8 +165,8 @@ export function CampaignNew({ brandId }) {
       }).select().single()
 
       if (saved) {
-        const base = window.location.hash.replace('/campaigns/new', '/campaigns')
-        window.location.hash = `${base}/${saved.id}`
+        const base = currentPath().replace('/campaigns/new', '/campaigns')
+        navigate(`${base}/${saved.id}`)
       }
     } catch (err) {
       setError(err.message || 'Erro inesperado')

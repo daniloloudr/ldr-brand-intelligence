@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { DS } from "./lib/constants";
-import { getRoute } from "./lib/helpers";
+import { getRoute, navigate } from "./lib/helpers";
 import { GlobalStyle } from "./components/GlobalStyle";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitePage } from "./pages/auth/Invite";
@@ -34,6 +34,15 @@ const ADMIN_ROUTES = ['admin', 'admin-historico'];
 // Captura o hash de forma síncrona antes do Supabase processar e limpar a URL
 const _INITIAL_HASH = window.location.hash
 
+// Shim de compatibilidade: URL antiga com #/rota → URL limpa equivalente.
+// Só converte hash de ROTA (#/...) — nunca o hash de auth do Supabase
+// (#access_token=...&type=invite), que precisa continuar intacto.
+if (_INITIAL_HASH.startsWith('#/')) {
+  const cleaned = _INITIAL_HASH.slice(1)
+  const url = cleaned.includes('?') ? cleaned : cleaned + window.location.search
+  window.history.replaceState({}, '', url)
+}
+
 export default function App() {
   const [isInviteFlow, setInviteFlow] = useState(
     _INITIAL_HASH.includes('type=invite') || _INITIAL_HASH.includes('type=recovery')
@@ -58,11 +67,11 @@ export default function App() {
     });
 
     const onHash = () => setRoute(getRoute());
-    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
 
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
       document.head.removeChild(l);
     };
   }, []);
@@ -89,45 +98,45 @@ export default function App() {
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);
-          window.location.hash = "#/login";
+          navigate('/login');
         }}
       />
     );
   }
 
   if (route === "login") {
-    if (user) { window.location.hash = "#/app"; return null; }
+    if (user) { navigate('/app'); return null; }
     return <LoginPage onLogin={setUser} />;
   }
 
   if (WORKSPACE_ROUTES.includes(route)) {
-    if (!user) { window.location.hash = "#/login"; return null; }
+    if (!user) { navigate('/login'); return null; }
     return (
       <AppShell
         user={user}
         impersonating={impersonating}
-        onStopImpersonating={() => { setImpersonating(null); window.location.hash = "#/admin"; }}
+        onStopImpersonating={() => { setImpersonating(null); navigate('/admin'); }}
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);
           setImpersonating(null);
-          window.location.hash = "#/login";
+          navigate('/login');
         }}
       />
     );
   }
 
   if (ADMIN_ROUTES.includes(route)) {
-    if (!user) { window.location.hash = "#/login"; return null; }
+    if (!user) { navigate('/login'); return null; }
     return (
       <Suspense fallback={<PageFallback />}>
         <AppInterno
           user={user}
-          onImpersonate={(data) => { setImpersonating(data); window.location.hash = "#/app"; }}
+          onImpersonate={(data) => { setImpersonating(data); navigate('/app'); }}
           onLogout={async () => {
             await supabase.auth.signOut();
             setUser(null);
-            window.location.hash = "#/login";
+            navigate('/login');
           }}
         />
       </Suspense>
@@ -135,6 +144,6 @@ export default function App() {
   }
 
   // Fallback: redireciona para login
-  window.location.hash = user ? "#/app" : "#/login";
+  navigate(user ? '/app' : '/login');
   return null;
 }

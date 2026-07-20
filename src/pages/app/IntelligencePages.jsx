@@ -2,6 +2,7 @@
 // Onda 3 (2026-07-10): Consumer Insights e Trends viram REAIS — insights da
 // escuta social + radar de tendências por setor (coleta semanal + on-demand).
 import { useState, useEffect, useCallback } from 'react'
+import { navigate } from '../../lib/helpers';
 import { Box, Paper, Typography, Stack, CircularProgress, Chip, Link, Button } from '@mui/material'
 import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import ConstructionOutlinedIcon from '@mui/icons-material/ConstructionOutlined'
@@ -602,7 +603,7 @@ export function ConsumerInsights() {
         <Typography fontSize={12.5} color="text.secondary" sx={{ flex: 1, minWidth: 260 }}>
           A <b>Escuta Social</b> coleta o que disseram ({d.totalMencoes} menções até agora). Aqui a inteligência da marca lê tudo e nomeia <b>o que isso significa</b>.
         </Typography>
-        <Button size="small" variant="text" onClick={() => { window.location.hash = '#/app/listening' }} sx={{ fontWeight: 700, flexShrink: 0 }}>
+        <Button size="small" variant="text" onClick={() => { navigate('#/app/listening') }} sx={{ fontWeight: 700, flexShrink: 0 }}>
           Ver a coleta bruta →
         </Button>
         <Button size="small" variant="contained" disableElevation disabled={gerando || !d.totalMencoes} onClick={gerar}
@@ -683,7 +684,7 @@ export function ConsumerInsights() {
                 <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mb={d.temas.length ? 1.25 : 0}>
                   <Typography fontSize={12.5} color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Personas:</Typography>
                   {d.personas.slice(0, 4).map((p, i) => (
-                    <Chip key={i} label={p.nome} size="small" onClick={() => { if (d.brandId) window.location.hash = `#/app/brands/${d.brandId}/negocio` }}
+                    <Chip key={i} label={p.nome} size="small" onClick={() => { if (d.brandId) navigate(`#/app/brands/${d.brandId}/negocio`) }}
                       sx={{ fontWeight: 700, fontSize: 11 }} />
                   ))}
                 </Stack>

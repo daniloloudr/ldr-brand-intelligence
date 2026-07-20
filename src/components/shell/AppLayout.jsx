@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { navigate } from '../../lib/helpers';
 import { Box, Typography, IconButton, InputBase, Popover, Stack, Divider, Button, Tooltip, Menu, MenuItem, ListItemIcon, Collapse } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
@@ -276,7 +277,7 @@ export function AppLayout({
         {(userMenu || []).map(item => (
           <MenuItem
             key={item.hash}
-            onClick={() => { setUserAnchor(null); window.location.hash = item.hash; }}
+            onClick={() => { setUserAnchor(null); navigate(item.hash); }}
             sx={{ fontSize: 13, fontWeight: 600, py: 1 }}
           >
             {item.label}

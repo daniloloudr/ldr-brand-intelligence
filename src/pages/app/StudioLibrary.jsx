@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
   IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link, Checkbox,
@@ -434,7 +435,7 @@ export function StudioLibrary({ brandId }) {
           </>)}
           {root === 'campanhas' && (
             <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />}
-              onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }}
+              onClick={() => { navigate(`#/app/brands/${brandId}/studio/campanhas`) }}
               sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>Nova campanha</Button>
           )}
         </Stack>
@@ -542,7 +543,7 @@ export function StudioLibrary({ brandId }) {
               <Stack spacing={1}>
                 {visiveis.map(c => (
                   <Paper key={c.id} variant="outlined" sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer', '&:hover': { borderColor: TEAL } }}
-                    onClick={() => { window.location.hash = `#/app/brands/${brandId}/studio/campanhas?c=${c.id}` }}>
+                    onClick={() => { navigate(`#/app/brands/${brandId}/studio/campanhas?c=${c.id}`) }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <CampaignOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
