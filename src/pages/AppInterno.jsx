@@ -5,7 +5,7 @@ import logoPositivo from "../assets/logo-positivo-200px.png";
 import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
@@ -1208,9 +1208,9 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   const [creating, setCreating]           = useState(false);
   const [inviting, setInviting]           = useState(false);
   const [error, setError]                 = useState('');
-  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '' });
+  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
   const [showConfig, setShowConfig]       = useState(null);
-  const [configForm, setConfigForm]       = useState({ creditos_mes: '', valor: '' });
+  const [configForm, setConfigForm]       = useState({ creditos_mes: '', valor: '', slug: '' });
   const [savingConfig, setSavingConfig]   = useState(false);
   const [inviteEmail, setInviteEmail]     = useState('');
   const [showCreateUser, setShowCreateUser] = useState(null);
@@ -1244,6 +1244,7 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     setConfigForm({
       creditos_mes: ws.creditos_mes != null ? String(ws.creditos_mes) : '',
       valor: ws.valor_mensal_centavos != null ? String(ws.valor_mensal_centavos / 100).replace('.', ',') : '',
+      slug: ws.slug || '',
     });
     setError('');
   }
@@ -1257,10 +1258,17 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     const { data, error } = await supabase.rpc('set_workspace_billing', {
       p_workspace: showConfig.id, p_creditos_mes: pool, p_valor_centavos: cents,
     });
+    if (error) { setSavingConfig(false); setError(error.message || 'Erro ao salvar configuração'); return; }
+
+    // slug (subdomínio) — atualiza só se mudou; índice único pode barrar colisão
+    const novoSlug = slugify(configForm.slug);
+    if (novoSlug && novoSlug !== showConfig.slug) {
+      const { error: slugErr } = await supabase.from('workspaces').update({ slug: novoSlug }).eq('id', showConfig.id);
+      if (slugErr) { setSavingConfig(false); setError(`Créditos salvos, mas o slug falhou: ${slugErr.message} (já em uso?)`); return; }
+    }
     setSavingConfig(false);
-    if (error) { setError(error.message || 'Erro ao salvar configuração'); return; }
     setWorkspaces(list => list.map(w => w.id === showConfig.id
-      ? { ...w, creditos_mes: pool, valor_mensal_centavos: cents, creditos_saldo: data }
+      ? { ...w, creditos_mes: pool, valor_mensal_centavos: cents, creditos_saldo: data, slug: novoSlug || w.slug }
       : w));
     setShowConfig(null);
   }
@@ -1307,6 +1315,7 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         nome: form.nome, dominio: form.dominio, setor: form.setor, porte: form.porte,
+        slug: form.slug,
         creditos_mes: parseInt(form.creditos_mes, 10) || 0,
         valor_mensal_centavos: reaisToCents(form.valor),
       }),
@@ -1315,7 +1324,7 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     setCreating(false);
     if (!res.ok) { setError(json.error || 'Erro ao criar workspace'); return; }
     setShowCreate(false);
-    setForm({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '' });
+    setForm({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
     fetchWorkspaces();
   }
 
@@ -1409,6 +1418,11 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                   {ws.dominio && `${ws.dominio} · `}{ws.setor && `${ws.setor} · `}
                   criado {new Date(ws.created_at).toLocaleDateString('pt-BR')}
                 </div>
+                {ws.slug && (
+                  <a href={tenantUrl(ws.slug)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: DS.green, fontFamily: F, textDecoration: 'none', marginTop: 3, display: 'inline-block' }}>
+                    {ws.slug}.s1ngulr.com ↗
+                  </a>
+                )}
               </div>
 
               {/* Cobrança do contrato */}
@@ -1517,6 +1531,13 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                   <input style={inp} placeholder="ex: 5000" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
                 </div>
               </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio) — opcional, gera do nome</label>
+                <input style={inp} placeholder="nomedamarca" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} />
+                <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
+                  {(slugify(form.slug || form.nome) || 'nomedamarca')}.s1ngulr.com
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                 <button type="button" style={btnGhost} onClick={() => { setShowCreate(false); setError(''); }}>Cancelar</button>
                 <button type="submit" style={btn()} disabled={creating}>{creating ? 'Criando...' : 'Criar workspace'}</button>
@@ -1541,6 +1562,13 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
               <div>
                 <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Valor mensal (R$)</label>
                 <input style={inp} placeholder="ex: 5000" value={configForm.valor} onChange={e => setConfigForm(f => ({ ...f, valor: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio)</label>
+                <input style={inp} placeholder="nomedamarca" value={configForm.slug} onChange={e => setConfigForm(f => ({ ...f, slug: e.target.value }))} />
+                <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
+                  {(slugify(configForm.slug) || '—')}.s1ngulr.com
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                 <button type="button" style={btnGhost} onClick={() => { setShowConfig(null); setError(''); }}>Cancelar</button>

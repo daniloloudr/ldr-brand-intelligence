@@ -67,7 +67,7 @@ const USER_MENU = [
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
-  const { workspace, loading, user, onLogout } = useWorkspace()
+  const { workspace, loading, denied, user, onLogout } = useWorkspace()
 
   // Lockup do produto: MARCA.s1ngulr — logo escolhido nos Ativos (metadata.header)
   // ou o primeiro logo; senão o nome. Ouve 'brand-lockup-refresh' p/ troca ao vivo.
@@ -123,6 +123,19 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       <CircularProgress sx={{ color: '#0D9E7A' }} />
     </Box>
   )
+
+  if (denied) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, p: 4 }}>
+        <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 28, mb: 1 }} />
+        <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">Sem acesso a esta marca</Typography>
+        <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={380}>
+          Sua conta não tem acesso a este espaço. Confira o endereço ou entre com a conta correta desta marca.
+        </Typography>
+        <Button variant="outlined" size="small" onClick={onLogout} sx={{ mt: 1, fontWeight: 700 }}>Sair</Button>
+      </Box>
+    )
+  }
 
   if (!workspace) {
     window.location.hash = '#/login'
