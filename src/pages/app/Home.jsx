@@ -172,7 +172,7 @@ export function Home() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
       <PageHeader title={d.brand?.nome || workspace?.nome || 'Início'}
-        subtitle={`Plano ${workspace?.plano ? workspace.plano.charAt(0).toUpperCase() + workspace.plano.slice(1) : ''}${d.diag ? ` · último diagnóstico ${rel(d.diag.created_at)}` : ''}`} />
+        subtitle={d.diag ? `Último diagnóstico ${rel(d.diag.created_at)}` : ''} />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         <Stack spacing={3}>

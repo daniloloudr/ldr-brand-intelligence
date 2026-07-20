@@ -315,7 +315,7 @@ function TabPlano({ workspace }) {
   const fmt = n => `R$${n.toLocaleString('pt-BR')}`
 
   // Saldo do ciclo (null = pool cheio, ainda não consumido)
-  const cMes       = planoAtual.creditos_mes
+  const cMes       = workspace.creditos_mes ?? planoAtual.creditos_mes
   const saldoAtual = saldo == null ? cMes : saldo
   const saldoPct   = cMes ? Math.min((saldoAtual / cMes) * 100, 100) : 0
   const saldoBaixo = saldoPct <= 15
@@ -330,7 +330,7 @@ function TabPlano({ workspace }) {
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
           <Typography fontWeight={900} fontSize={28} sx={{ color: 'primary.main' }}>
-            {planoAtual.creditos_mes.toLocaleString('pt-BR')} créditos/mês
+            {cMes.toLocaleString('pt-BR')} créditos/mês
           </Typography>
           <Typography fontSize={12} color="text.secondary">
             créditos cobrem o custo de geração (1 crédito ≈ R$0,33 de insumo de IA, repassado sem margem)

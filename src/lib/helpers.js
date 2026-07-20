@@ -1,5 +1,35 @@
 import { DS } from "./constants";
 
+// ─── Multitenant por subdomínio (nomedamarca.s1ngulr.com) ────────────
+// Decisão 2026-07-20: o subdomínio é camada de RESOLUÇÃO + branding; o RLS por
+// workspace_id segue sendo o perímetro real de segurança. Sistema = app./www./apex.
+// Local (sem subdomínio): usar ?tenant=slug para simular.
+export const ROOT_DOMAIN = 's1ngulr.com';
+export const RESERVED_SUBDOMAINS = ['app', 'www', 'admin', 'api', 'static', 'assets'];
+
+// slug do tenant atual, ou null quando é domínio de sistema (app/www/apex/localhost/preview)
+export function getTenantSlug() {
+  const q = new URLSearchParams(window.location.search).get('tenant');
+  if (q) return q.trim().toLowerCase() || null;           // override local/dev
+  const host = window.location.hostname;
+  const suffix = '.' + ROOT_DOMAIN;
+  if (!host.endsWith(suffix)) return null;                // localhost, previews, apex
+  const sub = host.slice(0, -suffix.length);
+  if (!sub || sub.includes('.')) return null;             // apex ou multi-nível
+  if (RESERVED_SUBDOMAINS.includes(sub)) return null;     // subdomínio de sistema
+  return sub.toLowerCase();
+}
+
+// URL de acesso do cliente (subdomínio da marca em produção)
+export const tenantUrl = (slug) => `https://${slug}.${ROOT_DOMAIN}`;
+
+// slugify — mesma lógica da migration 044 (minúsculas, sem acento, hífens)
+export function slugify(nome) {
+  return (nome || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 export function getRoute() {
   const h = window.location.hash;
   if (!h || h === '#/')              return 'login';

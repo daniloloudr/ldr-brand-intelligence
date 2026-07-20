@@ -18,7 +18,7 @@ Formato: `pg_dump -Fc` (custom, comprimido, restauração seletiva).
 ## Setup (uma vez — Danilo faz)
 
 ### 1. Bucket de backups no R2
-Cloudflare → R2 → criar bucket `s1ngulr-backups` (ou nome à escolha).
+Cloudflare → R2 → criar bucket `dumps1ngulr` (nome atual; era à escolha).
 Opcional mas recomendado: **regra de lifecycle** expirando objetos do prefixo `db/`
 após 30 dias (Settings do bucket → Object lifecycle rules) — poda os antigos sozinho.
 
@@ -26,6 +26,10 @@ após 30 dias (Settings do bucket → Object lifecycle rules) — poda os antigo
 Supabase → projeto `ldr-brand-intelligence` → Settings → Database →
 **Connection string → Session pooler** (porta 5432, com a senha). É essa que o
 `pg_dump` usa. Guarde — é o secret `SUPABASE_DB_URL`.
+> ⚠️ **Use a Session pooler, NÃO a conexão direta** (`db.<ref>.supabase.co`): o host
+> direto só tem IPv6 e os runners do GitHub Actions não têm IPv6 → `Network is unreachable`.
+> Host confirmado deste projeto (us-west-2): `aws-1-us-west-2.pooler.supabase.com`,
+> user `postgres.<ref>`.
 
 ### 3. Secrets do GitHub (para o dump diário)
 Repo → Settings → Secrets and variables → Actions → New repository secret:
@@ -53,7 +57,7 @@ Baixe o `.dump` do R2 e restaure na connection string:
 
 ```bash
 # baixar o backup escolhido
-aws s3 cp "s3://s1ngulr-backups/db/db_AAAAMMDD_HHMMSS_daily.dump" ./restore.dump \
+aws s3 cp "s3://dumps1ngulr/db/db_AAAAMMDD_HHMMSS_daily.dump" ./restore.dump \
   --endpoint-url "https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com"
 
 # restaurar (--clean --if-exists derruba e recria os objetos antes)

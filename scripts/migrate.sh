@@ -18,7 +18,7 @@ echo "═══ 2/2 · aplicar migrations ═══"
 echo "As migrations pendentes serão aplicadas em PRODUÇÃO (Supabase único)."
 read -r -p "Confirmar 'supabase db push'? [y/N] " ok
 case "$ok" in
-  y|Y|s|S) supabase db push ;;
+  y|Y|s|S) supabase db push --db-url "$SUPABASE_DB_URL" ;;
   *) echo "cancelado — nada foi aplicado (o backup já está salvo no R2)." ; exit 0 ;;
 esac
 echo "✅ migrations aplicadas. Backup pré-migration está no R2 se precisar reverter."

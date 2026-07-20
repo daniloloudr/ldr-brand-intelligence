@@ -5,7 +5,7 @@ import logoPositivo from "../assets/logo-positivo-200px.png";
 import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
@@ -1185,8 +1185,20 @@ function CerebrosAdmin({ C }) {
 /* ─── WorkspacesAdmin ────────────────────────────────────────────── */
 const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const WS_PORTES  = ["Startup","PME","Médio","Grande"];
-const WS_PLANOS  = ["trial","starter","pro","enterprise"];
 const PLANO_COR  = { enterprise: DS.green, pro: '#9B6DFF', starter: '#EF9F27', trial: null };
+
+// R$ (string do input) ↔ centavos (int no banco). Aceita "1.500,50", "1500,50" e "1500.50".
+function reaisToCents(v) {
+  if (v == null || v === '') return null;
+  let s = String(v).trim();
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); // pt-BR: '.' milhar, ',' decimal
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+}
+function centsToBRL(c) {
+  if (c == null) return '—';
+  return (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
 function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   const [workspaces, setWorkspaces]       = useState([]);
@@ -1196,7 +1208,10 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   const [creating, setCreating]           = useState(false);
   const [inviting, setInviting]           = useState(false);
   const [error, setError]                 = useState('');
-  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '' });
+  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
+  const [showConfig, setShowConfig]       = useState(null);
+  const [configForm, setConfigForm]       = useState({ creditos_mes: '', valor: '', slug: '' });
+  const [savingConfig, setSavingConfig]   = useState(false);
   const [inviteEmail, setInviteEmail]     = useState('');
   const [showCreateUser, setShowCreateUser] = useState(null);
   const [creatingUser, setCreatingUser]   = useState(false);
@@ -1224,16 +1239,38 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     return session?.access_token;
   }
 
-  async function changePlano(wsId, plano) {
-    // C7: troca o plano E recarrega o pool de créditos (via RPC atômica).
-    const { data, error } = await supabase.rpc('set_workspace_plan', { p_workspace: wsId, p_plano: plano });
-    if (error) {
-      // fallback se a migration 024 ainda não rodou: troca só o plano
-      await supabase.from('workspaces').update({ plano }).eq('id', wsId);
-      setWorkspaces(ws => ws.map(w => w.id === wsId ? { ...w, plano } : w));
-      return;
+  function openConfig(ws) {
+    setShowConfig(ws);
+    setConfigForm({
+      creditos_mes: ws.creditos_mes != null ? String(ws.creditos_mes) : '',
+      valor: ws.valor_mensal_centavos != null ? String(ws.valor_mensal_centavos / 100).replace('.', ',') : '',
+      slug: ws.slug || '',
+    });
+    setError('');
+  }
+
+  async function saveConfig(e) {
+    e.preventDefault();
+    setError('');
+    setSavingConfig(true);
+    const pool  = parseInt(configForm.creditos_mes, 10) || 0;
+    const cents = reaisToCents(configForm.valor);
+    const { data, error } = await supabase.rpc('set_workspace_billing', {
+      p_workspace: showConfig.id, p_creditos_mes: pool, p_valor_centavos: cents,
+    });
+    if (error) { setSavingConfig(false); setError(error.message || 'Erro ao salvar configuração'); return; }
+
+    // slug (subdomínio) — atualiza só se mudou; índice único pode barrar colisão
+    const novoSlug = slugify(configForm.slug);
+    if (novoSlug && novoSlug !== showConfig.slug) {
+      const { error: slugErr } = await supabase.from('workspaces').update({ slug: novoSlug }).eq('id', showConfig.id);
+      if (slugErr) { setSavingConfig(false); setError(`Créditos salvos, mas o slug falhou: ${slugErr.message} (já em uso?)`); return; }
     }
-    setWorkspaces(ws => ws.map(w => w.id === wsId ? { ...w, plano, creditos_saldo: data } : w));
+    setSavingConfig(false);
+    setWorkspaces(list => list.map(w => w.id === showConfig.id
+      ? { ...w, creditos_mes: pool, valor_mensal_centavos: cents, creditos_saldo: data, slug: novoSlug || w.slug }
+      : w));
+    setShowConfig(null);
   }
 
   async function toggleAtivo(ws) {
@@ -1276,13 +1313,18 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     const res = await fetch('/.netlify/functions/admin-create-workspace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        nome: form.nome, dominio: form.dominio, setor: form.setor, porte: form.porte,
+        slug: form.slug,
+        creditos_mes: parseInt(form.creditos_mes, 10) || 0,
+        valor_mensal_centavos: reaisToCents(form.valor),
+      }),
     });
     const json = await res.json();
     setCreating(false);
     if (!res.ok) { setError(json.error || 'Erro ao criar workspace'); return; }
     setShowCreate(false);
-    setForm({ nome: '', dominio: '', setor: '', porte: '' });
+    setForm({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
     fetchWorkspaces();
   }
 
@@ -1352,7 +1394,6 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
         const expanded  = expandedId === ws.id;
         const members   = membersMap[ws.id] || [];
         const loadingM  = loadingMembers[ws.id];
-        const planoCor  = PLANO_COR[ws.plano] || C.textDis;
 
         return (
           <div key={ws.id} style={{
@@ -1377,22 +1418,28 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                   {ws.dominio && `${ws.dominio} · `}{ws.setor && `${ws.setor} · `}
                   criado {new Date(ws.created_at).toLocaleDateString('pt-BR')}
                 </div>
+                {ws.slug && (
+                  <a href={tenantUrl(ws.slug)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: DS.green, fontFamily: F, textDecoration: 'none', marginTop: 3, display: 'inline-block' }}>
+                    {ws.slug}.s1ngulr.com ↗
+                  </a>
+                )}
               </div>
 
-              {/* Plano selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: C.textDis, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: F }}>Plano</span>
-                <select
-                  value={ws.plano || 'trial'}
-                  onChange={e => changePlano(ws.id, e.target.value)}
-                  style={{ ...inpSm, color: planoCor, fontWeight: 700, borderColor: planoCor + '66' }}
-                >
-                  {WS_PLANOS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+              {/* Cobrança do contrato */}
+              <div style={{ textAlign: 'right', minWidth: 120 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: F }}>
+                  {ws.valor_mensal_centavos != null ? centsToBRL(ws.valor_mensal_centavos) : '—'}
+                  <span style={{ fontSize: 10, color: C.textDis, fontWeight: 600 }}> /mês</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, marginTop: 2 }}>
+                  {ws.creditos_mes != null ? `${ws.creditos_mes} cr/mês` : 'sem créditos'}
+                  {ws.creditos_saldo != null && ` · saldo ${ws.creditos_saldo}`}
+                </div>
               </div>
 
               {/* Ações */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button style={btnGhost} onClick={() => openConfig(ws)}>⚙ Configurar</button>
                 <button style={btnGhost} onClick={() => toggleExpanded(ws.id)}>
                   {expanded ? '▲' : '▼'} Membros {expanded && members.length ? `(${members.length})` : ''}
                 </button>
@@ -1474,9 +1521,58 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                 <option value="">Porte</option>
                 {WS_PORTES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Créditos por mês</label>
+                  <input style={inp} type="number" min="0" placeholder="ex: 3000" value={form.creditos_mes} onChange={e => setForm(f => ({ ...f, creditos_mes: e.target.value }))} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Valor mensal (R$)</label>
+                  <input style={inp} placeholder="ex: 5000" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio) — opcional, gera do nome</label>
+                <input style={inp} placeholder="nomedamarca" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} />
+                <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
+                  {(slugify(form.slug || form.nome) || 'nomedamarca')}.s1ngulr.com
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                 <button type="button" style={btnGhost} onClick={() => { setShowCreate(false); setError(''); }}>Cancelar</button>
                 <button type="submit" style={btn()} disabled={creating}>{creating ? 'Criando...' : 'Criar workspace'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal configurar cobrança */}
+      {showConfig && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 6 }}>Configurar · {showConfig.nome}</div>
+            <div style={{ fontSize: 13, color: C.textDis, fontFamily: F, marginBottom: 20 }}>Define os créditos/mês e o valor do contrato. Salvar recompõe o saldo do mês para o novo pool e reinicia o ciclo.</div>
+            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
+            <form onSubmit={saveConfig} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Créditos por mês</label>
+                <input style={inp} type="number" min="0" placeholder="ex: 3000" value={configForm.creditos_mes} onChange={e => setConfigForm(f => ({ ...f, creditos_mes: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Valor mensal (R$)</label>
+                <input style={inp} placeholder="ex: 5000" value={configForm.valor} onChange={e => setConfigForm(f => ({ ...f, valor: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio)</label>
+                <input style={inp} placeholder="nomedamarca" value={configForm.slug} onChange={e => setConfigForm(f => ({ ...f, slug: e.target.value }))} />
+                <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
+                  {(slugify(configForm.slug) || '—')}.s1ngulr.com
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button type="button" style={btnGhost} onClick={() => { setShowConfig(null); setError(''); }}>Cancelar</button>
+                <button type="submit" style={btn()} disabled={savingConfig}>{savingConfig ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </form>
           </div>

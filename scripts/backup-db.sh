@@ -9,7 +9,7 @@
 #   R2_ACCOUNT_ID        conta Cloudflare R2
 #   R2_ACCESS_KEY_ID     access key do R2
 #   R2_SECRET_ACCESS_KEY secret do R2
-#   R2_BACKUP_BUCKET     bucket de backups (ex.: s1ngulr-backups)
+#   R2_BACKUP_BUCKET     bucket de backups (ex.: dumps1ngulr)
 # Opcional:
 #   BACKUP_TAG           rótulo do dump (default: "manual"; cron usa "daily",
 #                        migrate.sh usa "pre-migration")
