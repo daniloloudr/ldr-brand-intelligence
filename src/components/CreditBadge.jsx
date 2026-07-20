@@ -9,10 +9,11 @@ export function CreditBadge() {
   const { workspace } = useWorkspace()
   if (!workspace) return null
   const plano = PLANOS[workspace.plano] || PLANOS.trial
-  const saldo = workspace.creditos_saldo ?? plano.creditos_mes
-  const low = plano.creditos_mes ? saldo / plano.creditos_mes <= 0.15 : false
+  const pool  = workspace.creditos_mes ?? plano.creditos_mes
+  const saldo = workspace.creditos_saldo ?? pool
+  const low   = pool ? saldo / pool <= 0.15 : false
   return (
-    <Tooltip title={`Saldo de créditos — plano ${plano.nome}`}>
+    <Tooltip title="Saldo de créditos do mês">
       <Chip
         size="small"
         label={`${saldo.toLocaleString('pt-BR')} créditos`}

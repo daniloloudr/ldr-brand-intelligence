@@ -23,14 +23,34 @@ export const handler = async (event) => {
   const adminUser = await isPlatformAdmin(supabase, token)
   if (!adminUser) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acesso negado' }) }
 
-  const { nome, dominio, setor, porte } = JSON.parse(event.body || '{}')
+  const { nome, dominio, setor, porte, creditos_mes, valor_mensal_centavos } = JSON.parse(event.body || '{}')
   if (!nome) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nome obrigatório' }) }
+
+  // Sem tiers (decisão 2026-07-20): workspace criado pelo admin nasce full-access
+  // (plano='enterprise' só destrava os gates legados) e com o pool do contrato já
+  // inicializado. Créditos/mês e valor são inseridos na mão.
+  const pool  = Math.max(parseInt(creditos_mes, 10) || 0, 0)
+  const reset = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString()
 
   const { data: ws, error: wsError } = await supabase
     .from('workspaces')
-    .insert({ nome, dominio, setor, porte, plano: 'trial', plano_status: 'active' })
+    .insert({
+      nome, dominio, setor, porte,
+      plano: 'enterprise', plano_status: 'active',
+      creditos_mes: pool || null,
+      valor_mensal_centavos: Number.isFinite(valor_mensal_centavos) ? valor_mensal_centavos : null,
+      creditos_saldo: pool,
+      creditos_ciclo_reset: reset,
+    })
     .select()
     .single()
+
+  if (!wsError && pool > 0) {
+    // registra o grant inicial no ledger (auditoria)
+    await supabase.from('credit_transactions').insert({
+      workspace_id: ws.id, delta: pool, saldo_after: pool, tipo: 'grant', operacao: 'admin',
+    })
+  }
 
   if (wsError) return { statusCode: 400, headers, body: JSON.stringify({ error: wsError.message }) }
 
