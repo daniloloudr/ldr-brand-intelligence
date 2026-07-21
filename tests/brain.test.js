@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { compileBrandContext } from './_brain.js'
+import { compileBrandContext } from '../netlify/functions/_brain.js'
 
 // compileBrandContext é o IP do produto: a porta que injeta a marca em toda
 // geração de IA. Puro (sem I/O), então testável direto. O foco é a guardrail

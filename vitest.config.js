@@ -5,6 +5,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     include: ['**/*.test.js'],
+    // .netlify = artefatos do netlify dev (cópias serve); dist = build. Fora.
+    exclude: ['node_modules', 'dist', '.netlify'],
     environment: 'node',
   },
 })

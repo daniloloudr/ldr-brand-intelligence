@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { creditsForImage, creditsForVideo, creditsForOp } from './_credits.js'
+import { creditsForImage, creditsForVideo, creditsForOp } from '../netlify/functions/_credits.js'
 
 // Regras de crédito = money-critical. Bug aqui = cobrar a mais/menos.
 // Espelha o mapa autoritativo de _credits.js (deve estar SINCRONIZADO com credits.js).
