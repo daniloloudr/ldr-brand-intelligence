@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { DS } from "./lib/constants";
-import { getRoute, navigate } from "./lib/helpers";
+import { getRoute, navigate, getTenantSlug, tenantUrl, ROOT_DOMAIN } from "./lib/helpers";
 import { GlobalStyle } from "./components/GlobalStyle";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitePage } from "./pages/auth/Invite";
@@ -51,6 +51,8 @@ export default function App() {
   const [user, setUser]               = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [impersonating, setImpersonating] = useState(null); // { workspaceId, workspaceName }
+  const [isAdmin, setIsAdmin]   = useState(null);      // null = ainda resolvendo (platform_admins)
+  const [homeSlug, setHomeSlug] = useState(undefined); // slug da marca do NÃO-admin (p/ redirect ao subdomínio); undefined = resolvendo
 
   useEffect(() => {
     const l = document.createElement("link");
@@ -75,6 +77,51 @@ export default function App() {
       document.head.removeChild(l);
     };
   }, []);
+
+  // Resolve o papel do usuário: é platform_admin? (RLS deixa ler o próprio registro)
+  // Se NÃO for admin, guarda o slug da marca dele — no domínio de sistema ele é
+  // mandado pro próprio subdomínio, já que app.s1ngulr.com é exclusivo do admin.
+  useEffect(() => {
+    if (!user?.id) { setIsAdmin(null); setHomeSlug(undefined); return; }
+    let on = true;
+    (async () => {
+      const { data: adm } = await supabase
+        .from('platform_admins').select('user_id').eq('user_id', user.id).maybeSingle();
+      if (!on) return;
+      const admin = !!adm;
+      setIsAdmin(admin);
+      if (admin) { setHomeSlug(null); return; }
+      const { data: m } = await supabase
+        .from('workspace_members').select('workspaces(slug)')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (on) setHomeSlug(m?.workspaces?.slug || null);
+    })();
+    return () => { on = false; };
+  }, [user?.id]);
+
+  // Domínio de sistema (app.s1ngulr.com / localhost): SEM tenant no host. É o
+  // ambiente do admin — nenhum workspace é carregado por associação aqui.
+  const systemDomain = !getTenantSlug();
+  const hostIsProd   = typeof window !== 'undefined' && window.location.hostname.endsWith(ROOT_DOMAIN);
+
+  const doLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setImpersonating(null);
+    navigate('/login');
+  };
+
+  // Para onde vai um usuário logado que caiu numa rota "casa" (login / fallback /
+  // workspace sem impersonação no domínio de sistema).
+  function homeForLoggedIn() {
+    if (!systemDomain) { navigate('/app'); return null; }   // subdomínio da marca: fluxo normal
+    if (isAdmin === null) return <PageFallback />;           // aguarda resolver o papel
+    if (isAdmin) { navigate('/admin'); return null; }        // admin → painel (impersona daqui)
+    // não-admin no domínio de sistema → manda pro subdomínio da própria marca
+    if (homeSlug === undefined) return <PageFallback />;
+    if (homeSlug && hostIsProd) { window.location.replace(`${tenantUrl(homeSlug)}/app`); return <PageFallback />; }
+    return <RestritoSistema onLogout={doLogout} />;          // sem marca / dev: acesso restrito
+  }
 
   // Mostra antes do authLoading — o Supabase limpa o hash de forma assíncrona
   // então precisamos capturar o tipo antes que o hash suma
@@ -105,12 +152,15 @@ export default function App() {
   }
 
   if (route === "login") {
-    if (user) { navigate('/app'); return null; }
+    if (user) return homeForLoggedIn();
     return <LoginPage onLogin={setUser} />;
   }
 
   if (WORKSPACE_ROUTES.includes(route)) {
     if (!user) { navigate('/login'); return null; }
+    // No domínio de sistema, workspace só existe via impersonação do admin —
+    // nunca por associação. Sem impersonar, manda pra casa (admin→/admin).
+    if (systemDomain && !impersonating) return homeForLoggedIn();
     return (
       <AppShell
         user={user}
@@ -128,6 +178,8 @@ export default function App() {
 
   if (ADMIN_ROUTES.includes(route)) {
     if (!user) { navigate('/login'); return null; }
+    if (isAdmin === null) return <PageFallback />;          // aguarda resolver o papel
+    if (!isAdmin) { navigate('/app'); return null; }        // /admin é exclusivo do platform_admin
     return (
       <Suspense fallback={<PageFallback />}>
         <AppInterno
@@ -143,7 +195,24 @@ export default function App() {
     );
   }
 
-  // Fallback: redireciona para login
-  navigate(user ? '/app' : '/login');
+  // Fallback: usuário logado vai pra casa (respeita o domínio de sistema); senão login
+  if (user) return homeForLoggedIn();
+  navigate('/login');
   return null;
+}
+
+// Não-admin que caiu em app.s1ngulr.com sem uma marca pra onde ir. O domínio de
+// sistema é exclusivo do admin; aqui só resta sair e entrar pelo endereço da marca.
+function RestritoSistema({ onLogout }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 32, textAlign: "center" }}>
+      <GlobalStyle />
+      <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: "#171717" }}>Acesso restrito</div>
+      <div style={{ fontSize: 14, color: "#666", maxWidth: 380, lineHeight: 1.5 }}>
+        Este endereço é do painel administrativo. Entre pelo endereço da sua marca
+        (<strong>marca.s1ngulr.com</strong>).
+      </div>
+      <button onClick={onLogout} style={{ marginTop: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, color: "#171717", background: "transparent", border: "1px solid #EAEAEA", borderRadius: 8, cursor: "pointer" }}>Sair</button>
+    </div>
+  );
 }
