@@ -5,7 +5,9 @@
 >
 > **Organização:** por horizonte da visão (H1 provar → H2 rede de cérebros → H3 categoria), construível **aos poucos** — cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v6.0)
-> Atualizado: 2026-07-14
+> Atualizado: 2026-07-21
+
+> **v8.0 (20–21/jul) — GO-LIVE HERING:** entregues → identidade **s1ngulr = Vercel light** (monocromático, fundo branco; reskin só nos tokens + login split); **multitenant por subdomínio LIVE** (`nomedamarca.s1ngulr.com`, s1ngulr.com no Netlify DNS, auto-provisionamento via API); **cobrança por-workspace** (fim dos tiers, migration 045); **URLs limpas** (History API, fim do `/#/`); **onboarding "Preparar ambiente"** (migration 046 + `workspace-onboard.js` — marca do manual PDF + marca nasce junto do workspace); **backup ligado**. Pendências: trial/PicPay, auto-onboarding service-key, follow-ups do reskin (hexes hardcoded). Detalhe no changelog v8.0 do `produto.md`.
 
 ---
 
@@ -210,7 +212,7 @@ Princípio: **o juiz é um módulo só, duas superfícies** — interativo no ch
 | **Gap 4 — Jornada do dia 1** | onboarding guiado: workspace novo → brand book → primeiro valor | 🟡 · dói a partir de ~10 contas |
 | **Gap 6 — Tenant hardening** | backup/versionamento por cérebro, zero vazamento | 🟡 · gatilho: contas crescendo |
 | ~~**Backup do banco**~~ ✅ LIGADO 2026-07-20 | dump diário (GitHub Actions → R2) + dump pré-migration (`scripts/migrate.sh`) + doc de restore ([`backup.md`](backup.md)). PITR adiado (plano Pro). Bucket R2 `dumps1ngulr` + 5 secrets do GitHub OK; **1º dump validado em prod** (2.3M no R2). Host da pooler = `aws-1-us-west-2` (direto é IPv6-only, falha no CI). Regra nova: `db push` só via migrate.sh (backup antes). **Falta só (local, p/ migrate.sh):** `brew install postgresql@17 awscli` | ✅ |
-| **Subdomínio por marca** (nomedamarca.s1ngulr.com) | ⏸️ DECISÃO 2026-07-15 (Danilo): **manter modelo atual** (login + RLS por workspace_id + impersonation admin) e usar internamente. Subdomínio é branding, não isolamento — o RLS já é o perímetro real. Terreno preparado: `workspaces.slug` já existe + backfill (migration 044). Reabrir quando virar experiência de cliente externo — exige wildcard DNS + SSL `*.s1ngulr.com` (custo de infra) + camada de resolução por hostname (fallback pro modelo atual, testável em localhost via ?tenant=) | 🔴 · gatilho: cliente externo / GTM |
+| ~~**Subdomínio por marca**~~ ✅ LIVE 2026-07-21 (reabriu 15/07 c/ o 1º cliente externo) | `nomedamarca.s1ngulr.com` no ar. `s1ngulr.com` (GoDaddy) → **Netlify DNS** (nsone). Resolução por hostname (`getTenantSlug`; RLS por workspace_id = perímetro; sessão isolada por subdomínio; `app.s1ngulr.com` = login/admin; dev via `?tenant=`). **Wildcard não é self-serve no Netlify** (UI+API rejeitam) → **auto-provisionamento** por subdomínio: `admin-create-workspace` adiciona `{slug}.s1ngulr.com` como alias via **API do Netlify** (DNS+cert automáticos; requer `NETLIFY_API_TOKEN`). migration 044 (slug). Escalar sem provisionar 1-a-1 = Netlify DNS wildcard / Cloudflare for SaaS (futuro) | ✅ |
 | **Dataset → export JSONL (groundwork do SLM)** | JSONL por tenant do `brand_dataset` + dedup + filtro de qualidade + enquadramento por tarefa (juiz / copy / território). **Estado 2026-07-20: só 84 exemplos, 1 marca (LOUDR dogfooding); 177 sinais.** NÃO treina nada — prepara o terreno e vira material de captação. Combustível vem do onboarding das 30 marcas | 🟢 groundwork · 🟡 no volume |
 | **Eval set por tarefa (groundwork do SLM)** | conjunto de avaliação fixo por tarefa (juiz on/off-brand, tom, território) pra medir qualquer fine-tune contra a Claude ANTES de trocar. Pré-requisito de qualquer treino sério | 🟢 · junto do export |
 | **Cérebro como serviço próprio** | fila/estado durável fora do teto do Netlify (fronteira pronta no `_brain.js`) | 🔴 · gatilho: volume |

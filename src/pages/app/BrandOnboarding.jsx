@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { navigate } from '../../lib/helpers'
 import {
   Box, Typography, Button, TextField, CircularProgress, Paper, Alert,
@@ -30,6 +30,15 @@ export function BrandOnboarding() {
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
   const [brandId, setBrandId] = useState(null)   // marca criada → abre o import do manual
+
+  // Todo workspace já nasce com marca (auto-criada) — se já existe, não mostra o
+  // wizard: redireciona pra ela. Evita o conflito de cair no "Nova marca" à toa.
+  useEffect(() => {
+    if (!workspace?.id) return
+    supabase.from('brands').select('id').eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: true }).limit(1).maybeSingle()
+      .then(({ data }) => { if (data?.id) navigate(`/app/brands/${data.id}`) })
+  }, [workspace?.id])
 
   async function criar() {
     if (!workspace?.id || !nome.trim() || !slug.trim()) return

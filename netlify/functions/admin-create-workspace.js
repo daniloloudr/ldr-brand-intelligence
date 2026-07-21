@@ -109,8 +109,21 @@ export const handler = async (event) => {
     role: 'admin',
   })
 
+  // A MARCA nasce JUNTO do workspace, compartilhando nome/slug/site — não pede de novo
+  // (decisão 2026-07-21). O brand book começa vazio; a extração do manual PDF enriquece depois.
+  const { data: brand } = await supabase.from('brands')
+    .insert({ workspace_id: ws.id, nome: ws.nome, slug: ws.slug, status: 'draft' })
+    .select('id').single()
+  if (brand?.id) {
+    await supabase.from('brand_books').insert({
+      brand_id: brand.id,
+      identity: { setor: ws.setor || null, site: ws.dominio || null },
+      positioning: {}, design_system: {}, references: {}, verbal_identity: {}, visual_identity: {},
+    })
+  }
+
   // Provisiona o subdomínio (best-effort — não bloqueia se falhar)
   const subdomain = await provisionSubdomain(slug)
 
-  return { statusCode: 200, headers, body: JSON.stringify({ workspace: ws, subdomain }) }
+  return { statusCode: 200, headers, body: JSON.stringify({ workspace: ws, brand: brand || null, subdomain }) }
 }

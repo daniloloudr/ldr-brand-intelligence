@@ -33,6 +33,19 @@ const SENT_CFG = {
   negativo: { color: '#E8185A', Icon: SentimentDissatisfiedIcon },
 }
 
+// Arredonda fatias para INTEIROS que somam exatamente 100% (maior resto).
+// Evita o "95% + 6% = 101%" de arredondar cada uma isolada.
+function round100(vals) {
+  const sum = vals.reduce((a, b) => a + b, 0)
+  if (sum <= 0) return vals.map(() => 0)
+  const norm   = vals.map(v => (v / sum) * 100)
+  const out    = norm.map(Math.floor)
+  const resto  = 100 - out.reduce((a, b) => a + b, 0)
+  const ordem  = norm.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac)
+  for (let k = 0; k < resto && k < ordem.length; k++) out[ordem[k].i] += 1
+  return out
+}
+
 function fmtCurta(iso) {
   // Append T12:00:00 to avoid UTC midnight being shifted to previous day in UTC-3
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
@@ -281,6 +294,8 @@ export function SocialListening() {
   const avgPos = total ? snapshots.reduce((s, x) => s + (x.positivo_pct || 0), 0) / total : 0
   const avgNeu = total ? snapshots.reduce((s, x) => s + (x.neutro_pct   || 0), 0) / total : 0
   const avgNeg = total ? snapshots.reduce((s, x) => s + (x.negativo_pct || 0), 0) / total : 0
+  // fatias exibidas somam exatamente 100%
+  const [posPct, neuPct, negPct] = round100([avgPos, avgNeu, avgNeg])
 
   const chartData = snapshots.map(s => ({
     data:     fmtCurta(s.data),
@@ -416,9 +431,9 @@ export function SocialListening() {
 
           {/* Score cards */}
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
-            <SentimentScore label="Positivo" value={avgPos} color="#0D9E7A" Icon={SentimentSatisfiedAltIcon} />
-            <SentimentScore label="Neutro"   value={avgNeu} color="#EF9F27" Icon={SentimentNeutralIcon}     />
-            <SentimentScore label="Negativo" value={avgNeg} color="#E8185A" Icon={SentimentDissatisfiedIcon} />
+            <SentimentScore label="Positivo" value={posPct} color="#0D9E7A" Icon={SentimentSatisfiedAltIcon} />
+            <SentimentScore label="Neutro"   value={neuPct} color="#EF9F27" Icon={SentimentNeutralIcon}     />
+            <SentimentScore label="Negativo" value={negPct} color="#E8185A" Icon={SentimentDissatisfiedIcon} />
           </Box>
 
           {/* Gráfico de área */}

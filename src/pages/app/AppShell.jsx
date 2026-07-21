@@ -109,13 +109,18 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     return () => window.removeEventListener('popstate', onHash)
   }, [])
 
-  // Um acesso = uma marca → resolve a marca única do workspace para a nav
+  // Um acesso = uma marca → resolve a marca única do workspace para a nav.
+  // brandResolved distingue "ainda carregando" de "sem marca" — sem isso, o menu
+  // mandava pro wizard "Nova marca" durante o carregamento (a marca EXISTE, só não
+  // resolveu ainda).
   const [brandId, setBrandId] = useState(null)
+  const [brandResolved, setBrandResolved] = useState(false)
   useEffect(() => {
     if (!workspace?.id) return
+    setBrandResolved(false)
     supabase.from('brands').select('id').eq('workspace_id', workspace.id)
       .order('created_at', { ascending: true }).limit(1).maybeSingle()
-      .then(({ data }) => setBrandId(data?.id || null))
+      .then(({ data }) => { setBrandId(data?.id || null); setBrandResolved(true) })
   }, [workspace?.id])
 
   if (loading) return (
@@ -174,7 +179,11 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
 
   // Links de seção da marca. Sem marca no workspace → leva a CRIAR a marca
   // (onboarding), em vez de gerar URL quebrada que cai em "Marca não encontrada".
-  const brandLink = (suffix = '') => brandId ? `#/app/brands/${brandId}${suffix}` : '#/app/brands/new'
+  // Enquanto a marca não resolveu, não manda pro wizard (evita o conflito transiente).
+  const brandLink = (suffix = '') =>
+    brandId ? `#/app/brands/${brandId}${suffix}`
+    : !brandResolved ? '#/app'
+    : '#/app/brands/new'
   const section   = getBrandSection()
 
   const nav = [

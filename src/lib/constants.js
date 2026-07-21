@@ -67,13 +67,15 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, sem markdown:
 
 REGRAS: scores 1-3 crítico, 4-6 em desenvolvimento, 7-8 sólido, 9-10 referência. Use apenas dados reais.`;
 
+// Identidade s1ngulr — Vercel light: chrome monocromático (navy/text/border → preto/cinza),
+// cores semânticas (green/pink/amber/purple) preservadas só p/ dados (scores, sentimento, praticas).
 export const DS = {
-  navy:"#0D1B2A", navyMid:"#162840", navyLight:"#1E3550",
+  navy:"#171717", navyMid:"#333333", navyLight:"#525252",
   green:"#0D9E7A", greenDim:"#0B8567", greenPale:"#E1F5EE",
   pink:"#E8185A", pinkPale:"#FBEAF0",
-  white:"#FFFFFF", offwhite:"#F7F9F8",
-  border:"#E2EBE8", gray:"#8A9AB0", grayLight:"#F0F4F3",
-  text:"#0D1B2A", textMid:"#4A5A6A", textLight:"#8A9AB0",
+  white:"#FFFFFF", offwhite:"#FAFAFA",
+  border:"#EAEAEA", gray:"#8A8A8A", grayLight:"#F5F5F5",
+  text:"#171717", textMid:"#666666", textLight:"#999999",
   amber:"#EF9F27", amberPale:"#FEF3C7", purple:"#7F77DD",
 };
 

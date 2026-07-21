@@ -187,7 +187,7 @@ export function AppLayout({
                       letterSpacing: "0.12em", textTransform: "uppercase", color: "text.disabled",
                     }}>{c.label}</Box>
                   ) : (
-                    <Box key={c.hash} component="button" onClick={() => !c.locked && onNavigate(c.hash)} disabled={c.locked}
+                    <Box key={c.label} component="button" onClick={() => !c.locked && onNavigate(c.hash)} disabled={c.locked}
                       sx={{
                         display: "flex", alignItems: "center", gap: 1, width: "100%", pl: 4, pr: 1.5, py: 0.8, mb: 0.1,
                         border: "none", borderLeft: 3, borderLeftColor: c.active ? TEAL : "transparent",
