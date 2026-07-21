@@ -44,7 +44,10 @@ export function navigate(to, { replace = false } = {}) {
   }
   const cur = window.location.pathname + window.location.search;
   if (path !== cur) window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
-  window.dispatchEvent(new Event('popstate'));
+  // ASSÍNCRONO (igual ao hashchange antigo): os redirects de guarda do App.jsx
+  // chamam navigate() DURANTE o render; disparar síncrono faria setState no meio
+  // do render e quebrava o React (tela branca). O tick seguinte re-renderiza.
+  setTimeout(() => window.dispatchEvent(new Event('popstate')), 0);
 }
 
 // caminho atual da rota (sem query) — substitui as leituras de location.hash

@@ -105,8 +105,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
 
   useEffect(() => {
     const onHash = () => { setRoute(getRoute()); setHashTick(t => t + 1) }
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    window.addEventListener('popstate', onHash)
+    return () => window.removeEventListener('popstate', onHash)
   }, [])
 
   // Um acesso = uma marca → resolve a marca única do workspace para a nav
@@ -172,7 +172,9 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     navigate(hash)
   }
 
-  const brandPath = brandId ? `#/app/brands/${brandId}` : '#/app/brands'
+  // Links de seção da marca. Sem marca no workspace → leva a CRIAR a marca
+  // (onboarding), em vez de gerar URL quebrada que cai em "Marca não encontrada".
+  const brandLink = (suffix = '') => brandId ? `#/app/brands/${brandId}${suffix}` : '#/app/brands/new'
   const section   = getBrandSection()
 
   const nav = [
@@ -181,13 +183,13 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     { type: 'item', label: t('nav.home'), icon: IcoHome, hash: '#/app', active: route === 'app-home' },
     { type: 'group', label: t('nav.strategy'), icon: IcoBrand, active: route === 'brands-detail', children: [
       { type: 'sub', label: t('nav.sub.culture') },
-      { label: t('nav.strategy.essencia'),      hash: `${brandPath}/essencia`,      active: route === 'brands-detail' && section === 'essencia' },
+      { label: t('nav.strategy.essencia'),      hash: brandLink('/essencia'),      active: route === 'brands-detail' && section === 'essencia' },
       { type: 'sub', label: t('nav.sub.business') },
-      { label: t('nav.strategy.negocio'),       hash: `${brandPath}/negocio`,       active: route === 'brands-detail' && section === 'negocio' },
-      { label: t('nav.strategy.experiencia'),   hash: `${brandPath}/experiencia`,   active: route === 'brands-detail' && section === 'experiencia' },
+      { label: t('nav.strategy.negocio'),       hash: brandLink('/negocio'),       active: route === 'brands-detail' && section === 'negocio' },
+      { label: t('nav.strategy.experiencia'),   hash: brandLink('/experiencia'),   active: route === 'brands-detail' && section === 'experiencia' },
       { type: 'sub', label: t('nav.sub.communication') },
-      { label: t('nav.strategy.personalidade'), hash: `${brandPath}/personalidade`, active: route === 'brands-detail' && section === 'personalidade' },
-      { label: t('nav.strategy.expression'),    hash: `${brandPath}/expression`,    active: route === 'brands-detail' && section === 'expression' },
+      { label: t('nav.strategy.personalidade'), hash: brandLink('/personalidade'), active: route === 'brands-detail' && section === 'personalidade' },
+      { label: t('nav.strategy.expression'),    hash: brandLink('/expression'),    active: route === 'brands-detail' && section === 'expression' },
     ] },
     { type: 'group', label: t('nav.intelligence'), icon: IcoDiag, children: [
       { label: t('nav.intelligence.market'),    hash: '#/app/market-intel', active: route === 'market-intel' },
@@ -203,16 +205,16 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [
       // Ativos saiu do menu (2026-07-14): a casa é a Biblioteca > Referências da
       // marca; a rota /studio/assets segue viva p/ links antigos
-      { label: t('nav.studio.image'),    hash: `${brandPath}/studio`,          active: route === 'brands-studio' },
-      { label: t('nav.studio.video'),    hash: `${brandPath}/studio/video`,    active: route === 'brands-studio-video' },
-      { label: t('nav.studio.writing'),  hash: `${brandPath}/studio/writing`,  active: route === 'brands-studio-writing' },
-      { label: t('nav.studio.workflow'), hash: `${brandPath}/studio/workflow`, active: route === 'brands-studio-workflow' },
-      { label: t('nav.studio.campaigns'), hash: `${brandPath}/studio/campanhas`, active: route === 'brands-studio-campaigns' },
-      { label: t('nav.studio.library'),  hash: `${brandPath}/studio/biblioteca`, active: route === 'brands-studio-biblioteca' },
+      { label: t('nav.studio.image'),    hash: brandLink('/studio'),          active: route === 'brands-studio' },
+      { label: t('nav.studio.video'),    hash: brandLink('/studio/video'),    active: route === 'brands-studio-video' },
+      { label: t('nav.studio.writing'),  hash: brandLink('/studio/writing'),  active: route === 'brands-studio-writing' },
+      { label: t('nav.studio.workflow'), hash: brandLink('/studio/workflow'), active: route === 'brands-studio-workflow' },
+      { label: t('nav.studio.campaigns'), hash: brandLink('/studio/campanhas'), active: route === 'brands-studio-campaigns' },
+      { label: t('nav.studio.library'),  hash: brandLink('/studio/biblioteca'), active: route === 'brands-studio-biblioteca' },
     ] },
     // Copilot enxuto (decisão 2026-07-10): só o Chat — modos viraram sugestões
     // na lateral do chat; Agents & Automações entram quando existirem de verdade.
-    { type: 'item', label: t('nav.copilot'), icon: IcoAssist, hash: `${brandPath}/assistant`, active: route === 'brands-assistant' },
+    { type: 'item', label: t('nav.copilot'), icon: IcoAssist, hash: brandLink('/assistant'), active: route === 'brands-assistant' },
   ]
 
   function renderPage() {
