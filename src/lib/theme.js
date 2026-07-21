@@ -223,19 +223,21 @@ export const theme = createTheme({
 })
 
 /* ── Light theme (RelatorioPublico) ─────────────────────────── */
+// Identidade s1ngulr — estilo Vercel light (monocromático): chrome preto/branco/cinza,
+// as cores semânticas (verde/rosa/âmbar) seguem só nos dados (scores, sentimento, charts).
 const L = {
-  bg:      '#F5F7F6',
+  bg:      '#FFFFFF',
   paper:   '#FFFFFF',
-  border:  '#E2EBE8',
-  hover:   '#F0F4F3',
-  textPri: '#0D1B2A',
-  textSec: '#4A5A6A',
-  textDis: '#8A9AB0',
+  border:  '#EAEAEA',
+  hover:   '#F5F5F5',
+  textPri: '#171717',
+  textSec: '#666666',
+  textDis: '#999999',
 }
 export const themeLight = createTheme({
   palette: {
     mode: 'light',
-    primary:    { main: C.teal,  dark: C.tealDim,  light: C.tealPale,  contrastText: '#fff' },
+    primary:    { main: '#000000', dark: '#383838', light: '#F5F5F5', contrastText: '#fff' },
     secondary:  { main: C.pink,  dark: C.pinkDim,  light: C.pinkPale,  contrastText: '#fff' },
     warning:    { main: C.amber, light: C.amberPale },
     background: { default: L.bg, paper: L.paper },
@@ -268,9 +270,9 @@ export const themeLight = createTheme({
         sizeLarge:  { padding: '12px 28px', fontSize: '0.75rem' },
         sizeMedium: { padding: '9px 20px' },
         sizeSmall:  { padding: '6px 14px', fontSize: '0.625rem' },
-        containedPrimary: { '&:hover': { background: C.tealDim } },
+        containedPrimary: { '&:hover': { background: '#383838' } },
         containedSecondary: { '&:hover': { background: C.pinkDim } },
-        outlinedPrimary:   { borderColor: C.teal, '&:hover': { background: alpha(C.teal, 0.06) } },
+        outlinedPrimary:   { borderColor: '#171717', '&:hover': { background: alpha('#171717', 0.05) } },
         outlinedSecondary: { borderColor: C.pink, '&:hover': { background: alpha(C.pink, 0.06) } },
         text: { '&:hover': { background: alpha(L.textPri, 0.04) } },
       },
@@ -302,9 +304,9 @@ export const themeLight = createTheme({
             background: L.bg,
             '& fieldset': { borderColor: L.border },
             '&:hover fieldset': { borderColor: L.textDis },
-            '&.Mui-focused fieldset': { borderColor: C.teal },
+            '&.Mui-focused fieldset': { borderColor: '#171717' },
           },
-          '& .MuiInputLabel-root': { fontFamily: "'Cairo', sans-serif", color: L.textSec, '&.Mui-focused': { color: C.teal } },
+          '& .MuiInputLabel-root': { fontFamily: "'Cairo', sans-serif", color: L.textSec, '&.Mui-focused': { color: '#171717' } },
           '& .MuiInputBase-input': { color: L.textPri },
         },
       },
