@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { navigate } from '../../lib/helpers'
+import { navigate, slugify } from '../../lib/helpers'
 import {
   Box, Typography, Button, TextField, CircularProgress, Paper, Alert,
 } from '@mui/material'
@@ -9,15 +9,6 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { BrandManualImport } from './BrandManualImport'
-
-function slugify(str) {
-  return (str || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
 
 // Criação de marca (decisão 2026-07-20): a parte MANUAL é só a identidade básica
 // (nome + slug). Todo o resto — missão, valores, personalidade, design system —

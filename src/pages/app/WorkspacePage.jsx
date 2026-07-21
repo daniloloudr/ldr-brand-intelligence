@@ -19,7 +19,6 @@ import {
   creditsForImage, creditsForVideo, creditsForOp,
 } from '../../lib/credits'
 import { durLabel } from '../../lib/videoModels'
-import { redirectToCheckout } from '../../lib/stripe'
 import { PageHeader }     from '../../components/shell/PageHeader'
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"]
@@ -283,7 +282,6 @@ const OP_LABEL = { image: 'Imagem', video: 'Vídeo', content: 'Conteúdo', campa
 const TIPO_LABEL = { refill: 'Recarga', refund: 'Estorno', grant: 'Bônus' }
 
 function TabPlano({ workspace }) {
-  const [loadingUpgrade, setLoadingUpgrade] = useState(null)
   const [saldo, setSaldo]     = useState(null)   // null = ainda não inicializado (pool cheio)
   const [reset, setReset]     = useState(null)
   const [txs, setTxs]         = useState(null)
@@ -306,14 +304,6 @@ function TabPlano({ workspace }) {
     return () => { on = false }
   }, [workspace.id])
 
-  async function upgrade(plano) {
-    setLoadingUpgrade(plano)
-    try { await redirectToCheckout(workspace.id, plano) }
-    catch { setLoadingUpgrade(null) }
-  }
-
-  const COMPARE = ['starter', 'pro', 'enterprise']
-  const fmt = n => `R$${n.toLocaleString('pt-BR')}`
 
   // Saldo do ciclo (null = pool cheio, ainda não consumido)
   const cMes       = workspace.creditos_mes ?? planoAtual.creditos_mes

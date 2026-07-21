@@ -222,10 +222,6 @@ export function LoginPage({ onLogin }) {
             </button>
           </form>
 
-          <div className="sp-alt">
-            Não tem conta?
-            <button onClick={() => navigate("/register")}>Criar conta</button>
-          </div>
         </div>
       </div>
     </div>
