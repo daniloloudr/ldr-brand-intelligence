@@ -30,72 +30,91 @@ export function slugify(nome) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+// ─── Navegação (History API — URLs limpas, sem #) ────────────────────
+// Router manual (sem React Router). navigate() aceita "/app/x" E o legado
+// "#/app/x" (tira o #), então call-sites que passam o hash antigo seguem
+// funcionando. Preserva ?tenant= (simulação de subdomínio em dev).
+export function navigate(to, { replace = false } = {}) {
+  let path = String(to ?? '/');
+  if (path.startsWith('#')) path = path.slice(1);       // legado #/x → /x
+  if (!path.startsWith('/')) path = '/' + path;
+  if (!path.includes('?')) {
+    const t = new URLSearchParams(window.location.search).get('tenant');
+    if (t) path += `?tenant=${encodeURIComponent(t)}`;
+  }
+  const cur = window.location.pathname + window.location.search;
+  if (path !== cur) window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
+  // ASSÍNCRONO (igual ao hashchange antigo): os redirects de guarda do App.jsx
+  // chamam navigate() DURANTE o render; disparar síncrono faria setState no meio
+  // do render e quebrava o React (tela branca). O tick seguinte re-renderiza.
+  setTimeout(() => window.dispatchEvent(new Event('popstate')), 0);
+}
+
+// caminho atual da rota (sem query) — substitui as leituras de location.hash
+export const currentPath = () => window.location.pathname || '/';
+
 export function getRoute() {
-  const h = window.location.hash;
-  if (!h || h === '#/')              return 'login';
-  if (h === '#/metodologia')         return 'metodologia';
-  if (h.startsWith('#/relatorio/'))  return 'relatorio-publico';
-  if (h === '#/login')               return 'login';
-  if (h === '#/app')                 return 'app-home';
-  if (h === '#/app/posicionamento')  return 'posicionamento';
+  const p = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+  if (p === '/')                     return 'login';
+  if (p === '/metodologia')          return 'metodologia';
+  if (p.startsWith('/relatorio/'))   return 'relatorio-publico';
+  if (p === '/login')                return 'login';
+  if (p === '/app')                  return 'app-home';
+  if (p === '/app/posicionamento')   return 'posicionamento';
   // legacy redirects mantidos temporariamente
-  if (h === '#/app/diagnostico')     return 'posicionamento';
-  if (h === '#/app/evolucao')        return 'posicionamento';
-  if (h === '#/app/concorrentes')    return 'posicionamento';
-  if (h === '#/app/listening')       return 'listening';
-  if (h === '#/app/content-hub')     return 'content-hub';
-  if (h === '#/app/market-intel')    return 'market-intel';
-  if (h === '#/app/insights')        return 'insights';
-  if (h === '#/app/competitors')     return 'competitors';
-  if (h === '#/app/trends')          return 'trends';
-  if (h === '#/app/reports')         return 'reports';
-  if (h === '#/app/workspace')       return 'workspace';
-  if (h === '#/app/conta')           return 'conta';
-  if (h === '#/app/time')            return 'time';
-  if (h === '#/app/plano')           return 'plano';
-  if (h === '#/app/alertas')         return 'alertas';
-  if (h === '#/app/ia-loudr')        return 'ia-loudr';
-  if (h === '#/app/brands')                                        return 'brands-list';
-  if (h === '#/app/brands/new')                                    return 'brands-new';
-  if (h.match(/^#\/app\/brands\/[^/]+\/assistant/))               return 'brands-assistant';
-  if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/new/))          return 'brands-campaign-new';
-  if (h.match(/^#\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
-  if (h.match(/^#\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/campanhas/))       return 'brands-studio-campaigns';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow/))        return 'brands-studio-workflow';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/writing/))         return 'brands-studio-writing';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/biblioteca/))      return 'brands-studio-biblioteca';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/assets/))          return 'brands-studio-assets';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio\/approvals/))       return 'brands-studio-approvals';
-  if (h.match(/^#\/app\/brands\/[^/]+\/studio/))                  return 'brands-studio';
-  if (h.startsWith('#/app/brands/'))                               return 'brands-detail';
-  if (h === '#/admin')               return 'admin';
-  if (h === '#/admin/historico')     return 'admin-historico';
+  if (p === '/app/diagnostico')      return 'posicionamento';
+  if (p === '/app/evolucao')         return 'posicionamento';
+  if (p === '/app/concorrentes')     return 'posicionamento';
+  if (p === '/app/listening')        return 'listening';
+  if (p === '/app/content-hub')      return 'content-hub';
+  if (p === '/app/market-intel')     return 'market-intel';
+  if (p === '/app/insights')         return 'insights';
+  if (p === '/app/competitors')      return 'competitors';
+  if (p === '/app/trends')           return 'trends';
+  if (p === '/app/reports')          return 'reports';
+  if (p === '/app/workspace')        return 'workspace';
+  if (p === '/app/conta')            return 'conta';
+  if (p === '/app/time')             return 'time';
+  if (p === '/app/plano')            return 'plano';
+  if (p === '/app/alertas')          return 'alertas';
+  if (p === '/app/ia-loudr')         return 'ia-loudr';
+  if (p === '/app/brands')                                        return 'brands-list';
+  if (p === '/app/brands/new')                                    return 'brands-new';
+  if (p.match(/^\/app\/brands\/[^/]+\/assistant/))               return 'brands-assistant';
+  if (p.match(/^\/app\/brands\/[^/]+\/campaigns\/new/))          return 'brands-campaign-new';
+  if (p.match(/^\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
+  if (p.match(/^\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/campanhas/))       return 'brands-studio-campaigns';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/workflow/))        return 'brands-studio-workflow';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/writing/))         return 'brands-studio-writing';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/biblioteca/))      return 'brands-studio-biblioteca';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/assets/))          return 'brands-studio-assets';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/approvals/))       return 'brands-studio-approvals';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio/))                  return 'brands-studio';
+  if (p.startsWith('/app/brands/'))                               return 'brands-detail';
+  if (p === '/admin')                return 'admin';
+  if (p === '/admin/historico')      return 'admin-historico';
   return 'public';
 }
 
 export function getBrandId() {
-  const h = window.location.hash;
-  const m = h.match(/^#\/app\/brands\/([^/]+)/)
+  const m = (window.location.pathname || '').match(/^\/app\/brands\/([^/]+)/)
   return m ? m[1] : null
 }
 
 export function getCampaignId() {
-  const h = window.location.hash;
-  const m = h.match(/^#\/app\/brands\/[^/]+\/campaigns\/([^/]+)/)
+  const m = (window.location.pathname || '').match(/^\/app\/brands\/[^/]+\/campaigns\/([^/]+)/)
   return m ? m[1] : null
 }
 
 export function getBrandSection() {
-  const h = window.location.hash;
-  const m = h.match(/^#\/app\/brands\/[^/]+\/([^/]+)/)
+  const m = (window.location.pathname || '').match(/^\/app\/brands\/[^/]+\/([^/]+)/)
   return m ? m[1] : null
 }
 
 export function getWorkflowId() {
-  const h = window.location.hash;
-  const m = h.match(/^#\/app\/brands\/[^/]+\/studio\/workflow\/([^/]+)/)
+  const m = (window.location.pathname || '').match(/^\/app\/brands\/[^/]+\/studio\/workflow\/([^/]+)/)
   return m ? m[1] : null
 }
 

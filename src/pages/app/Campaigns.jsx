@@ -6,7 +6,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import CampaignIcon from '@mui/icons-material/Campaign'
 import { supabase } from '../../lib/supabase'
-import { fmtDate } from '../../lib/helpers'
+import { fmtDate, navigate, currentPath } from '../../lib/helpers'
 import { PageHeader } from '../../components/shell/PageHeader'
 
 function verdictColor(status, verdict) {
@@ -81,7 +81,7 @@ export function Campaigns({ brandId }) {
         action={
           <Button
             variant="contained" color="primary" startIcon={<AddIcon />}
-            onClick={() => { window.location.hash = `${window.location.hash.split('/campaigns')[0]}/campaigns/new` }}
+            onClick={() => { navigate(`${currentPath().split('/campaigns')[0]}/campaigns/new`) }}
             sx={{ fontWeight: 800 }}
           >Nova campanha</Button>
         }
@@ -102,7 +102,7 @@ export function Campaigns({ brandId }) {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => { window.location.hash = `${window.location.hash.split('/campaigns')[0]}/campaigns/new` }}
+            onClick={() => { navigate(`${currentPath().split('/campaigns')[0]}/campaigns/new`) }}
           >
             Submeter primeira campanha
           </Button>
@@ -114,8 +114,8 @@ export function Campaigns({ brandId }) {
               key={c.id}
               campaign={c}
               onClick={() => {
-                const base = window.location.hash.split('/campaigns')[0]
-                window.location.hash = `${base}/campaigns/${c.id}`
+                const base = currentPath().split('/campaigns')[0]
+                navigate(`${base}/campaigns/${c.id}`)
               }}
             />
           ))}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   ReactFlow, Background, Controls, MiniMap, NodeToolbar, NodeResizer,
   addEdge, applyNodeChanges, applyEdgeChanges, Handle, Position,
@@ -380,7 +381,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     else      res = await supabase.from('studio_workflows').insert(payload).select().single()
     setSaving(false)
     if (res.error) { setMsg('Erro ao salvar: ' + res.error.message); return }
-    if (!wfId) { setWfId(res.data.id); window.location.hash = `#/app/brands/${brandId}/studio/workflow/${res.data.id}` }
+    if (!wfId) { setWfId(res.data.id); navigate(`#/app/brands/${brandId}/studio/workflow/${res.data.id}`) }
     setDirty(false)
     setMsg('Salvo ✓')
   }

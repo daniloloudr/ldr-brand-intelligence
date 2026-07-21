@@ -1,4 +1,5 @@
 import logoNegativa from '../assets/negativa.svg'
+import { navigate } from '../lib/helpers';
 
 const F = "'Cairo', sans-serif"
 
@@ -26,7 +27,7 @@ export function PublicFooter() {
         © 2026 LOUDR — Todos os direitos reservados
       </span>
       <button
-        onClick={() => { window.location.hash = '#/login' }}
+        onClick={() => { navigate('#/login') }}
         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A8899', fontFamily: F }}
         onMouseEnter={e => { e.currentTarget.style.color = '#E8185A' }}
         onMouseLeave={e => { e.currentTarget.style.color = '#7A8899' }}

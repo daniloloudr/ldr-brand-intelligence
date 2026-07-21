@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { navigate, currentPath } from '../lib/helpers';
 import { ThemeProvider }      from '@mui/material/styles'
 import Box                    from '@mui/material/Box'
 import Typography             from '@mui/material/Typography'
@@ -30,7 +31,7 @@ function scoreLabel(s) {
 
 
 export function RelatorioPublico() {
-  const id = window.location.hash.replace(/^#\/relatorio\//, '')
+  const id = currentPath().replace(/^\/relatorio\//, '')
   const [diag, setDiag]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
@@ -107,7 +108,7 @@ export function RelatorioPublico() {
               letterSpacing: '0.14em', textTransform: 'uppercase',
               color: '#7A8899', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
             }}
-            onClick={() => { window.location.hash = '#/register' }}
+            onClick={() => { navigate('#/register') }}
           >
             Criar conta →
           </button>

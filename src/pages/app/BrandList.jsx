@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { navigate } from '../../lib/helpers';
 import { Box, CircularProgress } from '@mui/material'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
@@ -22,9 +23,9 @@ export function BrandList() {
         .maybeSingle()
       if (cancelled) return
       if (data?.id) {
-        window.location.hash = `#/app/brands/${data.id}`
+        navigate(`#/app/brands/${data.id}`)
       } else {
-        window.location.hash = '#/app/brands/new'
+        navigate('#/app/brands/new')
       }
       setResolving(false)
     })()

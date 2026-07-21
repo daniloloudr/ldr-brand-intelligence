@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { navigate } from '../../lib/helpers';
 import { Box, Button, TextField, Typography, CircularProgress, Alert } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { theme } from '../../lib/theme'
@@ -52,7 +53,7 @@ export function InvitePage({ onDone }) {
       }
 
       onDone?.()
-      window.location.hash = '#/app'
+      navigate('#/app')
     } catch (err) {
       setError(err.message || 'Erro ao definir senha.')
     } finally {

@@ -11,7 +11,7 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
-import { fmtDate } from '../../lib/helpers'
+import { fmtDate, navigate } from '../../lib/helpers'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -860,7 +860,7 @@ export function BrandAssistant({ brandId }) {
         title={`${brand?.nome || ''} — Copiloto`}
         subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
         action={
-          <Button onClick={() => { window.location.hash = `#/app/brands/${brand?.id}` }} sx={{ color: 'text.secondary', fontWeight: 700 }}>
+          <Button onClick={() => { navigate(`#/app/brands/${brand?.id}`) }} sx={{ color: 'text.secondary', fontWeight: 700 }}>
             ← Voltar ao Brand Book
           </Button>
         }

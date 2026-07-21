@@ -5,7 +5,7 @@ import logoPositivo from "../assets/logo-positivo-200px.png";
 import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { GlobalStyle } from "../components/GlobalStyle";
 import { Pill } from "../components/Pill";
@@ -1187,6 +1187,17 @@ const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fas
 const WS_PORTES  = ["Startup","PME","Médio","Grande"];
 const PLANO_COR  = { enterprise: DS.green, pro: '#9B6DFF', starter: '#EF9F27', trial: null };
 
+// Etapas do "Preparar ambiente" (onboarding completo) — ordem = pipeline do backend
+const ONB_STEPS = [
+  ['brand',        'Marca · extração do manual (PDF)'],
+  ['diagnostico',  'Diagnóstico inicial'],
+  ['concorrentes', 'Concorrentes'],
+  ['mineracao',    'Mineração · clipping, concorrentes, tendências, escuta'],
+  ['sinteses',     'Sínteses · mercado + insights'],
+  ['destilacao',   'Destilação · cérebro'],
+];
+const onbComplete = (o) => o?.steps && ONB_STEPS.every(([k]) => o.steps[k] === 'done');
+
 // R$ (string do input) ↔ centavos (int no banco). Aceita "1.500,50", "1500,50" e "1500.50".
 function reaisToCents(v) {
   if (v == null || v === '') return null;
@@ -1220,12 +1231,31 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   const [expandedId, setExpandedId]       = useState(null);
   const [membersMap, setMembersMap]       = useState({});
   const [loadingMembers, setLoadingMembers] = useState({});
+  const [onbId, setOnbId]                 = useState(null);   // workspace com painel de preparação aberto
+  const [onb, setOnb]                     = useState(null);   // estado do onboarding em andamento
+  const [onbBusy, setOnbBusy]             = useState(false);
+  const [onbManualPath, setOnbManualPath] = useState(null);  // PDF do manual subido (marca nasce dele)
+  const [onbManualName, setOnbManualName] = useState('');    // nome do arquivo (feedback)
+  const [onbUploading, setOnbUploading]   = useState(false);
 
   useEffect(() => { fetchWorkspaces(); }, []);
 
   useEffect(() => {
     if (createSignal > 0) { setShowCreate(true); setError(''); }
   }, [createSignal]);
+
+  // Polling do onboarding: enquanto o painel está aberto e não terminou, chama tick
+  useEffect(() => {
+    if (!onbId || !onb || onbComplete(onb)) return;
+    const t = setInterval(async () => {
+      try {
+        const j = await onboardCall(onbId, 'tick');
+        setOnb(j.onboarding || null);
+        if (j.onboarding) setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: j.onboarding } : w));
+      } catch { /* silencioso — tenta de novo no próximo tick */ }
+    }, 6000);
+    return () => clearInterval(t);
+  }, [onbId, onb]);
 
   async function fetchWorkspaces() {
     setLoading(true);
@@ -1237,6 +1267,55 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
   async function getToken() {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
+  }
+
+  async function onboardCall(wsId, action, extra = {}) {
+    const token = await getToken();
+    const res = await fetch('/.netlify/functions/workspace-onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, workspace_id: wsId, ...extra }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'Erro no onboarding');
+    return j;
+  }
+
+  function openOnb(ws) {
+    setError('');
+    setOnbManualPath(null); setOnbManualName('');
+    setOnbId(prev => prev === ws.id ? null : ws.id);
+    setOnb(ws.onboarding || null);
+  }
+
+  async function uploadManual(ws, e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { setError('Selecione um PDF.'); return; }
+    if (file.size > 52_428_800) { setError('PDF muito grande (máx 50MB).'); return; }
+    setOnbUploading(true); setError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const path = `${session.user.id}/onboarding/${ws.id}/${Date.now()}.pdf`;
+      const { error: upErr } = await supabase.storage.from('brand-manuals')
+        .upload(path, file, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw new Error(upErr.message);
+      setOnbManualPath(path); setOnbManualName(file.name);
+    } catch (err) { setError(`Upload falhou: ${err.message}`); }
+    setOnbUploading(false);
+  }
+
+  async function startOnboard(ws) {
+    if (!onbManualPath && !window.confirm(`Preparar o ambiente SEM manual da marca?\n\nSem o PDF, a marca fica só com o nome/slug e o resto NÃO é extraído. Recomendado: subir o manual primeiro.`)) return;
+    if (!window.confirm(`Preparar o ambiente completo de "${ws.nome}"?\n\nCria a marca (do manual, se subido) + diagnóstico + mineração + destilação. Leva ~15-30 min (roda em background). Você acompanha o progresso aqui.`)) return;
+    setOnbBusy(true); setError('');
+    try {
+      const j = await onboardCall(ws.id, 'start', { manual_path: onbManualPath });
+      setOnbId(ws.id);
+      setOnb(j.onboarding);
+      setWorkspaces(list => list.map(w => w.id === ws.id ? { ...w, onboarding: j.onboarding } : w));
+    } catch (e) { setError(e.message); }
+    setOnbBusy(false);
   }
 
   function openConfig(ws) {
@@ -1444,6 +1523,12 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
               {/* Ações */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button style={btnGhost} onClick={() => openConfig(ws)}>⚙ Configurar</button>
+                <button
+                  style={{ ...btnGhost, ...(onbComplete(ws.onboarding) ? { color: DS.green, borderColor: DS.green + '55' } : ws.onboarding ? { color: DS.amber, borderColor: DS.amber + '55' } : {}) }}
+                  onClick={() => openOnb(ws)}
+                >
+                  {onbComplete(ws.onboarding) ? '✅ Ambiente pronto' : ws.onboarding ? '⏳ Preparação' : '🚀 Preparar ambiente'}
+                </button>
                 <button style={btnGhost} onClick={() => toggleExpanded(ws.id)}>
                   {expanded ? '▲' : '▼'} Membros {expanded && members.length ? `(${members.length})` : ''}
                 </button>
@@ -1464,6 +1549,51 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                 </button>
               </div>
             </div>
+
+            {/* ── Painel de preparação de ambiente (onboarding) ── */}
+            {onbId === ws.id && (
+              <div style={{ borderTop: `1px solid ${C.border}`, background: isDark ? '#0A1525' : '#F7F9FB', padding: '14px 20px' }}>
+                {!ws.onboarding && !onb ? (
+                  <div>
+                    <div style={{ fontSize: 12, color: C.textDis, fontFamily: F, marginBottom: 10, lineHeight: 1.6 }}>
+                      A marca nasce do <strong style={{ color: C.text }}>manual (PDF)</strong> — a IA extrai identidade, posicionamento e design. Depois roda diagnóstico → mineração → destilação. O cliente entra num ambiente já populado.
+                    </div>
+                    <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <label style={{ ...btnGhost, display: 'inline-block', cursor: onbUploading ? 'wait' : 'pointer' }}>
+                        {onbUploading ? 'Subindo…' : onbManualName ? `📎 ${onbManualName}` : '📎 Subir manual (PDF)'}
+                        <input type="file" accept="application/pdf" style={{ display: 'none' }} disabled={onbUploading}
+                          onChange={e => uploadManual(ws, e)} />
+                      </label>
+                      {onbManualPath && <span style={{ fontSize: 11, color: DS.green, fontFamily: F, fontWeight: 700 }}>✓ pronto</span>}
+                    </div>
+                    <button style={btn()} disabled={onbBusy || onbUploading} onClick={() => startOnboard(ws)}>
+                      {onbBusy ? 'Iniciando…' : '🚀 Preparar ambiente completo'}
+                    </button>
+                  </div>
+                ) : (() => {
+                  const state = onb || ws.onboarding;
+                  const done  = onbComplete(state);
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {ONB_STEPS.map(([k, label]) => {
+                        const st  = state?.steps?.[k] || 'pending';
+                        const ic  = st === 'done' ? '✅' : st === 'running' ? '⏳' : '◻️';
+                        const cor = st === 'done' ? DS.green : st === 'running' ? DS.amber : C.textDis;
+                        return (
+                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontFamily: F, color: C.text }}>
+                            <span>{ic}</span><span style={{ flex: 1 }}>{label}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: cor, textTransform: 'uppercase' }}>{st}</span>
+                          </div>
+                        );
+                      })}
+                      <div style={{ marginTop: 8, fontSize: 12, fontFamily: F, color: done ? DS.green : C.textDis, fontWeight: done ? 700 : 400 }}>
+                        {done ? '✅ Ambiente pronto — pode liberar o acesso ao cliente.' : '⏳ Rodando… atualiza sozinho. A mineração leva ~15-30 min.'}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* ── Painel de membros ── */}
             {expanded && (

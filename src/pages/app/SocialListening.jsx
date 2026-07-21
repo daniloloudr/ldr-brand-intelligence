@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
-import { fmtDate } from '../../lib/helpers'
+import { fmtDate, navigate } from '../../lib/helpers'
 import { PLANOS } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
 
@@ -320,7 +320,7 @@ export function SocialListening() {
         subtitle="A coleta: o que estão dizendo da sua marca, menção por menção. A leitura do que isso significa mora nos Insights do Consumidor."
         action={
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Button variant="text" onClick={() => { window.location.hash = '#/app/insights' }} sx={{ fontWeight: 700 }}>
+            <Button variant="text" onClick={() => { navigate('#/app/insights') }} sx={{ fontWeight: 700 }}>
               Ler os insights →
             </Button>
             <Button

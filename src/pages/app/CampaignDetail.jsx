@@ -7,7 +7,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
 import { supabase } from '../../lib/supabase'
-import { fmtDate } from '../../lib/helpers'
+import { fmtDate, navigate, currentPath } from '../../lib/helpers'
 import { PageHeader } from '../../components/shell/PageHeader'
 
 const DIMENSOES = [
@@ -71,8 +71,7 @@ export function CampaignDetail({ brandId, campaignId }) {
   }
 
   function goBack() {
-    const h = window.location.hash
-    window.location.hash = h.replace(`/${campaignId}`, '')
+    navigate(currentPath().replace(`/${campaignId}`, ''))
   }
 
   if (loading) {

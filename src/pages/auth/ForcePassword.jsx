@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { navigate } from '../../lib/helpers';
 import { Box, Button, TextField, Typography, CircularProgress, Alert } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { theme } from '../../lib/theme'
@@ -25,7 +26,7 @@ export function ForcePasswordPage({ onDone, onLogout }) {
       })
       if (updateError) throw updateError
       onDone?.(user)
-      window.location.hash = '#/app'
+      navigate('#/app')
     } catch (err) {
       setError(err.message || 'Erro ao definir a senha.')
     } finally {

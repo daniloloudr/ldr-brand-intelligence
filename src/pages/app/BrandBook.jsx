@@ -87,8 +87,8 @@ export function BrandBook({ brandId }) {
   // Reage à navegação da sidebar global (mesma rota, hash muda)
   useEffect(() => {
     const onHash = () => setActiveSection(mapLegacySection(getBrandSection()))
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    window.addEventListener('popstate', onHash)
+    return () => window.removeEventListener('popstate', onHash)
   }, [])
 
   useEffect(() => {

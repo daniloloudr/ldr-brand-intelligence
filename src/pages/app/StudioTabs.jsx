@@ -1,4 +1,5 @@
 import { Stack, Button } from '@mui/material'
+import { navigate } from '../../lib/helpers';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
@@ -18,7 +19,7 @@ export function StudioTabs({ brandId, active }) {
         const Icon = t.icon
         return (
           <Button key={t.key} size="small" startIcon={<Icon sx={{ fontSize: '16px !important' }} />}
-            onClick={() => { window.location.hash = t.hash(brandId) }}
+            onClick={() => { navigate(t.hash(brandId)) }}
             sx={{ fontWeight: 800, color: on ? '#fff' : 'text.secondary', bgcolor: on ? TEAL : 'transparent',
               '&:hover': { bgcolor: on ? '#0B8567' : 'action.hover' }, px: 1.5 }}>
             {t.label}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Card, CardContent, Typography, TextField, Button, MenuItem,
   Tab, Tabs, Chip, CircularProgress, Alert, IconButton, Select, FormControl,
@@ -561,6 +562,6 @@ export function AlertasPage() {
 
 // Compat shim: a página antiga `WorkspacePage` redireciona pra Conta.
 export function WorkspacePage() {
-  if (typeof window !== 'undefined') window.location.hash = '#/app/conta'
+  if (typeof window !== 'undefined') navigate('#/app/conta')
   return null
 }

@@ -5,6 +5,7 @@
 // (que emite o sinal campaign_verdict pro cérebro — trigger da migration 025).
 // É a página que o A3 do Copiloto preencherá sozinho.
 import { useState, useEffect, useCallback } from 'react'
+import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
   IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -62,7 +63,7 @@ export function StudioCampaigns({ brandId }) {
     if (!brandId) return
     ;(async () => {
       const lista = await loadLista()
-      const m = window.location.hash.match(/[?&]c=([\w-]+)/)
+      const m = window.location.search.match(/[?&]c=([\w-]+)/)
       if (m) { const c = lista.find(x => x.id === m[1]); if (c) abrirDossie(c) }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +98,7 @@ export function StudioCampaigns({ brandId }) {
 
       await supabase.from('studio_campaigns').update({ workflow_id: wf.id }).eq('id', camp.id)
       // direto pro canvas: a produção acontece lá (peças nascem com campaign_id)
-      window.location.hash = `#/app/brands/${brandId}/studio/workflow/${wf.id}`
+      navigate(`#/app/brands/${brandId}/studio/workflow/${wf.id}`)
     } catch (e) {
       setMsg(e.message); setCriando(false)
     }
@@ -123,7 +124,7 @@ export function StudioCampaigns({ brandId }) {
         <PageHeader title={sel.nome} subtitle="Campanha — o dossiê: brief, produção e peças"
           action={
             <Stack direction="row" spacing={1}>
-              <Button startIcon={<ArrowBackIcon />} onClick={() => { setSel(null); window.location.hash = `#/app/brands/${brandId}/studio/campanhas` }}
+              <Button startIcon={<ArrowBackIcon />} onClick={() => { setSel(null); navigate(`#/app/brands/${brandId}/studio/campanhas`) }}
                 sx={{ color: 'text.secondary', fontWeight: 700 }}>Campanhas</Button>
               {sel.status !== 'aprovada' && (
                 <Button variant="contained" disableElevation disabled={aprovando} onClick={aprovar}
@@ -144,7 +145,7 @@ export function StudioCampaigns({ brandId }) {
                 <Box flex={1} />
                 {wfHash && (
                   <Button size="small" variant="outlined" startIcon={<AccountTreeOutlinedIcon sx={{ fontSize: 15 }} />}
-                    onClick={() => { window.location.hash = wfHash }} sx={{ fontWeight: 700 }}>
+                    onClick={() => { navigate(wfHash) }} sx={{ fontWeight: 700 }}>
                     Abrir fluxo de produção
                   </Button>
                 )}
