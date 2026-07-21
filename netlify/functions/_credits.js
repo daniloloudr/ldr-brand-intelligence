@@ -9,6 +9,7 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v2':         2,
   'fal-ai/ideogram/v3':         2,
   'fal-ai/nano-banana-pro':     3,
+  'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado) — espelha o front
 }
 
 export const VIDEO_CREDITS = {
