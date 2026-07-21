@@ -14,7 +14,6 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.0",
     "@mui/material": "^6.4.0",
-    "@stripe/stripe-js": "^9.6.0",
     "@supabase/supabase-js": "^2.105.1",
     "@xyflow/react": "^12.11.1",
     "jspdf": "^4.2.1",
@@ -22,8 +21,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.8.1",
-    "sharp": "^0.35.3",
-    "stripe": "^22.1.1"
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
