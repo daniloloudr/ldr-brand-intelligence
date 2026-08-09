@@ -201,14 +201,16 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.strategy.expression'),    hash: brandLink('/expression'),    active: route === 'brands-detail' && section === 'expression' },
     ] },
     { type: 'group', label: t('nav.intelligence'), icon: IcoDiag, children: [
+      // Ordem definida pelo Danilo (2026-08-02): Relatórios → Concorrentes →
+      // Mercado → Escuta → Insights → Tendências → Palavras-Chave
+      // Reports = a medição da marca (ressignificação da antiga página Posicionamento — decisão Q3)
+      { label: t('nav.intelligence.reports'),   hash: '#/app/reports',     active: route === 'reports' || route === 'posicionamento' },
+      { label: t('nav.intelligence.competitors'), hash: '#/app/competitors', active: route === 'competitors' },
       { label: t('nav.intelligence.market'),    hash: '#/app/market-intel', active: route === 'market-intel' },
       // Escuta → Insights lado a lado: coleta bruta e leitura são complementares (decisão 2026-07-10)
       { label: t('nav.intelligence.listening'), hash: '#/app/listening',   active: route === 'listening' },
       { label: t('nav.intelligence.insights'),  hash: '#/app/insights',     active: route === 'insights' },
-      { label: t('nav.intelligence.competitors'), hash: '#/app/competitors', active: route === 'competitors' },
       { label: t('nav.intelligence.trends'),    hash: '#/app/trends',      active: route === 'trends' },
-      // Reports = a medição da marca (ressignificação da antiga página Posicionamento — decisão Q3)
-      { label: t('nav.intelligence.reports'),   hash: '#/app/reports',     active: route === 'reports' || route === 'posicionamento' },
       { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
     ] },
     { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [

@@ -10,6 +10,8 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v3':         2,
   'fal-ai/nano-banana-pro':     3,
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado) — espelha o front
+  'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight)
+  // fal-ai/bria/product-shot = 1 (~$0,04)
 }
 
 export const VIDEO_CREDITS = {
@@ -18,9 +20,11 @@ export const VIDEO_CREDITS = {
   'seedance-1-pro': { 5: 14, 10: 27 },
   'seedance-2-fast': { 5: 22, 10: 44 },
   'seedance-2-pro':  { 5: 28, 10: 55 },
+  'seedance-2-5':    { 5: 28, 10: 55 },      // 720p ($1,51/5s, fórmula pixel-token); 1080p seria 62/125 — modelo DESATIVADO (stub no fal)
   'veo3-fast':      { 4: 29, 6: 44, 8: 58 },
   'veo3':           { 4: 54, 6: 81, 8: 108 },
   'wan-22':         { default: 4 },
+  'wan-25':         { 5: 9, 10: 18 },        // 720p: ~$0,10/s
 }
 
 export const OP_CREDITS = {

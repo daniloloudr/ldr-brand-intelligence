@@ -22,6 +22,19 @@ function authHeaders() {
   return { 'Authorization': `Key ${FAL_KEY}`, 'Content-Type': 'application/json' }
 }
 
+/** Submete um body pronto num endpoint do fal e trata erro/saldo de forma única. */
+async function submitFal(endpoint, body, webhookUrl) {
+  const url = webhookUrl ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}` : `${FAL_BASE}/${endpoint}`
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    if (await alertIfBalanceError('fal', res.status, txt)) throw new Error(MSG_INSTABILIDADE)
+    throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
+  }
+  const data = await res.json()
+  return { ...data, model: endpoint }
+}
+
 // Mapa de image-to-image por modelo: cada um tem seu endpoint e campo de imagem.
 // `field: 'image_url'` = singular (usa só a 1ª referência); 'image_urls' = array.
 const I2I = {
@@ -90,15 +103,29 @@ export async function submitImageJob({ model, prompt, references = [], format, m
     const body = { model_image: references[0], garment_image: references[1], category: 'auto', ...(extra || {}) }
     // schema estrito: o FASHN rejeita campos de geração comum vazados por extra
     delete body.prompt; delete body.num_images; delete body.aspect_ratio
-    const url = webhookUrl ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}` : `${FAL_BASE}/${endpoint}`
-    const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '')
-      if (await alertIfBalanceError('fal', res.status, txt)) throw new Error(MSG_INSTABILIDADE)
-      throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
+    return submitFal(endpoint, body, webhookUrl)
+  }
+  // Bria Product Shot: schema próprio — coloca o PRODUTO real (1ª ref) numa cena
+  // descrita no prompt (scene_description). Dados licenciados = seguro comercial.
+  // Opcional: 2ª ref = imagem de fundo (ref_image_url). placement automático.
+  if (/bria\/product-shot/.test(endpoint)) {
+    if (!(references || []).length)
+      throw new Error('Bria Product Shot precisa da imagem do produto conectada (1ª referência).')
+    const body = {
+      image_url: references[0],
+      ...(prompt ? { scene_description: prompt } : {}),
+      ...(references[1] ? { ref_image_url: references[1] } : { placement_type: 'automatic' }),
+      ...(extra || {}),
     }
-    const data = await res.json()
-    return { ...data, model: endpoint }
+    return submitFal(endpoint, body, webhookUrl)
+  }
+  // IC-Light V2: schema próprio — reilumina a imagem (1ª ref) conforme o prompt
+  // de luz/cena. Ótimo para dar acabamento de estúdio a packshot chapado.
+  if (/iclight-v2/.test(endpoint)) {
+    if (!(references || []).length)
+      throw new Error('IC-Light precisa da imagem conectada (1ª referência).')
+    const body = { image_url: references[0], prompt: prompt || 'professional studio lighting', ...(extra || {}) }
+    return submitFal(endpoint, body, webhookUrl)
   }
   // `input` (override) é usado pelos apps (upscale/remove-bg/variation) que têm
   // schema próprio (ex. image_url singular). Caso contrário, monta o default.
@@ -123,18 +150,7 @@ export async function submitImageJob({ model, prompt, references = [], format, m
     if (extra && typeof extra === 'object') Object.assign(body, extra)
   }
 
-  const url = webhookUrl
-    ? `${FAL_BASE}/${endpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`
-    : `${FAL_BASE}/${endpoint}`
-
-  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '')
-    if (await alertIfBalanceError('fal', res.status, txt)) throw new Error(MSG_INSTABILIDADE)
-    throw new Error(`fal submit ${res.status}: ${txt.slice(0, 300)}`)
-  }
-  const data = await res.json()
-  return { ...data, model: endpoint }                        // { request_id, status_url, ... }
+  return submitFal(endpoint, body, webhookUrl)               // { request_id, status_url, ... }
 }
 
 // A rota de queue do fal usa o APP base, não o endpoint de operação. Reconstruir

@@ -47,10 +47,32 @@ export const VIDEO_MODELS = {
     i2v: 'bytedance/seedance-2.0/fast/image-to-video',
     durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'], endField: 'end_image_url',
   },
+  // ⛔ Seedance 2.5 — STUB no fal (2026-08-02): o app aceita o request e devolve
+  // o vídeo de EXEMPLO (example_outputs) em segundos, sem gerar. Removido do
+  // seletor (videoModels.js); roteamento mantido p/ reativação em 1 uncomment.
+  // Validar PONTA A PONTA (vídeo real de v3b.fal.media) antes de reativar.
+  // OBS: como todo Seedance, é restritivo com PESSOA gerada (pode dar 422) —
+  // para cenas com pessoa, preferir Wan 2.5; aqui brilha em produto/cena.
+  'seedance-2-5': {
+    t2v: 'bytedance/seedance-2.5/text-to-video',
+    i2v: 'bytedance/seedance-2.5/image-to-video',
+    durations: ['5', '10'], aspects: ['16:9', '9:16', '1:1'], endField: 'end_image_url',
+    defaults: { resolution: '720p' },   // 720p casa com 28/55 cr; 1080p custa 2,2× (62/125 cr)
+  },
   'wan-22': {
     t2v: 'fal-ai/wan/v2.2-a14b/text-to-video',
     i2v: 'fal-ai/wan/v2.2-a14b/image-to-video',
     durations: null, aspects: ['16:9', '9:16', '1:1'],   // Wan usa num_frames; deixa default
+  },
+  // Wan 2.5 (preview) — família Wan, a MAIS permissiva com pessoas geradas por IA
+  // (não dá o 422 "likeness of real people" do Seedance). i2v usa 1 frame inicial
+  // (sem end-frame) e infere o enquadramento da imagem; resolution default 720p
+  // (equilíbrio custo/qualidade — 1080p é ~3× mais caro).
+  'wan-25': {
+    t2v: 'fal-ai/wan-25-preview/text-to-video',
+    i2v: 'fal-ai/wan-25-preview/image-to-video',
+    durations: ['5', '10'], aspects: null,
+    defaults: { resolution: '720p' },
   },
 }
 
@@ -72,7 +94,7 @@ export function videoEndpoint(modelKey, { hasImage } = {}) {
 /** Monta o input adaptado aos params que cada família aceita. */
 function buildVideoInput(modelKey, { prompt, imageUrl, endImageUrl, duration, aspectRatio }) {
   const m = VIDEO_MODELS[modelKey] || {}
-  const input = { prompt }
+  const input = { prompt, ...(m.defaults || {}) }   // defaults do modelo (ex. resolution)
   if (imageUrl) input.image_url = imageUrl
   // frame final (interpolação início→fim) — só se o modelo suporta E há frame inicial
   if (endImageUrl && imageUrl && m.endField) input[m.endField] = endImageUrl
