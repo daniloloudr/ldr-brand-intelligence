@@ -1,7 +1,30 @@
 import { createClient } from '@supabase/supabase-js'
-import { extractJSON, MODELS } from './_ai.js'
+import { extractJSON, MODELS, logAiUsage } from './_ai.js'
+import { renderSmartbrand } from './_smartbrand.js'
 
-const ANTHROPIC_BASE = 'https://api.anthropic.com/v1/messages'
+const ANTHROPIC_BASE  = 'https://api.anthropic.com/v1/messages'
+const ANTHROPIC_FILES = 'https://api.anthropic.com/v1/files'
+const BETA_FILES      = 'files-api-2025-04-14'
+
+// Manual de marca vai pela Files API, não em base64 dentro da mensagem.
+// Motivo concreto: base64 infla 33%, e o corpo da requisição tem teto de
+// 32 MB — o manual da PES (100 páginas, 36,5 MB) estourava em 413 e falhou
+// três vezes em produção sem que ninguém entendesse por quê. Pelo file_id o
+// PDF sobe separado, com teto de 500 MB, e o modelo continua ENXERGANDO as
+// páginas (que é o ponto: manual de marca é documento visual).
+const TETO_MB = 400
+
+// O que a API responde vs. o que a pessoa que subiu o PDF precisa ler.
+const HUMANIZAR = [
+  [/exceed|too large|413/i, 'O PDF é grande demais para processar de uma vez. Divida o manual em partes e suba uma de cada vez.'],
+  [/page.{0,20}(limit|count)|too many pages/i, 'O PDF tem páginas demais para uma leitura só. Divida o manual em partes.'],
+  [/encrypted|password/i,   'O PDF está protegido por senha. Suba uma versão sem proteção.'],
+  [/credit|balance/i,       'Instabilidade no provedor de IA. Tente de novo em alguns minutos.'],
+]
+const humanizar = (bruto) => {
+  const achado = HUMANIZAR.find(([re]) => re.test(bruto))
+  return achado ? achado[1] : `Falha ao ler o manual: ${bruto.slice(0, 180)}`
+}
 
 const EXTRACTION_PROMPT = `Analise este brand manual e extraia EXAUSTIVAMENTE todas as informações de marca.
 
@@ -147,7 +170,7 @@ export const handler = async (event) => {
 
   // Auth check
   const { data: brand } = await supabase
-    .from('brands').select('id, workspace_id').eq('id', brand_id).single()
+    .from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
   if (!brand) { await markError('Marca não encontrada'); return { statusCode: 200 } }
 
   const [{ data: member }, { data: platformAdmin }] = await Promise.all([
@@ -163,50 +186,82 @@ export const handler = async (event) => {
 
   if (dlErr) { await markError(`Erro ao baixar arquivo: ${dlErr.message}`); return { statusCode: 200 } }
 
-  const arrayBuffer = await fileData.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
+  // Pré-voo: melhor uma frase que a pessoa entende do que um 413 da API
+  // quinze minutos depois.
+  const tamanhoMB = (fileData.size || 0) / (1024 * 1024)
+  if (tamanhoMB > TETO_MB) {
+    await markError(`O PDF tem ${tamanhoMB.toFixed(0)} MB — o limite é ${TETO_MB} MB. Divida o manual em partes.`)
+    return { statusCode: 200 }
+  }
 
-  // Call Claude with PDF beta — usa Opus pra máxima qualidade na extração
-  // (manual de marca é a base do RAG, então vale o custo extra)
+  const auth = {
+    'x-api-key':         process.env.ANTHROPIC_KEY,
+    'anthropic-version': '2023-06-01',
+    'anthropic-beta':    BETA_FILES,
+  }
+
+  // 1) Sobe o PDF (fora do corpo da mensagem — ver comentário do TETO_MB)
+  let fileId
+  try {
+    const form = new FormData()
+    form.append('file', fileData, file_path.split('/').pop() || 'manual.pdf')
+    const up = await fetch(ANTHROPIC_FILES, { method: 'POST', headers: auth, body: form })
+    if (!up.ok) {
+      await markError(humanizar(`${up.status}: ${await up.text()}`))
+      return { statusCode: 200 }
+    }
+    fileId = (await up.json()).id
+  } catch (e) {
+    await markError(`Erro ao enviar o manual: ${e.message}`)
+    return { statusCode: 200 }
+  }
+  console.log(`[brand-manual] PDF enviado (${tamanhoMB.toFixed(1)} MB) → ${fileId}`)
+
+  // O arquivo fica na conta da Anthropic até ser apagado. Sem esta limpeza,
+  // cada reprocessamento deixaria um manual de dezenas de MB para trás.
+  const apagarArquivo = async () => {
+    try { await fetch(`${ANTHROPIC_FILES}/${fileId}`, { method: 'DELETE', headers: auth }) }
+    catch { /* limpeza nunca derruba a extração */ }
+  }
+
+  // 2) Extrai — Opus pela qualidade: o manual é a base do RAG da marca
   const model = MODELS.opus
 
   let claudeResp
   try {
     claudeResp = await fetch(ANTHROPIC_BASE, {
       method: 'POST',
-      headers: {
-        'Content-Type':    'application/json',
-        'x-api-key':       process.env.ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta':  'pdfs-2024-09-25',
-      },
+      headers: { ...auth, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
         max_tokens: 16000,
         messages: [{
           role: 'user',
           content: [
-            {
-              type:   'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-            },
+            { type: 'document', source: { type: 'file', file_id: fileId } },
             { type: 'text', text: EXTRACTION_PROMPT },
           ],
         }],
       }),
     })
   } catch (e) {
+    await apagarArquivo()
     await markError(`Erro na API: ${e.message}`)
     return { statusCode: 200 }
   }
 
   if (!claudeResp.ok) {
     const errBody = await claudeResp.text()
-    await markError(`Claude ${claudeResp.status}: ${errBody.slice(0, 200)}`)
+    await apagarArquivo()
+    await markError(humanizar(`${claudeResp.status}: ${errBody}`))
     return { statusCode: 200 }
   }
 
   const claudeData = await claudeResp.json()
+  await apagarArquivo()
+  // Extração de manual é a operação mais cara do produto e até aqui não
+  // aparecia no painel de custo.
+  await logAiUsage(supabase, { model, usage: claudeData.usage, tag: 'brand-manual' })
   const text = claudeData.content?.find(b => b.type === 'text')?.text || ''
 
   console.log(`[brand-manual] Claude usage:`, JSON.stringify(claudeData.usage || {}))
@@ -233,23 +288,31 @@ export const handler = async (event) => {
   const existingBook = existingBooks?.[0] || null
   console.log(`[brand-manual] Existing book:`, existingBook?.id, 'version:', existingBook?.version)
 
+  // smartbrand.md — o manual virado documento. Renderizado por código de
+  // propósito: só entra o que o manual disse, e o que faltou fica em branco
+  // e vira lacuna. Quem preenche lacuna é o Copiloto, quando o cliente pedir.
+  const smart = renderSmartbrand(extracted, { marca: brand.nome })
+  console.log(`[brand-manual] smartbrand: ${smart.preenchidos}/${smart.total} campos · ${smart.lacunas.length} lacuna(s)`)
+
+  const campos = {
+    verbal_identity: extracted.verbal_identity || {},
+    visual_identity: extracted.visual_identity || {},
+    design_system:   extracted.design_system   || {},
+    smartbrand:      smart.markdown,
+    smartbrand_gaps: smart.lacunas,
+  }
+
   if (existingBook?.id) {
     const { error: upErr } = await supabase.from('brand_books').update({
-      verbal_identity: extracted.verbal_identity || {},
-      visual_identity: extracted.visual_identity || {},
-      design_system:   extracted.design_system   || {},
-      version:         (existingBook.version || 1) + 1,
-      updated_at:      new Date().toISOString(),
+      ...campos,
+      version:    (existingBook.version || 1) + 1,
+      updated_at: new Date().toISOString(),
     }).eq('id', existingBook.id)
     if (upErr) console.error(`[brand-manual] UPDATE falhou:`, upErr.message)
     else       console.log(`[brand-manual] UPDATE concluído em ${existingBook.id}`)
   } else {
-    const { data: newBook, error: insErr } = await supabase.from('brand_books').insert({
-      brand_id,
-      verbal_identity: extracted.verbal_identity || {},
-      visual_identity: extracted.visual_identity || {},
-      design_system:   extracted.design_system   || {},
-    }).select('id').single()
+    const { data: newBook, error: insErr } = await supabase.from('brand_books')
+      .insert({ brand_id, ...campos }).select('id').single()
     if (insErr) console.error(`[brand-manual] INSERT falhou:`, insErr.message)
     else        console.log(`[brand-manual] INSERT criou:`, newBook?.id)
   }
