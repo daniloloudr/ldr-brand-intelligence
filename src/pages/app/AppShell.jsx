@@ -46,8 +46,7 @@ const ConsumerInsights = lazy(() => import('./IntelligencePages').then(m => ({ d
 const TrendsPage      = lazy(() => import('./IntelligencePages').then(m => ({ default: m.TrendsPage })))
 const ReportsPage     = lazy(() => import('./IntelligencePages').then(m => ({ default: m.ReportsPage })))
 import { ErrorBoundary } from '../../components/ErrorBoundary'
-import logoNegativa from '../../assets/negativa.svg'
-import logoPositivo from '../../assets/logo-positivo-200px.png'
+import { Wordmark } from '../../components/Wordmark'
 
 /* ─── icons ──────────────────────────────────────────────────────── */
 const IcoHome    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -63,13 +62,13 @@ const USER_MENU = [
   { label: 'Créditos & Consumo',     hash: '#/app/plano' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
-  { label: 'Inteligência s1ngulr',   hash: '#/app/ia-loudr' },
+  { label: 'Inteligência brandcode',   hash: '#/app/inteligencia' },
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const { workspace, loading, denied, user, onLogout } = useWorkspace()
 
-  // Lockup do produto: MARCA.s1ngulr — logo escolhido nos Ativos (metadata.header)
+  // Lockup do produto: MARCA.brandcode — logo escolhido nos Ativos (metadata.header)
   // ou o primeiro logo; senão o nome. Ouve 'brand-lockup-refresh' p/ troca ao vivo.
   const [brandLockup, setBrandLockup] = useState(null)
   useEffect(() => {
@@ -92,7 +91,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       if (!on) return
       const nome = b?.nome || workspace?.nome || null
       setBrandLockup({ nome, logoUrl, logoSvg })
-      if (nome) document.title = `${nome}.s1ngulr`
+      if (nome) document.title = `${nome}.brandcode`
     }
     loadLockup()
     const refresh = () => loadLockup()
@@ -132,7 +131,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   if (denied) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, p: 4 }}>
-        <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 28, mb: 1 }} />
+        <Wordmark size={22} sx={{ mb: 1 }} />
         <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">Sem acesso a esta marca</Typography>
         <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={380}>
           Sua conta não tem acesso a este espaço. Confira o endereço ou entre com a conta correta desta marca.
@@ -150,7 +149,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   if (workspace.ativo === false) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, p: 4 }}>
-        <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 28, mb: 1 }} />
+        <Wordmark size={22} sx={{ mb: 1 }} />
         <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">Workspace inativo</Typography>
         <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={380}>
           Este workspace está temporariamente inativo. Entre em contato com o suporte para reativar o acesso.
@@ -169,10 +168,10 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (!hash) return
     // Frequência de uso por destino — alimenta os atalhos adaptativos da Home
     try {
-      const freq = JSON.parse(localStorage.getItem('s1ngulr-nav-freq') || '{}')
+      const freq = JSON.parse(localStorage.getItem('brandcode-nav-freq') || '{}')
       const key = hash.replace(/#\/app\/brands\/[^/]+/, '#brand')   // normaliza por marca
       freq[key] = (freq[key] || 0) + 1
-      localStorage.setItem('s1ngulr-nav-freq', JSON.stringify(freq))
+      localStorage.setItem('brandcode-nav-freq', JSON.stringify(freq))
     } catch { /* localStorage indisponível não bloqueia navegação */ }
     navigate(hash)
   }
@@ -243,7 +242,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-list')           return <BrandList />
     if (route === 'brands-new')            return <BrandOnboarding />
     if (route === 'brands-assistant')      return <BrandAssistant brandId={getBrandId()} />
-    if (route === 'ia-loudr')              return <BrandIntelligence />
+    if (route === 'inteligencia')              return <BrandIntelligence />
     if (route === 'brands-campaigns')      return <Campaigns brandId={getBrandId()} />
     if (route === 'brands-campaign-new')   return <CampaignNew brandId={getBrandId()} />
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />

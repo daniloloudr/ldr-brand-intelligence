@@ -15,7 +15,7 @@ describe('slugify', () => {
 
 describe('tenantUrl', () => {
   it('monta a URL do subdomínio da marca', () => {
-    expect(tenantUrl('hering')).toBe('https://hering.s1ngulr.com')
+    expect(tenantUrl('hering')).toBe('https://hering.br4ndcode.com')
   })
 })
 
@@ -24,13 +24,13 @@ describe('getTenantSlug — resolução por subdomínio', () => {
   afterEach(() => { delete global.window })
 
   it('subdomínio de tenant → slug', () => {
-    setWin('hering.s1ngulr.com')
+    setWin('hering.br4ndcode.com')
     expect(getTenantSlug()).toBe('hering')
   })
   it('domínios de sistema (app/apex/www) → null', () => {
-    setWin('app.s1ngulr.com');  expect(getTenantSlug()).toBe(null)
-    setWin('www.s1ngulr.com');  expect(getTenantSlug()).toBe(null)
-    setWin('s1ngulr.com');      expect(getTenantSlug()).toBe(null)
+    setWin('app.br4ndcode.com');  expect(getTenantSlug()).toBe(null)
+    setWin('www.br4ndcode.com');  expect(getTenantSlug()).toBe(null)
+    setWin('br4ndcode.com');      expect(getTenantSlug()).toBe(null)
   })
   it('localhost/preview → null; ?tenant= faz override em dev', () => {
     setWin('localhost');                       expect(getTenantSlug()).toBe(null)

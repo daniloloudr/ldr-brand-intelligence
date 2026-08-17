@@ -41,7 +41,7 @@ export function WorkspaceProvider({ user, onLogout, children, overrideWorkspaceI
       else { setWorkspace(null); setDenied(true) }   // não é membro desta marca
     } else {
       // Domínio de sistema (app./localhost): NÃO carrega workspace por associação.
-      // app.s1ngulr.com é exclusivo do admin; aqui só se entra num workspace via
+      // app.br4ndcode.com é exclusivo do admin; aqui só se entra num workspace via
       // impersonação (overrideWorkspaceId). Sem override = sem marca (o App.jsx já
       // roteia pra fora deste caminho; isto é rede de segurança).
       setWorkspace(null); setRole(null); setDenied(true)

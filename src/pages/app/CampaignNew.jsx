@@ -22,7 +22,7 @@ function buildApprovalPrompt(brand, book, campaign) {
   const pos = book?.positioning || {}
 
   return {
-    system: `Você é um especialista em brand governance da LOUDR OS. Avalie se a peça de comunicação está alinhada com o brand book da marca.
+    system: `Você é um especialista em brand governance do brandcode. Avalie se a peça de comunicação está alinhada com o brand book da marca.
 
 # Brand Book — ${brand?.nome}
 - Missão: ${id.missao || 'não definida'}

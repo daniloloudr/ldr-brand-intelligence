@@ -1,4 +1,4 @@
-# s1ngulr — Arquitetura de Tecnologia
+# brandcode — Arquitetura de Tecnologia
 ### O documento-fonte para os slides/PPTs de tecnologia · atualizado 2026-07-12
 ### Convenção de status em todo o documento: ✅ em produção · 🔜 em breve (gatilho definido) · 🔭 visão (rota pavimentada)
 *Par narrativo: [`pitch-futuro.md`](pitch-futuro.md) (o discurso hoje → em breve → futuro).*

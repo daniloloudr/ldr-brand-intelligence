@@ -339,7 +339,7 @@ export function StudioLibrary({ brandId }) {
     setCopiado(true); setTimeout(() => setCopiado(false), 1500)
   }
 
-  // Logo/imagem do header (lockup MARCA.s1ngulr) — funcionalidade herdada dos
+  // Logo/imagem do header (lockup MARCA.brandcode) — funcionalidade herdada dos
   // Ativos: um asset com metadata.header=true; o AppShell ouve o evento e troca ao vivo.
   const headerId = assets.find(a => a.metadata?.header)?.id
     || assets.find(a => a.tipo === 'logo')?.id   // fallback: primeiro logo (comportamento padrão)
@@ -594,7 +594,7 @@ export function StudioLibrary({ brandId }) {
                         </Tooltip>
                       )}
                       {root === 'referencias' && a.kind === 'asset' && !isVideo(a) && (
-                        <Tooltip title={headerId === a.id ? 'Aparece no header (antes do .s1ngulr)' : 'Usar no header'}>
+                        <Tooltip title={headerId === a.id ? 'Aparece no header (antes do .brandcode)' : 'Usar no header'}>
                           <IconButton size="small" onClick={() => usarNoHeader(a)}>
                             {headerId === a.id
                               ? <StarIcon sx={{ fontSize: 16, color: '#E8185A' }} />

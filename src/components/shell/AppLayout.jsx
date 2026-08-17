@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { navigate } from '../../lib/helpers';
+import { navigate, PRODUCT_NAME } from '../../lib/helpers';
 import { Box, Typography, IconButton, InputBase, Popover, Stack, Divider, Button, Tooltip, Menu, MenuItem, ListItemIcon, Collapse } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
@@ -7,8 +7,6 @@ import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import logoNegativa from "../../assets/negativa.svg";
-import logoPositivo from "../../assets/logo-positivo-200px.png";
 
 const NAV_W = 220;
 const TOP_H = 56;
@@ -24,7 +22,7 @@ export function AppLayout({
   topBanner,
   onSearch, searchValue,
   bellCount, bellContent,
-  brandLockup,   // { nome, logoUrl?, logoSvg? } — lockup MARCA.s1ngulr no topo
+  brandLockup,   // { nome, logoUrl?, logoSvg? } — lockup MARCA.brandcode no topo
   children,
 }) {
   const [bellAnchor, setBellAnchor] = useState(null);
@@ -35,6 +33,7 @@ export function AppLayout({
   const [openGroup, setOpenGroup] = useState(activeGroupIdx >= 0 ? activeGroupIdx : 0);
   useEffect(() => { if (activeGroupIdx >= 0) setOpenGroup(activeGroupIdx); }, [activeGroupIdx]);
   const initial = (userName || "?").charAt(0).toUpperCase();
+  const hasBrandLockup = !!(brandLockup?.logoSvg || brandLockup?.logoUrl || brandLockup?.nome);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
@@ -54,8 +53,9 @@ export function AppLayout({
           px: 2.5, display: "flex", alignItems: "center", gap: 1,
           borderRight: 1, borderColor: "divider", overflow: "hidden",
         }}>
-          {/* Lockup do produto: MARCA.s1ngulr — usa o logo cadastrado da marca
-              quando existir; senão o nome do workspace; fallback = logo LOUDR */}
+          {/* Lockup do produto: MARCA.brandcode — usa o logo cadastrado da marca
+              quando existir; senão o nome do workspace. Sem marca (admin/sistema),
+              o lockup é só a wordmark do produto — LOUDR é a empresa, não o app. */}
           {brandLockup?.logoSvg ? (
             <Box sx={{ height: 36, display: "flex", alignItems: "center", "& svg": { height: 36, width: "auto", maxWidth: 150 } }}
               dangerouslySetInnerHTML={{ __html: brandLockup.logoSvg }} />
@@ -65,11 +65,14 @@ export function AppLayout({
             <Typography sx={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.02em", color: "text.primary", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {brandLockup.nome}
             </Typography>
-          ) : (
-            <Box component="img" src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" sx={{ height: 22, display: "block" }} />
-          )}
-          <Typography sx={{ fontSize: 13, fontWeight: 800, color: PINK, whiteSpace: "nowrap", mb: "-2px" }}>
-            .s1ngulr
+          ) : null}
+          <Typography sx={{
+            fontSize: hasBrandLockup ? 13 : 16, fontWeight: hasBrandLockup ? 800 : 900,
+            letterSpacing: hasBrandLockup ? 0 : "-0.02em",
+            color: hasBrandLockup ? PINK : "text.primary",
+            whiteSpace: "nowrap", mb: hasBrandLockup ? "-2px" : 0,
+          }}>
+            {hasBrandLockup ? `.${PRODUCT_NAME}` : PRODUCT_NAME}
           </Typography>
         </Box>
 

@@ -804,7 +804,7 @@ export function ReportsPage() {
   return (
     <Shell title="Relatórios" subtitle="A evolução da marca, medida e apresentável">
       <EmConstrucao desc="Relatórios periódicos consolidando scores do diagnóstico, evolução do aprendizado da marca, aprovação de peças e movimentos do mercado — prontos para levar ao board."
-        vem="relatório mensal automático + comparativo entre ciclos. Hoje: os scores vivem no Brand Positioning e a evolução do aprendizado em IA LOUDR" />
+        vem="relatório mensal automático + comparativo entre ciclos. Hoje: os scores vivem no Brand Positioning e a evolução do aprendizado em Inteligência brandcode" />
     </Shell>
   )
 }

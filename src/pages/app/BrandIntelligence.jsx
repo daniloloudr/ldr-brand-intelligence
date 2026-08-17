@@ -148,7 +148,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Inteligência s1ngulr" subtitle="O cérebro que aprende a sua marca com o uso" />
+      <PageHeader title="Inteligência brandcode" subtitle="O cérebro que aprende a sua marca com o uso" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {/* ── Explicação (sempre visível) ── */}
@@ -156,12 +156,12 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
             <PsychologyOutlinedIcon sx={{ fontSize: 26, color: PURPLE, mt: 0.25 }} />
             <Box>
-              <Typography fontWeight={900} fontSize={16} mb={0.5}>O que é a Inteligência s1ngulr</Typography>
+              <Typography fontWeight={900} fontSize={16} mb={0.5}>O que é a Inteligência brandcode</Typography>
               <Typography fontSize={13.5} color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                É o núcleo do s1ngulr. A cada peça que você gera e avalia, campanha que aprova e diagnóstico que roda,
-                o s1ngulr entende mais profundamente <strong>o que é a sua marca</strong> — e aplica esse aprendizado
+                É o núcleo do brandcode. A cada peça que você gera e avalia, campanha que aprova e diagnóstico que roda,
+                o brandcode entende mais profundamente <strong>o que é a sua marca</strong> — e aplica esse aprendizado
                 <strong> automaticamente</strong> em tudo que cria: imagens, vídeos e no Copiloto.
-                Quanto mais você usa e avalia, mais assertivo o s1ngulr fica com a sua marca.
+                Quanto mais você usa e avalia, mais assertivo o brandcode fica com a sua marca.
               </Typography>
               <Typography fontSize={12.5} sx={{ mt: 1.25, color: TEAL, fontWeight: 700 }}>
                 💡 Como deixar mais inteligente: avalie suas peças no Studio com 👍 / 👎 — cada avaliação ensina a marca.
@@ -178,7 +178,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
             <Typography variant="h6" fontWeight={900}>A sua marca ainda está se formando</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 460 }}>
               A Inteligência começa a se formar assim que você gera e avalia peças. Vá ao Studio, gere e dê 👍/👎 —
-              quando houver evidência suficiente, o s1ngulr forma a primeira leitura da sua marca e ela aparece aqui,
+              quando houver evidência suficiente, o brandcode forma a primeira leitura da sua marca e ela aparece aqui,
               ficando mais assertiva com o tempo.
             </Typography>
             {totalSignals > 0 && <Chip label={`${totalSignals} avaliações já registradas — em breve viram aprendizado`} size="small" />}
@@ -222,7 +222,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                 {versions.length > 1 && <Typography fontSize={11} color="text.secondary">início: {pct(v1?.confianca_media)}</Typography>}
               </Card>
               <Card>
-                <SectionTitle help="A fração das peças que você aprovou — reflete o quanto o s1ngulr já acerta o tom da sua marca.">Aprovação</SectionTitle>
+                <SectionTitle help="A fração das peças que você aprovou — reflete o quanto o brandcode já acerta o tom da sua marca.">Aprovação</SectionTitle>
                 <Typography fontWeight={900} fontSize={28}>{pct(approval)}</Typography>
                 <Typography fontSize={11} color="text.secondary">
                   {ups} 👍 · {downs} 👎{janelaAprovacao != null ? ` · última janela: ${pct(janelaAprovacao)}` : ''}
@@ -237,7 +237,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
 
             {/* A rede viva — tudo que está sendo capturado e onde vira criação */}
             <Card>
-              <SectionTitle help="O mapa vivo da inteligência: à esquerda, tudo que a marca vive e o s1ngulr captura (o número é a quantidade real de evidências); no centro, as facetas que ela aprendeu; à direita, onde esse aprendizado é aplicado automaticamente.">
+              <SectionTitle help="O mapa vivo da inteligência: à esquerda, tudo que a marca vive e o brandcode captura (o número é a quantidade real de evidências); no centro, as facetas que ela aprendeu; à direita, onde esse aprendizado é aplicado automaticamente.">
                 A rede da sua marca
               </SectionTitle>
               <NeuralGraph signalStats={signalStats} model={model} versao={current.versao} />
@@ -277,7 +277,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
             {/* Win-rate por modelo */}
             {providerRates.length > 0 && (
               <Card>
-                <SectionTitle help="Quais motores de geração entregam os melhores resultados para a SUA marca. O s1ngulr usa isso para priorizar o que mais funciona.">Desempenho por modelo de geração</SectionTitle>
+                <SectionTitle help="Quais motores de geração entregam os melhores resultados para a SUA marca. O brandcode usa isso para priorizar o que mais funciona.">Desempenho por modelo de geração</SectionTitle>
                 <Stack spacing={1.25}>
                   {providerRates.map(p => (
                     <Box key={p.provider}>
@@ -294,7 +294,7 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
 
             {/* O que a marca aprendeu */}
             <Card>
-              <SectionTitle help="Os padrões que o s1ngulr já reconhece como 'a cara da sua marca' — aplicados automaticamente em cada nova peça que você gera.">O que a marca já aprendeu (v{current.versao})</SectionTitle>
+              <SectionTitle help="Os padrões que o brandcode já reconhece como 'a cara da sua marca' — aplicados automaticamente em cada nova peça que você gera.">O que a marca já aprendeu (v{current.versao})</SectionTitle>
               <Stack spacing={2}>
                 <ModelList title="✅ Visual que funciona" items={(model?.preferencias_visuais?.aprovado || []).map(a => a?.padrao)} color={TEAL} />
                 <ModelList title="❌ Visual a evitar" items={(model?.preferencias_visuais?.reprovado || []).map(a => a?.padrao)} color={CORAL} />

@@ -84,7 +84,7 @@ function ColorSwatchRow({ item, onChange, onRemove }) {
             style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
         </Box>
         <TextField label="Nome" value={item.nome || ''} onChange={e => onChange('nome', e.target.value)}
-          placeholder="Ex: LOUDR Green" fullWidth size="medium"
+          placeholder="Ex: Verde Principal" fullWidth size="medium"
           InputProps={{ sx: { fontSize: 14 } }} InputLabelProps={{ sx: { fontSize: 14 } }} />
         <TextField label="Hex" value={hex} onChange={e => onChange('hex', e.target.value)}
           placeholder="#0D9E7A" fullWidth size="medium"
@@ -369,7 +369,7 @@ function Diretrizes({ data, onChange }) {
         addLabel="Adicionar padrão"
         emptyMsg="Adicione padrões, texturas ou grafismos da marca."
         fields={[
-          { key: 'nome',      label: 'Nome',      placeholder: 'Ex: Onda LOUDR' },
+          { key: 'nome',      label: 'Nome',      placeholder: 'Ex: Onda Diagonal' },
           { key: 'descricao', label: 'Descrição', placeholder: 'O que representa / quando usar', multiline: true, rows: 2 },
           { key: 'url',       label: 'URL',       placeholder: 'Link do arquivo' },
         ]}

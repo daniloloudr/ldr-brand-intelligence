@@ -1,13 +1,74 @@
-# BACKLOG — LOUDR (único e canônico)
+# BACKLOG — brandcode (único e canônico)
 
 > **North star:** *"Revolucionar a indústria criativa com IA — a marca no meio da operação."* (Danilo, jul/2026)
 > Todo item abaixo se justifica por essa frase: ou coloca a marca mais para dentro da operação, ou sustenta quem coloca.
 >
-> **Organização:** por horizonte da visão (H1 provar → H2 rede de cérebros → H3 categoria), construível **aos poucos** — cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
-> Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v6.0)
-> Atualizado: 2026-07-21
+> **Nomes:** o produto é o **brandcode** (`br4ndcode.com`); **LOUDR é a empresa**. Doc renomeado em 17/ago — textos antigos citando "s1ngulr" foram atualizados para o nome atual.
+>
+> **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
+> Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
+> Atualizado: 2026-08-17
 
-> **v8.0 (20–21/jul) — GO-LIVE HERING:** entregues → identidade **s1ngulr = Vercel light** (monocromático, fundo branco; reskin só nos tokens + login split); **multitenant por subdomínio LIVE** (`nomedamarca.s1ngulr.com`, s1ngulr.com no Netlify DNS, auto-provisionamento via API); **cobrança por-workspace** (fim dos tiers, migration 045); **URLs limpas** (History API, fim do `/#/`); **onboarding "Preparar ambiente"** (migration 046 + `workspace-onboard.js` — marca do manual PDF + marca nasce junto do workspace); **backup ligado**. Pendências: trial/PicPay, auto-onboarding service-key, follow-ups do reskin (hexes hardcoded). Detalhe no changelog v8.0 do `produto.md`.
+---
+
+## 🚀 SEMANA DO RELANÇAMENTO — brandcode (17–23/ago/2026)
+
+**Contexto:** o time de criação lança o produto como **brandcode** em `br4ndcode.com` e reconstrói o layout do zero; **Hering e Worten entram esta semana**. Ordem declarada pelo Danilo (17/ago): **dois dias de layout + setup + segurança → depois melhoria de código, gaps de segurança e performance.**
+
+**Regra da semana:** o bloco de layout do time chega em cima de uma base já renomeada e já no domínio novo. Por isso a virada de domínio vem ANTES do layout — não se re-testa layout e domínio ao mesmo tempo.
+
+### D1–D2 · Bloco A — Marca, domínio e layout
+
+| # | O quê | Tamanho / dono |
+|---|---|---|
+| ~~A1~~ ✅ 17/ago | **Rename no código** — `PRODUCT_NAME`/`ROOT_DOMAIN` como fonte única (`helpers.js`), lockup `MARCA.brandcode`, `Wordmark.jsx`, rota `/app/inteligencia` (+shim), LOUDR fora das telas logadas, docs do `.spec` atualizados | ✅ |
+| **A2 🔴** | **VIRADA DE DOMÍNIO** — roteiro completo em [`features/dominio-brandcode.md`](features/dominio-brandcode.md): DNS no Netlify → aliases → env (`ROOT_DOMAIN`/`VITE_ROOT_DOMAIN`/`VITE_APP_URL`) → **Supabase Auth redirect URLs** → validação. Corte seco: `s1ngulr.com` morre | **Danilo** (ação em prod) · bloqueia A3/B |
+| A3 🟢 | **Reprovisionar subdomínios das marcas existentes** — `node scripts/provision-subdomains.mjs --apply` (dry-run rodado: 5 workspaces ativos, 5 aliases faltando no domínio novo, 3 aliases antigos a remover) | 🟢 · depois de A2 |
+| A4 🟡 | **Receber o bloco de layout** — o que precisa estar limpo do nosso lado: (a) tokens num lugar só (`theme.js` + `DS` em `constants.js`); (b) **hexes hardcoded** espalhados (follow-up da v8.0, ainda aberto) — enquanto existirem, reskin do time não pega tudo; (c) `Wordmark.jsx` esperando o SVG definitivo; (d) botões do admin ainda em `DS.green` teal | 🟡 · com o time |
+| A5 🟢 | **Favicon / OG / meta** — `index.html` já tem title+description do brandcode; falta `favicon.ico` novo e imagem de compartilhamento | 🟢 · junto do layout |
+| A6 ⏸️ | **Decisão de fronteira:** relatório público de diagnóstico, PDF, `PublicHeader/Footer`, página de metodologia e os SYSTEM_PROMPTs do Smart Branding seguem assinados **LOUDR** (entregável e metodologia da agência). Confirmar ou virar para brandcode no bloco de layout — é posicionamento, não código | decisão do Danilo |
+
+### D1–D2 · Bloco B — Setup Hering + Worten
+
+| # | O quê | Tamanho / gatilho |
+|---|---|---|
+| B1 🟢 | **Criar os dois workspaces** no admin (créditos/mês + valor + slug); o alias do subdomínio nasce automático se A2 estiver de pé | 🟢 · depois de A2 |
+| B2 🟡 | **Onboarding "Preparar ambiente"** nos dois: manual PDF → diagnóstico → concorrentes → mineração (clipping/tendências/escuta) → sínteses → destilação. Acompanhar pelo painel de progresso antes de liberar acesso | 🟡 |
+| **B3 ⚠️ RISCO** | **Extração de manual em 3 camadas** — o gatilho ("fechar cliente novo") **disparou**. Hoje é Opus + PDF em base64: ~$3–5/manual e **erro 413 acima de ~24 MB** (caso real PES: 100 pág/36,5 MB, 3× 413 em prod). Se o manual da Hering ou da Worten for pesado/rasterizado, **trava o onboarding**. Detalhe do redesenho no H1 abaixo. *Workaround imediato: comprimir no Preview para ≤20 MB* | 🟡 · **checar o tamanho dos manuais no D1** |
+| B4 🟢 | **Convites + fluxo de primeiro acesso** — testar ponta a ponta DEPOIS da virada (o convite passa por `app.*` antes de mandar o usuário ao subdomínio da marca; é o trecho mais frágil) | 🟢 · depois de A2 |
+| B5 🟢 | **Protocolo de calibração** (frente 3 Fullsix) — o 1º lote mede a taxa real de aprovação/retoque e **define o tier/preço do contrato**. Vale para os dois; a métrica de convergência (regens até aprovar) já é a telemetria disso | 🟢 |
+| B6 🟡 | **Worten = mesmo caso do Hering** (visual de produto fidedigno em escala, retail). Reaproveitar o fluxo "Duelo de Fidelidade" já montado; disputa direta com o Fullsix/Havas | 🟡 |
+
+### D1–D2 · Bloco C — Segurança para receber cliente
+
+> Levantado em 17/ago sobre o código real. Worten é conta europeia (Sonae) — **GDPR entra na conversa**, não só LGPD.
+
+| # | Gap | Evidência | Tamanho |
+|---|---|---|---|
+| **C1 🔴** | **Background functions sem autenticação** | 13 functions com `SUPABASE_SERVICE_KEY` e **nenhuma checagem de auth** (`clipping-workspace-background`, `trends-workspace-background`, `brand-distill-background`, `diagnostico-concorrentes-workspace-background`, `studio-poll-background`, crons…). São endpoints HTTP públicos: qualquer um que saiba o caminho dispara trabalho pago no nosso provedor. O próprio código já anota "sem JWT — hardening = backlog". **Fix:** segredo compartilhado (`INTERNAL_SECRET`) no header, validado no worker | 🟢 ~1 dia |
+| **C2 🟠** | **Webhook do Studio com segredo opcional** | `studio-webhook.js`: `if (secret && ...)` — se `STUDIO_WEBHOOK_SECRET` não estiver no env, **a checagem simplesmente não acontece**. Soft-fail vira porta aberta. **Fix:** exigir o segredo (sem env = 500, não 200) | 🟢 horas |
+| C3 🟠 | **Zero headers de segurança** | `netlify.toml` não tem `[[headers]]`: sem HSTS, CSP, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options`. App de cliente enterprise leva isso em due diligence | 🟢 |
+| C4 🟡 | **CORS `*` em 18 functions** | com o domínio próprio por tenant, dá para restringir a `*.br4ndcode.com` em vez de liberar geral | 🟢-🟡 |
+| C5 🟡 | **Compliance §7 — pendências desde 14/jul** | **opt-out de treino na conta VOYAGE** (o padrão deles PERMITE treinar com o que enviamos — é o mais urgente), confirmar tier da fal, **região do Supabase/R2** (hoje `us-west-2`; com Worten europeia, a pergunta "onde moram os dados" vira contratual) | 🟢 cada · dossiê em [`compliance.md`](compliance.md) |
+| **C6 🟡** | **LGPD/ToS/Privacidade (Gap 3)** | inexistentes no repo. Pré-requisito do 1º envio de material a cliente grande — e a Worten puxa GDPR junto | 🟡 (+ jurídico) |
+| C7 🟢 | **Isolamento entre tenants — teste explícito** | o RLS por `workspace_id` é o perímetro real (subdomínio é só resolução). Falta um teste que PROVE: usuário da marca A tentando ler dado da marca B tem que falhar. Vira material de due diligence | 🟢 |
+
+### Em seguida · H0 — Código, segurança profunda e performance
+
+> Bloco declarado pelo Danilo para depois dos dois dias. Ordem sugerida: o que protege o cliente novo primeiro, o que acelera depois.
+
+| # | O quê | Notas | Tamanho |
+|---|---|---|---|
+| H0.1 | **Cobertura de teste (Gap 2)** | hoje: 25 testes em 4 arquivos (smoke das functions críticas + paridade de crédito). Falta: `_brain`, `studio-generate`, isolamento de tenant (C7), parsers. Diligência de investidor olha | 🟡 |
+| H0.2 | **Performance do bundle** | `pdf` 628 kB, `charts` 350 kB, `mui` 342 kB — `manualChunks` já separou vendors, falta carregar pdf/charts sob demanda de verdade | 🟢-🟡 |
+| H0.3 | **Mobile não auditado** (Gap 7) | desktop-first; nunca passou por auditoria responsiva | 🟡 |
+| H0.4 | **Custo por workspace visível** | `ai_usage` grava desde 12/jul; falta o painel admin somando fal + LLM + fixos. Sem isso, a fórmula de manutenção do contrato é estimativa. Junto: hook do Voyage e captura de usage no `streamAI` (hoje cegos) | 🟢 |
+| H0.5 | **Dívidas nomeadas** | (a) `/campaigns` legado sem porta (deprecado — candidato a "diretor de arte de TEXTO"); (b) varredura de i18n nas strings antigas; (c) hexes hardcoded (ver A4); (d) `.spec/pitch-futuro.md` está com byte inválido de UTF-8 (pré-existente); (e) exemplo "o que a LOUDR faria" ainda no schema do prompt em `constants.js`, contrariando o reframe de território da v5.9 | 🟢 cada |
+| H0.6 | **Rate limiting / abuso** | nenhuma function tem limite por IP ou por workspace; com endpoints que gastam crédito, é o par natural do C1 | 🟡 |
+
+---
+
+> **v8.0 (20–21/jul) — GO-LIVE HERING:** entregues → identidade **brandcode = Vercel light** (monocromático, fundo branco; reskin só nos tokens + login split); **multitenant por subdomínio LIVE** (`nomedamarca.br4ndcode.com`, br4ndcode.com no Netlify DNS, auto-provisionamento via API); **cobrança por-workspace** (fim dos tiers, migration 045); **URLs limpas** (History API, fim do `/#/`); **onboarding "Preparar ambiente"** (migration 046 + `workspace-onboard.js` — marca do manual PDF + marca nasce junto do workspace); **backup ligado**. Pendências: trial/PicPay, auto-onboarding service-key, follow-ups do reskin (hexes hardcoded). Detalhe no changelog v8.0 do `produto.md`.
 
 ---
 
@@ -32,6 +93,8 @@ Custo projetado da meta: 30 × (consumo×R$0,33 + fair-use R$50–150 + infra fi
 
 ## 🎯 Em cima da mesa agora
 
+> ⬆️ **A semana corrente está na seção do relançamento, acima.** Esta seção guarda as jogadas de médio prazo — o GTM (item 2) foi absorvido pelo lançamento do brandcode, e Hering/Worten (itens 5 e 6) viraram o Bloco B.
+
 O código está à frente do comercial — as próximas jogadas não são features:
 
 1. **Nova arquitetura (Strategy·Intelligence·Studio·Copilot)** — árvore entregue pelo time 2026-07-10; de-para + decisões em [`features/nova-arquitetura.md`](features/nova-arquitetura.md). ~~**Onda 1 (navegação)**~~ ✅ 2026-07-10 — sidebar nos 4 grupos, IA LOUDR movida p/ Intelligence, Copilot renomeado, rótulos via i18n; rotas/schema intactos. ~~**Onda 2**~~ ✅ 2026-07-10 — coluna `strategy` (migration 035) + 4 seções novas no hub (Essência, Negócio c/ Personas+Goals, Experiência, Personalidade c/ território aprendido da IA + Storytelling/Seasons), campos existentes reagrupados sem de-para no banco; cérebro atualizado aditivamente (contexto de geração ganha personas+narrativa; Writing Room idem; RAG embeda as seções strategy). Pendente da onda: extração de manual (F11) aprender o schema novo — junto da Onda 3. **Onda 3 (parcial)** ✅ 2026-07-10 — árvore COMPLETA na nav (3 níveis c/ subtítulos Culture/Business/Communication); Intelligence com 8 páginas (Market Intelligence ✅ real = feed do clipping; Competitors ✅ real-lite = scores por concorrente; Consumer Insights/Trends/Reports = em construção honesto); Studio com Brand Assets ✅ (tabs por tipo; Templates/Brand Kit em construção) e Approvals ✅ real (fila de peças sem julgamento + campanhas p/ aprovar — cada decisão vira sinal); Copilot com 10 modos (prompt pré-carregado por modo via ?m=). ~~Consumer Insights real~~ ✅ 2026-07-10 (v2 no mesmo dia — decisão: Escuta = coleta bruta · Insights = leitura; vizinhas no menu, cross-links; migration 037 `consumer_insights` + `insights-gerar-background`: o cérebro destila a escuta em insights NOMEADOS — elogio/atrito/oportunidade/tema/alerta, com ação no tom da marca e persona; menções brutas saíram da página); ~~Trends real~~ ✅ 2026-07-10 (radar por setor: migration 036, coleta semanal seg 10h + on-demand, cada tendência com 'como a sua marca surfa isso' no tom aprendido; sinal `trend` alimenta o cérebro). ~~Inteligência de Mercado fase 1~~ ✅ 2026-07-10 (pulso 7d, SÍNTESE DO CICLO pelo cérebro — migration 038 + `_market.js`, on-demand + automática no cron do clipping —, share of voice 30d, feed com filtros); ~~Concorrentes fase 1~~ ✅ 2026-07-10 (dossiê expandível por rival: frase, territórios reivindicados c/ alerta de colisão vs território aprendido, forças/fraquezas, momento, fatos do cérebro, movimentos; comparativo lado a lado c/ deltas por ciclo). **Fase 2 anotada:** coleta setorial no Mercado (além dos concorrentes); Concorrentes: presença digital, tom/estética comparável, oferta/preço, vagas abertas, ads da Meta (junto do E2). **Falta da Onda 3:** Relatórios próprios (hoje = Posicionamento ressignificado), Templates/Brand Kit, Agents, extração de manual (F11) no schema novo, split fino do Posicionamento (números→Reports).
@@ -51,7 +114,7 @@ O código está à frente do comercial — as próximas jogadas não são featur
 | ~~**⭐ Duelo de Modelos**~~ ✅ 14/jul | **ENTREGUE (imagem):** modo ⚔️ na página Imagem — 2–3 modelos, mesma peça, arena lado a lado, voto único → sinal `model_duel` (peso 2, vencedor+perdedores) + `image_vote` na vencedora; destilador entende preferência pareada como a evidência mais forte do win_rate. Validado ponta a ponta. **Falta (fase 2):** duelo de TEXTO (gatilho: conector OpenRouter) e usar a arena no pilotinho Hering | ✅ · texto: pós-OpenRouter |
 | **Conector OpenRouter no `_ai.js`** | passo 2 do módulo de IA (decisão 2026-07-12): OpenRouter como 2º conector = GPT/DeepSeek/Sonar(Perplexity) atrás de uma API — destrava Duelo de Modelos p/ TEXTO (preferência pareada de escrita → voz aprendida). Regra: Anthropic segue DIRETA no núcleo (prompt caching + web search nativos, que gateway não repassa intacto); OpenRouter é amplitude, não substituição. Custo: ~5% + 1 hop. LiteLLM anotado p/ fase enterprise/self-host | 🟢 ~1 dia |
 | ~~**Gap 1 — Observabilidade**~~ ✅ 14/jul COMPLETO | Watchdog de crons (migration 041 + `_watchdog.js` + `cron-watchdog` horário — heartbeat nos 6 scheduled, alerta silêncio/morte/erro com dedup e graça) + Sentry plugado (`SENTRY_DSN` no env, teste de ponta a ponta ok). Nota: o antigo `cron-monitor.js` NÃO monitora crons — é o cron de diagnóstico semanal (nome herdado) | ✅ |
-| **Extração de manual em 3 camadas (barata + sem 413)** | Redesenho da `brand-manual-extract-background` (hoje: Opus + PDF base64 ≈ $3–5/manual, teto real ~24 MB — base64 infla 33% sobre o limite de 32 MB da API). **Camada 1:** `pdf-parse` local (grátis) → se PDF tem texto embutido (≥~200 chars/pág), extrai com **Haiku** só-texto (~$0,02). **Camada 2:** PDF rasterizado → **Files API** da Anthropic (file_id, sem base64 = mata o 413) + visão com Haiku/Sonnet (~$0,25–0,80). **Camada 3:** guarda pré-flight (>100 pág ou arquivo grande → mensagem clara, não "Claude 413" cru). Caso real que motivou (2026-08-03): manual PES English, 100 pág/36,5 MB, rasterizado (17 chars/pág — validado com pdf-parse), 3× erro 413 em prod; workaround = comprimir no Preview p/ ≤20 MB. Bônus do mesmo dia: ANTHROPIC_KEY de prod zerou créditos ~19h30 (alerta de billing funcionou?) | 🟡 · **gatilho: fechar um cliente novo** |
+| **Extração de manual em 3 camadas (barata + sem 413)** | Redesenho da `brand-manual-extract-background` (hoje: Opus + PDF base64 ≈ $3–5/manual, teto real ~24 MB — base64 infla 33% sobre o limite de 32 MB da API). **Camada 1:** `pdf-parse` local (grátis) → se PDF tem texto embutido (≥~200 chars/pág), extrai com **Haiku** só-texto (~$0,02). **Camada 2:** PDF rasterizado → **Files API** da Anthropic (file_id, sem base64 = mata o 413) + visão com Haiku/Sonnet (~$0,25–0,80). **Camada 3:** guarda pré-flight (>100 pág ou arquivo grande → mensagem clara, não "Claude 413" cru). Caso real que motivou (2026-08-03): manual PES English, 100 pág/36,5 MB, rasterizado (17 chars/pág — validado com pdf-parse), 3× erro 413 em prod; workaround = comprimir no Preview p/ ≤20 MB. Bônus do mesmo dia: ANTHROPIC_KEY de prod zerou créditos ~19h30 (alerta de billing funcionou?) | 🟡 · **GATILHO DISPAROU (17/ago — Hering/Worten): virou o item B3 do relançamento** |
 | **Copiloto — estender `salvar_estrategia` aos campos tipados do brand book** | Hoje (2026-08-08) o Copiloto persiste **personas** e **objetivos/KPIs** em `strategy` (tool `salvar_estrategia`) + qualquer texto na Biblioteca (`salvar_peca_escrita`, destino padrão). Estender a tool aos demais campos tipados pra caírem no lugar estruturado (UI + cérebro) em vez da Biblioteca: posicionamento, proposta de valor, missão/visão/propósito, valores, brand meaning, business model, portfolio, **brand architecture**, stakeholders, storytelling. Regra de honestidade já no system prompt (todo "salvar" → chamada de tool; nunca alegar salvar sem salvar). Contexto: bug de 08/08 — assistente prometia salvar personas e não tinha ferramenta; corrigido + 5 personas da LOUDR recuperadas do log e gravadas | 🟢 |
 | **Gap 2 — Testes** | CI básico: smoke das functions críticas (_brain, studio-generate, distill) + parses. Diligência de investidor olha | 🟡 |
 | **Gap 3 — LGPD/ToS/Privacidade** | inexistentes no repo; pré-requisito p/ clientes maiores e captação | 🟡 (+ jurídico) |
@@ -60,7 +123,7 @@ O código está à frente do comercial — as próximas jogadas não são featur
 | **E2 — Loop criativo integrado com Meta** | motor de desdobramento (criativo vencedor → N variações on-brand) + Meta Marketing API (vencedores automáticos; performance real vira sinal `ad_performance`) | 🔴 · **gatilho: deal VHITA fechar** → registrar app na Meta NO MESMO DIA (App Review = semanas) |
 | Sustentação: cron enterprise diário · tela de workspace inativo | pequenos, sem gatilho | 🟢 cada |
 
-**Narrativa sem código (usar no site/pitch):** "usuários ilimitados — pague pelo que cria, não por cadeira" (créditos ≠ assentos) · "O Tess te dá todas as IAs; o LOUDR faz as IAs conhecerem a SUA marca" · "Não competimos com Canva/Figma — somos a memória de marca que eles não têm" · "A Fullsix aluga uma fábrica com humanos dentro de cada entrega; o s1ngulr entrega a fábrica com o cérebro da marca dentro — que julga sozinho e aprende a cada peça".
+**Narrativa sem código (usar no site/pitch):** "usuários ilimitados — pague pelo que cria, não por cadeira" (créditos ≠ assentos) · "O Tess te dá todas as IAs; o LOUDR faz as IAs conhecerem a SUA marca" · "Não competimos com Canva/Figma — somos a memória de marca que eles não têm" · "A Fullsix aluga uma fábrica com humanos dentro de cada entrega; o brandcode entrega a fábrica com o cérebro da marca dentro — que julga sozinho e aprende a cada peça".
 
 ---
 
@@ -112,7 +175,7 @@ Critério de priorização: **usa o que o cérebro já sabe × devolve sinais no
 |---|---|---|---|
 | **1º** ⭐ | **Calendário editorial executável** | um mês de pauta por canal com copy pronta + sugestão de imagem por peça — junta keywords + temas do cérebro + tendências ("como surfar") + insights do consumidor | o output que transforma "gerador de peças" em "operação de conteúdo"; uso recorrente toda segunda; cada peça vira sinal |
 | **2º** ⭐ | **Respostas da escuta (community mgmt)** | responder menção/comentário/review/Reclame Aqui no tom da marca, com o contexto da menção | fecha o ciclo escuta→ação; NENHUM concorrente tem (exige voz aprendida); diferencial de arquitetura |
-| **3º** ⭐ | **Briefing gerador** | briefing pronto p/ agência/freela/gráfica: contexto, do/don't aprendidos, referências aprovadas | quase de graça (texto + cérebro); coloca o s1ngulr no meio da produção que acontece FORA dele (tese do MCP) |
+| **3º** ⭐ | **Briefing gerador** | briefing pronto p/ agência/freela/gráfica: contexto, do/don't aprendidos, referências aprovadas | quase de graça (texto + cérebro); coloca o brandcode no meio da produção que acontece FORA dele (tese do MCP) |
 | 4 | **Vídeo completo (não clipe)** | roteiro (cérebro) → cenas (fal) → narração TTS na voz da marca (ElevenLabs?) → legendas; reel pronto p/ postar | eleva o bloco Vídeo; abre a faceta IDENTIDADE SONORA no brand book |
 | 5 | **Apresentações on-brand** | decks (proposta, resultado, institucional) com design.md + tom aprendido | a peça mais produzida e mais fora-de-marca do mundo corporativo; conversa com o "Brand Deck 1-clique" do H2 (pptxgenjs já é dep) |
 | 6 | **E-mail/CRM** | sequências (boas-vindas, nutrição, carrinho) no tom da marca | formato de altíssimo volume nas empresas |
@@ -169,7 +232,7 @@ Problema nomeado pelo Danilo: conteúdo gerado não tem casa organizada — imag
 ### 🛍 Especialistas da fal para apropriar (varredura 2026-07-12 — "depois voltamos neles")
 A tese borda-commodity em ação: o FASHN entrou em ~1h; cada especialista abaixo é encaixe, não reconstrução. Top 3 marcado.
 
-| # | Modelo (fal) | O quê | Encaixe s1ngulr |
+| # | Modelo (fal) | O quê | Encaixe brandcode |
 |---|---|---|---|
 | **1º** ⭐ | **Recraft V3 vector** ($0,08/SVG) | ícones/padrões VETORIAIS na paleta | "Gerar ícone on-brand" na aba Ícones dos Ativos — ativo de marca permanente, não peça descartável. 🟢 horas |
 | **2º** ⭐ | **Dia TTS** (clonagem de voz) + Sync-3/PixVerse lipsync | a marca grava 1 min e ganha a PRÓPRIA voz p/ narrar reels | destrava o "vídeo completo" (output 4) e abre a faceta IDENTIDADE SONORA no brand book. 🟡 ~1 dia |
@@ -214,7 +277,7 @@ Princípio: **o juiz é um módulo só, duas superfícies** — interativo no ch
 | **Gap 4 — Jornada do dia 1** | onboarding guiado: workspace novo → brand book → primeiro valor | 🟡 · dói a partir de ~10 contas |
 | **Gap 6 — Tenant hardening** | backup/versionamento por cérebro, zero vazamento | 🟡 · gatilho: contas crescendo |
 | ~~**Backup do banco**~~ ✅ LIGADO 2026-07-20 | dump diário (GitHub Actions → R2) + dump pré-migration (`scripts/migrate.sh`) + doc de restore ([`backup.md`](backup.md)). PITR adiado (plano Pro). Bucket R2 `dumps1ngulr` + 5 secrets do GitHub OK; **1º dump validado em prod** (2.3M no R2). Host da pooler = `aws-1-us-west-2` (direto é IPv6-only, falha no CI). Regra nova: `db push` só via migrate.sh (backup antes). **Falta só (local, p/ migrate.sh):** `brew install postgresql@17 awscli` | ✅ |
-| ~~**Subdomínio por marca**~~ ✅ LIVE 2026-07-21 (reabriu 15/07 c/ o 1º cliente externo) | `nomedamarca.s1ngulr.com` no ar. `s1ngulr.com` (GoDaddy) → **Netlify DNS** (nsone). Resolução por hostname (`getTenantSlug`; RLS por workspace_id = perímetro; sessão isolada por subdomínio; `app.s1ngulr.com` = login/admin; dev via `?tenant=`). **Wildcard não é self-serve no Netlify** (UI+API rejeitam) → **auto-provisionamento** por subdomínio: `admin-create-workspace` adiciona `{slug}.s1ngulr.com` como alias via **API do Netlify** (DNS+cert automáticos; requer `NETLIFY_API_TOKEN`). migration 044 (slug). Escalar sem provisionar 1-a-1 = Netlify DNS wildcard / Cloudflare for SaaS (futuro) | ✅ |
+| ~~**Subdomínio por marca**~~ ✅ LIVE 2026-07-21 (reabriu 15/07 c/ o 1º cliente externo) | `nomedamarca.br4ndcode.com` no ar. `br4ndcode.com` (GoDaddy) → **Netlify DNS** (nsone). Resolução por hostname (`getTenantSlug`; RLS por workspace_id = perímetro; sessão isolada por subdomínio; `app.br4ndcode.com` = login/admin; dev via `?tenant=`). **Wildcard não é self-serve no Netlify** (UI+API rejeitam) → **auto-provisionamento** por subdomínio: `admin-create-workspace` adiciona `{slug}.br4ndcode.com` como alias via **API do Netlify** (DNS+cert automáticos; requer `NETLIFY_API_TOKEN`). migration 044 (slug). Escalar sem provisionar 1-a-1 = Netlify DNS wildcard / Cloudflare for SaaS (futuro) | ✅ |
 | **Dataset → export JSONL (groundwork do SLM)** | JSONL por tenant do `brand_dataset` + dedup + filtro de qualidade + enquadramento por tarefa (juiz / copy / território). **Estado 2026-07-20: só 84 exemplos, 1 marca (LOUDR dogfooding); 177 sinais.** NÃO treina nada — prepara o terreno e vira material de captação. Combustível vem do onboarding das 30 marcas | 🟢 groundwork · 🟡 no volume |
 | **Eval set por tarefa (groundwork do SLM)** | conjunto de avaliação fixo por tarefa (juiz on/off-brand, tom, território) pra medir qualquer fine-tune contra a Claude ANTES de trocar. Pré-requisito de qualquer treino sério | 🟢 · junto do export |
 | **Cérebro como serviço próprio** | fila/estado durável fora do teto do Netlify (fronteira pronta no `_brain.js`) | 🔴 · gatilho: volume |

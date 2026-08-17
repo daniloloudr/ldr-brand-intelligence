@@ -288,11 +288,11 @@ function buildSystemPrompt(brand, book, ragChunks, intelligence) {
     missao || proposito || paleta || (ragChunks?.length) || intelligence?.modelo)
 
   if (!hasContent) {
-    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma s1ngulr.
+    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma brandcode.
 Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
   }
 
-  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma s1ngulr.
+  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma brandcode.
 Você conhece profundamente esta marca e responde com base exclusivamente no brand book abaixo.
 Seja estratégico, direto e on-brand. Nunca invente informações que não estão no brand book.
 

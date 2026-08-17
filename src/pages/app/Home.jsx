@@ -29,7 +29,7 @@ const rel = iso => {
 // null enquanto não há resposta — o caller usa as regras como fallback.
 const RECO_TTL = 12 * 3600000
 async function fetchRecoCerebro(workspaceId, brandId) {
-  const key = `s1ngulr-home-reco-${brandId}`
+  const key = `brandcode-home-reco-${brandId}`
   try {
     const c = JSON.parse(localStorage.getItem(key) || 'null')
     if (c && Date.now() - c.at < RECO_TTL) return c.reco
@@ -123,10 +123,10 @@ export function Home() {
   // ── FEED: o que aconteceu ──
   const feed = []
   if (d.intel && (Date.now() - new Date(d.intel.created_at)) < 14 * 86400000)
-    feed.push({ e: '🧠', t: `A inteligência evoluiu para a v${d.intel.versao} — ${d.intel.gerado_de?.count || '?'} evidências viraram aprendizado`, q: d.intel.created_at, hash: '#/app/ia-loudr' })
+    feed.push({ e: '🧠', t: `A inteligência evoluiu para a v${d.intel.versao} — ${d.intel.gerado_de?.count || '?'} evidências viraram aprendizado`, q: d.intel.created_at, hash: '#/app/inteligencia' })
   const ap = d.intel?.metricas?.approval_sob_versao_anterior
   if (ap != null && d.intel?.metricas?.votos_janela > 0)
-    feed.push({ e: '📈', t: `Aprovação das peças criadas sob a v${d.intel.versao - 1}: ${pct(ap)} (${d.intel.metricas.votos_janela} avaliações)`, q: d.intel.created_at, hash: '#/app/ia-loudr' })
+    feed.push({ e: '📈', t: `Aprovação das peças criadas sob a v${d.intel.versao - 1}: ${pct(ap)} (${d.intel.metricas.votos_janela} avaliações)`, q: d.intel.created_at, hash: '#/app/inteligencia' })
   for (const c of d.clips)
     feed.push({ e: '⚔️', t: `${concNome[c.concorrente_id] || 'Concorrente'}: ${c.titulo}${c.score_impacto ? ` (impacto ${c.score_impacto}/10)` : ''}`, q: c.created_at, hash: '#/app/market-intel' })
   for (const t of d.trends)
@@ -142,13 +142,13 @@ export function Home() {
   else if (brandPath && !v.tom_voz) reco = { t: 'Defina o tom de voz em Expressão — é a base de tudo que a marca escreve.', cta: 'Ir para Expressão', hash: `${brandPath}/expression` }
   else if (d.pendJulg > 3 && brandPath) reco = { t: `${d.pendJulg} peças aguardam julgamento — julgar acelera o aprendizado da marca.`, cta: 'Julgar agora', hash: `${brandPath}/studio/approvals` }
   else if (!d.concs.some(c => c.ativo)) reco = { t: 'Cadastre concorrentes — a marca aprende o território do mercado e afia a diferenciação.', cta: 'Ir para Relatórios', hash: '#/app/reports' }
-  else if (d.sigPendentes >= 5) reco = { t: `${d.sigPendentes} evidências novas acumuladas — a próxima versão da inteligência nasce em breve.`, cta: 'Ver inteligência', hash: '#/app/ia-loudr' }
+  else if (d.sigPendentes >= 5) reco = { t: `${d.sigPendentes} evidências novas acumuladas — a próxima versão da inteligência nasce em breve.`, cta: 'Ver inteligência', hash: '#/app/inteligencia' }
   else if (brandPath) reco = { t: 'Crie uma peça na Redação — a marca escreve com a voz que aprendeu com você.', cta: 'Abrir Redação', hash: `${brandPath}/studio/writing` }
   if (recoIA) reco = recoIA   // o cérebro fala mais alto que as regras
 
   // ── ATALHOS por frequência de uso (adaptativo, client-side) ──
   let freq = {}
-  try { freq = JSON.parse(localStorage.getItem('s1ngulr-nav-freq') || '{}') } catch { /* ok */ }
+  try { freq = JSON.parse(localStorage.getItem('brandcode-nav-freq') || '{}') } catch { /* ok */ }
   const atalhos = !brandPath ? [] : [
     { label: 'Redação', hash: `${brandPath}/studio/writing`, k: '#brand/studio/writing' },
     { label: 'Imagem', hash: `${brandPath}/studio`, k: '#brand/studio' },
@@ -193,7 +193,7 @@ export function Home() {
                   </Stack>
                 ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>sem diagnóstico ainda</Typography>}
               </Card>
-              <Card hash="#/app/ia-loudr">
+              <Card hash="#/app/inteligencia">
                 <Typography fontSize={11} fontWeight={800} color="text.secondary">Inteligência</Typography>
                 {d.intel ? (
                   <>
@@ -217,7 +217,7 @@ export function Home() {
                   </>
                 ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>sem escuta ainda</Typography>}
               </Card>
-              <Card hash="#/app/ia-loudr">
+              <Card hash="#/app/inteligencia">
                 <Typography fontSize={11} fontWeight={800} color="text.secondary">Evidências · 7 dias</Typography>
                 <Typography fontSize={22} fontWeight={900} sx={{ lineHeight: 1.2 }}>{d.evidSemana}</Typography>
                 <Typography fontSize={9.5} color="text.disabled">tudo que a marca vive vira aprendizado</Typography>

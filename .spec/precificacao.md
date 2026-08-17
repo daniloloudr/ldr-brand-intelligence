@@ -1,4 +1,4 @@
-# s1ngulr — Custos & Créditos (modelo revisto)
+# brandcode — Custos & Créditos (modelo revisto)
 
 > **🔄 PIVÔ DE MODELO (Danilo, 2026-07-12): NÃO é SaaS self-service.**
 > A venda é direta/negociada. O **crédito virou REPASSE DE CUSTO** (sem margem) —

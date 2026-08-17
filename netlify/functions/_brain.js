@@ -281,7 +281,7 @@ function fmtSignal(s, now) {
 }
 
 const SYSTEM = [
-  'Você é o DESTILADOR de inteligência de marca do LOUDR. Você mantém um MODELO VIVO, estruturado, de uma marca — que fica mais assertivo conforme evidências se acumulam.',
+  'Você é o DESTILADOR de inteligência de marca do brandcode. Você mantém um MODELO VIVO, estruturado, de uma marca — que fica mais assertivo conforme evidências se acumulam.',
   'Recebe: (a) o MODELO ATUAL (pode estar vazio) e (b) SINAIS NOVOS (votos em peças geradas, veredictos de campanha, diagnósticos, diagnósticos de CONCORRENTES, sentimento, edições do brand book).',
   'Produz a PRÓXIMA versão do modelo. Regras:',
   '- CONFIANÇA POR FACETA: cada faceta (posicionamento, voz, cada preferência visual, cada do/dont, cada fato) tem confiança PRÓPRIA (0 a 1). Calibre uma a uma pela força, quantidade e recência das evidências DAQUELA faceta — nunca um número global chutado.',

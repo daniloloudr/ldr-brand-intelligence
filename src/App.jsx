@@ -22,7 +22,7 @@ const PageFallback = () => (
 
 const WORKSPACE_ROUTES = [
   'app-home', 'posicionamento', 'listening', 'content-hub',
-  'workspace', 'conta', 'time', 'plano', 'alertas', 'ia-loudr',
+  'workspace', 'conta', 'time', 'plano', 'alertas', 'inteligencia',
   'brands-list', 'brands-new', 'brands-detail', 'brands-assistant',
   'brands-campaigns', 'brands-campaign-new', 'brands-campaign-detail',
   'brands-studio', 'brands-studio-campaigns', 'brands-studio-workflow', 'brands-studio-video',
@@ -80,7 +80,7 @@ export default function App() {
 
   // Resolve o papel do usuário: é platform_admin? (RLS deixa ler o próprio registro)
   // Se NÃO for admin, guarda o slug da marca dele — no domínio de sistema ele é
-  // mandado pro próprio subdomínio, já que app.s1ngulr.com é exclusivo do admin.
+  // mandado pro próprio subdomínio, já que app.br4ndcode.com é exclusivo do admin.
   useEffect(() => {
     if (!user?.id) { setIsAdmin(null); setHomeSlug(undefined); return; }
     let on = true;
@@ -99,7 +99,7 @@ export default function App() {
     return () => { on = false; };
   }, [user?.id]);
 
-  // Domínio de sistema (app.s1ngulr.com / localhost): SEM tenant no host. É o
+  // Domínio de sistema (app.br4ndcode.com / localhost): SEM tenant no host. É o
   // ambiente do admin — nenhum workspace é carregado por associação aqui.
   const systemDomain = !getTenantSlug();
   const hostIsProd   = typeof window !== 'undefined' && window.location.hostname.endsWith(ROOT_DOMAIN);
@@ -201,7 +201,7 @@ export default function App() {
   return null;
 }
 
-// Não-admin que caiu em app.s1ngulr.com sem uma marca pra onde ir. O domínio de
+// Não-admin que caiu em app.br4ndcode.com sem uma marca pra onde ir. O domínio de
 // sistema é exclusivo do admin; aqui só resta sair e entrar pelo endereço da marca.
 function RestritoSistema({ onLogout }) {
   return (
@@ -210,7 +210,7 @@ function RestritoSistema({ onLogout }) {
       <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: "#171717" }}>Acesso restrito</div>
       <div style={{ fontSize: 14, color: "#666", maxWidth: 380, lineHeight: 1.5 }}>
         Este endereço é do painel administrativo. Entre pelo endereço da sua marca
-        (<strong>marca.s1ngulr.com</strong>).
+        (<strong>marca.br4ndcode.com</strong>).
       </div>
       <button onClick={onLogout} style={{ marginTop: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, color: "#171717", background: "transparent", border: "1px solid #EAEAEA", borderRadius: 8, cursor: "pointer" }}>Sair</button>
     </div>

@@ -223,7 +223,7 @@ export const theme = createTheme({
 })
 
 /* ── Light theme (RelatorioPublico) ─────────────────────────── */
-// Identidade s1ngulr — estilo Vercel light (monocromático): chrome preto/branco/cinza,
+// Identidade brandcode — estilo Vercel light (monocromático): chrome preto/branco/cinza,
 // as cores semânticas (verde/rosa/âmbar) seguem só nos dados (scores, sentimento, charts).
 const L = {
   bg:      '#FFFFFF',

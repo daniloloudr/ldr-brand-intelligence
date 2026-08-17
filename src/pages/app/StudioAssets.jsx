@@ -46,7 +46,7 @@ export function StudioAssets({ brandId }) {
     return () => { on = false }
   }, [brandId])
 
-  // Escolhe qual logo aparece no header (MARCA.s1ngulr). Padrão: o primeiro.
+  // Escolhe qual logo aparece no header (MARCA.brandcode). Padrão: o primeiro.
   async function usarNoHeader(asset) {
     const atual = (assets || []).find(a => a.tipo === 'logo' && a.metadata?.header)
     if (atual && atual.id !== asset.id) {
@@ -99,7 +99,7 @@ export function StudioAssets({ brandId }) {
                 <Stack direction="row" alignItems="center" sx={{ px: 1.25, py: 0.75 }}>
                   <Typography fontSize={12} fontWeight={800} noWrap sx={{ flex: 1 }}>{a.nome}</Typography>
                   {a.tipo === 'logo' && (
-                    <Tooltip title={headerLogoId === a.id ? 'Este logo aparece no header (antes do .s1ngulr)' : 'Usar no header'}>
+                    <Tooltip title={headerLogoId === a.id ? 'Este logo aparece no header (antes do .brandcode)' : 'Usar no header'}>
                       <IconButton size="small" onClick={() => usarNoHeader(a)}>
                         {headerLogoId === a.id
                           ? <StarIcon sx={{ fontSize: 16, color: '#E8185A' }} />

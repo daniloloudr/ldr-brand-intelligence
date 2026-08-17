@@ -1,10 +1,16 @@
 import { DS } from "./constants";
 
-// ─── Multitenant por subdomínio (nomedamarca.s1ngulr.com) ────────────
+// ─── Identidade do produto ───────────────────────────────────────────
+// Fonte única do nome visível (lockup MARCA.brandcode, login, títulos).
+// O "4" existe só no domínio: a marca escrita é "brandcode".
+export const PRODUCT_NAME = 'brandcode';
+
+// ─── Multitenant por subdomínio (nomedamarca.br4ndcode.com) ──────────
 // Decisão 2026-07-20: o subdomínio é camada de RESOLUÇÃO + branding; o RLS por
 // workspace_id segue sendo o perímetro real de segurança. Sistema = app./www./apex.
 // Local (sem subdomínio): usar ?tenant=slug para simular.
-export const ROOT_DOMAIN = 's1ngulr.com';
+// Env-driven para permitir preview/staging em outro apex sem tocar no código.
+export const ROOT_DOMAIN = import.meta.env?.VITE_ROOT_DOMAIN || 'br4ndcode.com';
 export const RESERVED_SUBDOMAINS = ['app', 'www', 'admin', 'api', 'static', 'assets'];
 
 // slug do tenant atual, ou null quando é domínio de sistema (app/www/apex/localhost/preview)
@@ -77,7 +83,10 @@ export function getRoute() {
   if (p === '/app/time')             return 'time';
   if (p === '/app/plano')            return 'plano';
   if (p === '/app/alertas')          return 'alertas';
-  if (p === '/app/ia-loudr')         return 'ia-loudr';
+  // 'ia-loudr' foi o nome interno até o relançamento como brandcode; a rota antiga
+  // segue resolvendo para não quebrar deep-link de e-mail/feed já disparado.
+  if (p === '/app/inteligencia')     return 'inteligencia';
+  if (p === '/app/ia-loudr')         return 'inteligencia';
   if (p === '/app/brands')                                        return 'brands-list';
   if (p === '/app/brands/new')                                    return 'brands-new';
   if (p.match(/^\/app\/brands\/[^/]+\/assistant/))               return 'brands-assistant';

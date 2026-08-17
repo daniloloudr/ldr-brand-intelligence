@@ -1,4 +1,4 @@
-# DECK RETAIL — s1ngulr para Hering & Worten
+# DECK RETAIL — brandcode para Hering & Worten
 ### Deck master de venda enterprise retail · criado 2026-07-14
 > Um deck, dois deals: o caso de uso é o mesmo (visual de produto fidedigno, em escala, on-brand).
 > Blocos variantes marcados **[HERING]** / **[WORTEN]**. Nas notas: o que falar, não o que está no slide.
@@ -9,12 +9,12 @@
 
 ## SLIDE 01 — Capa
 
-# {MARCA}.s1ngulr
+# {MARCA}.brandcode
 **O cérebro da sua marca, operando a criação.**
 
 Visual de produto fidedigno, on-brand e aprovado — em escala, dentro da sua operação.
 
-> **Nota:** abrir com o lockup da marca deles (`hering.s1ngulr` / `worten.s1ngulr`) já montado. O primeiro slide É a demo: a marca deles no centro, não a nossa.
+> **Nota:** abrir com o lockup da marca deles (`hering.brandcode` / `worten.brandcode`) já montado. O primeiro slide É a demo: a marca deles no centro, não a nossa.
 
 ---
 
@@ -47,13 +47,13 @@ A diferença entre volume e valor está em duas coisas que não se compram pront
 
 ---
 
-## SLIDE 04 — O que é o s1ngulr
+## SLIDE 04 — O que é o brandcode
 
 # Não é um gerador de imagens.
 # Não é uma agência com IA.
 # É a sua marca operando a própria criação.
 
-| | Gerador genérico | Agência com IA | **s1ngulr** |
+| | Gerador genérico | Agência com IA | **brandcode** |
 |---|---|---|---|
 | Quem conhece a marca | ninguém | a equipe deles | **o cérebro da {MARCA}** |
 | Quem julga cada peça | ninguém | humanos deles, por peça | **o juiz da marca, automático** |
@@ -158,7 +158,7 @@ O mesmo cérebro que gera e julga a imagem também opera:
 |---|---|---|
 | Estúdio tradicional | R$50–300 | logística física |
 | Produção de agência com IA + QA humano | **R$600–1.300** (€95–210, mercado 2026) | os humanos entre a IA e você |
-| **s1ngulr** | **fração disso — e só a peça APROVADA** | o cérebro e o julgamento da sua marca |
+| **brandcode** | **fração disso — e só a peça APROVADA** | o cérebro e o julgamento da sua marca |
 
 - Geração reprovada = custo nosso (centavos), não seu
 - Usuários ilimitados — pague pelo que cria, não por cadeira
@@ -203,7 +203,7 @@ Lotes recorrentes, agentes por gatilho, API no seu PIM/e-commerce. E o cérebro 
 
 # A marca no meio da operação.
 
-Hoje: o cérebro da {MARCA} criando e julgando dentro do s1ngulr.
+Hoje: o cérebro da {MARCA} criando e julgando dentro do brandcode.
 Em breve: o mesmo cérebro dentro das SUAS ferramentas — Figma, Canva, seu e-commerce — via API/MCP.
 Sempre: aprendendo com cada peça, cada campanha, cada decisão da sua equipe.
 
@@ -221,7 +221,7 @@ Sempre: aprendendo com cada peça, cada campanha, cada decisão da sua equipe.
 **02 — Contrato calibrado** · preço por aprovado, definido pelos seus números
 **03 — Operação contínua** · a criação com a sua marca no meio
 
-`{MARCA}.s1ngulr`
+`{MARCA}.brandcode`
 
 > **Nota:** fechar pedindo UMA coisa só: a data do piloto e quem manda as peças/fichas.
 

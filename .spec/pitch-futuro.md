@@ -1,4 +1,4 @@
-# s1ngulr — O Discurso do Modelo de Futuro
+# brandcode — O Discurso do Modelo de Futuro
 ### De onde viemos, o que já é real, e o que estamos construindo · atualizado 2026-07-12
 *Par do [`pitch-tecnologia.md`](pitch-tecnologia.md) (o desenho técnico) — este é o **arco narrativo**: cada afirmação de futuro ancorada em algo que já existe hoje. É o slide de roadmap/visão.*
 
@@ -46,7 +46,7 @@ capturados hoje** — quem começar depois não alcança.
   insights nomeados da escuta, dossiê de concorrentes com alerta de território, radar de tendências
   com "como a sua marca surfa isso") · **Estúdio** (imagem, vídeo, redação, fluxos nodais multi-modelo)
   · **Copiloto** (chat que ensina a marca) · **Home adaptativa** (recomendação gerada pelo cérebro).
-- **White-label-ish**: cada cliente vê a própria marca no produto (`{MARCA}.s1ngulr`).
+- **White-label-ish**: cada cliente vê a própria marca no produto (`{MARCA}.brandcode`).
 - Multi-tenant por RLS, créditos como unidade econômica, custo medido por modelo de IA.
 
 **Validação externa (compradores nomeando o valor):**
@@ -84,14 +84,14 @@ valioso do dataset; o cérebro desdobra vencedores em variações on-brand.
 o dado de ouro para win-rate e para o fine-tune que vem no Ato 3.
 
 **7. Pré-produção comercial:** observabilidade, Stripe live, LGPD, marca própria + site
-(dogfooding: o s1ngulr construindo a própria marca), registro INPI.
+(dogfooding: o brandcode construindo a própria marca), registro INPI.
 
 ---
 
 ## ATO 3 · O FUTURO — a infraestrutura (rota pavimentada, não aposta)
 
 **1. O cérebro sai do produto: MCP + API.** A inteligência da marca dentro do Figma, Canva,
-Photoshop — e de qualquer sistema via API (o endpoint que a Hering pediu). O s1ngulr deixa
+Photoshop — e de qualquer sistema via API (o endpoint que a Hering pediu). O brandcode deixa
 de competir com ferramentas de criação e vira **a camada de marca que todas elas não têm**.
 *Âncora: o plano MCP está aprovado e especificado; o `_brain.js` já é a porta única — é exposição, não reconstrução.*
 

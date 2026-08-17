@@ -4,7 +4,7 @@ import { Box, Button, TextField, Typography, CircularProgress, Alert } from '@mu
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { theme } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
-import logoNegativa from '../../assets/negativa.svg'
+import { Wordmark } from '../../components/Wordmark'
 
 export function ForcePasswordPage({ onDone, onLogout }) {
   const [password, setPassword] = useState('')
@@ -40,7 +40,7 @@ export function ForcePasswordPage({ onDone, onLogout }) {
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
         <Box sx={{ width: '100%', maxWidth: 400 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <img src={logoNegativa} alt="LOUDR" style={{ height: 28, marginBottom: 16 }} />
+            <Box sx={{ mb: 2 }}><Wordmark size={24} /></Box>
             <Typography variant="h6" fontWeight={800} gutterBottom>Defina sua senha pessoal</Typography>
             <Typography variant="body2" color="text.secondary">
               Este é seu primeiro acesso. Por segurança, escolha uma nova senha antes de continuar.

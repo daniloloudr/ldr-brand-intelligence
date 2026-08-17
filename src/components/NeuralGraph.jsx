@@ -1,6 +1,6 @@
-// NeuralGraph — a rede viva da Inteligência da Marca (painel IA LOUDR).
+// NeuralGraph — a rede viva da Inteligência da Marca (painel Inteligência brandcode).
 // Três camadas: EVIDÊNCIAS capturadas (com contagem real) → FACETAS do
-// aprendizado (acesas quando a marca já aprendeu) → onde o LOUDR APLICA.
+// aprendizado (acesas quando a marca já aprendeu) → onde o brandcode APLICA.
 // SVG puro, animado (fluxo nas conexões ativas), dados 100% reais.
 // Copy didática — nunca revela o mecanismo interno.
 import { Box, Typography } from '@mui/material'
@@ -154,7 +154,7 @@ export function NeuralGraph({ signalStats = {}, model, versao }) {
         ))}
       </Box>
       <Typography fontSize={11} color="text.secondary" mt={0.5}>
-        Cada uso vira evidência · cada evidência fortalece uma faceta do aprendizado · cada faceta guia o que o LOUDR cria.
+        Cada uso vira evidência · cada evidência fortalece uma faceta do aprendizado · cada faceta guia o que o brandcode cria.
         Nós apagados ainda não têm evidência — são os próximos a acender.
       </Typography>
     </Box>
