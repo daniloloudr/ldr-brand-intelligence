@@ -328,7 +328,7 @@ function TabPlano({ workspace }) {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
-          {planoAtual.studio && <Chip label="LOUDR Studio" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
+          {planoAtual.studio && <Chip label="Studio" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
           <Chip label="Brand Intelligence · fair-use" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
           {planoAtual.social_listening && <Chip label="Social Listening" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
           <Chip label={`${planoAtual.membros === Infinity ? '∞' : planoAtual.membros} membros`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />

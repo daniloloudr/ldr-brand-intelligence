@@ -247,9 +247,9 @@ export function StudioWorkflows({ brandId }) {
               )}
             </Box>
 
-            {/* Galeria s1ngulr (catálogo embutido — ponto de partida) */}
+            {/* Galeria brandcode (catálogo embutido — ponto de partida) */}
             <Box>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Galeria s1ngulr</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Galeria brandcode</Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
                 {WORKFLOW_TEMPLATES.map(t => {
                   const cor = TEMPLATE_CAT_COLOR[t.categoria] || TEAL

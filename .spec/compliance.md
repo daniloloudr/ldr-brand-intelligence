@@ -1,4 +1,4 @@
-# s1ngulr — Dossiê de Compliance & Confiança
+# brandcode — Dossiê de Compliance & Confiança
 ### Rascunho-mestre p/ procurement e jurídico de clientes · criado 2026-07-14 (frente Fullsix 1)
 > **Status: RASCUNHO** — fatos de provedores verificados nas fontes públicas em 14/07/2026;
 > itens marcados **[A VALIDAR]** exigem confirmação do Danilo/jurídico ANTES de enviar a cliente.
@@ -9,7 +9,7 @@
 
 ## 1. Resumo executivo
 
-O s1ngulr é a plataforma onde a marca opera a própria criação com IA. Três garantias estruturais:
+O brandcode é a plataforma onde a marca opera a própria criação com IA. Três garantias estruturais:
 
 1. **Seus dados são seus** — assets, briefings e conhecimento da marca ficam isolados por
    workspace e **não treinam modelos externos** (política contratada com cada provedor; detalhe §2).
@@ -20,7 +20,7 @@ O s1ngulr é a plataforma onde a marca opera a própria criação com IA. Três 
 
 ## 2. Cadeia de fornecedores de IA
 
-| Provedor | Uso no s1ngulr | Treina com dados do cliente? | Retenção | Fonte |
+| Provedor | Uso no brandcode | Treina com dados do cliente? | Retenção | Fonte |
 |---|---|---|---|---|
 | **Anthropic** (Claude) | inteligência da marca, julgamentos, redação | **Não** (padrão dos termos comerciais/API) | ~30 dias (ZDR disponível sob acordo) | privacy.claude.com · platform.claude.com/docs |
 | **fal.ai** (geração de imagem/vídeo) | Studio: imagem, vídeo, try-on | **Não treina LLMs com dados de clientes enterprise**; inputs processados só p/ prestar o serviço · **[A VALIDAR: tier da conta LOUDR]** | conforme ToS | fal.ai/terms · trust.fal.ai |
@@ -61,7 +61,7 @@ Auditável a qualquer momento; exportável sob pedido.
 
 ## 5. Propriedade intelectual
 
-- **Inputs do cliente** (fotos de produto, manuais, briefings): seguem do cliente — o s1ngulr
+- **Inputs do cliente** (fotos de produto, manuais, briefings): seguem do cliente — o brandcode
   recebe licença apenas para operar o serviço.
 - **Outputs**: uso comercial pelo cliente garantido em contrato **[A VALIDAR: cláusula-modelo
   com advogado — item PI/INPI do backlog]**; os provedores de geração não reivindicam

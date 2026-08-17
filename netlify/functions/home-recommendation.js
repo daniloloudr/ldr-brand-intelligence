@@ -24,7 +24,7 @@ const ACTIONS = (brandPath) => ({
   fluxos:       { cta: 'Abrir Fluxos',        hash: `${brandPath}/studio/workflow` },
   copiloto:     { cta: 'Abrir Copiloto',      hash: `${brandPath}/assistant` },
   concorrentes: { cta: 'Ver concorrentes',    hash: '#/app/reports' },
-  inteligencia: { cta: 'Ver inteligência',    hash: '#/app/ia-loudr' },
+  inteligencia: { cta: 'Ver inteligência',    hash: '#/app/inteligencia' },
   mercado:      { cta: 'Ver mercado',         hash: '#/app/market-intel' },
   tendencias:   { cta: 'Ver tendências',      hash: '#/app/trends' },
   escuta:       { cta: 'Ver escuta',          hash: '#/app/listening' },

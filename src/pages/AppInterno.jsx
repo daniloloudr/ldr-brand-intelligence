@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ThemeProvider, CssBaseline, Popover, Box, Stack, Typography, Button, Divider } from "@mui/material";
 import { theme as themeDark, themeLight } from "../lib/theme";
-import logoPositivo from "../assets/logo-positivo-200px.png";
-import logoNegativa from "../assets/negativa.svg";
 import { supabase } from "../lib/supabase";
 import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
 import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate } from "../lib/helpers";
@@ -452,7 +450,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
       }}>
         {/* Logo area (alinha com sidebar) */}
         <div style={{ width: NAV_W, flexShrink: 0, padding: "0 20px", display: "flex", alignItems: "center", gap: 10, borderRight: `1px solid ${C.border}`, height: "100%" }}>
-          <img src={isDark ? logoNegativa : logoPositivo} alt="LOUDR" style={{ height: 22, display: "block" }} />
+          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.03em", color: C.text, fontFamily: F }}>brandcode</span>
         </div>
 
         {/* Search */}
@@ -531,7 +529,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 
           <div style={{ marginLeft: 2 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: F, lineHeight: 1.2 }}>{userName}</div>
-            <div style={{ fontSize: 10, color: C.textDis, fontFamily: F }}>LOUDR Admin</div>
+            <div style={{ fontSize: 10, color: C.textDis, fontFamily: F }}>brandcode · admin</div>
           </div>
         </div>
       </header>
@@ -1503,7 +1501,7 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                 </div>
                 {ws.slug && (
                   <a href={tenantUrl(ws.slug)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: DS.green, fontFamily: F, textDecoration: 'none', marginTop: 3, display: 'inline-block' }}>
-                    {ws.slug}.s1ngulr.com ↗
+                    {ws.slug}.br4ndcode.com ↗
                   </a>
                 )}
               </div>
@@ -1669,7 +1667,7 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                 <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio) — opcional, gera do nome</label>
                 <input style={inp} placeholder="nomedamarca" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} />
                 <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
-                  {(slugify(form.slug || form.nome) || 'nomedamarca')}.s1ngulr.com
+                  {(slugify(form.slug || form.nome) || 'nomedamarca')}.br4ndcode.com
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
@@ -1701,7 +1699,7 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
                 <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio)</label>
                 <input style={inp} placeholder="nomedamarca" value={configForm.slug} onChange={e => setConfigForm(f => ({ ...f, slug: e.target.value }))} />
                 <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
-                  {(slugify(configForm.slug) || '—')}.s1ngulr.com
+                  {(slugify(configForm.slug) || '—')}.br4ndcode.com
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>

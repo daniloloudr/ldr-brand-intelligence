@@ -37,7 +37,7 @@ A ferramenta é **ponta de lança comercial**. Ela mede, aponta o problema — e
 
 | Player | Mede? | Cria? | Aprende? | Dados primários | Preço |
 |---|---|---|---|---|---|
-| **s1ngulr** | ✅ | ✅ | ✅ **único** | julgamento humano interno | R$ 5.900/marca |
+| **brandcode** | ✅ | ✅ | ✅ **único** | julgamento humano interno | R$ 5.900/marca |
 | **Valometry** (Ana Couto) | ✅ **forte** | ❌ | ❌ | ✅ survey + mídia | enterprise, sem preço público |
 | Pupila | ❌ | ✅ | ❌ | ❌ | US$ 1M levantado |
 | Tess AI | ❌ | ✅ genérico | ❌ | ❌ | R$ 80–500/mês |
@@ -50,7 +50,7 @@ A ferramenta é **ponta de lança comercial**. Ela mede, aponta o problema — e
                         APRENDE
                            ↑
                            │
-                           │   ● s1ngulr
+                           │   ● brandcode
                            │     (mede + cria + aprende)
                            │
         MEDE ──────────────┼────────────── CRIA

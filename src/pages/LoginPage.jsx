@@ -3,7 +3,7 @@ import { navigate } from '../lib/helpers';
 import { supabase } from "../lib/supabase";
 
 // Login — split estilo Runway: showcase à esquerda + form à direita.
-// Identidade s1ngulr = Vercel light (monocromático). Form em CSS puro; auth Supabase intacta.
+// Identidade brandcode = Vercel light (monocromático). Form em CSS puro; auth Supabase intacta.
 // O visual da esquerda é placeholder — trocável por imagem/vídeo de marca quando pronta.
 export function LoginPage({ onLogin }) {
   const [email, setEmail]       = useState("");
@@ -200,7 +200,7 @@ export function LoginPage({ onLogin }) {
       {/* ── Form ── */}
       <div className="sp-form">
         <div className="sp-card">
-          <div className="sp-mark">s1ngulr</div>
+          <div className="sp-mark">brandcode</div>
           <h1 className="sp-title">Entre na sua conta</h1>
           <p className="sp-desc">Brand intelligence platform</p>
 

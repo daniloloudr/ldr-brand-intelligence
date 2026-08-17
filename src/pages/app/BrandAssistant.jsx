@@ -79,12 +79,31 @@ const REVIEW_TOOL = {
 // Casa do Conteúdo: peça escrita produzida no chat ganha endereço na Biblioteca.
 const SAVE_TOOL = {
   name: 'salvar_peca_escrita',
-  description: 'SALVA uma peça de texto pronta (post, carrossel, roteiro, e-mail, blog) na Biblioteca da marca (aba Textos). Use SEMPRE que terminar de escrever uma peça completa que o usuário aprovou ou pediu — não pede confirmação, não custa créditos.',
+  description: 'SALVA QUALQUER resultado em texto/markdown na Biblioteca da marca (aba Textos): post, carrossel, roteiro, e-mail, blog, mas TAMBÉM jornada de decisão, mapa de conteúdo, arquitetura de site, análise, documento estratégico — qualquer coisa que o usuário peça para guardar e que NÃO seja persona/objetivo. É o destino PADRÃO de salvamento. Use SEMPRE que terminar algo que o usuário aprovou ou pediu para salvar — não pede confirmação, não custa créditos.',
   input_schema: { type: 'object', properties: {
     titulo:   { type: 'string', description: 'Título curto da peça' },
     formato:  { type: 'string', description: 'post | carrossel | roteiro-ugc | email | blog | outro' },
     conteudo: { type: 'string', description: 'A peça completa em markdown' },
   }, required: ['titulo', 'conteudo'] },
+}
+
+// Persistência de ESTRATÉGIA no brand book (personas / objetivos). Escreve de
+// verdade em brand_books.strategy — aparece no Brand Book (Negócio) e alimenta o
+// cérebro (compileBrandContext lê strategy.personas). Merge não-destrutivo.
+const SAVE_STRATEGY_TOOL = {
+  name: 'salvar_estrategia',
+  description: 'SALVA no Brand Book (Negócio) o que foi CONCLUÍDO com o usuário: personas e/ou objetivos & KPIs. Persiste de verdade — aparece no Brand Book e alimenta a inteligência que guia toda geração. Use SEMPRE que pedirem para salvar/guardar personas ou objetivos. Merge NÃO-destrutivo (persona/objetivo com mesmo nome é atualizado; os demais são preservados). Não custa créditos, não pede confirmação. Para OUTROS resultados (jornada, mapa de conteúdo, arquitetura de site, copy pronta), use salvar_peca_escrita. NUNCA diga que salvou sem chamar a ferramenta certa.',
+  input_schema: { type: 'object', properties: {
+    personas: { type: 'array', description: 'Personas concluídas para gravar', items: { type: 'object', properties: {
+      nome:      { type: 'string', description: 'Nome/papel da persona (ex.: A Fundadora Inquieta)' },
+      descricao: { type: 'string', description: 'Contexto, comportamento, canal onde vive' },
+      dores:     { type: 'string', description: 'O que tira o sono dela' },
+      objetivos: { type: 'string', description: 'O que ela quer alcançar' },
+    }, required: ['nome'] } },
+    objetivos: { type: 'array', description: 'Objetivos e indicadores (goals/KPIs)', items: { type: 'object', properties: {
+      objetivo: { type: 'string' }, kpi: { type: 'string' }, meta: { type: 'string' },
+    }, required: ['objetivo'] } },
+  } },
 }
 
 const CREATE_NAMES = new Set(CREATE_TOOLS.map(t => t.name))
@@ -269,11 +288,11 @@ function buildSystemPrompt(brand, book, ragChunks, intelligence) {
     missao || proposito || paleta || (ragChunks?.length) || intelligence?.modelo)
 
   if (!hasContent) {
-    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma s1ngulr.
+    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma brandcode.
 Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
   }
 
-  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma s1ngulr.
+  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma brandcode.
 Você conhece profundamente esta marca e responde com base exclusivamente no brand book abaixo.
 Seja estratégico, direto e on-brand. Nunca invente informações que não estão no brand book.
 
@@ -310,7 +329,9 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
   prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
 Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame.
 REGRA INVIOLÁVEL DE QUALIDADE: você NUNCA gera uma peça que você mesmo reprovaria como diretor de arte. ANTES de chamar gerar_imagem, confronte o conceito com os padrões que a marca REPROVA e com a paleta/estética aprendidas (estão no seu contexto) — e escreva o prompt já em conformidade (cores EXATAS da paleta, ancoragem da marca, nada dos padrões reprovados). Se o próprio pedido do usuário violar um padrão reprovado, diga isso e proponha o conceito ajustado antes de gerar. Toda peça gerada passa automaticamente pelo diretor de arte antes de chegar ao usuário — seja transparente com o veredito. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovada / Aprovada com ressalvas / Reprovada) · **O que sustenta a marca** · **O que foge** · **Ajustes concretos** (lista acionável). Seja específico e franco — cite cores, composição e elementos reais da imagem.
-Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).`
+Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).
+Você também tem ferramentas para PERSISTIR resultados (nada de créditos): salvar_estrategia grava PERSONAS e OBJETIVOS/KPIs no Brand Book (Negócio) — use quando concluírem/pedirem para salvar personas ou objetivos; salvar_peca_escrita grava textos prontos (copy, roteiro, jornada, mapa de conteúdo, arquitetura de site) na Biblioteca. Ao salvar, chame a ferramenta com o conteúdo ESTRUTURADO e completo, depois confirme ao usuário o que ficou salvo e onde (com o link retornado).
+REGRA INVIOLÁVEL DE SALVAMENTO: TODO pedido de salvar/guardar/registrar DEVE resultar numa chamada de ferramenta na MESMA resposta — persona ou objetivo/KPI → salvar_estrategia; QUALQUER outro conteúdo (jornada, mapa de conteúdo, arquitetura, análise, documento) → salvar_peca_escrita (destino padrão). Nunca deixe um pedido de "salvar" sem persistir de fato. E NUNCA afirme que salvou sem ter chamado a ferramenta e recebido ok. Só é aceitável não salvar se for tecnicamente impossível — e aí explique por quê e o que dá pra fazer.`
 
   if (ragChunks?.length) {
     prompt += `\n\n## Trechos mais relevantes para esta pergunta (via RAG):\n`
@@ -793,8 +814,38 @@ export function BrandAssistant({ brandId }) {
     await runAssistantStream({
       messages: history,
       systemPrompt,
-      tools: [...READ_TOOLS, ...CREATE_TOOLS, REVIEW_TOOL, SAVE_TOOL],
+      tools: [...READ_TOOLS, ...CREATE_TOOLS, REVIEW_TOOL, SAVE_TOOL, SAVE_STRATEGY_TOOL],
       execTool: async (name, inp) => {
+        if (name === 'salvar_estrategia') {
+          if (!brand?.id) return JSON.stringify({ erro: 'marca não carregada' })
+          const inPersonas = Array.isArray(inp?.personas) ? inp.personas.filter(p => p?.nome) : []
+          const inGoals    = Array.isArray(inp?.objetivos) ? inp.objetivos.filter(g => g?.objetivo) : []
+          if (!inPersonas.length && !inGoals.length)
+            return JSON.stringify({ erro: 'Nada para salvar. Envie personas e/ou objetivos estruturados.' })
+          // relê o strategy atual (evita sobrescrever com estado velho) e faz merge
+          const { data: cur } = await supabase.from('brand_books').select('id, strategy').eq('brand_id', brand.id).maybeSingle()
+          const strat = (cur?.strategy && typeof cur.strategy === 'object') ? { ...cur.strategy } : {}
+          const key = s => String(s || '').trim().toLowerCase()
+          if (inPersonas.length) {
+            const m = new Map((Array.isArray(strat.personas) ? strat.personas : []).map(p => [key(p?.nome), p]))
+            for (const p of inPersonas) m.set(key(p.nome), { nome: p.nome, descricao: p.descricao || '', dores: p.dores || '', objetivos: p.objetivos || '' })
+            strat.personas = [...m.values()]
+          }
+          if (inGoals.length) {
+            const m = new Map((Array.isArray(strat.goals_kpis) ? strat.goals_kpis : []).map(g => [key(g?.objetivo), g]))
+            for (const g of inGoals) m.set(key(g.objetivo), { objetivo: g.objetivo, kpi: g.kpi || '', meta: g.meta || '' })
+            strat.goals_kpis = [...m.values()]
+          }
+          const { error } = cur?.id
+            ? await supabase.from('brand_books').update({ strategy: strat, updated_at: new Date().toISOString() }).eq('id', cur.id)
+            : await supabase.from('brand_books').insert({ brand_id: brand.id, strategy: strat })
+          if (error) return JSON.stringify({ erro: error.message })
+          setBook(b => b ? { ...b, strategy: strat } : b)   // reflete na UI e nas próximas gerações
+          return JSON.stringify({ ok: true,
+            salvos: { personas: strat.personas?.length || 0, objetivos: strat.goals_kpis?.length || 0 },
+            link: `#/app/brands/${brandId}/negocio`,
+            instrucao: 'Salvo no Brand Book → Negócio. Confirme ao usuário EXATAMENTE o que foi salvo (quantas personas/objetivos) e inclua o link.' })
+        }
         if (name === 'salvar_peca_escrita') {
           const { data: pc, error } = await supabase.from('pecas_escritas').insert({
             workspace_id: workspace?.id, brand_id: brand?.id,

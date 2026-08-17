@@ -1,4 +1,4 @@
-# s1ngulr — Custos & Créditos (modelo revisto)
+# brandcode — Custos & Créditos (modelo revisto)
 
 > **🔄 PIVÔ DE MODELO (Danilo, 2026-07-12): NÃO é SaaS self-service.**
 > A venda é direta/negociada. O **crédito virou REPASSE DE CUSTO** (sem margem) —
@@ -25,6 +25,56 @@
 >
 > O documento abaixo é o modelo ANTERIOR (planos SaaS) — mantido como referência
 > histórica dos custos por modelo e da regra ×18.
+
+---
+
+## 💱 O crédito em três moedas (câmbio 2026-08-04: US$1 = R$5,08 · €1 = R$5,86 · €1 ≈ US$1,15)
+
+**Equiparação canônica: 1 crédito = 1 imagem** (modelo padrão Nano Banana, $0,039/img na fal).
+
+| | US$ | € | R$ |
+|---|---|---|---|
+| **Custo REAL de 1 crédito (imagem padrão)** | **0,039** | **0,034** | **0,20** |
+| Range dos modelos 1-crédito (Flux dev → teto) | 0,025–0,056 | 0,022–0,048 | 0,13–0,28 |
+| Teto coberto pela regra ×18 (= $1/18) | 0,056 | 0,048 | 0,28 |
+| **Baliza de repasse (cliente paga)** | 0,065 | **0,056** | **0,33** |
+
+**Leituras:**
+- No câmbio atual (5,08), a baliza R$0,33 embute **~40% de colchão** sobre o custo real
+  da imagem padrão — não é margem intencional, é a proteção cambial da regra ×18
+  (cobre dólar até R$5,94) + folga p/ modelos 1-cr mais caros que o padrão.
+- **Para deals em EURO (Sonae/Worten/Continente/Wells):** 1 imagem ≈ **€0,06 de repasse**
+  vs. benchmark Fullsix de **€79–210 por visual aprovado** — 3 ordens de magnitude.
+  A unidade de conversa em EUR: *"cêntimos por peça, não dezenas de euros"*.
+- Vídeo nas 3 moedas (repasse = créditos × R$0,33, câmbio de hoje):
+
+| Vídeo (5s/10s) | Créditos | R$ | € | US$ |
+|---|---|---|---|---|
+| Wan 2.2 | 4 | 1,32 | 0,23 | 0,26 |
+| Hailuo 02 (6/10s) | 5 / 9 | 1,65 / 2,97 | 0,28 / 0,51 | 0,32 / 0,58 |
+| Kling 2.5 Turbo | 7 / 13 | 2,31 / 4,29 | 0,39 / 0,73 | 0,45 / 0,84 |
+| **Wan 2.5 (novo, 720p)** | 9 / 18 | 2,97 / 5,94 | 0,51 / 1,01 | 0,58 / 1,17 |
+| Seedance 1.0 Pro | 14 / 27 | 4,62 / 8,91 | 0,79 / 1,52 | 0,91 / 1,75 |
+| Seedance 2.0 | 28 / 55 | 9,24 / 18,15 | 1,58 / 3,10 | 1,82 / 3,57 |
+| Veo 3 (4/6/8s) | 54 / 81 / 108 | 17,82 / 26,73 / 35,64 | 3,04 / 4,56 / 6,08 | 3,51 / 5,26 / 7,01 |
+
+> Atualizações ago/2026 no mapa de imagem: **Bria Product Shot** (produto em cena,
+> dados licenciados, ~$0,04) = 1 cr · **IC-Light v2** (relight, ~$0,10/MP) = 2 cr ·
+> FASHN Try-On = 2 cr · Nano Banana Pro = 3 cr. **Seedance 2.5 = STUB no fal**
+> (devolve vídeo de exemplo; fora do seletor até o modelo ir ao ar de verdade).
+
+**⚠️ Achados da conferência vs base do fal (2026-08-06, print "Buy credits"):**
+1. **Nano Banana 2** (`fal-ai/nano-banana-2` + `/edit`) é a nova régua de "1 imagem"
+   do mercado: **~$0,08/img** (tiers $0,045 em 512px → $0,15 em 4K). NÃO está no nosso
+   catálogo; se entrar → **2 créditos** (⌈18×0,08⌉). Nosso padrão (Nano Banana 1,
+   $0,039 → 1 cr) segue válido e mais barato.
+2. **RESOLUÇÃO é dimensão de custo que o crédito não vê.** Seedance 2.0: 5s custa
+   $1,51 em 720p mas **$3,40 em 1080p** (~2,2×) e ~9× em 4K (fórmula por pixel-token).
+   Hoje estamos protegidos porque NÃO enviamos `resolution` e o default do fal é 720p
+   — sorte, não design. Regra nova: **ao expor resolução na UI (ou mudar default),
+   o mapa de créditos escala por resolução.** Os 28/55 cr do Seedance 2.0 = 720p.
+3. Seedance 2.5 ao reativar: mapear por resolução — 720p ≈ 28/55 cr · 1080p ≈ 62/125
+   (o registro anterior de 14/27 estava errado — assumia preço de 1.0).
 
 ---
 
@@ -104,21 +154,27 @@ Todos os planos pagos têm `studio:true`.
   mensal automático). Recarga avulsa (overage) = pendente (depende do Stripe).
 - **platform_admin bypassa** o débito (gera de graça p/ suporte/teste).
 
-## Custo de crédito por operação (regra ×18, custos fal reais jun/2026)
+## Custo de crédito por operação (regra ×18, custos fal reais — atualizado ago/2026)
 
 **Imagem** — 1 crédito (Nano Banana, GPT Image 2, Seedream, FLUX dev/.2/Pro1.1,
-Recraft, Qwen) · 2 (FLUX Ultra, Ideogram v3) · **3 (Nano Banana Pro)**.
+Recraft, Qwen, **Bria Product Shot**) · 2 (FLUX Ultra, Ideogram v3, **FASHN Try-On**,
+**IC-Light v2**) · **3 (Nano Banana Pro)**.
 
 **Vídeo** (escala com duração, 5s/10s salvo indicado):
 | Modelo | Créditos |
 |---|---|
-| Hailuo 02 | 5 / 9 |
+| Wan 2.2 | 4 (flat) |
+| Hailuo 02 (6/10s) | 5 / 9 |
 | Kling 2.5 Turbo | 7 / 13 |
+| **Wan 2.5** (720p · permissivo c/ pessoa gerada) | 9 / 18 |
 | Seedance 1.0 Pro | 14 / 27 |
 | Seedance 2.0 Fast | 22 / 44 |
 | Seedance 2.0 | 28 / 55 |
 | Veo 3 Fast (4/6/8s) | 29 / 44 / 58 |
 | Veo 3 (4/6/8s) | 54 / 81 / 108 |
+
+> Seedance 2.5: **fora do seletor** — o app no fal é stub (devolve vídeo de exemplo).
+> Ao reativar, mapear POR RESOLUÇÃO: 720p ≈ 28/55 cr · 1080p ≈ 62/125 cr.
 
 **Outras:** Content Hub = 2 · Campanha = nº formatos × crédito/imagem · Upscale/Variação/Remove BG = 1.
 

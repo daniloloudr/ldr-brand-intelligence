@@ -1,4 +1,4 @@
-// i18n — camada de tradução do LOUDR (decisão 2026-07-10: foco em PT,
+// i18n — camada de tradução do brandcode (decisão 2026-07-10: foco em PT,
 // sistema CONFIGURÁVEL para pt/en/es visando expansão).
 // Onda 1: rótulos da navegação. A varredura completa das strings do app é
 // workstream próprio (BACKLOG) — toda string NOVA deve nascer passando por t().
@@ -20,7 +20,7 @@ const DICT = {
     'nav.intelligence': 'Inteligência',
     'nav.intelligence.listening': 'Escuta Social',
     'nav.intelligence.content': 'Palavras-Chave',
-    'nav.intelligence.ia': 'IA LOUDR',
+    'nav.intelligence.ia': 'Inteligência brandcode',
     'nav.studio': 'Estúdio',
     'nav.studio.image': 'Imagem',
     'nav.studio.video': 'Vídeo',
@@ -65,7 +65,7 @@ const DICT = {
     'nav.intelligence': 'Intelligence',
     'nav.intelligence.listening': 'Social Listening',
     'nav.intelligence.content': 'Content Hub',
-    'nav.intelligence.ia': 'LOUDR AI',
+    'nav.intelligence.ia': 'brandcode Intelligence',
     'nav.studio': 'Studio',
     'nav.studio.image': 'Image Studio',
     'nav.studio.video': 'Video Studio',
@@ -110,7 +110,7 @@ const DICT = {
     'nav.intelligence': 'Intelligence',
     'nav.intelligence.listening': 'Social Listening',
     'nav.intelligence.content': 'Content Hub',
-    'nav.intelligence.ia': 'IA LOUDR',
+    'nav.intelligence.ia': 'Inteligencia brandcode',
     'nav.studio': 'Studio',
     'nav.studio.image': 'Image Studio',
     'nav.studio.video': 'Video Studio',

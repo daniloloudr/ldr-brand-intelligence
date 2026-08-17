@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// slug do subdomínio (nomedamarca.s1ngulr.com) — mesma lógica da migration 044
+// slug do subdomínio (nomedamarca.br4ndcode.com) — mesma lógica da migration 044
 function slugify(nome) {
   return (nome || '').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -18,15 +18,15 @@ async function uniqueSlug(supabase, base) {
   }
 }
 
-// Provisiona o subdomínio da marca no Netlify: adiciona {slug}.s1ngulr.com como
-// domain alias → como o s1ngulr.com está no Netlify DNS, ele cria o registro DNS
+// Provisiona o subdomínio da marca no Netlify: adiciona {slug}.br4ndcode.com como
+// domain alias → como o br4ndcode.com está no Netlify DNS, ele cria o registro DNS
 // E o cert automaticamente. Best-effort: falha aqui NÃO bloqueia a criação do
 // workspace (dá pra provisionar depois). Netlify não tem wildcard self-serve —
 // por isso registramos subdomínio a subdomínio, mas de forma automática.
 async function provisionSubdomain(slug) {
   const token  = process.env.NETLIFY_API_TOKEN
   const siteId = process.env.NETLIFY_SITE_ID || '8971b5bd-05f8-4c41-9cb9-a89065457a88'
-  const root   = process.env.ROOT_DOMAIN || 's1ngulr.com'
+  const root   = process.env.ROOT_DOMAIN || 'br4ndcode.com'
   if (!token) return { ok: false, reason: 'sem NETLIFY_API_TOKEN' }
   const host = `${slug}.${root}`
   const api  = `https://api.netlify.com/api/v1/sites/${siteId}`

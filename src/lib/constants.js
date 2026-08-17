@@ -67,7 +67,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, sem markdown:
 
 REGRAS: scores 1-3 crítico, 4-6 em desenvolvimento, 7-8 sólido, 9-10 referência. Use apenas dados reais.`;
 
-// Identidade s1ngulr — Vercel light: chrome monocromático (navy/text/border → preto/cinza),
+// Identidade brandcode — Vercel light: chrome monocromático (navy/text/border → preto/cinza),
 // cores semânticas (green/pink/amber/purple) preservadas só p/ dados (scores, sentimento, praticas).
 export const DS = {
   navy:"#171717", navyMid:"#333333", navyLight:"#525252",

@@ -83,7 +83,7 @@ async function sentry(message, tags) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Sentry-Auth': `Sentry sentry_version=7, sentry_client=s1ngulr-watchdog/1.0, sentry_key=${u.username}`,
+        'X-Sentry-Auth': `Sentry sentry_version=7, sentry_client=brandcode-watchdog/1.0, sentry_key=${u.username}`,
       },
       body: JSON.stringify({ message, level: 'error', logger: 'cron-watchdog', platform: 'node', tags }),
     })
@@ -96,7 +96,7 @@ async function webhook(text) {
   try {
     await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: `🚨 s1ngulr · ${text}` }),
+      body: JSON.stringify({ text: `🚨 brandcode · ${text}` }),
     })
   } catch (e) { console.error('[watchdog] envio ao webhook falhou:', e.message) }
 }

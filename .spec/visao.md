@@ -1,4 +1,4 @@
-# s1ngulr (LOUDR) — Visão, Arquitetura & Tese de Negócio
+# brandcode (LOUDR) — Visão, Arquitetura & Tese de Negócio
 **Documento vivo · jul/2026 · Owner: Danilo Silva**
 *Serve a dois públicos: (a) pitch de venda/investimento; (b) referência de arquitetura e produto. Detalhes de implementação: [`features/`](features/) · precificação: [`precificacao.md`](precificacao.md) · tarefas vivem no [`backlog.md`](backlog.md) (canônico).*
 *2026-07-12: absorveu as partes vivas do plano de desenvolvimento de 06/07 (§10–§11; histórico integral em [`arquivo/plano-de-melhoria-2026-07-06.md`](arquivo/plano-de-melhoria-2026-07-06.md)).*
@@ -178,7 +178,7 @@ Não é slide de "IA que aprende" — é **métrica auditável, com proveniênci
 2. **Completude do flywheel** — toda superfície de cliente escreve+lê o mesmo cérebro. ✅ Fechado em 06/07.
 3. **Performance** — bundle monolítico ~2 MB sem code-splitting (`React.lazy` por rota + `manualChunks` para html2canvas/jspdf/pptxgenjs). Gap vivo de sustentação.
 4. **Ciclo de vida do cliente:** prospect (frio) = diagnóstico via web search como arma de topo de funil; cliente (quente) = tudo retroalimenta o cérebro. Validação da compradora (Raquel, VHITA): *"guardar o aprendizado é um dos principais valores, senão fica na cabeça da pessoa"*.
-5. **📌 Anotado para decisão futura:** trial self-service (Pupila tem; s1ngulr é invite-only por decisão). Reavaliar com pricing validado.
+5. **📌 Anotado para decisão futura:** trial self-service (Pupila tem; brandcode é invite-only por decisão). Reavaliar com pricing validado.
 
 ---
 

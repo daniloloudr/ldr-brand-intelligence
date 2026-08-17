@@ -1,4 +1,4 @@
-# .spec — Documentação do s1ngulr (LOUDR)
+# .spec — Documentação do brandcode (LOUDR)
 ### O mapa: um documento por assunto, zero papel espalhado · organizado 2026-07-12
 
 | Documento | O que é | Quando abrir |

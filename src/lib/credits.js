@@ -13,7 +13,8 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v3':         2,   // $0,06 (balanced)
   'fal-ai/nano-banana-pro':     3,   // $0,15
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado)
-  // demais = 1 (Nano Banana, GPT Image 2, Seedream, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen)
+  'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight de estúdio)
+  // demais = 1 (Nano Banana, GPT Image 2, Seedream, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen, Bria product-shot ~$0,04)
 }
 
 // Vídeo — por key de modelo (videoModels) e duração (string em segundos).
@@ -24,9 +25,11 @@ export const VIDEO_CREDITS = {
   'seedance-1-pro': { 5: 14, 10: 27 },
   'seedance-2-fast': { 5: 22, 10: 44 },
   'seedance-2-pro':  { 5: 28, 10: 55 },
+  'seedance-2-5':    { 5: 28, 10: 55 },      // 720p ($1,51/5s, fórmula pixel-token); 1080p seria 62/125 — modelo DESATIVADO (stub no fal)
   'veo3-fast':      { 4: 29, 6: 44, 8: 58 },
   'veo3':           { 4: 54, 6: 81, 8: 108 },
   'wan-22':         { default: 4 },          // custo a confirmar
+  'wan-25':         { 5: 9, 10: 18 },        // 720p: ~$0,10/s — permissivo com pessoas geradas
 }
 
 // Operações não-Studio. assistant/diagnostico/listening = Brand Intelligence
@@ -68,6 +71,7 @@ export const VIDEO_GUIDE = [
   { key: 'seedance-1-pro',  label: 'Seedance 1.0 Pro',   beneficio: 'Rápido e econômico, texto e imagem→vídeo.', durations: [5, 10] },
   { key: 'seedance-2-fast', label: 'Seedance 2.0 Fast',  beneficio: 'Seedance 2.0 mais rápido e barato, áudio nativo.', durations: [5, 10] },
   { key: 'seedance-2-pro',  label: 'Seedance 2.0',       beneficio: 'Nova geração ByteDance, áudio nativo, alta qualidade.', durations: [5, 10] },
+  // Seedance 2.5 fora do guia até o fal ativar o modelo (hoje o app é stub — ver videoModels.js)
   { key: 'kling-25-turbo',  label: 'Kling 2.5 Turbo Pro', beneficio: 'Imagem→vídeo de alta qualidade, com frame final.', durations: [5, 10] },
   { key: 'hailuo-02',       label: 'Hailuo 02',          beneficio: 'Movimento expressivo, bom custo.', durations: [6, 10] },
   { key: 'wan-22',          label: 'Wan 2.2',            beneficio: 'Open, econômico.', durations: [] },

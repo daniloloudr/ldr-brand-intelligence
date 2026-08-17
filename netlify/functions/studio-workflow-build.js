@@ -20,7 +20,7 @@ const APP_LABELS = { upscale: 'Ampliar', removebg: 'Remover fundo', variation: '
 const POS = (col, row) => ({ x: 40 + col * 340, y: 40 + row * 310 })
 
 const SYSTEM = [
-  'Você projeta workflows nodais de geração de imagem para o LOUDR Studio.',
+  'Você projeta workflows nodais de geração de imagem para o Studio do brandcode.',
   'Dada a intenção do usuário, devolva um grafo de nós e conexões.',
   'Tipos de nó disponíveis (use só estes):',
   '- "prompt": data.text (descrição da cena). Alimenta um generate.',

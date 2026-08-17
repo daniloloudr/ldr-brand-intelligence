@@ -4,7 +4,7 @@ import { Box, Button, TextField, Typography, CircularProgress, Alert } from '@mu
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { theme } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
-import logoNegativa from '../../assets/negativa.svg'
+import { Wordmark } from '../../components/Wordmark'
 
 export function InvitePage({ onDone }) {
   const [password, setPassword]     = useState('')
@@ -67,8 +67,8 @@ export function InvitePage({ onDone }) {
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
         <Box sx={{ width: '100%', maxWidth: 400 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <img src={logoNegativa} alt="LOUDR" style={{ height: 28, marginBottom: 16 }} />
-            <Typography variant="h6" fontWeight={800} gutterBottom>Bem-vindo à LOUDR</Typography>
+            <Box sx={{ mb: 2 }}><Wordmark size={24} /></Box>
+            <Typography variant="h6" fontWeight={800} gutterBottom>Boas-vindas</Typography>
             {workspaceName && (
               <Typography variant="body2" color="text.secondary">
                 Você foi convidado para o workspace <strong>{workspaceName}</strong>.<br />

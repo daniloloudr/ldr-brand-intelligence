@@ -23,8 +23,10 @@ export const IMAGE_MODELS = [
   { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               group: 'Design & tipografia',    refs: false },
   // ── Especializados (moda/produto) ──
   { id: 'fal-ai/fashn/tryon/v1.6',                      label: 'FASHN Try-On (vestir modelo)', group: 'Especializados', refs: true },
+  { id: 'fal-ai/bria/product-shot',                     label: 'Bria Product Shot (produto em cena)', group: 'Especializados', refs: true },
+  { id: 'fal-ai/iclight-v2',                            label: 'IC-Light (reiluminar)',        group: 'Especializados', refs: true },
   // ── Automático (usado pelo Workflow) ──
-  { id: 'auto',                                         label: 'Auto (LOUDR escolhe)',     group: 'Automático',             refs: true  },
+  { id: 'auto',                                         label: 'Auto (brandcode escolhe)',     group: 'Automático',             refs: true  },
 ]
 
 // Default da tela de Imagem.
