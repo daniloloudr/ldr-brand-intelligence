@@ -1,332 +1,149 @@
-import { createTheme, alpha } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
+import { green, amber, red, purple, lightBlue, grey } from '@mui/material/colors'
 
-const C = {
-  navy:       '#0D1B2A',
-  navyMid:    '#162840',
-  navySurf:   '#1B3050',
-  navyElev:   '#24405E',
-  border:     '#2A4A68',
-  teal:       '#0D9E7A',
-  tealDim:    '#0B8567',
-  tealPale:   '#E1F5EE',
-  pink:       '#E8185A',
-  pinkDim:    '#C01048',
-  pinkPale:   '#FBEAF0',
-  amber:      '#EF9F27',
-  amberPale:  '#FEF3C7',
-  purple:     '#7F77DD',
-  textPri:    '#D8E4F0',
-  textSec:    '#96AABF',
-  textDis:    '#4D6070',
+/* ═══════════════════════════════════════════════════════════════════
+   TEMA — BR4NDCODE
+   ═══════════════════════════════════════════════════════════════════
+   Arquivo ÚNICO de cor e forma. Traduz `.spec/brand.md` (v1.0) para MUI.
+   Nenhum hex de marca existe fora daqui.
+
+   As regras da marca que mais pesam nesta tradução:
+   • Preto e branco são as PRIMÁRIAS. O verde é apoio.
+   • "Cheiro verde": o verde não passa de ~10% da área de uma peça. Por isso
+     ele é `secondary` (uso deliberado), NUNCA `primary` — se fosse primary,
+     todo botão do MUI nasceria verde e a regra morreria na primeira tela.
+   • Verde não vai em texto corrido nem em background regular.
+   • Cada verde tem seu par: Verde 1 (#00FF55) com PRETO, Verde 2 (#00DD55)
+     com BRANCO. Por isso o modo claro usa o Verde 2 e o escuro o Verde 1.
+   • Linhas de 1px e cantos arredondados com progressão lógica.
+═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Marca (brand.md §02) ─── */
+const MARCA = {
+  branco: '#FFFFFF',
+  preto:  '#000000',
+  verde1: '#00FF55',   // par: preto
+  verde2: '#00DD55',   // par: branco
 }
 
-export const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary:    { main: C.teal,   dark: C.tealDim,  light: C.tealPale,  contrastText: '#fff' },
-    secondary:  { main: C.pink,   dark: C.pinkDim,  light: C.pinkPale,  contrastText: '#fff' },
-    warning:    { main: C.amber,  light: C.amberPale },
-    info:       { main: C.purple },
-    success:    { main: C.teal },
-    error:      { main: C.pink },
-    background: { default: C.navy, paper: C.navyMid },
-    text:       { primary: C.textPri, secondary: C.textSec, disabled: C.textDis },
-    divider:    C.border,
-    /* custom tokens acessíveis via theme.palette.loudr.* */
-    loudr: C,
-  },
-  typography: {
-    fontFamily: "'Cairo', sans-serif",
-    fontWeightLight:   400,
-    fontWeightRegular: 500,
-    fontWeightMedium:  700,
-    fontWeightBold:    900,
-    h1: { fontWeight: 900, letterSpacing: '-0.03em' },
-    h2: { fontWeight: 900, letterSpacing: '-0.025em' },
-    h3: { fontWeight: 800, letterSpacing: '-0.02em' },
-    h4: { fontWeight: 800, letterSpacing: '-0.015em' },
-    h5: { fontWeight: 700 },
-    h6: { fontWeight: 700 },
-    subtitle1: { fontWeight: 700 },
-    subtitle2: { fontWeight: 700, color: C.textSec },
-    overline: { fontWeight: 800, letterSpacing: '0.2em', fontSize: '0.625rem' },
-    caption:  { color: C.textSec },
-    button:   { fontWeight: 800, letterSpacing: '0.1em' },
-  },
-  shape: { borderRadius: 8 },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        body: { fontFamily: "'Cairo', sans-serif", background: C.navy },
-        '::selection': { background: C.pink, color: '#fff' },
-        '@keyframes spin': { to: { transform: 'rotate(360deg)' } },
-        '@keyframes fadeUp': {
-          from: { opacity: 0, transform: 'translateY(12px)' },
-          to:   { opacity: 1, transform: 'translateY(0)' },
-        },
-      },
-    },
-    MuiButton: {
-      defaultProps: { disableElevation: true },
-      styleOverrides: {
-        root: {
-          fontFamily: "'Cairo', sans-serif",
-          fontWeight: 800,
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          borderRadius: 4,
-          fontSize: '0.6875rem',
-        },
-        sizeLarge:  { padding: '12px 28px', fontSize: '0.75rem' },
-        sizeMedium: { padding: '9px 20px' },
-        sizeSmall:  { padding: '6px 14px', fontSize: '0.625rem' },
-        containedPrimary: {
-          '&:hover': { background: C.tealDim },
-        },
-        containedSecondary: {
-          '&:hover': { background: C.pinkDim },
-        },
-        outlinedPrimary: {
-          borderColor: C.teal,
-          '&:hover': { background: alpha(C.teal, 0.08) },
-        },
-        outlinedSecondary: {
-          borderColor: C.pink,
-          '&:hover': { background: alpha(C.pink, 0.08) },
-        },
-        text: { '&:hover': { background: alpha(C.textPri, 0.06) } },
-      },
-    },
-    MuiCard: {
-      defaultProps: { variant: 'outlined' },
-      styleOverrides: {
-        root: {
-          background: C.navyMid,
-          backgroundImage: 'none',
-          border: `1px solid ${C.border}`,
-          borderRadius: 8,
-        },
-      },
-    },
-    MuiCardContent: {
-      styleOverrides: {
-        root: { padding: '20px 24px', '&:last-child': { paddingBottom: 20 } },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: { backgroundImage: 'none' },
-        outlined: { border: `1px solid ${C.border}` },
-      },
-    },
-    MuiTextField: {
-      defaultProps: { variant: 'outlined', size: 'small' },
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            fontFamily: "'Cairo', sans-serif",
-            borderRadius: 4,
-            background: C.navy,
-            '& fieldset': { borderColor: C.border },
-            '&:hover fieldset': { borderColor: C.textSec },
-            '&.Mui-focused fieldset': { borderColor: C.teal },
-          },
-          '& .MuiInputLabel-root': {
-            fontFamily: "'Cairo', sans-serif",
-            color: C.textSec,
-            '&.Mui-focused': { color: C.teal },
-          },
-          '& .MuiInputBase-input': { color: C.textPri },
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: { borderRadius: 4, fontFamily: "'Cairo', sans-serif" },
-        input: { fontFamily: "'Cairo', sans-serif" },
-      },
-    },
-    MuiInputLabel: {
-      styleOverrides: {
-        root: { fontFamily: "'Cairo', sans-serif" },
-      },
-    },
-    MuiSelect: {
-      styleOverrides: {
-        root: { fontFamily: "'Cairo', sans-serif" },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: { fontFamily: "'Cairo', sans-serif", fontSize: '0.875rem' },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          fontFamily: "'Cairo', sans-serif",
-          fontWeight: 700,
-          fontSize: '0.6875rem',
-          letterSpacing: '0.06em',
-          borderRadius: 4,
-        },
-      },
-    },
-    MuiLinearProgress: {
-      styleOverrides: {
-        root: { borderRadius: 2, backgroundColor: C.border },
-        bar:  { borderRadius: 2 },
-      },
-    },
-    MuiDivider: {
-      styleOverrides: {
-        root: { borderColor: C.border },
-      },
-    },
-    MuiAlert: {
-      styleOverrides: {
-        root: { fontFamily: "'Cairo', sans-serif", borderRadius: 4 },
-      },
-    },
-    MuiTooltip: {
-      styleOverrides: {
-        tooltip: {
-          fontFamily: "'Cairo', sans-serif",
-          fontSize: '0.75rem',
-          background: C.navyElev,
-          border: `1px solid ${C.border}`,
-        },
-      },
-    },
-    MuiCircularProgress: {
-      defaultProps: { color: 'primary' },
-    },
-    MuiStepper: {
-      styleOverrides: {
-        root: { background: 'transparent' },
-      },
-    },
-    MuiStepLabel: {
-      styleOverrides: {
-        label: { fontFamily: "'Cairo', sans-serif", fontWeight: 700 },
-      },
-    },
-    MuiTypography: {
-      defaultProps: { variantMapping: { overline: 'div' } },
-    },
-    MuiIconButton: {
-      styleOverrides: {
-        root: { borderRadius: 4 },
-      },
-    },
-  },
-})
+const FONTE = "'Saira', system-ui, sans-serif"
 
-/* ── Light theme (RelatorioPublico) ─────────────────────────── */
-// Identidade brandcode — estilo Vercel light (monocromático): chrome preto/branco/cinza,
-// as cores semânticas (verde/rosa/âmbar) seguem só nos dados (scores, sentimento, charts).
-const L = {
-  bg:      '#FFFFFF',
-  paper:   '#FFFFFF',
-  border:  '#EAEAEA',
-  hover:   '#F5F5F5',
-  textPri: '#171717',
-  textSec: '#666666',
-  textDis: '#999999',
+/* Eixo de largura da Saira (brand.md §05): títulos usam Condensed/Expanded.
+   Como a fonte é variável, isso é o eixo `wdth` — não outra família. */
+const CONDENSED = { fontVariationSettings: '"wdth" 85' }
+const EXPANDED  = { fontVariationSettings: '"wdth" 115' }
+
+/* ─── Cores de DADO ──────────────────────────────────────────────────
+   NÃO são marca: score, sentimento, série de gráfico e status precisam de
+   leitura funcional, e o brand.md não define paleta de dados. Ficam nas
+   paletas semânticas do MUI até o time de criação dizer o contrário. */
+export const PALETTE = {
+  marca: MARCA,
+  data: {
+    positivo: green[600],     positivoDim: green[800],     positivoFraco: green[50],
+    atencao:  amber[700],     atencaoDim:  amber[900],     atencaoFraco:  amber[50],
+    critico:  red[600],       criticoDim:  red[800],       criticoFraco:  red[50],
+    neutro:   purple[400],    neutroDim:   purple[700],    neutroFraco:   purple[50],
+    info:     lightBlue[600], infoDim:     lightBlue[800], infoFraco:     lightBlue[50],
+  },
+  neutral: {
+    0: MARCA.branco, 25: grey[50], 50: grey[100], 100: grey[200], 200: grey[300],
+    300: grey[400], 400: grey[500], 500: grey[600], 600: grey[700],
+    700: grey[800], 800: grey[900], 900: '#111111', 950: MARCA.preto,
+  },
 }
-export const themeLight = createTheme({
-  palette: {
-    mode: 'light',
-    primary:    { main: '#000000', dark: '#383838', light: '#F5F5F5', contrastText: '#fff' },
-    secondary:  { main: C.pink,  dark: C.pinkDim,  light: C.pinkPale,  contrastText: '#fff' },
-    warning:    { main: C.amber, light: C.amberPale },
-    background: { default: L.bg, paper: L.paper },
-    text:       { primary: L.textPri, secondary: L.textSec, disabled: L.textDis },
-    divider:    L.border,
-    action:     { hover: L.hover },
-    loudr:      C,
-  },
-  typography: {
-    fontFamily: "'Cairo', sans-serif",
-    fontWeightLight:   400,
-    fontWeightRegular: 500,
-    fontWeightMedium:  700,
-    fontWeightBold:    900,
-    h1: { fontWeight: 900, letterSpacing: '-0.03em' },
-    h2: { fontWeight: 900, letterSpacing: '-0.025em' },
-    h3: { fontWeight: 800, letterSpacing: '-0.02em' },
-    h4: { fontWeight: 800, letterSpacing: '-0.015em' },
-    h5: { fontWeight: 700 },
-    h6: { fontWeight: 700 },
-    overline: { fontWeight: 800, letterSpacing: '0.2em', fontSize: '0.625rem' },
-    button:   { fontWeight: 800, letterSpacing: '0.1em' },
-  },
-  shape: { borderRadius: 8 },
-  components: {
-    MuiButton: {
-      defaultProps: { disableElevation: true },
-      styleOverrides: {
-        root: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: 4, fontSize: '0.6875rem' },
-        sizeLarge:  { padding: '12px 28px', fontSize: '0.75rem' },
-        sizeMedium: { padding: '9px 20px' },
-        sizeSmall:  { padding: '6px 14px', fontSize: '0.625rem' },
-        containedPrimary: { '&:hover': { background: '#383838' } },
-        containedSecondary: { '&:hover': { background: C.pinkDim } },
-        outlinedPrimary:   { borderColor: '#171717', '&:hover': { background: alpha('#171717', 0.05) } },
-        outlinedSecondary: { borderColor: C.pink, '&:hover': { background: alpha(C.pink, 0.06) } },
-        text: { '&:hover': { background: alpha(L.textPri, 0.04) } },
+
+const keyframes = {
+  '@keyframes spin':     { to: { transform: 'rotate(360deg)' } },
+  '@keyframes fu':       { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'none' } },
+  '@keyframes fadeUp':   { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'none' } },
+  '@keyframes pulse':    { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+  '@keyframes blink':    { '0%,100%': { opacity: 1 }, '50%': { opacity: 0 } },
+  '@keyframes checkPop': { '0%': { transform: 'scale(0)', opacity: 0 }, '65%': { transform: 'scale(1.25)' }, '100%': { transform: 'scale(1)', opacity: 1 } },
+  '.a0': { animation: 'fu .38s ease both' },
+  '.a1': { animation: 'fu .38s .06s ease both' },
+  '.a2': { animation: 'fu .38s .12s ease both' },
+  '.a3': { animation: 'fu .38s .18s ease both' },
+  '.a4': { animation: 'fu .38s .24s ease both' },
+  '.a5': { animation: 'fu .38s .30s ease both' },
+  '.a6': { animation: 'fu .38s .36s ease both' },
+  '.a7': { animation: 'fu .38s .42s ease both' },
+  '.a8': { animation: 'fu .38s .48s ease both' },
+}
+
+function makeTheme(mode) {
+  const claro = mode === 'light'
+  // Primária = preto no claro, branco no escuro (as duas primárias da marca)
+  const primaria = claro ? MARCA.preto : MARCA.branco
+  // Accent = o verde cujo PAR é o fundo daquele modo (brand.md §02)
+  const accent   = claro ? MARCA.verde2 : MARCA.verde1
+
+  return createTheme({
+    palette: {
+      mode,
+      primary: {
+        main: primaria,
+        dark: claro ? '#222222' : grey[200],
+        light: claro ? grey[800] : MARCA.branco,
+        contrastText: claro ? MARCA.branco : MARCA.preto,
       },
-    },
-    MuiCard: {
-      defaultProps: { variant: 'outlined' },
-      styleOverrides: {
-        root: { background: L.paper, backgroundImage: 'none', border: `1px solid ${L.border}`, borderRadius: 8 },
+      secondary: {
+        main: accent,
+        dark: claro ? '#00B446' : MARCA.verde2,
+        light: claro ? '#B8FFD4' : '#7CFFAE',
+        // Sobre verde, o que vai por cima é sempre PRETO (brand.md §03)
+        contrastText: MARCA.preto,
       },
-    },
-    MuiCardContent: {
-      styleOverrides: {
-        root: { padding: '20px 24px', '&:last-child': { paddingBottom: 20 } },
+      success: { main: PALETTE.data.positivo, light: PALETTE.data.positivoFraco },
+      warning: { main: PALETTE.data.atencao,  light: PALETTE.data.atencaoFraco },
+      error:   { main: PALETTE.data.critico,  light: PALETTE.data.criticoFraco },
+      info:    { main: PALETTE.data.info,     light: PALETTE.data.infoFraco },
+      background: {
+        default: claro ? MARCA.branco : MARCA.preto,
+        paper:   claro ? MARCA.branco : '#0D0D0D',
       },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: { backgroundImage: 'none' },
-        outlined: { border: `1px solid ${L.border}` },
+      text: {
+        primary:   claro ? PALETTE.neutral[900] : PALETTE.neutral[25],
+        secondary: claro ? PALETTE.neutral[500] : PALETTE.neutral[300],
+        disabled:  claro ? PALETTE.neutral[400] : PALETTE.neutral[500],
       },
+      divider: claro ? PALETTE.neutral[100] : '#262626',
+      data: PALETTE.data,
     },
-    MuiTextField: {
-      defaultProps: { variant: 'outlined', size: 'small' },
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            fontFamily: "'Cairo', sans-serif",
-            borderRadius: 4,
-            background: L.bg,
-            '& fieldset': { borderColor: L.border },
-            '&:hover fieldset': { borderColor: L.textDis },
-            '&.Mui-focused fieldset': { borderColor: '#171717' },
-          },
-          '& .MuiInputLabel-root': { fontFamily: "'Cairo', sans-serif", color: L.textSec, '&.Mui-focused': { color: '#171717' } },
-          '& .MuiInputBase-input': { color: L.textPri },
-        },
-      },
+
+    typography: {
+      fontFamily: FONTE,
+      // Títulos em Condensed; o corpo fica na largura normal (brand.md §05)
+      h1: { ...CONDENSED, fontWeight: 700, letterSpacing: '-0.02em' },
+      h2: { ...CONDENSED, fontWeight: 700, letterSpacing: '-0.015em' },
+      h3: { ...CONDENSED, fontWeight: 600, letterSpacing: '-0.01em' },
+      h4: { ...CONDENSED, fontWeight: 600 },
+      h5: { fontWeight: 600 },
+      h6: { fontWeight: 600 },
+      subtitle1: { fontWeight: 600 },
+      subtitle2: { fontWeight: 600 },
+      overline: { ...EXPANDED, fontWeight: 600, letterSpacing: '0.14em' },
+      button: { fontWeight: 600 },
     },
-    MuiChip: {
-      styleOverrides: {
-        root: { fontFamily: "'Cairo', sans-serif", fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.06em', borderRadius: 4 },
-      },
+
+    // Cantos com progressão lógica (brand.md §04): base 8 → a escala do sx
+    // (borderRadius: 1/2/3) devolve 8/16/24.
+    shape: { borderRadius: 8 },
+
+    components: {
+      MuiCssBaseline: { styleOverrides: { body: { backgroundColor: claro ? MARCA.branco : MARCA.preto }, ...keyframes } },
+      MuiButton:    { defaultProps: { disableElevation: true } },
+      // Linha de 1px como elemento de interface (brand.md §04)
+      MuiCard:      { defaultProps: { variant: 'outlined' }, styleOverrides: { root: { backgroundImage: 'none', borderWidth: 1 } } },
+      MuiPaper:     { styleOverrides: { root: { backgroundImage: 'none' }, outlined: { borderWidth: 1 } } },
+      MuiDivider:   { styleOverrides: { root: { borderBottomWidth: 1 } } },
+      MuiTextField: { defaultProps: { variant: 'outlined', size: 'small' } },
+      MuiTypography:{ defaultProps: { variantMapping: { overline: 'div' } } },
     },
-    MuiLinearProgress: {
-      styleOverrides: {
-        root: { borderRadius: 2, backgroundColor: L.border },
-        bar:  { borderRadius: 2 },
-      },
-    },
-    MuiDivider: {
-      styleOverrides: { root: { borderColor: L.border } },
-    },
-    MuiTypography: {
-      defaultProps: { variantMapping: { overline: 'div' } },
-    },
-  },
-})
+  })
+}
+
+export const themeLight = makeTheme('light')
+export const theme      = makeTheme('dark')
+
+export default themeLight

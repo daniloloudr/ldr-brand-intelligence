@@ -1,17 +1,21 @@
-import { Typography } from "@mui/material";
-import { PRODUCT_NAME } from "../lib/helpers";
+import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
+import logoPreto from "../assets/logo preto.svg";
+import logoBranco from "../assets/logo branco.svg";
 
-// Wordmark do produto — lugar ÚNICO onde a assinatura do brandcode é desenhada.
-// Enquanto a identidade definitiva não chega (bloco de layout do time de criação),
-// o lockup é tipográfico; trocar por SVG depois mexe só neste arquivo.
-export function Wordmark({ size = 20, color = "text.primary", sx }) {
+// Wordmark do produto — lugar ÚNICO onde a assinatura do BR4NDCODE é desenhada.
+// Troca sozinho conforme o modo do tema: preto no claro, branco no escuro.
+// Quem quiser o símbolo isolado usa `simbolo preto/branco.svg` do mesmo diretório.
+export function Wordmark({ size = 20, sx }) {
+  const theme = useTheme();
+  const src = theme.palette.mode === "dark" ? logoBranco : logoPreto;
   return (
-    <Typography component="span" sx={{
-      fontSize: size, fontWeight: 900, letterSpacing: "-0.03em",
-      lineHeight: 1, color, ...sx,
-    }}>
-      {PRODUCT_NAME}
-    </Typography>
+    <Box
+      component="img"
+      src={src}
+      alt="BR4NDCODE"
+      sx={{ height: size, width: "auto", display: "block", ...sx }}
+    />
   );
 }
 

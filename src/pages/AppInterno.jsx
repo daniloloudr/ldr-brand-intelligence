@@ -1,15 +1,24 @@
 import { useState, useEffect, useRef } from "react";
-import { ThemeProvider, CssBaseline, Popover, Box, Stack, Typography, Button, Divider } from "@mui/material";
+import { ThemeProvider, CssBaseline, Popover, Box, Stack, Typography, Button, Divider, Alert,
+         TextField, MenuItem, Card, CardContent, Chip, CircularProgress,
+         Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
+import { AppLayout } from "../components/shell/AppLayout";
+import { PageHeader } from "../components/shell/PageHeader";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
+import WorkspacesOutlinedIcon from "@mui/icons-material/WorkspacesOutlined";
+import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
+import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
-import { DS, F, COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
+import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
 import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
-import { GlobalStyle } from "../components/GlobalStyle";
-import { Pill } from "../components/Pill";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
 import { NovoDiagnosticoDialog } from "./NovoManual";
 import { DashboardHistorico } from "./DashboardHistorico";
+import { PALETTE } from '../lib/theme'
+import Link from "@mui/material/Link";
 
 const PORTES  = ["Startup", "PME", "Médio", "Grande"];
 const NAV_W   = 220;
@@ -28,17 +37,14 @@ const IcoMoon   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="no
 const IcoBell   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>;
 
 /* ─── TodosPage ──────────────────────────────────────────────────── */
-function TodosPage({ historico, loadingHist, onOpen, onRetry, retrying, initialSetor = "", isDark }) {
+function TodosPage({ historico, loadingHist, onOpen, onRetry, retrying, initialSetor = "" }) {
   const [busca, setBusca] = useState("");
   const [setor, setSetor] = useState(initialSetor);
   const [porte, setPorte] = useState("");
   const [ordem, setOrdem] = useState("recente");
 
-  const C = isDark
-    ? { bg: "#162840", border: "#2A4A68", text: "#D8E4F0", textSec: "#96AABF", textDis: "#4D6070", row0: "#0D1B2A", row1: "#162840" }
-    : { bg: "#FFFFFF", border: "#E2EBE8", text: "#0D1B2A", textSec: "#4A5A6A", textDis: "#8A9AB0", row0: "#F7F9F8", row1: "#FFFFFF" };
 
-  if (loadingHist) return <div style={{ padding: "3rem", textAlign: "center", color: C.textDis, fontSize: 13, fontFamily: F }}>Carregando...</div>;
+  if (loadingHist) return <Box sx={{ padding: "3rem", textAlign: "center", color: 'text.disabled', fontSize: 13 }}>Carregando...</Box>;
 
   const filtrado = historico
     .filter(d => {
@@ -54,124 +60,118 @@ function TodosPage({ historico, loadingHist, onOpen, onRetry, retrying, initialS
       return 0;
     });
 
-  const inp = {
-    fontSize: 12, fontFamily: F, color: C.text,
-    background: C.bg, border: `1px solid ${C.border}`,
-    borderRadius: 8, padding: "6px 10px", cursor: "pointer", outline: "none",
-  };
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar empresa..."
-          style={{ ...inp, flex: 1, minWidth: 180, padding: "7px 12px" }} />
-        <select value={setor} onChange={e => setSetor(e.target.value)} style={inp}>
-          <option value="">Todos os setores</option>
-          {MACRO_SETORES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={porte} onChange={e => setPorte(e.target.value)} style={inp}>
-          <option value="">Todos os portes</option>
-          {PORTES.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={ordem} onChange={e => setOrdem(e.target.value)} style={inp}>
-          <option value="recente">Mais recentes</option>
-          <option value="antigo">Mais antigos</option>
-          <option value="az">A → Z</option>
-        </select>
+    <Box>
+      <Box sx={{ display: "flex", gap: '10px', marginBottom: '20px', flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar empresa..."
+          sx={{ flex: 1, minWidth: 180 }} />
+        <TextField select size="small" value={setor} onChange={e => setSetor(e.target.value)} sx={{ minWidth: 180 }}>
+          <MenuItem value="">Todos os setores</MenuItem>
+          {MACRO_SETORES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+        </TextField>
+        <TextField select size="small" value={porte} onChange={e => setPorte(e.target.value)} sx={{ minWidth: 160 }}>
+          <MenuItem value="">Todos os portes</MenuItem>
+          {PORTES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+        </TextField>
+        <TextField select size="small" value={ordem} onChange={e => setOrdem(e.target.value)} sx={{ minWidth: 150 }}>
+          <MenuItem value="recente">Mais recentes</MenuItem>
+          <MenuItem value="antigo">Mais antigos</MenuItem>
+          <MenuItem value="az">A → Z</MenuItem>
+        </TextField>
         {(busca || setor || porte) && (
-          <button onClick={() => { setBusca(""); setSetor(""); setPorte(""); }}
-            style={{ ...inp, color: DS.pink, border: `1px solid ${DS.pink}`, background: "none", fontWeight: 700 }}>
+          <Button size="small" variant="outlined" color="error"
+            onClick={() => { setBusca(""); setSetor(""); setPorte(""); }}>
             Limpar
-          </button>
+          </Button>
         )}
-        <span style={{ fontSize: 11, color: C.textDis, marginLeft: "auto", fontFamily: F }}>
+        <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled', marginLeft: "auto" }}>
           {filtrado.length} de {historico.length} diagnóstico{historico.length !== 1 ? "s" : ""}
-        </span>
-      </div>
+        </Typography>
+      </Box>
 
       {filtrado.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontSize: 13, fontFamily: F }}>Nenhum resultado.</div>
+        <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled', fontSize: 13 }}>Nenhum resultado.</Box>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: '2px' }}>
           {filtrado.map((d, i) => {
             const status = d.status || "done";
             const isRunning = status === "running";
             const isError   = status === "error";
             const avg = [d.score_singularidade, d.score_consistencia, d.score_posicionamento]
               .filter(Boolean).reduce((a, b, _, arr) => a + b / arr.length, 0);
-            const scoreColor = avg >= 7 ? DS.green : avg >= 4 ? DS.amber : DS.pink;
+            const scoreColor = avg >= 7 ? PALETTE.data.positivo : avg >= 4 ? PALETTE.data.atencao : PALETTE.data.critico;
             const isRetrying = retrying === d.id;
             return (
-              <div key={d.id} onClick={() => !isRunning && !isError && onOpen(d)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 14, padding: "11px 14px", borderRadius: 8,
+              <Box key={d.id} onClick={() => !isRunning && !isError && onOpen(d)}
+                sx={{
+                  display: "flex", alignItems: "center", gap: "14px", padding: "11px 14px",
                   cursor: (isRunning || isError) ? "default" : "pointer",
-                  background: i % 2 === 0 ? C.row0 : C.row1,
-                  transition: "opacity 0.15s", border: `1px solid ${C.border}`,
+                  background: i % 2 === 0 ? 'background.default' : 'action.hover',
+                  transition: "opacity 0.15s", border: 1, borderColor: 'divider',
                   opacity: isRunning ? 0.85 : 1,
                 }}
                 onMouseEnter={e => { if (!isRunning && !isError) e.currentTarget.style.opacity = "0.7"; }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = isRunning ? "0.85" : "1"; }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: 6, background: (isError ? DS.pink : isRunning ? DS.amber : DS.green) + "22", color: (isError ? DS.pink : isRunning ? DS.amber : DS.green), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, fontFamily: F, flexShrink: 0 }}>
+                <Box sx={{ width: 32, height: 32,  background: (isError ? PALETTE.data.critico : isRunning ? PALETTE.data.atencao : PALETTE.data.positivo) + "22", color: (isError ? PALETTE.data.critico : isRunning ? PALETTE.data.atencao : PALETTE.data.positivo), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, flexShrink: 0 }}>
                   {isRunning ? (
-                    <div style={{ width: 14, height: 14, border: `2px solid ${DS.amber}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    <Box sx={{ width: 14, height: 14, border: `2px solid ${PALETTE.data.atencao}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                   ) : (
                     (d.empresa || "?").charAt(0).toUpperCase()
                   )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: F }}>{d.empresa}</div>
-                    {isRunning && <Pill bg={DS.amberPale} color={DS.amber}>em andamento</Pill>}
-                    {isError   && <Pill bg={DS.pinkPale}  color={DS.pink}>erro</Pill>}
-                  </div>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: '8px', flexWrap: "wrap" }}>
+                    <Box sx={{ fontSize: 13, fontWeight: 800, color: 'text.primary', overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.empresa}</Box>
+                    {isRunning && <Chip size="small" label="em andamento" color="warning" variant="outlined" />}
+                    {isError && <Chip size="small" label="erro" color="error" variant="outlined" />}
+                  </Box>
                   {isError && d.data?.error ? (
-                    <div style={{ fontSize: 11, color: DS.pink, fontFamily: F, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <Box sx={{ fontSize: 11, color: PALETTE.data.critico, marginTop: '2px', overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {d.data.error}
-                    </div>
+                    </Box>
                   ) : (d.setor || d.porte) && (
-                    <div style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>
+                    <Box sx={{ fontSize: 11, color: 'text.disabled' }}>
                       {[normalizeSector(d.setor), d.porte].filter(Boolean).join(" · ")}
-                    </div>
+                    </Box>
                   )}
-                </div>
-                <div style={{ fontSize: 11, color: C.textDis, flexShrink: 0, textAlign: "right", fontFamily: F }}>
+                </Box>
+                <Box sx={{ fontSize: 11, color: 'text.disabled', flexShrink: 0, textAlign: "right" }}>
                   {fmtDate(d.created_at)}
-                  {d.user_name && <div style={{ fontSize: 10 }}>{d.user_name}</div>}
-                </div>
+                  {d.user_name && <Box sx={{ fontSize: 10 }}>{d.user_name}</Box>}
+                </Box>
                 {isError && onRetry && (
-                  <button
+                  <Button
+                    size="small" variant="contained"
                     onClick={e => { e.stopPropagation(); onRetry(d); }}
                     disabled={isRetrying}
-                    style={{
-                      background: isRetrying ? C.textDis : DS.green, border: "none", borderRadius: 8,
-                      padding: "6px 12px", fontSize: 11, fontWeight: 700, color: "#fff",
-                      cursor: isRetrying ? "not-allowed" : "pointer", fontFamily: F, flexShrink: 0,
+                    sx={{
+                      flexShrink: 0,
                     }}>
                     {isRetrying ? "Reiniciando..." : "Tentar novamente"}
-                  </button>
+                  </Button>
                 )}
                 {!isError && !isRunning && avg > 0 && (
-                  <div style={{ width: 34, height: 34, borderRadius: 6, background: scoreColor + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 900, color: scoreColor }}>{avg.toFixed(0)}</span>
-                  </div>
+                  <Box sx={{ width: 34, height: 34,  background: scoreColor + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Typography component="span" sx={{ fontSize: 13, fontWeight: 900, color: scoreColor }}>{avg.toFixed(0)}</Typography>
+                  </Box>
                 )}
-              </div>
+              </Box>
             );
           })}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
 /* ─── AppInterno ─────────────────────────────────────────────────── */
 export function AppInterno({ user, onLogout, onImpersonate }) {
   const [isDark, setIsDark]                           = useState(() => {
-    const saved = localStorage.getItem("loudr-admin-theme");
-    return saved !== null ? saved === "dark" : true;
+    // Padrão é CLARO (regra do Danilo); o escuro fica disponível para quem preferir.
+    const saved = localStorage.getItem("brandcode-admin-theme") ?? localStorage.getItem("loudr-admin-theme");
+    return saved !== null ? saved === "dark" : false;
   });
   const [page, setPage]                               = useState("historico");
   const [solicitacoes, setSolicitacoes]               = useState([]);
@@ -194,35 +194,6 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
   const mainRef     = useRef(null);
 
   /* color tokens — resolvem light/dark sem depender do MUI theme */
-  const C = isDark ? {
-    bg:           "#0D1B2A",
-    sidebar:      "#0A1525",
-    topbar:       "#162840",
-    paper:        "#162840",
-    border:       "#2A4A68",
-    text:         "#D8E4F0",
-    textSec:      "#96AABF",
-    textDis:      "#4D6070",
-    navActiveBg:  "#1B3050",
-    navActiveText:"#FFFFFF",
-    searchBg:     "#0D1B2A",
-    rowAlt:       "#0D1B2A",
-    shadow:       "rgba(0,0,0,0.3)",
-  } : {
-    bg:           "#F0F2F5",
-    sidebar:      "#FFFFFF",
-    topbar:       "#FFFFFF",
-    paper:        "#FFFFFF",
-    border:       "#E2EBE8",
-    text:         "#0D1B2A",
-    textSec:      "#4A5A6A",
-    textDis:      "#8A9AB0",
-    navActiveBg:  "#E1F5EE",
-    navActiveText: DS.green,
-    searchBg:     "#F5F7F8",
-    rowAlt:       "#F7F9F8",
-    shadow:       "rgba(0,0,0,0.06)",
-  };
 
   useEffect(() => {
     fetchSolicitacoes();
@@ -405,18 +376,18 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     if (mainRef.current) mainRef.current.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const statusColor = s => ({ pendente: DS.amber, aprovado: DS.green, concluido: DS.green, rejeitado: DS.pink, erro: DS.pink }[s] || DS.gray);
-  const statusBg    = s => ({ pendente: DS.amberPale, aprovado: DS.greenPale, concluido: DS.greenPale, rejeitado: DS.pinkPale, erro: DS.pinkPale }[s] || DS.grayLight);
+  const statusColor = s => ({ pendente: PALETTE.data.atencao, aprovado: PALETTE.data.positivo, concluido: PALETTE.data.positivo, rejeitado: PALETTE.data.critico, erro: PALETTE.data.critico }[s] || PALETTE.neutral[400]);
+  const statusBg    = s => ({ pendente: PALETTE.data.atencaoFraco, aprovado: PALETTE.data.positivoFraco, concluido: PALETTE.data.positivoFraco, rejeitado: PALETTE.data.criticoFraco, erro: PALETTE.data.criticoFraco }[s] || PALETTE.neutral[50]);
   const pendentes   = solicitacoes.filter(s => s.status === "pendente").length;
   const userName    = user.user_metadata?.full_name || user.email.split("@")[0];
   const userInitial = userName.charAt(0).toUpperCase();
 
   const navItems = [
-    { id: "historico",    label: "Dashboard",        Icon: IcoChart, badge: null },
-    { id: "todos",        label: "Diagnósticos",     Icon: IcoList,  badge: null },
-    { id: "workspaces",   label: "Workspaces",       Icon: IcoList,  badge: null },
-    { id: "custos",       label: "Custos",           Icon: IcoCoins, badge: null },
-    { id: "cerebros",     label: "Cérebros",         Icon: IcoBrain, badge: null },
+    { id: "historico",    label: "Dashboard",        Icon: InsightsOutlinedIcon },
+    { id: "todos",        label: "Diagnósticos",     Icon: ListAltOutlinedIcon },
+    { id: "workspaces",   label: "Workspaces",       Icon: WorkspacesOutlinedIcon },
+    { id: "custos",       label: "Custos",           Icon: PaidOutlinedIcon },
+    { id: "cerebros",     label: "Cérebros",         Icon: PsychologyOutlinedIcon },
   ];
 
   const pendentesList = solicitacoes.filter(s => s.status === "pendente");
@@ -433,398 +404,9 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     cerebros:     { title: "Cérebros de marca",       sub: "A inteligência de cada tenant: versão, confiança, sinais, dataset — e destilação sob demanda." },
   };
 
-  const ph = pageHeaders[page];
-
-  return (
-    <ThemeProvider theme={isDark ? themeDark : themeLight}>
-      <CssBaseline />
-      <GlobalStyle />
-
-      {/* ── Top Bar ─────────────────────────────────────────────── */}
-      <header style={{
-        position: "fixed", top: 0, left: 0, right: 0, height: TOP_H,
-        background: C.topbar, borderBottom: `1px solid ${C.border}`,
-        display: "flex", alignItems: "center",
-        zIndex: 100, fontFamily: F,
-        boxShadow: `0 1px 8px ${C.shadow}`,
-      }}>
-        {/* Logo area (alinha com sidebar) */}
-        <div style={{ width: NAV_W, flexShrink: 0, padding: "0 20px", display: "flex", alignItems: "center", gap: 10, borderRight: `1px solid ${C.border}`, height: "100%" }}>
-          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.03em", color: C.text, fontFamily: F }}>brandcode</span>
-        </div>
-
-        {/* Search */}
-        <div style={{ flex: 1, padding: "0 20px", maxWidth: 380 }}>
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.textDis, pointerEvents: "none", fontSize: 13 }}>🔍</span>
-            <input
-              value={searchVal}
-              onChange={e => { setSearchVal(e.target.value); if (e.target.value) navigate("todos"); }}
-              placeholder="Buscar empresa..."
-              style={{
-                width: "100%", padding: "7px 12px 7px 32px",
-                background: C.searchBg, border: `1px solid ${C.border}`,
-                borderRadius: 8, fontSize: 13, color: C.text, fontFamily: F,
-                outline: "none", boxSizing: "border-box",
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4, paddingRight: 20 }}>
-          {/* Dark/light toggle */}
-          <button
-            onClick={() => setIsDark(d => { const next = !d; localStorage.setItem("loudr-admin-theme", next ? "dark" : "light"); return next; })}
-            title={isDark ? "Modo claro" : "Modo escuro"}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 34, height: 34, borderRadius: 8, cursor: "pointer",
-              background: "none", border: `1px solid ${C.border}`,
-              color: C.textSec, transition: "all 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = DS.green; e.currentTarget.style.borderColor = DS.green; }}
-            onMouseLeave={e => { e.currentTarget.style.color = C.textSec; e.currentTarget.style.borderColor = C.border; }}
-          >
-            {isDark ? <IcoSun /> : <IcoMoon />}
-          </button>
-
-          {/* Bell */}
-          <button
-            onClick={e => setBellAnchor(e.currentTarget)}
-            title="Solicitações"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 34, height: 34, borderRadius: 8, cursor: "pointer",
-              background: "none", border: `1px solid ${C.border}`,
-              color: C.textSec, position: "relative",
-            }}
-          >
-            <IcoBell />
-            {pendentes > 0 && (
-              <span style={{
-                position: "absolute", top: 2, right: 2,
-                minWidth: 14, height: 14, padding: "0 4px", borderRadius: 99,
-                background: DS.pink, color: "#fff", fontSize: 9, fontWeight: 800,
-                display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F,
-              }}>{pendentes}</span>
-            )}
-          </button>
-
-          {/* Divider */}
-          <div style={{ width: 1, height: 24, background: C.border, margin: "0 6px" }} />
-
-          {/* Avatar */}
-          <div style={{
-            width: 34, height: 34, borderRadius: "50%",
-            background: DS.green, color: "#fff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 14, fontWeight: 900, fontFamily: F, cursor: "default",
-            flexShrink: 0,
-          }}>
-            {userInitial}
-          </div>
-
-          <div style={{ marginLeft: 2 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: F, lineHeight: 1.2 }}>{userName}</div>
-            <div style={{ fontSize: 10, color: C.textDis, fontFamily: F }}>brandcode · admin</div>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Layout body ─────────────────────────────────────────── */}
-      <div style={{ display: "flex", minHeight: "100vh", background: C.bg, paddingTop: TOP_H }}>
-
-        {/* ── Sidebar ─────────────────────────────────────────── */}
-        <aside style={{
-          width: NAV_W, flexShrink: 0,
-          background: C.sidebar,
-          borderRight: `1px solid ${C.border}`,
-          position: "fixed", top: TOP_H, bottom: 0, left: 0,
-          overflowY: "auto",
-          display: "flex", flexDirection: "column",
-        }}>
-          <div style={{ padding: "16px 20px 6px", fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: C.textDis, fontFamily: F }}>
-            Menu
-          </div>
-
-          <nav style={{ flex: 1, padding: "4px 10px" }}>
-            {navItems.map(({ id, label, Icon, badge }) => {
-              const active = page === id || (page === "gerando" && id === "solicitacoes") || (page === "relatorio" && id === "todos");
-              return (
-                <button key={id} onClick={() => navigate(id)} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 12px", borderRadius: 8, border: "none",
-                  borderLeft: active ? `3px solid ${DS.green}` : "3px solid transparent",
-                  background: active ? C.navActiveBg : "transparent",
-                  color: active ? C.navActiveText : C.textSec,
-                  cursor: "pointer", fontFamily: F, fontSize: 13,
-                  fontWeight: active ? 700 : 500,
-                  textAlign: "left", width: "100%",
-                  transition: "all 0.15s",
-                  marginBottom: 2,
-                }}>
-                  <span style={{ display: "flex", alignItems: "center", opacity: active ? 1 : 0.6 }}>
-                    <Icon />
-                  </span>
-                  <span style={{ flex: 1 }}>{label}</span>
-                  {badge && (
-                    <span style={{ background: DS.pink, color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 7px" }}>
-                      {badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Cooldown indicator */}
-          {cooldownAtivo > 0 && (
-            <div style={{ margin: "0 10px 8px", padding: "8px 12px", background: DS.amberPale, borderRadius: 8, border: `1px solid ${DS.amber}44` }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: DS.amber, fontFamily: F }}>Cooldown ativo</div>
-              <div style={{ fontSize: 12, color: DS.amber, fontFamily: F }}>{cooldownAtivo}s restantes</div>
-            </div>
-          )}
-
-          {/* User / logout */}
-          <div style={{ padding: "10px 10px 16px", borderTop: `1px solid ${C.border}` }}>
-            <div style={{ padding: "4px 12px 6px", fontSize: 11, color: C.textDis, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: F }}>
-              {user.email}
-            </div>
-            <button onClick={onLogout} style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "8px 12px", borderRadius: 8, border: "none",
-              background: "transparent", color: DS.pink,
-              cursor: "pointer", fontFamily: F, fontSize: 12, fontWeight: 600,
-              width: "100%", textAlign: "left",
-            }}>
-              <IcoLogout /> Sair da conta
-            </button>
-          </div>
-        </aside>
-
-        {/* ── Main ─────────────────────────────────────────────── */}
-        <main ref={mainRef} style={{
-          flex: 1, marginLeft: NAV_W,
-          minHeight: `calc(100vh - ${TOP_H}px)`,
-          background: C.bg, overflowX: "hidden",
-        }}>
-
-          {/* Page header */}
-          {ph && (
-            <div style={{
-              background: C.topbar, borderBottom: `1px solid ${C.border}`,
-              padding: "16px 28px", display: "flex", alignItems: "center", gap: 16,
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: "-0.02em", fontFamily: F }}>{ph.title}</div>
-                <div style={{ fontSize: 12, color: C.textSec, marginTop: 1, fontFamily: F }}>{ph.sub}</div>
-              </div>
-              {(page === "todos" || page === "historico") && (
-                <button onClick={() => setNovoOpen(true)}
-                  style={{ background: DS.green, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 800, fontFamily: F, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
-                >
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Novo diagnóstico
-                </button>
-              )}
-              {page === "workspaces" && (
-                <button onClick={() => setWsCreateSignal(s => s + 1)}
-                  style={{ background: DS.green, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 800, fontFamily: F, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
-                >
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Criar workspace
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div style={{ background: DS.pinkPale, border: `1px solid #F4C0D1`, borderRadius: 10, padding: "12px 18px", margin: "16px 28px 0" }}>
-              <div style={{ fontWeight: 800, color: DS.pink, marginBottom: 4, fontSize: 13, fontFamily: F }}>Erro</div>
-              <div style={{ fontSize: 13, color: "#72243E", fontFamily: F }}>{error}</div>
-              <button onClick={() => setError("")} style={{ marginTop: 8, fontSize: 12, cursor: "pointer", background: "none", border: `1px solid ${DS.border}`, borderRadius: 6, padding: "3px 10px", color: C.textSec, fontFamily: F }}>Fechar</button>
-            </div>
-          )}
-
-          {/* Page content */}
-          <div style={{ padding: "24px 28px 48px" }}>
-
-            {/* ── Solicitações ── */}
-            {page === "solicitacoes" && (
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 24 }}>
-                  {[
-                    { val: solicitacoes.length,                                   lbl: "total de pedidos" },
-                    { val: pendentes,                                             lbl: "aguardando aprovação", highlight: pendentes > 0 },
-                    { val: solicitacoes.filter(s => s.status === "concluido").length, lbl: "diagnósticos gerados" },
-                    { val: solicitacoes.filter(s => s.status === "rejeitado").length, lbl: "rejeitados" },
-                  ].map((s, i) => (
-                    <div key={i} style={{
-                      background: s.highlight ? DS.amberPale : C.paper,
-                      border: s.highlight ? `1px solid ${DS.amber}44` : `1px solid ${C.border}`,
-                      borderRadius: 10, padding: "14px 18px",
-                      boxShadow: `0 1px 4px ${C.shadow}`,
-                    }}>
-                      <div style={{ fontSize: 26, fontWeight: 900, color: s.highlight ? DS.amber : C.text, fontFamily: F }}>{s.val}</div>
-                      <div style={{ fontSize: 11, color: C.textDis, marginTop: 3, fontFamily: F }}>{s.lbl}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {loadingSol ? (
-                  <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontFamily: F }}>Carregando...</div>
-                ) : solicitacoes.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "4rem", color: C.textDis, fontFamily: F }}>
-                    <div style={{ fontSize: 14, marginBottom: 6 }}>Nenhuma solicitação ainda.</div>
-                    <div style={{ fontSize: 12 }}>Compartilhe a página pública para receber pedidos.</div>
-                  </div>
-                ) : (
-                  solicitacoes.map(sol => (
-                    <div key={sol.id} style={{
-                      background: C.paper, border: `1px solid ${C.border}`,
-                      borderRadius: 10, padding: "16px 20px", marginBottom: 10,
-                      boxShadow: `0 1px 4px ${C.shadow}`,
-                    }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: F }}>{sol.empresa}</span>
-                            <Pill bg={statusBg(sol.status)} color={statusColor(sol.status)}>{sol.status}</Pill>
-                            {sol.setor && <span style={{ fontSize: 12, color: C.textDis, fontFamily: F }}>{normalizeSector(sol.setor)} · {sol.porte}</span>}
-                          </div>
-                          <div style={{ fontSize: 12, color: C.textDis, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontFamily: F }}>
-                            {sol.nome} · {sol.email} · {fmtDate(sol.created_at)}
-                            {(() => {
-                              const s = calcularScoreLead(sol);
-                              return (
-                                <span style={{ background: s >= 60 ? DS.greenPale : s >= 30 ? DS.amberPale : DS.pinkPale, color: s >= 60 ? DS.green : s >= 30 ? DS.amber : DS.pink, fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "1px 8px" }}>
-                                  Lead {s}%
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          {sol.site && <div style={{ fontSize: 12, color: C.textSec, fontFamily: F }}>{sol.site}</div>}
-                          {sol.contexto && (
-                            <div style={{ marginTop: 8, padding: "8px 12px", background: isDark ? "#0D1B2A" : DS.grayLight, borderRadius: 8, fontSize: 12, color: C.textSec, lineHeight: 1.55, fontFamily: F }}>
-                              {sol.contexto}
-                            </div>
-                          )}
-                        </div>
-                        {sol.status === "pendente" && (
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <button onClick={() => rejeitarSolicitacao(sol.id)}
-                                style={{ background: "none", border: `1px solid ${DS.pink}44`, borderRadius: 8, padding: "7px 14px", fontSize: 12, color: DS.pink, cursor: "pointer", fontFamily: F }}>
-                                Rejeitar
-                              </button>
-                              <button onClick={() => aprovarERodar(sol)} disabled={cooldownAtivo > 0}
-                                style={{ background: cooldownAtivo > 0 ? C.textDis : DS.green, border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: cooldownAtivo > 0 ? "not-allowed" : "pointer", fontFamily: F }}>
-                                {cooldownAtivo > 0 ? `Aguarde ${cooldownAtivo}s` : "Aprovar e rodar →"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {sol.status === "concluido" && (
-                          <button onClick={() => {
-                            const diag = historico.find(h => h.id === sol.diagnostico_id);
-                            if (diag) { setSelectedRel({ data: diag.data, meta: diag }); navigate("relatorio"); }
-                          }} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 12, color: DS.green, cursor: "pointer", fontFamily: F, flexShrink: 0 }}>
-                            Ver relatório →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {page === "gerando" && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: 20, textAlign: "center", fontFamily: F }}>
-                <div style={{ width: 48, height: 48, border: `3px solid ${DS.green}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 6 }}>Gerando diagnóstico</div>
-                  <div style={{ fontSize: 13, color: C.textSec, minHeight: 20 }}>
-                    {["Pesquisando o site e fontes públicas...", "Aplicando framework Smart Branding...", "Calculando scores...", "Mapeando gaps de identidade...", "Identificando oportunidades...", "Finalizando..."][gerandoStep % 6]}
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: C.textDis }}>Pode fechar esta aba — o diagnóstico continuará no servidor</div>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              </div>
-            )}
-
-            {page === "relatorio" && selectedRel && (
-              <RelatorioCompleto
-                data={{ ...(selectedRel.meta || {}), ...(selectedRel.data || {}) }}
-                meta={selectedRel.meta}
-                onBack={() => navigate("historico")}
-                backLabel="← Voltar ao histórico"
-              />
-            )}
-
-            {page === "historico" && (
-              loadingHist ? (
-                <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontFamily: F }}>Carregando...</div>
-              ) : historicoDone.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "4rem", color: C.textDis, fontFamily: F }}>Nenhum diagnóstico gerado ainda.</div>
-              ) : (
-                <DashboardHistorico
-                  historico={historicoDone}
-                  onVerRelatorio={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
-                  onVerTodos={() => { setFiltroSetor(""); navigate("todos"); }}
-                  onSetorClick={s => { setFiltroSetor(s); navigate("todos"); }}
-                />
-              )
-            )}
-
-            {page === "todos" && (
-              <TodosPage
-                historico={historico}
-                loadingHist={loadingHist}
-                initialSetor={filtroSetor}
-                isDark={isDark}
-                onOpen={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
-                onRetry={retryDiagnostico}
-                retrying={retrying}
-              />
-            )}
-
-            {page === "workspaces" && (
-              <WorkspacesAdmin
-                user={user}
-                C={C}
-                isDark={isDark}
-                onImpersonate={onImpersonate}
-                createSignal={wsCreateSignal}
-              />
-            )}
-
-            {page === "custos" && <CustosAdmin C={C} />}
-            {page === "cerebros" && <CerebrosAdmin C={C} />}
-          </div>
-        </main>
-      </div>
-
-      <NovoDiagnosticoDialog
-        open={novoOpen}
-        onClose={() => setNovoOpen(false)}
-        user={user}
-        onCreate={criadas => {
-          setHistorico(prev => [...criadas, ...prev]);
-          navigate("todos");
-        }}
-      />
-
-      <Popover
-        open={Boolean(bellAnchor)}
-        anchorEl={bellAnchor}
-        onClose={() => setBellAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { width: 380, maxHeight: 520, mt: 1, borderRadius: 2, overflow: "hidden" } } }}
-      >
+  // Conteúdo do sino — agora servido pelo AppLayout (um shell só p/ app e admin)
+  const bellBody = ({ close: fechar }) => (
+    <>
         <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}>
           <Typography sx={{ fontWeight: 900, fontSize: 14 }}>Solicitações pendentes</Typography>
           {pendentesList.length > 0 && (
@@ -852,10 +434,10 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
                   <Button
                     onClick={() => rejeitarSolicitacao(sol.id)}
                     size="small" color="inherit"
-                    sx={{ fontSize: 11, textTransform: "none", color: DS.pink, borderColor: DS.pink + "44", border: "1px solid", "&:hover": { borderColor: DS.pink, bgcolor: DS.pinkPale } }}
+                    sx={{ fontSize: 11, textTransform: "none", color: PALETTE.data.critico, borderColor: PALETTE.data.critico + "44", border: "1px solid", "&:hover": { borderColor: PALETTE.data.critico, bgcolor: PALETTE.data.criticoFraco } }}
                   >Rejeitar</Button>
                   <Button
-                    onClick={() => { setBellAnchor(null); aprovarERodar(sol); }}
+                    onClick={() => { fechar(); aprovarERodar(sol); }}
                     disabled={cooldownAtivo > 0}
                     size="small" variant="contained"
                     sx={{ fontSize: 11, textTransform: "none", fontWeight: 800 }}
@@ -870,19 +452,229 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
         <Divider />
         <Box sx={{ p: 1.5, textAlign: "right" }}>
           <Button
-            onClick={() => { setBellAnchor(null); navigate("solicitacoes"); }}
+            onClick={() => { fechar(); navigate("solicitacoes"); }}
             size="small"
             sx={{ fontSize: 11, textTransform: "none", fontWeight: 700 }}
           >Ver todas →</Button>
         </Box>
-      </Popover>
+    </>
+  );
+
+  const ph = pageHeaders[page];
+
+  return (
+    <ThemeProvider theme={isDark ? themeDark : themeLight}>
+      <CssBaseline />
+
+      <AppLayout
+        onToggleTheme={() => setIsDark(d => { const next = !d; localStorage.setItem("brandcode-admin-theme", next ? "dark" : "light"); return next; })}
+        nav={navItems.map(({ id, label, Icon }) => ({
+          type: "item", label, icon: Icon, hash: id,
+          active: page === id || (page === "gerando" && id === "solicitacoes") || (page === "relatorio" && id === "todos"),
+        }))}
+        currentRoute={page}
+        onNavigate={id => navigate(id)}
+        user={user}
+        userName={userName}
+        onLogout={onLogout}
+        onSearch={v => { setSearchVal(v); if (v) navigate("todos"); }}
+        searchValue={searchVal}
+        bellCount={pendentes}
+        bellContent={bellBody}
+        topBanner={cooldownAtivo > 0 ? (
+          <Alert severity="warning" square>Cooldown ativo — {cooldownAtivo}s restantes</Alert>
+        ) : null}
+      >
+
+          {ph && (
+            <PageHeader
+              title={ph.title}
+              subtitle={ph.sub}
+              action={
+                (page === "todos" || page === "historico") ? (
+                  <Button variant="contained" onClick={() => setNovoOpen(true)}>+ Novo diagnóstico</Button>
+                ) : page === "workspaces" ? (
+                  <Button variant="contained" onClick={() => setWsCreateSignal(s => s + 1)}>+ Criar workspace</Button>
+                ) : null
+              }
+            />
+          )}
+
+
+          {error && (
+            <Alert severity="error" onClose={() => setError("")} sx={{ mx: 3, mt: 2 }}>{error}</Alert>
+          )}
+
+
+          {/* Page content */}
+          <Box sx={{ minWidth: 0 }}>
+
+            {/* ── Solicitações ── */}
+            {page === "solicitacoes" && (
+              <Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: '10px', marginBottom: '24px' }}>
+                  {[
+                    { val: solicitacoes.length,                                   lbl: "total de pedidos" },
+                    { val: pendentes,                                             lbl: "aguardando aprovação", highlight: pendentes > 0 },
+                    { val: solicitacoes.filter(s => s.status === "concluido").length, lbl: "diagnósticos gerados" },
+                    { val: solicitacoes.filter(s => s.status === "rejeitado").length, lbl: "rejeitados" },
+                  ].map((s, i) => (
+                    <Box key={i} sx={{
+                      background: s.highlight ? PALETTE.data.atencaoFraco : 'background.paper',
+                      border: s.highlight ? `1px solid ${PALETTE.data.atencao}44` : `1px solid divider`,
+                       padding: "14px 18px",
+                      boxShadow: `0 1px 4px transparent`,
+                    }}>
+                      <Box sx={{ fontSize: 26, fontWeight: 900, color: s.highlight ? PALETTE.data.atencao : 'text.primary' }}>{s.val}</Box>
+                      <Box sx={{ fontSize: 11, color: 'text.disabled', marginTop: '3px' }}>{s.lbl}</Box>
+                    </Box>
+                  ))}
+                </Box>
+
+                {loadingSol ? (
+                  <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled' }}>Carregando...</Box>
+                ) : solicitacoes.length === 0 ? (
+                  <Box sx={{ textAlign: "center", padding: "4rem", color: 'text.disabled' }}>
+                    <Box sx={{ fontSize: 14, marginBottom: '6px' }}>Nenhuma solicitação ainda.</Box>
+                    <Box sx={{ fontSize: 12 }}>Compartilhe a página pública para receber pedidos.</Box>
+                  </Box>
+                ) : (
+                  solicitacoes.map(sol => (
+                    <Box key={sol.id} sx={{
+                      background: 'background.paper', border: 1, borderColor: 'divider',
+                       padding: "16px 20px", marginBottom: '10px',
+                      boxShadow: `0 1px 4px transparent`,
+                    }}>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: '16px', flexWrap: "wrap" }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: '10px', marginBottom: '4px', flexWrap: "wrap" }}>
+                            <Typography component="span" sx={{ fontSize: 15, fontWeight: 800, color: 'text.primary' }}>{sol.empresa}</Typography>
+                            <Chip size="small" label={sol.status} sx={{ bgcolor: statusBg(sol.status), color: statusColor(sol.status), fontWeight: 700 }} />
+                            {sol.setor && <Typography component="span" sx={{ fontSize: 12, color: 'text.disabled' }}>{normalizeSector(sol.setor)} · {sol.porte}</Typography>}
+                          </Box>
+                          <Box sx={{ fontSize: 12, color: 'text.disabled', marginBottom: '6px', display: "flex", alignItems: "center", gap: '8px', flexWrap: "wrap" }}>
+                            {sol.nome} · {sol.email} · {fmtDate(sol.created_at)}
+                            {(() => {
+                              const s = calcularScoreLead(sol);
+                              return (
+                                <Typography component="span" sx={{ background: s >= 60 ? PALETTE.data.positivoFraco : s >= 30 ? PALETTE.data.atencaoFraco : PALETTE.data.criticoFraco, color: s >= 60 ? PALETTE.data.positivo : s >= 30 ? PALETTE.data.atencao : PALETTE.data.critico, fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "1px 8px" }}>
+                                  Lead {s}%
+                                </Typography>
+                              );
+                            })()}
+                          </Box>
+                          {sol.site && <Box sx={{ fontSize: 12, color: 'text.secondary' }}>{sol.site}</Box>}
+                          {sol.contexto && (
+                            <Box sx={{ marginTop: '8px', padding: "8px 12px", background: isDark ? PALETTE.neutral[900] : PALETTE.neutral[50],  fontSize: 12, color: 'text.secondary', lineHeight: 1.55 }}>
+                              {sol.contexto}
+                            </Box>
+                          )}
+                        </Box>
+                        {sol.status === "pendente" && (
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: '6px', flexShrink: 0 }}>
+                            <Box sx={{ display: "flex", gap: '8px' }}>
+                              <Button size="small" variant="outlined" color="error" onClick={() => rejeitarSolicitacao(sol.id)}>
+                                Rejeitar
+                              </Button>
+                              <Button size="small" variant="contained" onClick={() => aprovarERodar(sol)} disabled={cooldownAtivo > 0}>
+                                {cooldownAtivo > 0 ? `Aguarde ${cooldownAtivo}s` : "Aprovar e rodar →"}
+                              </Button>
+                            </Box>
+                          </Box>
+                        )}
+                        {sol.status === "concluido" && (
+                          <Button onClick={() => {
+                            const diag = historico.find(h => h.id === sol.diagnostico_id);
+                            if (diag) { setSelectedRel({ data: diag.data, meta: diag }); navigate("relatorio"); }
+                          }} size="small" variant="outlined" sx={{ flexShrink: 0 }}>
+                            Ver relatório →
+                          </Button>
+                        )}
+                      </Box>
+                    </Box>
+                  ))
+                )}
+              </Box>
+            )}
+
+            {page === "gerando" && (
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: '20px', textAlign: "center" }}>
+                <Box sx={{ width: 48, height: 48, border: `3px solid ${PALETTE.data.positivo}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <Box>
+                  <Box sx={{ fontSize: 15, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Gerando diagnóstico</Box>
+                  <Box sx={{ fontSize: 13, color: 'text.secondary', minHeight: 20 }}>
+                    {["Pesquisando o site e fontes públicas...", "Aplicando framework Smart Branding...", "Calculando scores...", "Mapeando gaps de identidade...", "Identificando oportunidades...", "Finalizando..."][gerandoStep % 6]}
+                  </Box>
+                </Box>
+                <Box sx={{ fontSize: 11, color: 'text.disabled' }}>Pode fechar esta aba — o diagnóstico continuará no servidor</Box>
+                    </Box>
+            )}
+
+            {page === "relatorio" && selectedRel && (
+              <RelatorioCompleto
+                data={{ ...(selectedRel.meta || {}), ...(selectedRel.data || {}) }}
+                meta={selectedRel.meta}
+                onBack={() => navigate("historico")}
+                backLabel="← Voltar ao histórico"
+              />
+            )}
+
+            {page === "historico" && (
+              loadingHist ? (
+                <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled' }}>Carregando...</Box>
+              ) : historicoDone.length === 0 ? (
+                <Box sx={{ textAlign: "center", padding: "4rem", color: 'text.disabled' }}>Nenhum diagnóstico gerado ainda.</Box>
+              ) : (
+                <DashboardHistorico
+                  historico={historicoDone}
+                  onVerRelatorio={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
+                  onVerTodos={() => { setFiltroSetor(""); navigate("todos"); }}
+                  onSetorClick={s => { setFiltroSetor(s); navigate("todos"); }}
+                />
+              )
+            )}
+
+            {page === "todos" && (
+              <TodosPage
+                historico={historico}
+                loadingHist={loadingHist}
+                initialSetor={filtroSetor}
+                onOpen={d => { setSelectedRel({ data: d.data, meta: d }); navigate("relatorio"); }}
+                onRetry={retryDiagnostico}
+                retrying={retrying}
+              />
+            )}
+
+            {page === "workspaces" && (
+              <WorkspacesAdmin
+                user={user}
+                onImpersonate={onImpersonate}
+                createSignal={wsCreateSignal}
+              />
+            )}
+
+            {page === "custos" && <CustosAdmin />}
+            {page === "cerebros" && <CerebrosAdmin />}
+          </Box>
+      </AppLayout>
+
+      <NovoDiagnosticoDialog
+        open={novoOpen}
+        onClose={() => setNovoOpen(false)}
+        user={user}
+        onCreate={criadas => {
+          setHistorico(prev => [...criadas, ...prev]);
+          navigate("todos");
+        }}
+      />
+
     </ThemeProvider>
   );
 }
 
 /* ─── CustosAdmin ────────────────────────────────────────────────── */
 
-function CustosAdmin({ C }) {
+function CustosAdmin() {
   const [loading, setLoading] = useState(true);
   const [gens, setGens]       = useState([]);
   const [wsMap, setWsMap]     = useState({});
@@ -926,13 +718,9 @@ function CustosAdmin({ C }) {
   const brl = n => "R$ " + brlFromCredits(n).toFixed(2).replace(".", ",");
   const usd = n => "US$ " + usdFromCredits(n).toFixed(2);
 
-  const card = { background: C.topbar, border: `1px solid ${C.border}`, borderRadius: 12 };
-  const th   = { textAlign: "left", padding: "9px 14px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textDis, fontFamily: F, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" };
-  const td   = { padding: "10px 14px", fontSize: 13, color: C.text, fontFamily: F, borderBottom: `1px solid ${C.border}` };
-  const thR  = { ...th, textAlign: "right" };
-  const tdR  = { ...td, textAlign: "right" };
+  const card = { background: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 12 };
 
-  if (loading) return <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontFamily: F }}>Carregando…</div>;
+  if (loading) return <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled' }}>Carregando…</Box>;
 
   const stats = [
     { lbl: "Custo estimado", val: brl(totCred), sub: usd(totCred) },
@@ -942,79 +730,75 @@ function CustosAdmin({ C }) {
   ];
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+    <Box>
+      <Box sx={{ display: "flex", gap: '6px', marginBottom: '18px' }}>
         {[{ k: "mes", l: "Mês atual" }, { k: "90d", l: "90 dias" }, { k: "tudo", l: "Tudo" }].map(p => (
-          <button key={p.k} onClick={() => setPeriodo(p.k)} style={{
-            padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer",
-            border: `1px solid ${periodo === p.k ? DS.green : C.border}`,
-            background: periodo === p.k ? DS.green : "transparent",
-            color: periodo === p.k ? "#fff" : C.textSec,
-          }}>{p.l}</button>
+          <Button key={p.k} size="small" onClick={() => setPeriodo(p.k)}
+            variant={periodo === p.k ? "contained" : "outlined"}>{p.l}</Button>
         ))}
-      </div>
+      </Box>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 22 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: '12px', marginBottom: '22px' }}>
         {stats.map(s => (
-          <div key={s.lbl} style={{ ...card, padding: 18 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textDis, fontFamily: F }}>{s.lbl}</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: C.text, fontFamily: F, marginTop: 4, lineHeight: 1 }}>{s.val}</div>
-            <div style={{ fontSize: 11, color: C.textSec, fontFamily: F, marginTop: 4 }}>{s.sub}</div>
-          </div>
+          <Box key={s.lbl} sx={{ ...card, padding: '18px' }}>
+            <Box sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: 'text.disabled' }}>{s.lbl}</Box>
+            <Box sx={{ fontSize: 26, fontWeight: 900, color: 'text.primary', marginTop: '4px', lineHeight: 1 }}>{s.val}</Box>
+            <Box sx={{ fontSize: 11, color: 'text.secondary', marginTop: '4px' }}>{s.sub}</Box>
+          </Box>
         ))}
-      </div>
+      </Box>
 
       {rows.length === 0 ? (
-        <div style={{ ...card, padding: 32, textAlign: "center", color: C.textDis, fontFamily: F }}>Nenhuma geração no período.</div>
+        <Box sx={{ ...card, padding: '32px', textAlign: "center", color: 'text.disabled' }}>Nenhuma geração no período.</Box>
       ) : (
         <>
-          <div style={{ ...card, overflow: "hidden", marginBottom: 16 }}>
-            <div style={{ padding: "13px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 800, color: C.text, fontFamily: F }}>Por modelo</div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr><th style={th}>Modelo</th><th style={thR}>Gerações</th><th style={thR}>Créditos</th><th style={thR}>Custo</th></tr></thead>
-              <tbody>
+          <Box sx={{ ...card, overflow: "hidden", marginBottom: '16px' }}>
+            <Box sx={{ padding: "13px 16px", borderBottom: 1, borderColor: 'divider', fontSize: 13, fontWeight: 800, color: 'text.primary' }}>Por modelo</Box>
+            <Table size="small">
+              <TableHead><TableRow><TableCell>Modelo</TableCell><TableCell align="right">Gerações</TableCell><TableCell align="right">Créditos</TableCell><TableCell align="right">Custo</TableCell></TableRow></TableHead>
+              <TableBody>
                 {modelos.map(m => (
-                  <tr key={m.label}>
-                    <td style={td}><span style={{ display: "inline-block", width: 7, height: 7, borderRadius: 2, background: m.tipo === "video" ? DS.amber : DS.green, marginRight: 8, verticalAlign: "middle" }} />{m.label}</td>
-                    <td style={tdR}>{m.n}</td>
-                    <td style={tdR}>{m.cred.toLocaleString("pt-BR")}</td>
-                    <td style={{ ...tdR, fontWeight: 700 }}>{brl(m.cred)}</td>
-                  </tr>
+                  <TableRow key={m.label}>
+                    <TableCell><Typography component="span" sx={{ display: "inline-block", width: 7, height: 7, borderRadius: 2, background: m.tipo === "video" ? PALETTE.data.atencao : PALETTE.data.positivo, marginRight: '8px', verticalAlign: "middle" }} />{m.label}</TableCell>
+                    <TableCell align="right">{m.n}</TableCell>
+                    <TableCell align="right">{m.cred.toLocaleString("pt-BR")}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{brl(m.cred)}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Box>
 
-          <div style={{ ...card, overflow: "hidden" }}>
-            <div style={{ padding: "13px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 800, color: C.text, fontFamily: F }}>Por conta</div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr><th style={th}>Conta</th><th style={thR}>Gerações</th><th style={thR}>Créditos</th><th style={thR}>Custo</th><th style={thR}>Saldo atual</th></tr></thead>
-              <tbody>
+          <Box sx={{ ...card, overflow: "hidden" }}>
+            <Box sx={{ padding: "13px 16px", borderBottom: 1, borderColor: 'divider', fontSize: 13, fontWeight: 800, color: 'text.primary' }}>Por conta</Box>
+            <Table size="small">
+              <TableHead><TableRow><TableCell>Conta</TableCell><TableCell align="right">Gerações</TableCell><TableCell align="right">Créditos</TableCell><TableCell align="right">Custo</TableCell><TableCell align="right">Saldo atual</TableCell></TableRow></TableHead>
+              <TableBody>
                 {contas.map(c => (
-                  <tr key={c.id}>
-                    <td style={td}>{c.ws?.nome || c.id.slice(0, 8)}</td>
-                    <td style={tdR}>{c.n}</td>
-                    <td style={tdR}>{c.cred.toLocaleString("pt-BR")}</td>
-                    <td style={{ ...tdR, fontWeight: 700 }}>{brl(c.cred)}</td>
-                    <td style={{ ...tdR, color: C.textSec }}>{c.ws?.creditos_saldo ?? "—"}</td>
-                  </tr>
+                  <TableRow key={c.id}>
+                    <TableCell>{c.ws?.nome || c.id.slice(0, 8)}</TableCell>
+                    <TableCell align="right">{c.n}</TableCell>
+                    <TableCell align="right">{c.cred.toLocaleString("pt-BR")}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{brl(c.cred)}</TableCell>
+                    <TableCell align="right" sx={{ color: "text.secondary" }}>{c.ws?.creditos_saldo ?? "—"}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Box>
         </>
       )}
 
-      <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, marginTop: 16, lineHeight: 1.5 }}>
+      <Box sx={{ fontSize: 11, color: 'text.disabled', marginTop: '16px', lineHeight: 1.5 }}>
         Custo estimado a partir do mapa de créditos (créditos ≈ 18 × custo_USD; câmbio R$5,50). A duração de vídeo assume o menor tier. Não inclui a inteligência (diagnóstico, listening, assistant) — fair-use, sem crédito. "Gerações" = 1 imagem = 1 token.
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
 /* ─── CerebrosAdmin — todos os cérebros de marca (cross-tenant) ───── */
 
-function CerebrosAdmin({ C }) {
+function CerebrosAdmin() {
   const [loading, setLoading]     = useState(true);
   const [rows, setRows]           = useState([]);
   const [globais, setGlobais]     = useState({ comCerebro: 0, totalMarcas: 0, confMedia: null, pendentes: 0, dataset: 0 });
@@ -1084,13 +868,9 @@ function CerebrosAdmin({ C }) {
   }
 
   const pctFmt  = n => (n == null ? "—" : `${Math.round(n * 100)}%`);
-  const card = { background: C.topbar, border: `1px solid ${C.border}`, borderRadius: 12 };
-  const th   = { textAlign: "left", padding: "9px 14px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textDis, fontFamily: F, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" };
-  const td   = { padding: "10px 14px", fontSize: 13, color: C.text, fontFamily: F, borderBottom: `1px solid ${C.border}` };
-  const thR  = { ...th, textAlign: "right" };
-  const tdR  = { ...td, textAlign: "right" };
+  const card = { background: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 12 };
 
-  if (loading) return <div style={{ textAlign: "center", padding: "3rem", color: C.textDis, fontFamily: F }}>Carregando…</div>;
+  if (loading) return <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled' }}>Carregando…</Box>;
 
   const stats = [
     { lbl: "Cérebros ativos", val: `${globais.comCerebro}/${globais.totalMarcas}`, sub: "marcas com modelo destilado" },
@@ -1100,90 +880,83 @@ function CerebrosAdmin({ C }) {
   ];
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <button onClick={load} style={{
-          padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer",
-          border: `1px solid ${C.border}`, background: "transparent", color: C.textSec,
-        }}>Atualizar</button>
-      </div>
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", marginBottom: '12px' }}>
+        <Button size="small" variant="outlined" onClick={load}>Atualizar</Button>
+      </Box>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 22 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: '12px', marginBottom: '22px' }}>
         {stats.map(s => (
-          <div key={s.lbl} style={{ ...card, padding: 18 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textDis, fontFamily: F }}>{s.lbl}</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: C.text, fontFamily: F, marginTop: 4, lineHeight: 1 }}>{s.val}</div>
-            <div style={{ fontSize: 11, color: C.textSec, fontFamily: F, marginTop: 4 }}>{s.sub}</div>
-          </div>
+          <Box key={s.lbl} sx={{ ...card, padding: '18px' }}>
+            <Box sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: 'text.disabled' }}>{s.lbl}</Box>
+            <Box sx={{ fontSize: 26, fontWeight: 900, color: 'text.primary', marginTop: '4px', lineHeight: 1 }}>{s.val}</Box>
+            <Box sx={{ fontSize: 11, color: 'text.secondary', marginTop: '4px' }}>{s.sub}</Box>
+          </Box>
         ))}
-      </div>
+      </Box>
 
       {rows.length === 0 ? (
-        <div style={{ ...card, padding: 32, textAlign: "center", color: C.textDis, fontFamily: F }}>Nenhuma marca cadastrada.</div>
+        <Box sx={{ ...card, padding: '32px', textAlign: "center", color: 'text.disabled' }}>Nenhuma marca cadastrada.</Box>
       ) : (
-        <div style={{ ...card, overflow: "hidden" }}>
-          <div style={{ padding: "13px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 800, color: C.text, fontFamily: F }}>Por marca</div>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr>
-              <th style={th}>Marca</th><th style={thR}>Versão</th><th style={thR}>Confiança</th>
-              <th style={thR}>Sinais (pend.)</th><th style={thR}>Dataset</th><th style={thR}>Approval</th>
-              <th style={thR}>Última destilação</th><th style={thR}></th>
-            </tr></thead>
-            <tbody>
+        <Box sx={{ ...card, overflow: "hidden" }}>
+          <Box sx={{ padding: "13px 16px", borderBottom: 1, borderColor: 'divider', fontSize: 13, fontWeight: 800, color: 'text.primary' }}>Por marca</Box>
+          <Table size="small">
+            <TableHead><TableRow>
+              <TableCell>Marca</TableCell><TableCell align="right">Versão</TableCell><TableCell align="right">Confiança</TableCell>
+              <TableCell align="right">Sinais (pend.)</TableCell><TableCell align="right">Dataset</TableCell><TableCell align="right">Approval</TableCell>
+              <TableCell align="right">Última destilação</TableCell><TableCell align="right"></TableCell>
+            </TableRow></TableHead>
+            <TableBody>
               {rows.map(m => {
                 const st = distilling[m.brand.id];
                 return (
-                  <tr key={m.brand.id}>
-                    <td style={td}>
-                      <span style={{ fontWeight: 700 }}>{m.ws?.nome || m.brand.nome}</span>
-                      {m.ws?.plano && <span style={{ fontSize: 10, fontWeight: 700, color: PLANO_COR[m.ws.plano] || C.textDis, marginLeft: 8, textTransform: "uppercase" }}>{m.ws.plano}</span>}
-                    </td>
-                    <td style={tdR}>{m.atual ? `v${m.atual.versao}` : "—"}</td>
-                    <td style={{ ...tdR, fontWeight: 700 }}>
+                  <TableRow key={m.brand.id}>
+                    <TableCell>
+                      <Typography component="span" sx={{ fontWeight: 700 }}>{m.ws?.nome || m.brand.nome}</Typography>
+                      {m.ws?.plano && <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, color: PLANO_COR[m.ws.plano] || 'text.disabled', marginLeft: '8px', textTransform: "uppercase" }}>{m.ws.plano}</Typography>}
+                    </TableCell>
+                    <TableCell align="right">{m.atual ? `v${m.atual.versao}` : "—"}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>
                       {pctFmt(m.atual?.confianca_media)}
                       {m.confDelta != null && (
-                        <span style={{ fontSize: 11, fontWeight: 700, marginLeft: 6, color: m.confDelta >= 0 ? DS.green : DS.pink }}>
+                        <Typography component="span" sx={{ fontSize: 11, fontWeight: 700, marginLeft: '6px', color: m.confDelta >= 0 ? PALETTE.data.positivo : PALETTE.data.critico }}>
                           {m.confDelta >= 0 ? "▲" : "▼"}{Math.abs(Math.round(m.confDelta * 100))}
-                        </span>
+                        </Typography>
                       )}
-                    </td>
-                    <td style={tdR}>
+                    </TableCell>
+                    <TableCell align="right">
                       {m.sinais.toLocaleString("pt-BR")}
-                      {m.pendentes > 0 && <span style={{ color: DS.amber, fontWeight: 700 }}> ({m.pendentes})</span>}
-                    </td>
-                    <td style={tdR}>{m.dataset.toLocaleString("pt-BR")}</td>
-                    <td style={tdR}>{pctFmt(m.approval)}</td>
-                    <td style={{ ...tdR, color: C.textSec }}>{m.atual ? fmtDate(m.atual.created_at) : "—"}</td>
-                    <td style={tdR}>
+                      {m.pendentes > 0 && <Typography component="span" sx={{ color: PALETTE.data.atencao, fontWeight: 700 }}> ({m.pendentes})</Typography>}
+                    </TableCell>
+                    <TableCell align="right">{m.dataset.toLocaleString("pt-BR")}</TableCell>
+                    <TableCell align="right">{pctFmt(m.approval)}</TableCell>
+                    <TableCell align="right" sx={{ color: "text.secondary" }}>{m.atual ? fmtDate(m.atual.created_at) : "—"}</TableCell>
+                    <TableCell align="right">
                       {m.pendentes > 0 && (
-                        <button onClick={() => destilar(m.brand.id)} disabled={st === "run" || st === "ok"} style={{
-                          padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 700, fontFamily: F,
-                          cursor: st ? "default" : "pointer",
-                          border: `1px solid ${st === "ok" ? DS.green : st === "err" ? DS.pink : C.border}`,
-                          background: "transparent",
-                          color: st === "ok" ? DS.green : st === "err" ? DS.pink : C.textSec,
-                        }}>{st === "run" ? "Destilando…" : st === "ok" ? "Disparado ✓" : st === "err" ? "Falhou — tentar de novo" : "Destilar agora"}</button>
+                        <Button size="small" variant="outlined" onClick={() => destilar(m.brand.id)}
+                          disabled={st === "run" || st === "ok"}
+                          color={st === "ok" ? "success" : st === "err" ? "error" : "primary"}>{st === "run" ? "Destilando…" : st === "ok" ? "Disparado ✓" : st === "err" ? "Falhou — tentar de novo" : "Destilar agora"}</Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Box>
       )}
 
-      <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, marginTop: 16, lineHeight: 1.5 }}>
+      <Box sx={{ fontSize: 11, color: 'text.disabled', marginTop: '16px', lineHeight: 1.5 }}>
         Cada marca tem um cérebro próprio (modelo vivo versionado, destilado dos sinais de uso). "Destilar agora" roda em background (~1 min) — use Atualizar para ver a nova versão. Approval = votos 👍 sobre o total de peças avaliadas no Studio. Dataset = exemplos julgados, insumo do fine-tune por tenant no futuro.
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
 /* ─── WorkspacesAdmin ────────────────────────────────────────────── */
 const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const WS_PORTES  = ["Startup","PME","Médio","Grande"];
-const PLANO_COR  = { enterprise: DS.green, pro: '#9B6DFF', starter: '#EF9F27', trial: null };
+const PLANO_COR  = { enterprise: PALETTE.data.positivo, pro: PALETTE.data.neutro, starter: PALETTE.data.atencao, trial: null };
 
 // Etapas do "Preparar ambiente" (onboarding completo) — ordem = pipeline do backend
 const ONB_STEPS = [
@@ -1209,7 +982,7 @@ function centsToBRL(c) {
   return (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
+function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   const [workspaces, setWorkspaces]       = useState([]);
   const [loading, setLoading]             = useState(true);
   const [showCreate, setShowCreate]       = useState(false);
@@ -1454,21 +1227,21 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
     if (membersMap[showCreateUser.id]) { setMembersMap(m => ({ ...m, [showCreateUser.id]: undefined })); }
   }
 
-  const inp      = { fontSize: 13, fontFamily: F, color: C.text, background: C.paper, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
+  const inp      = { fontSize: 13, color: 'text.primary', background: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
   const inpSm    = { ...inp, padding: '4px 8px', width: 'auto', fontSize: 11 };
-  const btn      = (color = DS.green) => ({ background: color, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: F });
-  const btnGhost = { background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, color: C.textSec, cursor: 'pointer', fontFamily: F };
-  const btnDanger = { background: 'none', border: `1px solid ${DS.pink}44`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: DS.pink, cursor: 'pointer', fontFamily: F };
+  const btn      = (color = PALETTE.data.positivo) => ({ background: color, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer' });
+  const btnGhost = { background: 'none', border: 1, borderColor: 'divider', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'text.secondary', cursor: 'pointer' };
+  const btnDanger = { background: 'none', border: `1px solid ${PALETTE.data.critico}44`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: PALETTE.data.critico, cursor: 'pointer' };
 
-  if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: C.textDis, fontFamily: F }}>Carregando...</div>;
+  if (loading) return <Box sx={{ padding: '3rem', textAlign: 'center', color: 'text.disabled' }}>Carregando...</Box>;
 
   return (
-    <div>
-      {error && <div style={{ marginBottom: 16, padding: '10px 14px', background: DS.pinkPale, color: DS.pink, borderRadius: 8, fontSize: 13, fontFamily: F }}>{error}</div>}
+    <Box>
+      {error && <Box sx={{ marginBottom: '16px', padding: '10px 14px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 13 }}>{error}</Box>}
 
-      <div style={{ marginBottom: 20 }}>
-        <span style={{ fontSize: 13, color: C.textDis, fontFamily: F }}>{workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''}</span>
-      </div>
+      <Box sx={{ marginBottom: '20px' }}>
+        <Typography component="span" sx={{ fontSize: 13, color: 'text.disabled' }}>{workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''}</Typography>
+      </Box>
 
       {workspaces.map(ws => {
         const inativo   = ws.ativo === false;
@@ -1477,294 +1250,291 @@ function WorkspacesAdmin({ user, C, isDark, onImpersonate, createSignal = 0 }) {
         const loadingM  = loadingMembers[ws.id];
 
         return (
-          <div key={ws.id} style={{
-            background: C.paper, border: `1px solid ${inativo ? C.border : C.border}`,
-            borderRadius: 10, marginBottom: 10, opacity: inativo ? 0.6 : 1,
+          <Box key={ws.id} sx={{
+            background: 'background.paper', border: `1px solid ${inativo ? 'divider' : 'divider'}`,
+             marginBottom: '10px', opacity: inativo ? 0.6 : 1,
             overflow: 'hidden',
           }}>
             {/* ── Linha principal ── */}
-            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <Box sx={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
 
               {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: F }}>{ws.nome}</span>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <Typography component="span" sx={{ fontSize: 15, fontWeight: 800, color: 'text.primary' }}>{ws.nome}</Typography>
                   {inativo && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: DS.pink, border: `1px solid ${DS.pink}55`, borderRadius: 4, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, color: PALETTE.data.critico, border: `1px solid ${PALETTE.data.critico}55`, borderRadius: 4, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       inativo
-                    </span>
+                    </Typography>
                   )}
-                </div>
-                <div style={{ fontSize: 12, color: C.textDis, fontFamily: F, marginTop: 2 }}>
+                </Box>
+                <Box sx={{ fontSize: 12, color: 'text.disabled', marginTop: '2px' }}>
                   {ws.dominio && `${ws.dominio} · `}{ws.setor && `${ws.setor} · `}
                   criado {new Date(ws.created_at).toLocaleDateString('pt-BR')}
-                </div>
+                </Box>
                 {ws.slug && (
-                  <a href={tenantUrl(ws.slug)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: DS.green, fontFamily: F, textDecoration: 'none', marginTop: 3, display: 'inline-block' }}>
+                  <Link href={tenantUrl(ws.slug)} target="_blank" rel="noreferrer" variant="caption">
                     {ws.slug}.br4ndcode.com ↗
-                  </a>
+                  </Link>
                 )}
-              </div>
+              </Box>
 
               {/* Cobrança do contrato */}
-              <div style={{ textAlign: 'right', minWidth: 120 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: F }}>
+              <Box sx={{ textAlign: 'right', minWidth: 120 }}>
+                <Box sx={{ fontSize: 14, fontWeight: 800, color: 'text.primary' }}>
                   {ws.valor_mensal_centavos != null ? centsToBRL(ws.valor_mensal_centavos) : '—'}
-                  <span style={{ fontSize: 10, color: C.textDis, fontWeight: 600 }}> /mês</span>
-                </div>
-                <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, marginTop: 2 }}>
+                  <Typography component="span" sx={{ fontSize: 10, color: 'text.disabled', fontWeight: 600 }}> /mês</Typography>
+                </Box>
+                <Box sx={{ fontSize: 11, color: 'text.disabled', marginTop: '2px' }}>
                   {ws.creditos_mes != null ? `${ws.creditos_mes} cr/mês` : 'sem créditos'}
                   {ws.creditos_saldo != null && ` · saldo ${ws.creditos_saldo}`}
-                </div>
-              </div>
+                </Box>
+              </Box>
 
               {/* Ações */}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button style={btnGhost} onClick={() => openConfig(ws)}>⚙ Configurar</button>
-                <button
-                  style={{ ...btnGhost, ...(onbComplete(ws.onboarding) ? { color: DS.green, borderColor: DS.green + '55' } : ws.onboarding ? { color: DS.amber, borderColor: DS.amber + '55' } : {}) }}
+              <Box sx={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <Button size="small" variant="outlined" onClick={() => openConfig(ws)}>⚙ Configurar</Button>
+                <Button size="small" variant="outlined" color={onbComplete(ws.onboarding) ? "success" : ws.onboarding ? "warning" : "primary"}
                   onClick={() => openOnb(ws)}
                 >
                   {onbComplete(ws.onboarding) ? '✅ Ambiente pronto' : ws.onboarding ? '⏳ Preparação' : '🚀 Preparar ambiente'}
-                </button>
-                <button style={btnGhost} onClick={() => toggleExpanded(ws.id)}>
+                </Button>
+                <Button size="small" variant="outlined" onClick={() => toggleExpanded(ws.id)}>
                   {expanded ? '▲' : '▼'} Membros {expanded && members.length ? `(${members.length})` : ''}
-                </button>
-                <button style={btnGhost} onClick={() => { setShowCreateUser(ws); setUserForm({ nome: '', email: '', password: '', role: 'member' }); setUserOk(''); setError(''); }}>
+                </Button>
+                <Button size="small" variant="outlined" onClick={() => { setShowCreateUser(ws); setUserForm({ nome: '', email: '', password: '', role: 'member' }); setUserOk(''); setError(''); }}>
                   Criar acesso
-                </button>
-                <button style={btnGhost} onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>
+                </Button>
+                <Button size="small" variant="outlined" onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>
                   Convidar
-                </button>
-                <button
-                  style={{ ...btnGhost, color: inativo ? DS.green : DS.amber, borderColor: (inativo ? DS.green : DS.amber) + '55' }}
+                </Button>
+                <Button size="small" variant="outlined"
                   onClick={() => toggleAtivo(ws)}
                 >
                   {inativo ? 'Reativar' : 'Inativar'}
-                </button>
-                <button style={btn('#9B6DFF')} onClick={() => onImpersonate?.({ workspaceId: ws.id, workspaceName: ws.nome })}>
+                </Button>
+                <Button size="small" variant="contained" color="secondary" onClick={() => onImpersonate?.({ workspaceId: ws.id, workspaceName: ws.nome })}>
                   Entrar →
-                </button>
-              </div>
-            </div>
+                </Button>
+              </Box>
+            </Box>
 
             {/* ── Painel de preparação de ambiente (onboarding) ── */}
             {onbId === ws.id && (
-              <div style={{ borderTop: `1px solid ${C.border}`, background: isDark ? '#0A1525' : '#F7F9FB', padding: '14px 20px' }}>
+              <Box sx={{ borderTop: 1, borderColor: 'divider', background: isDark ? PALETTE.neutral[900] : PALETTE.neutral[0], padding: '14px 20px' }}>
                 {!ws.onboarding && !onb ? (
-                  <div>
-                    <div style={{ fontSize: 12, color: C.textDis, fontFamily: F, marginBottom: 10, lineHeight: 1.6 }}>
-                      A marca nasce do <strong style={{ color: C.text }}>manual (PDF)</strong> — a IA extrai identidade, posicionamento e design. Depois roda diagnóstico → mineração → destilação. O cliente entra num ambiente já populado.
-                    </div>
-                    <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <label style={{ ...btnGhost, display: 'inline-block', cursor: onbUploading ? 'wait' : 'pointer' }}>
+                  <Box>
+                    <Box sx={{ fontSize: 12, color: 'text.disabled', marginBottom: '10px', lineHeight: 1.6 }}>
+                      A marca nasce do <Box component="strong" sx={{ color: "text.primary" }}>manual (PDF)</Box> — a IA extrai identidade, posicionamento e design. Depois roda diagnóstico → mineração → destilação. O cliente entra num ambiente já populado.
+                    </Box>
+                    <Box sx={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Button size="small" variant="outlined" component="label" disabled={onbUploading}>
                         {onbUploading ? 'Subindo…' : onbManualName ? `📎 ${onbManualName}` : '📎 Subir manual (PDF)'}
                         <input type="file" accept="application/pdf" style={{ display: 'none' }} disabled={onbUploading}
                           onChange={e => uploadManual(ws, e)} />
-                      </label>
-                      {onbManualPath && <span style={{ fontSize: 11, color: DS.green, fontFamily: F, fontWeight: 700 }}>✓ pronto</span>}
-                    </div>
-                    <button style={btn()} disabled={onbBusy || onbUploading} onClick={() => startOnboard(ws)}>
+                      </Button>
+                      {onbManualPath && <Typography component="span" sx={{ fontSize: 11, color: PALETTE.data.positivo, fontWeight: 700 }}>✓ pronto</Typography>}
+                    </Box>
+                    <Button size="small" variant="contained" disabled={onbBusy || onbUploading} onClick={() => startOnboard(ws)}>
                       {onbBusy ? 'Iniciando…' : '🚀 Preparar ambiente completo'}
-                    </button>
-                  </div>
+                    </Button>
+                  </Box>
                 ) : (() => {
                   const state = onb || ws.onboarding;
                   const done  = onbComplete(state);
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {ONB_STEPS.map(([k, label]) => {
                         const st  = state?.steps?.[k] || 'pending';
                         const ic  = st === 'done' ? '✅' : st === 'running' ? '⏳' : '◻️';
-                        const cor = st === 'done' ? DS.green : st === 'running' ? DS.amber : C.textDis;
+                        const cor = st === 'done' ? PALETTE.data.positivo : st === 'running' ? PALETTE.data.atencao : 'text.disabled';
                         return (
-                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontFamily: F, color: C.text }}>
-                            <span>{ic}</span><span style={{ flex: 1 }}>{label}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: cor, textTransform: 'uppercase' }}>{st}</span>
-                          </div>
+                          <Box key={k} sx={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 12.5, color: 'text.primary' }}>
+                            <Typography component="span">{ic}</Typography><Typography component="span" sx={{ flex: 1 }}>{label}</Typography>
+                            <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, color: cor, textTransform: 'uppercase' }}>{st}</Typography>
+                          </Box>
                         );
                       })}
-                      <div style={{ marginTop: 8, fontSize: 12, fontFamily: F, color: done ? DS.green : C.textDis, fontWeight: done ? 700 : 400 }}>
+                      <Box sx={{ marginTop: '8px', fontSize: 12, color: done ? PALETTE.data.positivo : 'text.disabled', fontWeight: done ? 700 : 400 }}>
                         {done ? '✅ Ambiente pronto — pode liberar o acesso ao cliente.' : '⏳ Rodando… atualiza sozinho. A mineração leva ~15-30 min.'}
-                      </div>
-                    </div>
+                      </Box>
+                    </Box>
                   );
                 })()}
-              </div>
+              </Box>
             )}
 
             {/* ── Painel de membros ── */}
             {expanded && (
-              <div style={{ borderTop: `1px solid ${C.border}`, background: isDark ? '#0A1525' : '#F7F9FB', padding: '12px 20px' }}>
+              <Box sx={{ borderTop: 1, borderColor: 'divider', background: isDark ? PALETTE.neutral[900] : PALETTE.neutral[0], padding: '12px 20px' }}>
                 {loadingM ? (
-                  <div style={{ fontSize: 12, color: C.textDis, fontFamily: F }}>Carregando membros...</div>
+                  <Box sx={{ fontSize: 12, color: 'text.disabled' }}>Carregando membros...</Box>
                 ) : members.length === 0 ? (
-                  <div style={{ fontSize: 12, color: C.textDis, fontFamily: F }}>Nenhum membro ainda.</div>
+                  <Box sx={{ fontSize: 12, color: 'text.disabled' }}>Nenhum membro ainda.</Box>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {members.map(m => (
-                      <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: C.paper, borderRadius: 8, border: `1px solid ${C.border}` }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: DS.green + '33', color: DS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, fontFamily: F, flexShrink: 0 }}>
+                      <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', background: 'background.paper',  border: 1, borderColor: 'divider' }}>
+                        <Box sx={{ width: 28, height: 28, borderRadius: '50%', background: PALETTE.data.positivo + '33', color: PALETTE.data.positivo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>
                           {(m.nome || m.email || '?').charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {m.nome && <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: F }}>{m.nome}</div>}
-                          <div style={{ fontSize: 11, color: C.textDis, fontFamily: F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          {m.nome && <Box sx={{ fontSize: 12, fontWeight: 700, color: 'text.primary' }}>{m.nome}</Box>}
+                          <Box sx={{ fontSize: 11, color: 'text.disabled', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {m.email || `ID: ${m.user_id?.slice(0, 12)}…`}
-                          </div>
-                        </div>
-                        <select
-                          value={m.role}
+                          </Box>
+                        </Box>
+                        <TextField select size="small" value={m.role}
                           onChange={e => changeMemberRole(ws.id, m.id, e.target.value)}
-                          style={{ ...inpSm, width: 90 }}
+                          sx={{ width: 110 }}
                         >
-                          <option value="member">member</option>
-                          <option value="admin">admin</option>
-                        </select>
-                        <button style={btnDanger} onClick={() => removeMember(ws.id, m.id)}>Remover</button>
-                      </div>
+                          <MenuItem value="member">member</MenuItem>
+                          <MenuItem value="admin">admin</MenuItem>
+                        </TextField>
+                        <Button size="small" variant="outlined" color="error" onClick={() => removeMember(ws.id, m.id)}>Remover</Button>
+                      </Box>
                     ))}
-                  </div>
+                  </Box>
                 )}
-              </div>
+              </Box>
             )}
-          </div>
+          </Box>
         );
       })}
 
       {workspaces.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '4rem', color: C.textDis, fontFamily: F }}>Nenhum workspace criado ainda.</div>
+        <Box sx={{ textAlign: 'center', padding: '4rem', color: 'text.disabled' }}>Nenhum workspace criado ainda.</Box>
       )}
 
       {/* Modal criar workspace */}
       {showCreate && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 420 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 20 }}>Criar workspace</div>
-            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input style={inp} placeholder="Nome da empresa *" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required />
-              <input style={inp} placeholder="Domínio (ex: empresa.com.br)" value={form.dominio} onChange={e => setForm(f => ({ ...f, dominio: e.target.value }))} />
-              <select style={inp} value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
-                <option value="">Setor</option>
-                {WS_SETORES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select style={inp} value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))}>
-                <option value="">Porte</option>
-                {WS_PORTES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Créditos por mês</label>
-                  <input style={inp} type="number" min="0" placeholder="ex: 3000" value={form.creditos_mes} onChange={e => setForm(f => ({ ...f, creditos_mes: e.target.value }))} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Valor mensal (R$)</label>
-                  <input style={inp} placeholder="ex: 5000" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio) — opcional, gera do nome</label>
-                <input style={inp} placeholder="nomedamarca" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} />
-                <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
+        <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
+            <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '20px' }}>Criar workspace</Box>
+            {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
+            <Box component="form" onSubmit={handleCreate} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              <TextField size="small"  placeholder="Nome da empresa *" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required />
+              <TextField size="small"  placeholder="Domínio (ex: empresa.com.br)" value={form.dominio} onChange={e => setForm(f => ({ ...f, dominio: e.target.value }))} />
+              <TextField select size="small"  value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
+                <MenuItem value="">Setor</MenuItem>
+                {WS_SETORES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </TextField>
+              <TextField select size="small"  value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))}>
+                <MenuItem value="">Porte</MenuItem>
+                {WS_PORTES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              </TextField>
+              <Box sx={{ display: 'flex', gap: '10px' }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>Créditos por mês</Typography>
+                  <TextField size="small"  type="number" min="0" placeholder="ex: 3000" value={form.creditos_mes} onChange={e => setForm(f => ({ ...f, creditos_mes: e.target.value }))} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>Valor mensal (R$)</Typography>
+                  <TextField size="small"  placeholder="ex: 5000" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>Endereço (subdomínio) — opcional, gera do nome</Typography>
+                <TextField size="small"  placeholder="nomedamarca" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} />
+                <Box sx={{ fontSize: 11, color: PALETTE.data.positivo, marginTop: '4px' }}>
                   {(slugify(form.slug || form.nome) || 'nomedamarca')}.br4ndcode.com
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                <button type="button" style={btnGhost} onClick={() => { setShowCreate(false); setError(''); }}>Cancelar</button>
-                <button type="submit" style={btn()} disabled={creating}>{creating ? 'Criando...' : 'Criar workspace'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <Button type="button" size="small" variant="outlined" onClick={() => { setShowCreate(false); setError(''); }}>Cancelar</Button>
+                <Button type="submit" size="small" variant="contained" disabled={creating}>{creating ? 'Criando...' : 'Criar workspace'}</Button>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       )}
 
       {/* Modal configurar cobrança */}
       {showConfig && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 420 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 6 }}>Configurar · {showConfig.nome}</div>
-            <div style={{ fontSize: 13, color: C.textDis, fontFamily: F, marginBottom: 20 }}>Define os créditos/mês e o valor do contrato. Salvar recompõe o saldo do mês para o novo pool e reinicia o ciclo.</div>
-            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
-            <form onSubmit={saveConfig} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Créditos por mês</label>
-                <input style={inp} type="number" min="0" placeholder="ex: 3000" value={configForm.creditos_mes} onChange={e => setConfigForm(f => ({ ...f, creditos_mes: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Valor mensal (R$)</label>
-                <input style={inp} placeholder="ex: 5000" value={configForm.valor} onChange={e => setConfigForm(f => ({ ...f, valor: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: C.textDis, fontFamily: F, display: 'block', marginBottom: 4 }}>Endereço (subdomínio)</label>
-                <input style={inp} placeholder="nomedamarca" value={configForm.slug} onChange={e => setConfigForm(f => ({ ...f, slug: e.target.value }))} />
-                <div style={{ fontSize: 11, color: DS.green, fontFamily: F, marginTop: 4 }}>
+        <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
+            <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Configurar · {showConfig.nome}</Box>
+            <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>Define os créditos/mês e o valor do contrato. Salvar recompõe o saldo do mês para o novo pool e reinicia o ciclo.</Box>
+            {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
+            <Box component="form" onSubmit={saveConfig} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>Créditos por mês</Typography>
+                <TextField size="small"  type="number" min="0" placeholder="ex: 3000" value={configForm.creditos_mes} onChange={e => setConfigForm(f => ({ ...f, creditos_mes: e.target.value }))} />
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>Valor mensal (R$)</Typography>
+                <TextField size="small"  placeholder="ex: 5000" value={configForm.valor} onChange={e => setConfigForm(f => ({ ...f, valor: e.target.value }))} />
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>Endereço (subdomínio)</Typography>
+                <TextField size="small"  placeholder="nomedamarca" value={configForm.slug} onChange={e => setConfigForm(f => ({ ...f, slug: e.target.value }))} />
+                <Box sx={{ fontSize: 11, color: PALETTE.data.positivo, marginTop: '4px' }}>
                   {(slugify(configForm.slug) || '—')}.br4ndcode.com
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                <button type="button" style={btnGhost} onClick={() => { setShowConfig(null); setError(''); }}>Cancelar</button>
-                <button type="submit" style={btn()} disabled={savingConfig}>{savingConfig ? 'Salvando...' : 'Salvar'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <Button type="button" size="small" variant="outlined" onClick={() => { setShowConfig(null); setError(''); }}>Cancelar</Button>
+                <Button type="submit" size="small" variant="contained" disabled={savingConfig}>{savingConfig ? 'Salvando...' : 'Salvar'}</Button>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       )}
 
       {/* Modal convidar cliente */}
       {showInvite && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 400 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 6 }}>Convidar para {showInvite.nome}</div>
-            <div style={{ fontSize: 13, color: C.textDis, fontFamily: F, marginBottom: 20 }}>O cliente receberá um e-mail com link para definir senha e acessar o workspace.</div>
-            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
-            <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input style={inp} type="email" placeholder="E-mail do cliente *" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required />
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                <button type="button" style={btnGhost} onClick={() => { setShowInvite(null); setError(''); }}>Cancelar</button>
-                <button type="submit" style={btn()} disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 400 }}>
+            <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Convidar para {showInvite.nome}</Box>
+            <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>O cliente receberá um e-mail com link para definir senha e acessar o workspace.</Box>
+            {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
+            <Box component="form" onSubmit={handleInvite} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              <TextField size="small"  type="email" placeholder="E-mail do cliente *" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required />
+              <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <Button type="button" size="small" variant="outlined" onClick={() => { setShowInvite(null); setError(''); }}>Cancelar</Button>
+                <Button type="submit" size="small" variant="contained" disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</Button>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       )}
 
       {/* Modal criar acesso (nome + email + senha) */}
       {showCreateUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: C.paper, border: `1px solid ${C.border}`, borderRadius: 12, padding: 28, width: '100%', maxWidth: 420 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: F, marginBottom: 6 }}>Criar acesso · {showCreateUser.nome}</div>
-            <div style={{ fontSize: 13, color: C.textDis, fontFamily: F, marginBottom: 20 }}>Cria o login direto, com senha temporária. Sem email de confirmação — entregue as credenciais ao cliente. No primeiro acesso ele será obrigado a definir a senha pessoal.</div>
-            {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: DS.pinkPale, color: DS.pink, borderRadius: 6, fontSize: 12, fontFamily: F }}>{error}</div>}
+        <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
+            <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Criar acesso · {showCreateUser.nome}</Box>
+            <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>Cria o login direto, com senha temporária. Sem email de confirmação — entregue as credenciais ao cliente. No primeiro acesso ele será obrigado a definir a senha pessoal.</Box>
+            {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
             {userOk ? (
-              <div>
-                <div style={{ marginBottom: 16, padding: '12px 14px', background: DS.green + '22', color: DS.green, borderRadius: 8, fontSize: 13, fontFamily: F, fontWeight: 600, wordBreak: 'break-all' }}>{userOk}</div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button type="button" style={btnGhost} onClick={() => { navigator.clipboard?.writeText(userOk); }}>Copiar</button>
-                  <button type="button" style={btn()} onClick={() => { setShowCreateUser(null); setUserOk(''); }}>Fechar</button>
-                </div>
-              </div>
+              <Box>
+                <Box sx={{ marginBottom: '16px', padding: '12px 14px', background: PALETTE.data.positivo + '22', color: PALETTE.data.positivo,  fontSize: 13, fontWeight: 600, wordBreak: 'break-all' }}>{userOk}</Box>
+                <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <Button type="button" size="small" variant="outlined" onClick={() => { navigator.clipboard?.writeText(userOk); }}>Copiar</Button>
+                  <Button type="button" size="small" variant="contained" onClick={() => { setShowCreateUser(null); setUserOk(''); }}>Fechar</Button>
+                </Box>
+              </Box>
             ) : (
-              <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <input style={inp} placeholder="Nome do usuário" value={userForm.nome} onChange={e => setUserForm(f => ({ ...f, nome: e.target.value }))} />
-                <input style={inp} type="email" placeholder="E-mail (login) *" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} required />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...inp, flex: 1 }} placeholder="Senha (mín. 8) *" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} required />
-                  <button type="button" style={btnGhost} onClick={genPassword}>Gerar</button>
-                </div>
-                <select style={inp} value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
-                  <option value="member">member</option>
-                  <option value="admin">admin</option>
-                </select>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                  <button type="button" style={btnGhost} onClick={() => { setShowCreateUser(null); setError(''); }}>Cancelar</button>
-                  <button type="submit" style={btn()} disabled={creatingUser}>{creatingUser ? 'Criando...' : 'Criar acesso'}</button>
-                </div>
-              </form>
+              <Box component="form" onSubmit={handleCreateUser} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                <TextField size="small"  placeholder="Nome do usuário" value={userForm.nome} onChange={e => setUserForm(f => ({ ...f, nome: e.target.value }))} />
+                <TextField size="small"  type="email" placeholder="E-mail (login) *" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} required />
+                <Box sx={{ display: 'flex', gap: '8px' }}>
+                  <TextField size="small" sx={{ flex: 1 }} placeholder="Senha (mín. 8) *" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} required />
+                  <Button type="button" size="small" variant="outlined" onClick={genPassword}>Gerar</Button>
+                </Box>
+                <TextField select size="small"  value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
+                  <MenuItem value="member">member</MenuItem>
+                  <MenuItem value="admin">admin</MenuItem>
+                </TextField>
+                <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                  <Button type="button" size="small" variant="outlined" onClick={() => { setShowCreateUser(null); setError(''); }}>Cancelar</Button>
+                  <Button type="submit" size="small" variant="contained" disabled={creatingUser}>{creatingUser ? 'Criando...' : 'Criar acesso'}</Button>
+                </Box>
+              </Box>
             )}
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }

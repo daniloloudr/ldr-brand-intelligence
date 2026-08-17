@@ -12,7 +12,7 @@ export function buildDesignMd({ brandNome, visual = {}, strategy = {}, tokens = 
   const push = s => L.push(s)
 
   push(`# Design System — ${brandNome || 'Marca'}`)
-  push(`> Gerado pelo brandcode a partir da identidade viva da marca · ${new Date().toLocaleDateString('pt-BR')}`)
+  push(`> Gerado pelo BR4NDCODE a partir da identidade viva da marca · ${new Date().toLocaleDateString('pt-BR')}`)
   push('')
 
   // ── Cores ──

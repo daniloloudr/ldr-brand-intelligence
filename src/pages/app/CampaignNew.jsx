@@ -10,6 +10,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
@@ -22,7 +23,7 @@ function buildApprovalPrompt(brand, book, campaign) {
   const pos = book?.positioning || {}
 
   return {
-    system: `Você é um especialista em brand governance do brandcode. Avalie se a peça de comunicação está alinhada com o brand book da marca.
+    system: `Você é um especialista em brand governance do BR4NDCODE. Avalie se a peça de comunicação está alinhada com o brand book da marca.
 
 # Brand Book — ${brand?.nome}
 - Missão: ${id.missao || 'não definida'}
@@ -187,7 +188,7 @@ export function CampaignNew({ brandId }) {
         }
       />
       <Box sx={{ p: 4, maxWidth: 720, mx: 'auto' }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
         <TextField
           label="Título da campanha *"
           value={title}
@@ -201,7 +202,7 @@ export function CampaignNew({ brandId }) {
             textTransform="uppercase" letterSpacing="0.08em" display="block" mb={1}>
             Canal
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
             {CANAIS.map(c => (
               <Chip
                 key={c}
@@ -242,15 +243,15 @@ export function CampaignNew({ brandId }) {
 
         {loading && (
           <Paper sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-              <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 20 }} />
-              <Typography fontWeight={700} fontSize={14}>{progress}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 1.5 }}>
+              <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 20 }} />
+              <Typography variant="subtitle1">{progress}</Typography>
             </Box>
             <LinearProgress color="info" sx={{ '& .MuiLinearProgress-bar': { animationDuration: '1.5s' } }} />
           </Paper>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5px' }}>
           <Button variant="outlined" onClick={goBack} sx={{ borderColor: 'divider', color: 'text.secondary' }}>
             Cancelar
           </Button>

@@ -68,7 +68,7 @@ function chrome(doc, empresa, pageNum, total) {
   clr(doc, C.gray500);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text(`LOUDR BRAND INTELLIGENCE  ·  ${empresa.toUpperCase()}`, ML, 289);
+  doc.text(`BR4NDCODE  ·  ${empresa.toUpperCase()}`, ML, 289);
   doc.text(`${pageNum} / ${total}`, MR, 289, { align: "right" });
 }
 
@@ -107,11 +107,11 @@ export async function gerarPDF(data, meta) {
   // Pink top bar
   box(doc, 0, 0, 210, 3, C.pink);
 
-  // LOUDR wordmark
+  // wordmark BR4NDCODE
   clr(doc, C.white);
   doc.setFont("helvetica", "black");
   doc.setFontSize(28);
-  doc.text("LOUDR", ML, 36);
+  doc.text("BR4NDCODE", ML, 36);
   clr(doc, C.pink);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(28);
@@ -406,7 +406,7 @@ export async function gerarPDF(data, meta) {
   clr(doc, C.gray300);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text("loudr.com.br  ·  Diagnóstico gerado por LOUDR Brand Intelligence", ML + 8, ctaY + 13);
+  doc.text("br4ndcode.com  ·  Diagnóstico gerado por BR4NDCODE", ML + 8, ctaY + 13);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const slug = emp.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");

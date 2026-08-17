@@ -8,11 +8,12 @@ import CheckCircleOutlineIcon  from '@mui/icons-material/CheckCircleOutline'
 import AutoAwesomeIcon         from '@mui/icons-material/AutoAwesome'
 import { useWorkspace }        from '../../lib/WorkspaceContext'
 import { ContentGerarDrawer }  from './ContentGerarDrawer'
+import { PALETTE } from '../../lib/theme'
 
-const OPOR_COR   = { alta: '#0D9E7A', media: '#EF9F27', baixa: '#8A9AB0' }
+const OPOR_COR   = { alta: PALETTE.data.positivo, media: PALETTE.data.atencao, baixa: PALETTE.neutral[400] }
 const VOL_LABEL  = { alto: 'Alto', medio: 'Médio', baixo: 'Nicho' }
-const VOL_COR    = { alto: '#0D9E7A', medio: '#EF9F27', baixo: '#8A9AB0' }
-const INTENT_COR = { informacional: '#4A9ECC', transacional: '#E8185A', navegacional: '#7F77DD' }
+const VOL_COR    = { alto: PALETTE.data.positivo, medio: PALETTE.data.atencao, baixo: PALETTE.neutral[400] }
+const INTENT_COR = { informacional: PALETTE.data.info, transacional: PALETTE.data.critico, navegacional: PALETTE.data.neutro }
 const INTENT_LABEL = { informacional: 'Informacional', transacional: 'Transacional', navegacional: 'Navegacional' }
 
 function oporLabel(o) {
@@ -41,7 +42,7 @@ function KeywordCloud({ clusters, clusterAtivo }) {
   if (!shuffled.length) return null
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 3, mb: 4 }}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', justifyContent: 'center', minHeight: 80 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '1.5px', alignItems: 'center', justifyContent: 'center', minHeight: 80 }}>
         {shuffled.map((kw, i) => {
           const size = CLOUD_SIZE[kw.volume] || CLOUD_SIZE.medio
           return (
@@ -86,18 +87,18 @@ function KeywordRow({ kw, cor, onGerar }) {
         <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: cor, flexShrink: 0 }} />
         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{kw.termo}</Typography>
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px' }}>
         <LocalFireDepartmentIcon sx={{ fontSize: 13, color: OPOR_COR[kw.oportunidade] }} />
         <Typography sx={{ fontSize: 12, fontWeight: 700, color: OPOR_COR[kw.oportunidade] }}>
           {oporLabel(kw.oportunidade)}
         </Typography>
       </Box>
-      <Typography sx={{ fontSize: 12, fontWeight: 700, color: VOL_COR[kw.volume] || '#8A9AB0' }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 700, color: VOL_COR[kw.volume] || PALETTE.neutral[400] }}>
         {VOL_LABEL[kw.volume] || kw.volume}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <InfoOutlinedIcon sx={{ fontSize: 13, color: INTENT_COR[kw.intencao] || '#8A9AB0' }} />
-        <Typography sx={{ fontSize: 12, fontWeight: 600, color: INTENT_COR[kw.intencao] || '#8A9AB0' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px' }}>
+        <InfoOutlinedIcon sx={{ fontSize: 13, color: INTENT_COR[kw.intencao] || PALETTE.neutral[400] }} />
+        <Typography sx={{ fontSize: 12, fontWeight: 600, color: INTENT_COR[kw.intencao] || PALETTE.neutral[400] }}>
           {INTENT_LABEL[kw.intencao] || kw.intencao}
         </Typography>
       </Box>
@@ -122,7 +123,7 @@ export function ContentPalavras({ clusters }) {
   return (
     <Box>
       {/* Cluster filter */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: '1.5px', mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant="overline" color="text.disabled" sx={{ fontSize: '0.6rem', flexShrink: 0 }}>
           Filtrar por território:
         </Typography>
@@ -148,8 +149,8 @@ export function ContentPalavras({ clusters }) {
       <KeywordCloud clusters={clusters} clusterAtivo={clusterAtivo} />
 
       {/* Tabela */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-        <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#0D9E7A' }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 2 }}>
+        <CheckCircleOutlineIcon sx={{ fontSize: 18, color: PALETTE.data.positivo }} />
         <Box>
           <Typography sx={{ fontSize: 15, fontWeight: 900, lineHeight: 1.2 }}>
             Palavras-chave que você já se apropria
@@ -160,7 +161,7 @@ export function ContentPalavras({ clusters }) {
         </Box>
         <Chip label={`${totalProprias} keywords`} size="small"
           sx={{ ml: 'auto', fontWeight: 700, fontSize: '0.65rem',
-            bgcolor: 'rgba(13,158,122,0.12)', color: '#0D9E7A', height: 20 }} />
+            bgcolor: 'rgba(13,158,122,0.12)', color: PALETTE.data.positivo, height: 20 }} />
       </Box>
 
       <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>

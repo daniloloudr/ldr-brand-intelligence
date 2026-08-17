@@ -12,13 +12,14 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A', AMBER = '#EF9F27'
+const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico, AMBER = PALETTE.data.atencao
 const SENT = { positivo: TEAL, neutro: AMBER, negativo: CORAL }
 
 function Shell({ title, subtitle, children }) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title={title} subtitle={subtitle} />
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>{children}</Box>
     </Box>
@@ -29,9 +30,9 @@ function EmConstrucao({ desc, vem }) {
   return (
     <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
       <ConstructionOutlinedIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
-      <Typography fontWeight={900} fontSize={16} mb={0.75}>Em construção</Typography>
-      <Typography fontSize={13.5} color="text.secondary" sx={{ maxWidth: 560, mx: 'auto', lineHeight: 1.6 }}>{desc}</Typography>
-      {vem && <Typography fontSize={12} sx={{ mt: 1.5, color: TEAL, fontWeight: 700 }}>O que vem: {vem}</Typography>}
+      <Typography variant="h6" mb={0.75}>Em construção</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560, mx: 'auto', lineHeight: 1.6 }}>{desc}</Typography>
+      {vem && <Typography variant="caption" sx={{ mt: 1.5, color: 'primary.main', fontWeight: 700 }}>O que vem: {vem}</Typography>}
     </Paper>
   )
 }
@@ -88,7 +89,7 @@ export function MarketIntelligence() {
 
   if (!d) return (
     <Shell title="Inteligência de Mercado" subtitle="O campo de jogo: movimentos do mercado e dos concorrentes, lidos pela inteligência da marca">
-      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
     </Shell>
   )
 
@@ -128,9 +129,9 @@ export function MarketIntelligence() {
 
   const PulsoCard = ({ label, valor, sub, cor }) => (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-      <Typography fontSize={11} fontWeight={800} color="text.secondary">{label}</Typography>
-      <Typography fontSize={22} fontWeight={900} sx={{ lineHeight: 1.2, color: cor || 'text.primary' }}>{valor}</Typography>
-      <Typography fontSize={9.5} color="text.disabled">{sub}</Typography>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="h5" sx={{ lineHeight: 1.2, color: cor || 'text.primary' }}>{valor}</Typography>
+      <Typography variant="caption" color="text.disabled">{sub}</Typography>
     </Paper>
   )
 
@@ -142,7 +143,7 @@ export function MarketIntelligence() {
       ) : (
         <Stack spacing={3}>
           {/* pulso da semana */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '1.5px' }}>
             <PulsoCard label="Movimentos · 7 dias" valor={daSemana.length} sub="itens novos no radar" />
             <PulsoCard label="Alto impacto" valor={altoImpacto.length} sub="impacto 8+ na semana" cor={altoImpacto.length ? CORAL : undefined} />
             <PulsoCard label="Mais ativo" valor={maisAtivo ? (d.concs[maisAtivo[0]] || '—') : '—'} sub={maisAtivo ? `${maisAtivo[1]} movimentos na semana` : 'semana quieta'} />
@@ -152,8 +153,8 @@ export function MarketIntelligence() {
           {/* síntese do ciclo pelo cérebro */}
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'rgba(127,119,221,0.35)' }}>
             <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-              <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 18 }} />
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ flex: 1 }}>
+              <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 18 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
                 SÍNTESE DO CICLO{d.sintese ? ` — ${new Date(d.sintese.created_at).toLocaleDateString('pt-BR')} · ${d.sintese.mencoes} itens lidos` : ''}
               </Typography>
               <Button size="small" variant="text" disabled={gerando} onClick={gerarSintese}
@@ -165,17 +166,17 @@ export function MarketIntelligence() {
               <>
                 <Stack spacing={0.75}>
                   {(d.sintese.bullets || []).map((b, i) => (
-                    <Typography key={i} fontSize={13.5} sx={{ lineHeight: 1.55 }}>• {b}</Typography>
+                    <Typography variant="body2" key={i} sx={{ lineHeight: 1.55 }}>• {b}</Typography>
                   ))}
                 </Stack>
                 {d.sintese.para_marca && (
-                  <Typography fontSize={13} sx={{ mt: 1.25, fontWeight: 700, color: '#7F77DD', lineHeight: 1.55 }}>
+                  <Typography variant="body2" sx={{ mt: 1.25, fontWeight: 700, color: PALETTE.data.neutro, lineHeight: 1.55 }}>
                     → {d.sintese.para_marca}
                   </Typography>
                 )}
               </>
             ) : (
-              <Typography fontSize={13} color="text.secondary">
+              <Typography variant="body2" color="text.secondary">
                 A inteligência da marca lê os movimentos do ciclo e escreve o briefing: o que importa e o que fazer. Toda segunda sai um automático — ou gere agora.
               </Typography>
             )}
@@ -184,15 +185,15 @@ export function MarketIntelligence() {
           {/* share of voice */}
           {sovList.length > 1 && (
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25}>QUEM MAIS SE MOVEU · 30 DIAS</Typography>
+              <Typography variant="caption" color="text.secondary" mb={1.25}>QUEM MAIS SE MOVEU · 30 DIAS</Typography>
               <Stack spacing={1}>
                 {sovList.map(s => (
                   <Stack key={s.id} direction="row" alignItems="center" spacing={1.25}>
-                    <Typography fontSize={12.5} fontWeight={700} sx={{ width: 140, flexShrink: 0 }} noWrap>{s.nome}</Typography>
-                    <Box sx={{ flex: 1, height: 8, borderRadius: 4, bgcolor: 'action.hover', overflow: 'hidden' }}>
-                      <Box sx={{ width: `${(s.n / sovMax) * 100}%`, height: '100%', borderRadius: 4, bgcolor: s.imp >= 6 ? CORAL : TEAL, opacity: 0.75 }} />
+                    <Typography variant="subtitle2" sx={{ width: 140, flexShrink: 0 }} noWrap>{s.nome}</Typography>
+                    <Box sx={{ flex: 1, height: 8,  bgcolor: 'action.hover', overflow: 'hidden' }}>
+                      <Box sx={{ width: `${(s.n / sovMax) * 100}%`, height: '100%',  bgcolor: s.imp >= 6 ? CORAL : TEAL, opacity: 0.75 }} />
                     </Box>
-                    <Typography fontSize={11.5} color="text.secondary" sx={{ width: 130, flexShrink: 0, textAlign: 'right' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ width: 130, flexShrink: 0, textAlign: 'right' }}>
                       {s.n} mov · impacto {s.imp.toFixed(1)}</Typography>
                   </Stack>
                 ))}
@@ -203,7 +204,7 @@ export function MarketIntelligence() {
           {/* feed com filtros */}
           <Box>
             <Stack direction="row" spacing={0.75} alignItems="center" mb={1.25} flexWrap="wrap" useFlexGap>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ mr: 1 }}>MOVIMENTOS · {feed.length}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>MOVIMENTOS · {feed.length}</Typography>
               {[...new Set(d.items.map(i => i.concorrente_id))].filter(id => d.concs[id]).map(id => (
                 <Chip key={id} label={d.concs[id]} size="small" variant={fConc === id ? 'filled' : 'outlined'}
                   onClick={() => filtra(() => setFConc(fConc === id ? null : id))} sx={{ fontSize: 10.5, fontWeight: 700 }} />
@@ -226,26 +227,26 @@ export function MarketIntelligence() {
                 <Paper key={it.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                   <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
                     <Chip label={d.concs[it.concorrente_id] || 'Concorrente'} size="small" sx={{ fontWeight: 800, fontSize: 11 }} />
-                    {it.fonte && <Typography fontSize={11} color="text.disabled">{it.fonte}</Typography>}
+                    {it.fonte && <Typography variant="caption" color="text.disabled">{it.fonte}</Typography>}
                     {it.sentiment && <Chip label={it.sentiment} size="small" variant="outlined"
                       sx={{ fontSize: 10, fontWeight: 700, color: SENT[it.sentiment], borderColor: SENT[it.sentiment] }} />}
-                    {it.score_impacto != null && <Typography fontSize={11} sx={{ color: it.score_impacto >= 6 ? CORAL : 'text.disabled', fontWeight: 700 }}>impacto {it.score_impacto}/10</Typography>}
+                    {it.score_impacto != null && <Typography variant="caption" sx={{ color: it.score_impacto >= 6 ? CORAL : 'text.disabled', fontWeight: 700 }}>impacto {it.score_impacto}/10</Typography>}
                     <Box flex={1} />
-                    <Typography fontSize={11} color="text.disabled">{new Date(it.created_at).toLocaleDateString('pt-BR')}</Typography>
+                    <Typography variant="caption" color="text.disabled">{new Date(it.created_at).toLocaleDateString('pt-BR')}</Typography>
                   </Stack>
-                  <Typography fontSize={14} fontWeight={800}>{it.titulo}</Typography>
-                  {it.conteudo && <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{it.conteudo}</Typography>}
-                  {it.url && <Link href={it.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+                  <Typography variant="subtitle1">{it.titulo}</Typography>
+                  {it.conteudo && <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{it.conteudo}</Typography>}
+                  {it.url && <Link href={it.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5px', mt: 0.75 }}>
                     fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
                 </Paper>
               ))}
-              {feed.length === 0 && <Typography fontSize={13} color="text.disabled" py={2}>Nenhum movimento com esses filtros.</Typography>}
+              {feed.length === 0 && <Typography variant="body2" color="text.disabled" py={2}>Nenhum movimento com esses filtros.</Typography>}
             </Stack>
             {feed.length > POR_PAG && (
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" mt={2}>
                 <Button size="small" variant="text" color="inherit" disabled={pagSafe === 0}
                   onClick={() => setPagina(pagSafe - 1)} sx={{ fontWeight: 700 }}>← anterior</Button>
-                <Typography fontSize={12} color="text.secondary">
+                <Typography variant="caption" color="text.secondary">
                   {pagSafe * POR_PAG + 1}–{Math.min(feed.length, pagSafe * POR_PAG + POR_PAG)} de {feed.length}
                 </Typography>
                 <Button size="small" variant="text" color="inherit" disabled={pagSafe >= maxPag}
@@ -320,7 +321,7 @@ export function CompetitorsPage() {
 
   if (!d) return (
     <Shell title="Concorrentes" subtitle="O dossiê de cada adversário — quem disputa o seu território e como se move">
-      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
     </Shell>
   )
 
@@ -328,7 +329,7 @@ export function CompetitorsPage() {
   const Delta = ({ atual, prev }) => {
     if (atual == null || prev == null || atual === prev) return null
     const up = atual > prev
-    return <Typography component="span" fontSize={10.5} fontWeight={800} sx={{ ml: 0.25, color: up ? TEAL : CORAL }}>{up ? '▲' : '▼'}{Math.abs(atual - prev)}</Typography>
+    return <Typography variant="caption" component="span" sx={{ ml: 0.25, color: up ? TEAL : CORAL }}>{up ? '▲' : '▼'}{Math.abs(atual - prev)}</Typography>
   }
 
   const METRICAS = [['singularidade', 'Singularidade'], ['consistencia', 'Consistência'], ['posicionamento', 'Posicionamento']]
@@ -343,19 +344,19 @@ export function CompetitorsPage() {
           {/* seu território aprendido — a régua da colisão */}
           {d.meuTerritorio && (
             <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 2, borderColor: 'rgba(127,119,221,0.35)' }}>
-              <Typography fontSize={10.5} fontWeight={800} sx={{ color: '#7F77DD', letterSpacing: '0.06em' }}>O SEU TERRITÓRIO (APRENDIDO PELA INTELIGÊNCIA)</Typography>
-              <Typography fontSize={13.5} sx={{ mt: 0.25, lineHeight: 1.55 }}>{d.meuTerritorio}</Typography>
+              <Typography variant="caption" sx={{ color: PALETTE.data.neutro, letterSpacing: '0.06em' }}>O SEU TERRITÓRIO (APRENDIDO PELA INTELIGÊNCIA)</Typography>
+              <Typography variant="body2" sx={{ mt: 0.25, lineHeight: 1.55 }}>{d.meuTerritorio}</Typography>
             </Paper>
           )}
 
           {/* comparativo lado a lado */}
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, overflowX: 'auto' }}>
-            <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25}>ONDE VOCÊ GANHA, ONDE PERDE</Typography>
+            <Typography variant="caption" color="text.secondary" mb={1.25}>ONDE VOCÊ GANHA, ONDE PERDE</Typography>
             <Box component="table" sx={{ borderCollapse: 'collapse', width: '100%', minWidth: 480 }}>
               <Box component="thead">
                 <Box component="tr">
                   <Box component="th" sx={{ textAlign: 'left', fontSize: 11, color: 'text.disabled', fontWeight: 700, pb: 1, pr: 2 }} />
-                  <Box component="th" sx={{ textAlign: 'center', fontSize: 12, fontWeight: 900, pb: 1, px: 1.5, color: '#7F77DD' }}>{d.brandNome}</Box>
+                  <Box component="th" sx={{ textAlign: 'center', fontSize: 12, fontWeight: 900, pb: 1, px: 1.5, color: PALETTE.data.neutro }}>{d.brandNome}</Box>
                   {d.rows.map(c => (
                     <Box key={c.id} component="th" sx={{ textAlign: 'center', fontSize: 12, fontWeight: 800, pb: 1, px: 1.5 }}>{c.nome}</Box>
                   ))}
@@ -380,7 +381,7 @@ export function CompetitorsPage() {
                 ))}
               </Box>
             </Box>
-            <Typography fontSize={10.5} color="text.disabled" mt={1}>fundo verde = você ganha · vermelho = você perde · ▲▼ = evolução do concorrente vs ciclo anterior</Typography>
+            <Typography variant="caption" color="text.disabled" mt={1}>fundo verde = você ganha · vermelho = você perde · ▲▼ = evolução do concorrente vs ciclo anterior</Typography>
           </Paper>
 
           {/* dossiês */}
@@ -401,8 +402,8 @@ export function CompetitorsPage() {
                     sx={{ p: 2, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                       <Box sx={{ minWidth: 160 }}>
-                        <Typography fontWeight={900} fontSize={15}>{c.nome}</Typography>
-                        <Typography fontSize={11.5} color="text.secondary">{dados.porte ? `${dados.porte} · ` : ''}{c.dominio || dados.setor || ''}</Typography>
+                        <Typography variant="subtitle1">{c.nome}</Typography>
+                        <Typography variant="caption" color="text.secondary">{dados.porte ? `${dados.porte} · ` : ''}{c.dominio || dados.setor || ''}</Typography>
                       </Box>
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1 }}>
                         {METRICAS.map(([k, label]) => (
@@ -413,12 +414,12 @@ export function CompetitorsPage() {
                         {colisoes.length > 0 && <Chip size="small" label="⚠ encosta no seu território"
                           sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: 'rgba(232,24,90,0.12)', color: CORAL }} />}
                       </Stack>
-                      <Typography fontSize={11} color="text.disabled" sx={{ flexShrink: 0 }}>
+                      <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
                         {ult ? new Date(ult.created_at).toLocaleDateString('pt-BR') : 'na fila'} {exp ? '▴' : '▾'}
                       </Typography>
                     </Stack>
                     {dados.frase_diagnostico && (
-                      <Typography fontSize={12.5} color="text.secondary" sx={{ mt: 1, fontStyle: 'italic', lineHeight: 1.5 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic', lineHeight: 1.5 }}>
                         "{dados.frase_diagnostico}"
                       </Typography>
                     )}
@@ -430,7 +431,7 @@ export function CompetitorsPage() {
                       <Stack spacing={2}>
                         {terrs.length > 0 && (
                           <Box>
-                            <Typography fontSize={10.5} fontWeight={800} color="text.disabled" mb={0.75}>TERRITÓRIOS QUE ELE REIVINDICA</Typography>
+                            <Typography variant="caption" color="text.disabled" mb={0.75}>TERRITÓRIOS QUE ELE REIVINDICA</Typography>
                             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                               {terrs.map((t, i) => {
                                 const briga = colisoes.includes(t)
@@ -440,7 +441,7 @@ export function CompetitorsPage() {
                               })}
                             </Stack>
                             {colisoes.length > 0 && (
-                              <Typography fontSize={12} sx={{ mt: 0.75, color: CORAL, fontWeight: 700 }}>
+                              <Typography variant="caption" sx={{ mt: 0.75, color: CORAL, fontWeight: 700 }}>
                                 ⚠ {colisoes.map(t => `"${t?.nome}"`).join(', ')} disputa espaço com o seu território — diferencie ou acelere a ocupação.
                               </Typography>
                             )}
@@ -450,20 +451,20 @@ export function CompetitorsPage() {
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                           {Array.isArray(dados.diferenciais_ativos) && dados.diferenciais_ativos.length > 0 && (
                             <Box>
-                              <Typography fontSize={10.5} fontWeight={800} sx={{ color: TEAL }} mb={0.75}>FORÇAS DELE</Typography>
+                              <Typography variant="caption" sx={{ color: 'primary.main' }} mb={0.75}>FORÇAS DELE</Typography>
                               <Stack spacing={0.5}>
                                 {dados.diferenciais_ativos.slice(0, 3).map((x, i) => (
-                                  <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>• {typeof x === 'string' ? x : x?.titulo || JSON.stringify(x)}</Typography>
+                                  <Typography variant="body2" key={i} sx={{ lineHeight: 1.5 }}>• {typeof x === 'string' ? x : x?.titulo || JSON.stringify(x)}</Typography>
                                 ))}
                               </Stack>
                             </Box>
                           )}
                           {Array.isArray(dados.zona_ruido) && dados.zona_ruido.length > 0 && (
                             <Box>
-                              <Typography fontSize={10.5} fontWeight={800} sx={{ color: CORAL }} mb={0.75}>FRAQUEZAS DELE (SUA JANELA)</Typography>
+                              <Typography variant="caption" sx={{ color: CORAL }} mb={0.75}>FRAQUEZAS DELE (SUA JANELA)</Typography>
                               <Stack spacing={0.5}>
                                 {dados.zona_ruido.slice(0, 3).map((x, i) => (
-                                  <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>• {typeof x === 'string' ? x : x?.titulo || JSON.stringify(x)}</Typography>
+                                  <Typography variant="body2" key={i} sx={{ lineHeight: 1.5 }}>• {typeof x === 'string' ? x : x?.titulo || JSON.stringify(x)}</Typography>
                                 ))}
                               </Stack>
                             </Box>
@@ -472,26 +473,26 @@ export function CompetitorsPage() {
 
                         {dados.momento_atual && (
                           <Box>
-                            <Typography fontSize={10.5} fontWeight={800} color="text.disabled" mb={0.5}>MOMENTO DELE</Typography>
-                            <Typography fontSize={12.5} color="text.secondary" sx={{ lineHeight: 1.55 }}>{String(dados.momento_atual).slice(0, 400)}</Typography>
+                            <Typography variant="caption" color="text.disabled" mb={0.5}>MOMENTO DELE</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>{String(dados.momento_atual).slice(0, 400)}</Typography>
                           </Box>
                         )}
 
                         {fatosDele.length > 0 && (
                           <Box>
-                            <Typography fontSize={10.5} fontWeight={800} sx={{ color: '#7F77DD' }} mb={0.5}>O QUE A INTELIGÊNCIA JÁ SABE SOBRE ELE</Typography>
+                            <Typography variant="caption" sx={{ color: PALETTE.data.neutro }} mb={0.5}>O QUE A INTELIGÊNCIA JÁ SABE SOBRE ELE</Typography>
                             <Stack spacing={0.5}>
-                              {fatosDele.map((f, i) => <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>• {f}</Typography>)}
+                              {fatosDele.map((f, i) => <Typography variant="body2" key={i} sx={{ lineHeight: 1.5 }}>• {f}</Typography>)}
                             </Stack>
                           </Box>
                         )}
 
                         {movs.length > 0 && (
                           <Box>
-                            <Typography fontSize={10.5} fontWeight={800} color="text.disabled" mb={0.5}>MOVIMENTOS RECENTES</Typography>
+                            <Typography variant="caption" color="text.disabled" mb={0.5}>MOVIMENTOS RECENTES</Typography>
                             <Stack spacing={0.5}>
                               {movs.map((m, i) => (
-                                <Typography key={i} fontSize={12.5} sx={{ lineHeight: 1.5 }}>
+                                <Typography variant="body2" key={i} sx={{ lineHeight: 1.5 }}>
                                   • {m.titulo}{m.score_impacto ? ` (impacto ${m.score_impacto}/10)` : ''} — {new Date(m.created_at).toLocaleDateString('pt-BR')}
                                 </Typography>
                               ))}
@@ -508,7 +509,7 @@ export function CompetitorsPage() {
           </Stack>
         </Stack>
       )}
-      <Typography fontSize={12} color="text.secondary" mt={2.5}>
+      <Typography variant="caption" color="text.secondary" mt={2.5}>
         Mapa de território, ciclos completos e gestão dos concorrentes: <Link href="#/app/reports" sx={{ fontWeight: 700 }}>Relatórios</Link>.
       </Typography>
     </Shell>
@@ -520,7 +521,7 @@ export function CompetitorsPage() {
 const INSIGHT_TIPO = {
   elogio:       { label: 'Elogio',        cor: TEAL,      dica: 'dobrar a aposta' },
   atrito:       { label: 'Atrito',        cor: CORAL,     dica: 'consertar' },
-  oportunidade: { label: 'Oportunidade',  cor: '#7F77DD', dica: 'ocupar' },
+  oportunidade: { label: 'Oportunidade',  cor: PALETTE.data.neutro, dica: 'ocupar' },
   tema:         { label: 'Tema',          cor: AMBER,     dica: 'usar no conteúdo' },
   alerta:       { label: 'Alerta',        cor: CORAL,     dica: 'monitorar já' },
 }
@@ -590,7 +591,7 @@ export function ConsumerInsights() {
 
   if (!d) return (
     <Shell title="Insights do Consumidor" subtitle="O que a escuta social significa — insights nomeados pela inteligência da marca">
-      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+      <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
     </Shell>
   )
 
@@ -600,7 +601,7 @@ export function ConsumerInsights() {
     <Shell title="Insights do Consumidor" subtitle="O que a escuta social significa — insights nomeados pela inteligência da marca">
       {/* a divisão de trabalho com a Escuta, explícita na tela */}
       <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-        <Typography fontSize={12.5} color="text.secondary" sx={{ flex: 1, minWidth: 260 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 260 }}>
           A <b>Escuta Social</b> coleta o que disseram ({d.totalMencoes} menções até agora). Aqui a inteligência da marca lê tudo e nomeia <b>o que isso significa</b>.
         </Typography>
         <Button size="small" variant="text" onClick={() => { navigate('#/app/listening') }} sx={{ fontWeight: 700, flexShrink: 0 }}>
@@ -621,12 +622,12 @@ export function ConsumerInsights() {
           {/* os insights nomeados — o coração da página */}
           <Box>
             <Stack direction="row" alignItems="center" spacing={1} mb={1.25}>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary">INSIGHTS DA ÚLTIMA LEITURA</Typography>
-              {d.geradoEm && <Typography fontSize={11} color="text.disabled">gerados em {new Date(d.geradoEm).toLocaleDateString('pt-BR')}</Typography>}
+              <Typography variant="caption" color="text.secondary">INSIGHTS DA ÚLTIMA LEITURA</Typography>
+              {d.geradoEm && <Typography variant="caption" color="text.disabled">gerados em {new Date(d.geradoEm).toLocaleDateString('pt-BR')}</Typography>}
             </Stack>
             {d.insights.length === 0 ? (
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
-                <Typography fontSize={13.5} color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   {d.totalMencoes} menções coletadas esperando leitura — clique em <b>Gerar insights</b> para a inteligência da marca nomear o que o público sente, quer e rejeita.
                 </Typography>
               </Paper>
@@ -638,15 +639,15 @@ export function ConsumerInsights() {
                     <Paper key={i.id} variant="outlined" sx={{ p: 2, borderRadius: 2, borderLeft: `3px solid ${tp.cor}` }}>
                       <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
                         <Chip label={tp.label} size="small" sx={{ fontWeight: 800, fontSize: 10.5, color: tp.cor, bgcolor: `${tp.cor}18` }} />
-                        <Typography fontSize={10.5} color="text.disabled" fontWeight={700}>{tp.dica}</Typography>
+                        <Typography variant="caption" color="text.disabled">{tp.dica}</Typography>
                         {i.persona && <Chip label={`persona: ${i.persona}`} size="small" variant="outlined" sx={{ fontSize: 10.5 }} />}
                         <Box flex={1} />
-                        {i.evidencias != null && <Typography fontSize={11} color="text.disabled">{i.evidencias} menç{i.evidencias === 1 ? 'ão' : 'ões'}</Typography>}
+                        {i.evidencias != null && <Typography variant="caption" color="text.disabled">{i.evidencias} menç{i.evidencias === 1 ? 'ão' : 'ões'}</Typography>}
                       </Stack>
-                      <Typography fontSize={14} fontWeight={800}>{i.titulo}</Typography>
-                      <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{i.insight}</Typography>
+                      <Typography variant="subtitle1">{i.titulo}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{i.insight}</Typography>
                       {i.acao && (
-                        <Typography fontSize={12.5} sx={{ mt: 1, fontWeight: 700, color: tp.cor }}>→ {i.acao}</Typography>
+                        <Typography variant="body2" sx={{ mt: 1, fontWeight: 700, color: tp.cor }}>→ {i.acao}</Typography>
                       )}
                     </Paper>
                   )
@@ -657,7 +658,7 @@ export function ConsumerInsights() {
           {/* evolução do sentimento */}
           {d.snaps.length >= 2 && (
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1}>EVOLUÇÃO DO SENTIMENTO</Typography>
+              <Typography variant="caption" color="text.secondary" mb={1}>EVOLUÇÃO DO SENTIMENTO</Typography>
               <Box sx={{ height: 180 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={d.snaps} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
@@ -671,7 +672,7 @@ export function ConsumerInsights() {
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
-              {ultimo && <Typography fontSize={11.5} color="text.secondary" mt={0.5}>
+              {ultimo && <Typography variant="caption" color="text.secondary" mt={0.5}>
                 Última leitura ({ultimo.data}): {ultimo.positivo_pct}% positivo · {ultimo.neutro_pct}% neutro · {ultimo.negativo_pct}% negativo — {ultimo.total_mencoes} menções</Typography>}
             </Paper>
           )}
@@ -679,10 +680,10 @@ export function ConsumerInsights() {
           {/* o que a marca aprendeu do público */}
           {(d.temas.length > 0 || d.personas.length > 0) && (
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1}>O QUE A MARCA JÁ SABE DO PÚBLICO</Typography>
+              <Typography variant="caption" color="text.secondary" mb={1}>O QUE A MARCA JÁ SABE DO PÚBLICO</Typography>
               {d.personas.length > 0 && (
                 <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mb={d.temas.length ? 1.25 : 0}>
-                  <Typography fontSize={12.5} color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Personas:</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Personas:</Typography>
                   {d.personas.slice(0, 4).map((p, i) => (
                     <Chip key={i} label={p.nome} size="small" onClick={() => { if (d.brandId) navigate(`#/app/brands/${d.brandId}/negocio`) }}
                       sx={{ fontWeight: 700, fontSize: 11 }} />
@@ -691,7 +692,7 @@ export function ConsumerInsights() {
               )}
               {d.temas.length > 0 && (
                 <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                  <Typography fontSize={12.5} color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Temas que funcionam:</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>Temas que funcionam:</Typography>
                   {d.temas.slice(0, 8).map((t, i) => <Chip key={i} label={t} size="small" variant="outlined" sx={{ fontSize: 11 }} />)}
                 </Stack>
               )}
@@ -754,12 +755,12 @@ export function TrendsPage() {
         </Button>
       </Stack>
       {semSetor && (
-        <Typography fontSize={12.5} color="text.secondary" mb={2}>
+        <Typography variant="body2" color="text.secondary" mb={2}>
           Defina o <b>setor</b> do workspace para ativar o radar — é ele que direciona a pesquisa.
         </Typography>
       )}
       {items === null ? (
-        <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+        <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
       ) : items.length === 0 ? (
         <EmConstrucao desc="Nenhuma tendência coletada ainda. O radar roda toda segunda para workspaces com setor definido — ou busque agora no botão acima."
           vem="cada tendência chega com 'como a sua marca surfa isso', escrito no tom aprendido" />
@@ -770,26 +771,26 @@ export function TrendsPage() {
               <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
                 {t.categoria && <Chip label={CAT_LABEL[t.categoria] || t.categoria} size="small" sx={{ fontWeight: 800, fontSize: 11 }} />}
                 {t.horizonte && <Chip label={HOR_LABEL[t.horizonte] || t.horizonte} size="small" variant="outlined" sx={{ fontSize: 10.5 }} />}
-                {t.relevancia != null && <Typography fontSize={11} sx={{ color: t.relevancia >= 7 ? CORAL : 'text.disabled', fontWeight: 700 }}>relevância {t.relevancia}/10</Typography>}
+                {t.relevancia != null && <Typography variant="caption" sx={{ color: t.relevancia >= 7 ? CORAL : 'text.disabled', fontWeight: 700 }}>relevância {t.relevancia}/10</Typography>}
                 <Box flex={1} />
-                <Typography fontSize={11} color="text.disabled">{new Date(t.created_at).toLocaleDateString('pt-BR')}</Typography>
+                <Typography variant="caption" color="text.disabled">{new Date(t.created_at).toLocaleDateString('pt-BR')}</Typography>
               </Stack>
-              <Typography fontSize={14} fontWeight={800}>{t.titulo}</Typography>
-              {t.conteudo && <Typography fontSize={13} color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{t.conteudo}</Typography>}
+              <Typography variant="subtitle1">{t.titulo}</Typography>
+              {t.conteudo && <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{t.conteudo}</Typography>}
               {t.como_surfar && (
                 <Box sx={{ mt: 1.25, p: 1.5, borderRadius: 1.5, border: '1px solid rgba(127,119,221,0.3)', bgcolor: 'rgba(127,119,221,0.06)' }}>
                   <Stack direction="row" spacing={1} alignItems="flex-start">
-                    <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 16, mt: 0.25 }} />
+                    <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 16, mt: 0.25 }} />
                     <Box>
-                      <Typography fontSize={10.5} fontWeight={800} sx={{ color: '#7F77DD', letterSpacing: '0.06em' }}>COMO A SUA MARCA SURFA ISSO</Typography>
-                      <Typography fontSize={13} sx={{ lineHeight: 1.55, mt: 0.25 }}>{t.como_surfar}</Typography>
+                      <Typography variant="caption" sx={{ color: PALETTE.data.neutro, letterSpacing: '0.06em' }}>COMO A SUA MARCA SURFA ISSO</Typography>
+                      <Typography variant="body2" sx={{ lineHeight: 1.55, mt: 0.25 }}>{t.como_surfar}</Typography>
                     </Box>
                   </Stack>
                 </Box>
               )}
               <Stack direction="row" spacing={1.5} mt={0.75}>
-                {t.fonte && <Typography fontSize={11} color="text.disabled">{t.fonte}</Typography>}
-                {t.url && <Link href={t.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                {t.fonte && <Typography variant="caption" color="text.disabled">{t.fonte}</Typography>}
+                {t.url && <Link href={t.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5px' }}>
                   fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
               </Stack>
             </Paper>
@@ -804,7 +805,7 @@ export function ReportsPage() {
   return (
     <Shell title="Relatórios" subtitle="A evolução da marca, medida e apresentável">
       <EmConstrucao desc="Relatórios periódicos consolidando scores do diagnóstico, evolução do aprendizado da marca, aprovação de peças e movimentos do mercado — prontos para levar ao board."
-        vem="relatório mensal automático + comparativo entre ciclos. Hoje: os scores vivem no Brand Positioning e a evolução do aprendizado em Inteligência brandcode" />
+        vem="relatório mensal automático + comparativo entre ciclos. Hoje: os scores vivem no Brand Positioning e a evolução do aprendizado em Inteligência BR4NDCODE" />
     </Shell>
   )
 }

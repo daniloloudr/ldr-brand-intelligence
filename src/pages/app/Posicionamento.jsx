@@ -34,6 +34,7 @@ import { fmtDate, sc } from '../../lib/helpers'
 import { RelatorioCompleto }  from '../../components/RelatorioCompleto'
 import { IdentityGapCard }    from '../../components/intelligence/IdentityGapCard'
 import { PageHeader }         from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -53,10 +54,10 @@ function ScoreChip({ label, value }) {
 }
 
 const SCORE_BANDS = [
-  { max: 3,  label: 'Crítico',            color: '#E8185A' },
-  { max: 6,  label: 'Em desenvolvimento', color: '#EF9F27' },
-  { max: 8,  label: 'Sólido',             color: '#0D9E7A' },
-  { max: 10, label: 'Referência',         color: '#0D9E7A' },
+  { max: 3,  label: 'Crítico',            color: PALETTE.data.critico },
+  { max: 6,  label: 'Em desenvolvimento', color: PALETTE.data.atencao },
+  { max: 8,  label: 'Sólido',             color: PALETTE.data.positivo },
+  { max: 10, label: 'Referência',         color: PALETTE.data.positivo },
 ]
 function scoreBand(v) {
   if (v == null) return null
@@ -196,9 +197,9 @@ const PERIODOS = [
 ]
 
 const DIMENSOES_LINHA = [
-  { key: 'score_singularidade',  label: 'Singularidade',  color: '#0D9E7A' },
-  { key: 'score_consistencia',   label: 'Consistência',   color: '#7F77DD' },
-  { key: 'score_posicionamento', label: 'Posicionamento', color: '#EF9F27' },
+  { key: 'score_singularidade',  label: 'Singularidade',  color: PALETTE.data.positivo },
+  { key: 'score_consistencia',   label: 'Consistência',   color: PALETTE.data.neutro },
+  { key: 'score_posicionamento', label: 'Posicionamento', color: PALETTE.data.atencao },
 ]
 
 function SecaoEvolucao({ diagnosticos }) {
@@ -272,9 +273,9 @@ function SecaoEvolucao({ diagnosticos }) {
       <Card sx={{ p: 3, border: '1px solid', borderColor: 'divider' }}>
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E3550" />
-            <XAxis dataKey="data" tick={{ fill: '#8A9AB0', fontSize: 11 }} />
-            <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={PALETTE.neutral[100]} />
+            <XAxis dataKey="data" tick={{ fill: PALETTE.neutral[400], fontSize: 11 }} />
+            <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: PALETTE.neutral[400], fontSize: 11 }} />
             <RechartTooltip content={<LineTooltip />} />
             <Legend wrapperStyle={{ fontSize: 12, fontFamily: "'Cairo', sans-serif", paddingTop: 16 }} iconType="circle" />
             {DIMENSOES_LINHA.map(d => (
@@ -290,7 +291,7 @@ function SecaoEvolucao({ diagnosticos }) {
 
 /* ─── seção 3: concorrentes ───────────────────────────────────────────────── */
 
-const CORES_CONC = ['#0D9E7A', '#7F77DD', '#EF9F27', '#E8185A', '#4FC3F7']
+const CORES_CONC = [PALETTE.data.positivo, PALETTE.data.neutro, PALETTE.data.atencao, PALETTE.data.critico, PALETTE.neutral[300]]
 const DIMS_CONC  = [
   { key: 'score_singularidade',  label: 'Singularidade'  },
   { key: 'score_consistencia',   label: 'Consistência'   },
@@ -429,18 +430,18 @@ function SecaoConcorrentes({ workspace }) {
   )
 
   const AMEACA_CFG = {
-    alta:   { label: 'Alta',   color: '#E8185A', bg: 'rgba(232,24,90,0.1)'   },
-    media:  { label: 'Média',  color: '#EF9F27', bg: 'rgba(239,159,39,0.1)'  },
-    baixa:  { label: 'Baixa',  color: '#0D9E7A', bg: 'rgba(13,158,122,0.1)'  },
+    alta:   { label: 'Alta',   color: PALETTE.data.critico, bg: 'rgba(232,24,90,0.1)'   },
+    media:  { label: 'Média',  color: PALETTE.data.atencao, bg: 'rgba(239,159,39,0.1)'  },
+    baixa:  { label: 'Baixa',  color: PALETTE.data.positivo, bg: 'rgba(13,158,122,0.1)'  },
   }
   const SENT_CFG = {
-    positivo: { color: '#0D9E7A', bg: 'rgba(13,158,122,0.1)' },
-    neutro:   { color: '#8A9AB0', bg: 'rgba(138,154,176,0.12)' },
-    negativo: { color: '#E8185A', bg: 'rgba(232,24,90,0.1)' },
+    positivo: { color: PALETTE.data.positivo, bg: 'rgba(13,158,122,0.1)' },
+    neutro:   { color: PALETTE.neutral[400], bg: 'rgba(138,154,176,0.12)' },
+    negativo: { color: PALETTE.data.critico, bg: 'rgba(232,24,90,0.1)' },
   }
 
   const scatterData = [
-    ...(workspaceDiag ? [{ nome: workspace?.nome || 'Minha marca', x: workspaceDiag.score_singularidade || 5, y: workspaceDiag.score_posicionamento || 5, z: 200, cor: '#0D9E7A', isSelf: true }] : []),
+    ...(workspaceDiag ? [{ nome: workspace?.nome || 'Minha marca', x: workspaceDiag.score_singularidade || 5, y: workspaceDiag.score_posicionamento || 5, z: 200, cor: PALETTE.data.positivo, isSelf: true }] : []),
     ...concorrentes.map((c, i) => {
       const d = getLastDiag(c.id)
       return { nome: c.nome, x: d?.score_singularidade || 5, y: d?.score_posicionamento || 5, z: 150, cor: CORES_CONC[(i + 1) % CORES_CONC.length], isSelf: false }
@@ -449,9 +450,9 @@ function SecaoConcorrentes({ workspace }) {
 
   // ── a.2: Mapa de Território (territórios possíveis: você × concorrentes) + gaps ──
   const CONF_CFG = {
-    alta:     { label: 'Alta',     color: '#0D9E7A', bg: 'rgba(13,158,122,0.10)' },
-    media:    { label: 'Média',    color: '#EF9F27', bg: 'rgba(239,159,39,0.10)' },
-    hipotese: { label: 'Hipótese', color: '#7F77DD', bg: 'rgba(127,119,221,0.10)' },
+    alta:     { label: 'Alta',     color: PALETTE.data.positivo, bg: 'rgba(13,158,122,0.10)' },
+    media:    { label: 'Média',    color: PALETTE.data.atencao, bg: 'rgba(239,159,39,0.10)' },
+    hipotese: { label: 'Hipótese', color: PALETTE.data.neutro, bg: 'rgba(127,119,221,0.10)' },
   }
   const meusTerritorios = workspaceDiag?.data?.territorios_possiveis || []
   const terrConcorrentes = concorrentes
@@ -507,7 +508,7 @@ function SecaoConcorrentes({ workspace }) {
         <Typography variant="caption" color="text.secondary">
           Concorrentes: {concorrentes.length}/{limite}
           {concorrentes.length >= limite && limite > 0 && (
-            <Chip label="Limite atingido" size="small" sx={{ ml: 1, bgcolor: 'rgba(239,159,39,0.1)', color: '#EF9F27', fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
+            <Chip label="Limite atingido" size="small" sx={{ ml: 1, bgcolor: 'rgba(239,159,39,0.1)', color: PALETTE.data.atencao, fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
           )}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -531,7 +532,7 @@ function SecaoConcorrentes({ workspace }) {
       {processing && (
         <Box sx={{ mb: 2.5, p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(13,158,122,0.06)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <CircularProgress size={16} sx={{ color: '#0D9E7A' }} />
+            <CircularProgress size={16} sx={{ color: PALETTE.data.positivo }} />
             <Typography variant="body2" fontWeight={700}>
               Gerando diagnósticos dos concorrentes…{concorrentes.length ? ` (${prontos}/${concorrentes.length})` : ''}
             </Typography>
@@ -539,7 +540,7 @@ function SecaoConcorrentes({ workspace }) {
           <LinearProgress
             variant={concorrentes.length ? 'determinate' : 'indeterminate'}
             value={concorrentes.length ? (prontos / concorrentes.length) * 100 : 0}
-            sx={{ height: 6, borderRadius: 3, bgcolor: '#1E3550', '& .MuiLinearProgress-bar': { bgcolor: '#0D9E7A' } }}
+            sx={{ height: 6, borderRadius: 3, bgcolor: PALETTE.neutral[100], '& .MuiLinearProgress-bar': { bgcolor: PALETTE.data.positivo } }}
           />
           <Typography variant="caption" color="text.disabled" sx={{ mt: 0.75, display: 'block' }}>
             Rodam em série (~2-3 min cada) reaproveitando o cache. Pode navegar — continua em background.
@@ -571,7 +572,7 @@ function SecaoConcorrentes({ workspace }) {
       )}
 
       {/* Slots visuais */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1.5, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1.5px', mb: 3 }}>
         {concorrentes.map(c => {
           const intel = getIntel(c.nome)
           const ameacaCfg = intel?.ameaca ? AMEACA_CFG[intel.ameaca] : null
@@ -584,7 +585,7 @@ function SecaoConcorrentes({ workspace }) {
               >
                 <DeleteIcon sx={{ fontSize: 14 }} />
               </IconButton>
-              <Typography fontWeight={800} fontSize={13} noWrap sx={{ pr: 2.5, mt: 0.25 }}>{c.nome}</Typography>
+              <Typography variant="subtitle2" noWrap sx={{ pr: 2.5, mt: 0.25 }}>{c.nome}</Typography>
               {c.dominio && (
                 <Typography variant="caption" color="text.secondary" noWrap display="block">{c.dominio}</Typography>
               )}
@@ -599,9 +600,9 @@ function SecaoConcorrentes({ workspace }) {
                 </Typography>
               )}
               {processing && !getLastDiag(c.id) && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
-                  <CircularProgress size={11} sx={{ color: '#0D9E7A' }} />
-                  <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#0D9E7A' }}>Gerando…</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px', mt: 0.75 }}>
+                  <CircularProgress size={11} sx={{ color: PALETTE.data.positivo }} />
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: PALETTE.data.positivo }}>Gerando…</Typography>
                 </Box>
               )}
             </Card>
@@ -635,12 +636,12 @@ function SecaoConcorrentes({ workspace }) {
             <Box sx={{ p: 2.5 }}>
               <ResponsiveContainer width="100%" height={220}>
                 <ScatterChart margin={{ top: 12, right: 24, bottom: 24, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3550" />
-                  <XAxis type="number" dataKey="x" domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }}>
-                    <Label value="Singularidade" position="insideBottom" offset={-16} fill="#8A9AB0" fontSize={11} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={PALETTE.neutral[100]} />
+                  <XAxis type="number" dataKey="x" domain={[0, 10]} tick={{ fill: PALETTE.neutral[400], fontSize: 11 }}>
+                    <Label value="Singularidade" position="insideBottom" offset={-16} fill={PALETTE.neutral[400]} fontSize={11} />
                   </XAxis>
-                  <YAxis type="number" dataKey="y" domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 11 }}>
-                    <Label value="Posicionamento" angle={-90} position="insideLeft" offset={12} fill="#8A9AB0" fontSize={11} />
+                  <YAxis type="number" dataKey="y" domain={[0, 10]} tick={{ fill: PALETTE.neutral[400], fontSize: 11 }}>
+                    <Label value="Posicionamento" angle={-90} position="insideLeft" offset={12} fill={PALETTE.neutral[400]} fontSize={11} />
                   </YAxis>
                   <ZAxis type="number" dataKey="z" range={[60, 240]} />
                   <RechartTooltip content={<ScatterTooltip />} />
@@ -649,9 +650,9 @@ function SecaoConcorrentes({ workspace }) {
                   ))}
                 </ScatterChart>
               </ResponsiveContainer>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '1.5px', mt: 1, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 {scatterData.map(d => (
-                  <Box key={d.nome} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box key={d.nome} sx={{ display: 'flex', alignItems: 'center', gap: '0.75px' }}>
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: d.cor }} />
                     <Typography variant="caption" fontWeight={d.isSelf ? 800 : 500} color={d.isSelf ? 'text.primary' : 'text.secondary'}>
                       {d.nome}{d.isSelf ? ' (você)' : ''}
@@ -674,7 +675,7 @@ function SecaoConcorrentes({ workspace }) {
 
               {/* Seus territórios possíveis */}
               <Box sx={{ p: 2.5, borderBottom: terrConcorrentes.length ? '1px solid' : 'none', borderColor: 'divider' }}>
-                <Typography variant="caption" fontWeight={800} sx={{ color: '#0D9E7A', display: 'block', mb: 1.25 }}>
+                <Typography variant="caption" fontWeight={800} sx={{ color: PALETTE.data.positivo, display: 'block', mb: 1.25 }}>
                   Seus territórios possíveis
                 </Typography>
                 {meusComDisputa.length === 0 ? (
@@ -684,11 +685,11 @@ function SecaoConcorrentes({ workspace }) {
                   return (
                     <Box key={i} sx={{ mb: 1.5, pb: 1.5, borderBottom: i < meusComDisputa.length - 1 ? '1px dashed' : 'none', borderColor: 'divider' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography fontWeight={800} fontSize={13}>{t.nome}</Typography>
+                        <Typography variant="subtitle2">{t.nome}</Typography>
                         <Chip label={`Confiança ${cfg.label}`} size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: cfg.bg, color: cfg.color }} />
                         {disputa.length > 0
-                          ? <Chip label={`Em disputa: ${disputa.join(', ')}`} size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: 'rgba(239,159,39,0.1)', color: '#EF9F27' }} />
-                          : <Chip label="Espaço livre" size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: 'rgba(13,158,122,0.1)', color: '#0D9E7A' }} />}
+                          ? <Chip label={`Em disputa: ${disputa.join(', ')}`} size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: 'rgba(239,159,39,0.1)', color: PALETTE.data.atencao }} />
+                          : <Chip label="Espaço livre" size="small" sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, bgcolor: 'rgba(13,158,122,0.1)', color: PALETTE.data.positivo }} />}
                       </Box>
                       {t.tese && (
                         <Typography variant="caption" color="text.secondary" display="block" mt={0.4} sx={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{t.tese}</Typography>
@@ -704,17 +705,17 @@ function SecaoConcorrentes({ workspace }) {
                   <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
                     Territórios reivindicados pelos concorrentes
                   </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 1.5 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5px' }}>
                     {terrConcorrentes.map(({ c, cor, terrs }) => (
                       <Box key={c.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75px', mb: 0.75 }}>
                           <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cor }} />
-                          <Typography fontWeight={800} fontSize={12}>{c.nome}</Typography>
+                          <Typography variant="caption">{c.nome}</Typography>
                         </Box>
                         {terrs.slice(0, 3).map((ct, j) => {
                           const cfg = CONF_CFG[ct.confianca] || CONF_CFG.hipotese
                           return (
-                            <Box key={j} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.4 }}>
+                            <Box key={j} sx={{ display: 'flex', alignItems: 'center', gap: '0.5px', mb: 0.4 }}>
                               <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: cfg.color, flexShrink: 0 }} />
                               <Typography variant="caption" sx={{ fontSize: '0.68rem', lineHeight: 1.3 }} noWrap>{ct.nome}</Typography>
                             </Box>
@@ -740,8 +741,8 @@ function SecaoConcorrentes({ workspace }) {
               </Box>
               {movimentos.map(({ c, deltas, novos, sumidos }) => (
                 <Box key={c.id} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
-                  <Typography fontWeight={800} fontSize={13} mb={0.75}>{c.nome}</Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  <Typography variant="subtitle2" mb={0.75}>{c.nome}</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
                     {deltas.filter(d => d.delta !== 0).map(d => {
                       const up = d.delta > 0
                       return (
@@ -749,12 +750,12 @@ function SecaoConcorrentes({ workspace }) {
                           label={`${d.label} ${up ? '↑' : '↓'}${up ? '+' : ''}${d.delta}`}
                           sx={{ height: 20, fontSize: '0.6rem', fontWeight: 800,
                             bgcolor: up ? 'rgba(13,158,122,0.1)' : 'rgba(232,24,90,0.1)',
-                            color:   up ? '#0D9E7A' : '#E8185A' }} />
+                            color:   up ? PALETTE.data.positivo : PALETTE.data.critico }} />
                       )
                     })}
                     {novos.map((n, i) => (
                       <Chip key={`n${i}`} size="small" label={`Novo território: ${n}`}
-                        sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(127,119,221,0.1)', color: '#7F77DD' }} />
+                        sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(127,119,221,0.1)', color: PALETTE.data.neutro }} />
                     ))}
                     {sumidos.map((s, i) => (
                       <Chip key={`s${i}`} size="small" label={`Abandonou: ${s}`}
@@ -784,8 +785,8 @@ function SecaoConcorrentes({ workspace }) {
               <Box sx={{ px: 2.5, py: 1.25, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.6rem' }}>Resumo do ciclo</Typography>
                 <Chip label={`${clipTotal} menções`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />
-                {clipAlto > 0 && <Chip label={`${clipAlto} de alto impacto`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: 'rgba(13,158,122,0.1)', color: '#0D9E7A' }} />}
-                {clipNeg > 0 && <Chip label={`${clipNeg} negativa${clipNeg > 1 ? 's' : ''}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: 'rgba(232,24,90,0.1)', color: '#E8185A' }} />}
+                {clipAlto > 0 && <Chip label={`${clipAlto} de alto impacto`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: 'rgba(13,158,122,0.1)', color: PALETTE.data.positivo }} />}
+                {clipNeg > 0 && <Chip label={`${clipNeg} negativa${clipNeg > 1 ? 's' : ''}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: 'rgba(232,24,90,0.1)', color: PALETTE.data.critico }} />}
                 {clipMaisAtivo && <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>· mais ativo: <Box component="strong" sx={{ color: 'text.secondary' }}>{clipMaisAtivo[0]}</Box></Typography>}
               </Box>
             )}
@@ -803,10 +804,10 @@ function SecaoConcorrentes({ workspace }) {
                   return (
                     <Box key={item.id} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
                       {item.url
-                        ? <Typography component="a" href={item.url} target="_blank" rel="noopener noreferrer" fontWeight={800} fontSize={13} sx={{ color: 'text.primary', textDecoration: 'none', display: 'block', mb: 0.4, '&:hover': { color: 'primary.main' } }}>{item.titulo} ↗</Typography>
-                        : <Typography fontWeight={800} fontSize={13} display="block" mb={0.4}>{item.titulo}</Typography>}
+                        ? <Typography variant="subtitle2" component="a" href={item.url} target="_blank" rel="noopener noreferrer" sx={{ color: 'text.primary', textDecoration: 'none', display: 'block', mb: 0.4, '&:hover': { color: 'primary.main' } }}>{item.titulo} ↗</Typography>
+                        : <Typography variant="subtitle2" display="block" mb={0.4}>{item.titulo}</Typography>}
                       {item.conteudo && <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{item.conteudo}</Typography>}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75px', flexWrap: 'wrap' }}>
                         {nome && <Chip label={nome} size="small" sx={{ height: 16, fontSize: '0.55rem', fontWeight: 700 }} />}
                         {item.fonte && <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>{item.fonte}</Typography>}
                         {item.sentiment && <Chip label={item.sentiment} size="small" sx={{ height: 16, fontSize: '0.55rem', fontWeight: 700, bgcolor: scfg.bg, color: scfg.color }} />}
@@ -854,7 +855,7 @@ function SecaoConcorrentes({ workspace }) {
                       return (
                         <Box key={c.id} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <Typography fontWeight={800} fontSize={13}>{c.nome}</Typography>
+                            <Typography variant="subtitle2">{c.nome}</Typography>
                             <Chip label={`Ameaça ${cfg.label}`} size="small"
                               sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800, bgcolor: cfg.bg, color: cfg.color }} />
                           </Box>
@@ -883,12 +884,12 @@ function SecaoConcorrentes({ workspace }) {
                     {opsConcorrentes.map((op, i) => (
                       <Box key={i} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography fontWeight={800} fontSize={13}>{op.titulo}</Typography>
+                          <Typography variant="subtitle2">{op.titulo}</Typography>
                           {op.impacto && (
                             <Chip label={op.impacto} size="small"
                               sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800,
                                 bgcolor: op.impacto === 'alto' ? 'rgba(13,158,122,0.1)' : 'rgba(239,159,39,0.1)',
-                                color:   op.impacto === 'alto' ? '#0D9E7A' : '#EF9F27' }} />
+                                color:   op.impacto === 'alto' ? PALETTE.data.positivo : PALETTE.data.atencao }} />
                           )}
                           {op.prazo && (
                             <Typography variant="caption" color="text.disabled">{op.prazo}</Typography>
@@ -912,7 +913,7 @@ function SecaoConcorrentes({ workspace }) {
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: `180px repeat(${concorrentes.length + 1}, 1fr)`, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider', px: 2.5, py: 1, gap: 0 }}>
             <Typography variant="caption" color="text.disabled" fontWeight={700}>Dimensão</Typography>
-            <Typography variant="caption" fontWeight={800} sx={{ color: '#0D9E7A' }}>{workspace?.nome || 'Sua marca'}</Typography>
+            <Typography variant="caption" fontWeight={800} sx={{ color: PALETTE.data.positivo }}>{workspace?.nome || 'Sua marca'}</Typography>
             {concorrentes.map(c => (
               <Typography key={c.id} variant="caption" fontWeight={700} color="text.secondary">{c.nome}</Typography>
             ))}
@@ -927,7 +928,7 @@ function SecaoConcorrentes({ workspace }) {
             }}>
               <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>{dim.label}</Typography>
               <Box sx={{ pr: 2 }}>
-                <ScoreBar value={workspaceDiag?.[dim.key]} color="#0D9E7A" />
+                <ScoreBar value={workspaceDiag?.[dim.key]} color={PALETTE.data.positivo} />
               </Box>
               {concorrentes.map((c, ci) => {
                 const d = getLastDiag(c.id)
@@ -1140,9 +1141,9 @@ export function Posicionamento() {
     return (f == null || l == null) ? null : l - f
   }
   const KPI_DEFS = [
-    { key: 'score_singularidade',  label: 'Singularidade',  color: '#0D9E7A', desc: 'O quanto a marca se diferencia e é memorável no seu mercado.' },
-    { key: 'score_consistencia',   label: 'Consistência',   color: '#7F77DD', desc: 'Coerência da identidade em todos os pontos de contato.' },
-    { key: 'score_posicionamento', label: 'Posicionamento', color: '#EF9F27', desc: 'Clareza do lugar que a marca ocupa na mente do público.' },
+    { key: 'score_singularidade',  label: 'Singularidade',  color: PALETTE.data.positivo, desc: 'O quanto a marca se diferencia e é memorável no seu mercado.' },
+    { key: 'score_consistencia',   label: 'Consistência',   color: PALETTE.data.neutro, desc: 'Coerência da identidade em todos os pontos de contato.' },
+    { key: 'score_posicionamento', label: 'Posicionamento', color: PALETTE.data.atencao, desc: 'Clareza do lugar que a marca ocupa na mente do público.' },
   ]
   const kpis = KPI_DEFS.map(d => ({ ...d, value: ultimo?.[d.key], delta: kpiDelta(d.key) }))
 
@@ -1185,7 +1186,7 @@ export function Posicionamento() {
               <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'primary.main' }}>
                 Último diagnóstico
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px', flexShrink: 0 }}>
                 <CalendarTodayOutlinedIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
                 <Typography variant="caption" color="text.secondary">{fmtDate(ultimo.created_at)}</Typography>
               </Box>
@@ -1237,8 +1238,8 @@ export function Posicionamento() {
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-                      <Typography fontSize={42} fontWeight={900} sx={{ color, lineHeight: 0.85 }}>{value ?? '—'}</Typography>
-                      <Typography color="text.secondary" fontSize={14} mb={0.75}>/10</Typography>
+                      <Typography variant="h4" sx={{ color, lineHeight: 0.85 }}>{value ?? '—'}</Typography>
+                      <Typography variant="body1" color="text.secondary" mb={0.75}>/10</Typography>
                       {delta != null && delta !== 0 && (
                         <Chip
                           icon={delta > 0 ? <TrendingUpIcon /> : <TrendingDownIcon />}
@@ -1246,8 +1247,8 @@ export function Posicionamento() {
                           size="small"
                           sx={{
                             ml: 'auto', mb: 0.5,
-                            bgcolor: delta > 0 ? '#0D9E7A22' : '#E8185A22',
-                            color: delta > 0 ? '#0D9E7A' : '#E8185A',
+                            bgcolor: delta > 0 ? `${PALETTE.data.positivo}22` : `${PALETTE.data.critico}22`,
+                            color: delta > 0 ? PALETTE.data.positivo : PALETTE.data.critico,
                             fontWeight: 800, fontSize: 11, height: 22,
                             '& .MuiChip-icon': { fontSize: 13, color: 'inherit' },
                           }}
@@ -1276,7 +1277,7 @@ export function Posicionamento() {
           {restante.length > 0 && (
             <Box sx={{ mb: 5 }}>
               <Box onClick={() => setHistOpen(o => !o)}
-                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', mb: 1.5, color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}>
+                sx={{ display: 'inline-flex', alignItems: 'center', gap: '0.5px', cursor: 'pointer', mb: 1.5, color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}>
                 <Typography variant="overline">Histórico ({restante.length})</Typography>
                 <KeyboardArrowDownIcon sx={{ fontSize: 18, transition: 'transform 0.2s', transform: histOpen ? 'rotate(180deg)' : 'none' }} />
               </Box>
@@ -1290,9 +1291,9 @@ export function Posicionamento() {
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                         <BusinessOutlinedIcon sx={{ fontSize: 15, color: 'text.secondary', flexShrink: 0 }} />
-                        <Typography fontWeight={800} fontSize={14} noWrap>{diag.empresa}</Typography>
+                        <Typography variant="subtitle1" noWrap>{diag.empresa}</Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px', flexShrink: 0 }}>
                         <CalendarTodayOutlinedIcon sx={{ fontSize: 11, color: 'text.secondary' }} />
                         <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>{fmtDate(diag.created_at)}</Typography>
                       </Box>
@@ -1302,7 +1303,7 @@ export function Posicionamento() {
                         {[diag.setor, diag.porte].filter(Boolean).join(' · ')}
                       </Typography>
                     )}
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
                       {diag.score_singularidade  != null && <ScoreChip label="Singularidade"  value={diag.score_singularidade}  />}
                       {diag.score_consistencia   != null && <ScoreChip label="Consistência"   value={diag.score_consistencia}   />}
                       {diag.score_posicionamento != null && <ScoreChip label="Posicionamento" value={diag.score_posicionamento} />}
@@ -1321,7 +1322,7 @@ export function Posicionamento() {
 
           {/* ── Seção 3: Concorrentes (acesso universal) ── */}
           <Box sx={{ mb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 2 }}>
               <Typography variant="overline" color="text.disabled">Inteligência Competitiva</Typography>
             </Box>
             <SecaoConcorrentes workspace={workspace} />

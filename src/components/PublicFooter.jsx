@@ -1,39 +1,38 @@
-import logoNegativa from '../assets/negativa.svg'
+import logoBranco from "../assets/logo branco.svg"
 import { navigate } from '../lib/helpers';
+import { PALETTE } from '../lib/theme'
+import { Box, Typography } from "@mui/material";
+import Button from "@mui/material/Button";
 
-const F = "'Cairo', sans-serif"
 
 export function PublicFooter() {
   return (
-    <footer style={{
-      background: '#060D17',
-      borderTop: '1px solid #1E3348',
+    <Box component="footer" sx={{
+      background: PALETTE.neutral[950],
+      borderTop: `1px solid ${PALETTE.neutral[100]}`,
       padding: 'clamp(28px, 4vw, 40px) clamp(24px, 5vw, 64px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       flexWrap: 'wrap',
-      gap: 20,
-      fontFamily: F,
+      gap: '20px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <img src={logoNegativa} alt="LOUDR" style={{ height: 32, display: 'block' }} />
-        <div style={{ width: 1, height: 18, background: '#1E3348', flexShrink: 0 }} />
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#7A8899' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <Box component="img" src={logoBranco} alt="BR4NDCODE" sx={{ height: 32, width: "auto", display: "block" }} />
+        <Box sx={{ width: '1px', height: 18, background: PALETTE.neutral[100], flexShrink: 0 }} />
+        <Typography component="span" sx={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: PALETTE.neutral[400] }}>
           Smart Branding
-        </span>
-      </div>
-      <span style={{ fontSize: 11, color: '#3D4E60', letterSpacing: '0.04em' }}>
-        © 2026 LOUDR — Todos os direitos reservados
-      </span>
-      <button
+        </Typography>
+      </Box>
+      <Typography component="span" sx={{ fontSize: 11, color: PALETTE.neutral[600], letterSpacing: '0.04em' }}>
+        © 2026 BR4NDCODE — Todos os direitos reservados
+      </Typography>
+      <Button variant="text" size="small" color="inherit"
         onClick={() => { navigate('#/login') }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A8899', fontFamily: F }}
-        onMouseEnter={e => { e.currentTarget.style.color = '#E8185A' }}
-        onMouseLeave={e => { e.currentTarget.style.color = '#7A8899' }}
+        sx={{ "&:hover": { color: "secondary.main" } }}
       >
         Área interna →
-      </button>
-    </footer>
+      </Button>
+    </Box>
   )
 }

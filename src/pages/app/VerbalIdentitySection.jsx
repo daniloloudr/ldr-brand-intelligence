@@ -2,6 +2,7 @@ import { Box, Typography, TextField, IconButton, Button, Paper, Stack, Divider }
 import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { FieldLabel, SectionDivider, ChipInput, ArquetipoSelector } from './BrandSection'
+import { PALETTE } from '../../lib/theme'
 
 const tfText = { '& .MuiInputBase-input': { fontSize: 14 } }
 const tfArea = { '& .MuiInputBase-input': { fontSize: 14 } }
@@ -75,7 +76,7 @@ export function VerbalIdentitySection({ data, onChange }) {
     <Box sx={{ maxWidth: 920 }}>
 
       {/* ── Essência ── */}
-      <SectionDivider label="Essência" color="#0D9E7A" />
+      <SectionDivider label="Essência" color={PALETTE.data.positivo} />
       <Grid2>
         <Box>
           <FieldLabel>Tagline</FieldLabel>
@@ -98,7 +99,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Missão, Visão, Valores ── */}
-      <SectionDivider label="Missão, Visão & Valores" color="#0D9E7A" />
+      <SectionDivider label="Missão, Visão & Valores" color={PALETTE.data.positivo} />
       <Grid2>
         <Box>
           <FieldLabel>Missão</FieldLabel>
@@ -121,7 +122,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Arquétipo & Personalidade ── */}
-      <SectionDivider label="Arquétipo & Personalidade" color="#0D9E7A" />
+      <SectionDivider label="Arquétipo & Personalidade" color={PALETTE.data.positivo} />
       <ArquetipoSelector value={d.arquetipo || ''} onChange={v => up('arquetipo', v)} />
 
       <Box sx={{ mt: 3 }}>
@@ -131,7 +132,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Tom de voz ── */}
-      <SectionDivider label="Tom de voz" color="#0D9E7A" />
+      <SectionDivider label="Tom de voz" color={PALETTE.data.positivo} />
       <Box>
         <FieldLabel>Descrição do tom</FieldLabel>
         <TextField value={d.tom_voz || ''} onChange={e => up('tom_voz', e.target.value)}
@@ -153,7 +154,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Storytelling ── */}
-      <SectionDivider label="Storytelling" color="#0D9E7A" />
+      <SectionDivider label="Storytelling" color={PALETTE.data.positivo} />
       <Box>
         <FieldLabel>Narrativa de origem</FieldLabel>
         <TextField value={d.narrativa_origem || ''} onChange={e => up('narrativa_origem', e.target.value)}
@@ -186,7 +187,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Posicionamento ── */}
-      <SectionDivider label="Posicionamento" color="#7F77DD" />
+      <SectionDivider label="Posicionamento" color={PALETTE.data.neutro} />
       <Box>
         <FieldLabel>Posicionamento principal</FieldLabel>
         <TextField value={d.posicionamento || ''} onChange={e => up('posicionamento', e.target.value)}
@@ -212,7 +213,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Público & Personas ── */}
-      <SectionDivider label="Público & Personas" color="#7F77DD" />
+      <SectionDivider label="Público & Personas" color={PALETTE.data.neutro} />
       <Box>
         <FieldLabel>Público-alvo (descrição)</FieldLabel>
         <TextField value={d.publico_alvo || ''} onChange={e => up('publico_alvo', e.target.value)}
@@ -238,7 +239,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Vocabulário ── */}
-      <SectionDivider label="Vocabulário" color="#EF9F27" />
+      <SectionDivider label="Vocabulário" color={PALETTE.data.atencao} />
       <Grid2>
         <ChipInput label="Vocabulário aprovado" values={d.vocabulario_aprovado}
           onChange={v => up('vocabulario_aprovado', v)}
@@ -252,11 +253,11 @@ export function VerbalIdentitySection({ data, onChange }) {
         <ChipInput label="Vocabulário proibido" values={d.vocabulario_proibido}
           onChange={v => up('vocabulario_proibido', v)}
           placeholder="Palavras a evitar — Enter"
-          color="#E8185A" />
+          color={PALETTE.data.critico} />
       </Box>
 
       {/* ── Exemplos de escrita ── */}
-      <SectionDivider label="Exemplos de escrita" color="#EF9F27" />
+      <SectionDivider label="Exemplos de escrita" color={PALETTE.data.atencao} />
       <ItemList
         label="Headlines de referência"
         items={d.exemplos_headlines}
@@ -299,7 +300,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       </Box>
 
       {/* ── Como falar em situações ── */}
-      <SectionDivider label="Como falar em situações específicas" color="#EF9F27" />
+      <SectionDivider label="Como falar em situações específicas" color={PALETTE.data.atencao} />
       <ItemList
         label="Cenários e respostas-modelo"
         items={d.situacoes}
@@ -314,7 +315,7 @@ export function VerbalIdentitySection({ data, onChange }) {
       />
 
       {/* ── Exemplos livres de texto ── */}
-      <SectionDivider label="Exemplos livres de texto" color="#EF9F27" />
+      <SectionDivider label="Exemplos livres de texto" color={PALETTE.data.atencao} />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Cole textos completos que representam a marca. Quanto mais exemplos longos, mais o RAG
         consegue replicar a voz em campanhas, e-mails, posts e artigos.

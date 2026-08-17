@@ -8,12 +8,13 @@ import CampaignIcon from '@mui/icons-material/Campaign'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, navigate, currentPath } from '../../lib/helpers'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
 function verdictColor(status, verdict) {
-  if (status === 'approved' || verdict?.aprovado === true)  return '#0D9E7A'
-  if (status === 'rejected' || verdict?.aprovado === false) return '#E8185A'
-  if (status === 'pending') return '#EF9F27'
-  return '#8A9AB0'
+  if (status === 'approved' || verdict?.aprovado === true)  return PALETTE.data.positivo
+  if (status === 'rejected' || verdict?.aprovado === false) return PALETTE.data.critico
+  if (status === 'pending') return PALETTE.data.atencao
+  return PALETTE.neutral[400]
 }
 
 function verdictLabel(status, verdict) {
@@ -34,10 +35,10 @@ function CampaignCard({ campaign, onClick }) {
       <CardActionArea onClick={onClick}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography fontWeight={800} fontSize={14}>{campaign.title}</Typography>
+            <Typography variant="subtitle1">{campaign.title}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {score != null && (
-                <Typography fontWeight={900} fontSize={16} sx={{ color }}>{score}/10</Typography>
+                <Typography variant="h6" sx={{ color }}>{score}/10</Typography>
               )}
               <Chip label={label} size="small"
                 sx={{ bgcolor: color + '18', color, fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
@@ -108,7 +109,7 @@ export function Campaigns({ brandId }) {
           </Button>
         </Card>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
           {campaigns.map(c => (
             <CampaignCard
               key={c.id}

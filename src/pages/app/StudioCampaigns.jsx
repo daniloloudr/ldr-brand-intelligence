@@ -21,9 +21,10 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A'
-const AMBER = '#EF9F27'
+const TEAL = PALETTE.data.positivo
+const AMBER = PALETTE.data.atencao
 const STATUS_COR = { rascunho: 'text.disabled', gerando: AMBER, concluida: TEAL, aprovada: TEAL }
 const isVideo = u => /\.(mp4|webm|mov)(\?|$)/i.test(u || '')
 
@@ -120,7 +121,7 @@ export function StudioCampaigns({ brandId }) {
   if (sel) {
     const wfHash = sel.workflow_id ? `#/app/brands/${brandId}/studio/workflow/${sel.workflow_id}` : null
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+      <Box>
         <PageHeader title={sel.nome} subtitle="Campanha — o dossiê: brief, produção e peças"
           action={
             <Stack direction="row" spacing={1}>
@@ -129,7 +130,7 @@ export function StudioCampaigns({ brandId }) {
               {sel.status !== 'aprovada' && (
                 <Button variant="contained" disableElevation disabled={aprovando} onClick={aprovar}
                   startIcon={aprovando ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <CheckCircleOutlineIcon />}
-                  sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+                  sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
                   Aprovar campanha
                 </Button>
               )}
@@ -140,7 +141,7 @@ export function StudioCampaigns({ brandId }) {
             {/* Brief */}
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
               <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-                <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ letterSpacing: '0.08em' }}>BRIEF / CONCEITO</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>BRIEF / CONCEITO</Typography>
                 <Chip label={sel.status} size="small" sx={{ height: 20, fontSize: 10.5, fontWeight: 800, color: STATUS_COR[sel.status] || 'text.secondary' }} variant="outlined" />
                 <Box flex={1} />
                 {wfHash && (
@@ -150,9 +151,9 @@ export function StudioCampaigns({ brandId }) {
                   </Button>
                 )}
               </Stack>
-              <Typography fontSize={13.5} sx={{ lineHeight: 1.6 }}>{sel.conceito}</Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{sel.conceito}</Typography>
               {sel.status === 'aprovada' && (
-                <Typography fontSize={11.5} sx={{ mt: 1, color: TEAL, fontWeight: 700 }}>
+                <Typography variant="caption" sx={{ mt: 1, color: 'primary.main', fontWeight: 700 }}>
                   ✓ Aprovada — a decisão virou aprendizado para a marca
                 </Typography>
               )}
@@ -160,17 +161,17 @@ export function StudioCampaigns({ brandId }) {
 
             {/* Peças visuais */}
             <Box>
-              <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25} sx={{ letterSpacing: '0.08em' }}>
+              <Typography variant="caption" color="text.secondary" mb={1.25} sx={{ letterSpacing: '0.08em' }}>
                 PEÇAS VISUAIS · {gens.length}
               </Typography>
               {gens.length === 0 ? (
                 <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
-                  <Typography fontSize={13} color="text.secondary">
+                  <Typography variant="body2" color="text.secondary">
                     Nenhuma peça ainda — produza no <b>fluxo da campanha</b>: cada geração de lá nasce vinculada aqui.
                   </Typography>
                 </Paper>
               ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5px' }}>
                   {gens.map(g => (
                     <Paper key={g.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                       <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default' }}>
@@ -181,9 +182,9 @@ export function StudioCampaigns({ brandId }) {
                           : <Box component="img" src={g.image_url} alt="" loading="lazy" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                       </Box>
                       <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.5 }}>
-                        <Typography fontSize={11} fontWeight={700} sx={{ flex: 1 }}>{g.formato || 'peça'}</Typography>
-                        {g.feedback === 'up' && <Typography fontSize={11}>👍</Typography>}
-                        {g.feedback === 'down' && <Typography fontSize={11}>👎</Typography>}
+                        <Typography variant="caption" sx={{ flex: 1 }}>{g.formato || 'peça'}</Typography>
+                        {g.feedback === 'up' && <Typography variant="caption">👍</Typography>}
+                        {g.feedback === 'down' && <Typography variant="caption">👎</Typography>}
                         <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(g.image_url, `campanha-${(g.formato || 'peca').replace(':', 'x')}.png`)}>
                           <DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
                       </Stack>
@@ -196,7 +197,7 @@ export function StudioCampaigns({ brandId }) {
             {/* Peças escritas */}
             {textos.length > 0 && (
               <Box>
-                <Typography fontSize={11} fontWeight={800} color="text.secondary" mb={1.25} sx={{ letterSpacing: '0.08em' }}>
+                <Typography variant="caption" color="text.secondary" mb={1.25} sx={{ letterSpacing: '0.08em' }}>
                   PEÇAS ESCRITAS · {textos.length}
                 </Typography>
                 <Stack spacing={1}>
@@ -204,8 +205,8 @@ export function StudioCampaigns({ brandId }) {
                     <Paper key={t.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <ArticleOutlinedIcon sx={{ fontSize: 17, color: TEAL }} />
-                        <Typography fontSize={13} fontWeight={800} sx={{ flex: 1 }} noWrap>{t.titulo}</Typography>
-                        <Typography fontSize={11} color="text.disabled">{t.formato || ''}</Typography>
+                        <Typography variant="subtitle2" sx={{ flex: 1 }} noWrap>{t.titulo}</Typography>
+                        <Typography variant="caption" color="text.disabled">{t.formato || ''}</Typography>
                       </Stack>
                     </Paper>
                   ))}
@@ -220,22 +221,22 @@ export function StudioCampaigns({ brandId }) {
 
   // ── Lista de campanhas ──────────────────────────────────────────────
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Campanhas" subtitle="Um conceito, um dossiê — a produção acontece no fluxo da campanha"
         action={
           <Button variant="contained" disableElevation startIcon={<AddIcon />} onClick={() => setNovaOpen(true)}
-            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+            sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
             Nova campanha
           </Button>
         } />
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {campanhas === null ? (
-          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
         ) : campanhas.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
             <CampaignOutlinedIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
-            <Typography fontSize={14} fontWeight={900} mb={0.5}>Nenhuma campanha ainda</Typography>
-            <Typography fontSize={12.5} color="text.secondary">
+            <Typography variant="subtitle1" mb={0.5}>Nenhuma campanha ainda</Typography>
+            <Typography variant="body2" color="text.secondary">
               A campanha é o dossiê de um conceito: o brief, o fluxo de produção e as peças, juntos.
             </Typography>
           </Paper>
@@ -247,12 +248,12 @@ export function StudioCampaigns({ brandId }) {
                 <Stack direction="row" spacing={1.25} alignItems="center">
                   <CampaignOutlinedIcon sx={{ fontSize: 20, color: TEAL }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography fontSize={14} fontWeight={800} noWrap>{c.nome}</Typography>
-                    <Typography fontSize={12} color="text.secondary" noWrap>{(c.conceito || '').slice(0, 140)}</Typography>
+                    <Typography variant="subtitle1" noWrap>{c.nome}</Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap>{(c.conceito || '').slice(0, 140)}</Typography>
                   </Box>
                   <Chip label={c.status} size="small" variant="outlined"
                     sx={{ fontSize: 10.5, fontWeight: 800, color: STATUS_COR[c.status] || 'text.secondary' }} />
-                  <Typography fontSize={11} color="text.disabled" sx={{ flexShrink: 0 }}>
+                  <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
                     {new Date(c.created_at).toLocaleDateString('pt-BR')}
                   </Typography>
                 </Stack>
@@ -272,18 +273,18 @@ export function StudioCampaigns({ brandId }) {
             <TextField label="Conceito / brief" value={conceito} onChange={e => setConceito(e.target.value)}
               fullWidth multiline minRows={3} disabled={criando}
               placeholder="O que a campanha comunica, para quem, com que energia — o fluxo de produção nasce disso" />
-            <Typography fontSize={11.5} color="text.secondary">
+            <Typography variant="caption" color="text.secondary">
               Ao criar, a inteligência monta o <b>fluxo de produção</b> a partir do conceito e abre o canvas —
               cada peça gerada lá nasce vinculada a esta campanha.
             </Typography>
-            {msg && <Typography fontSize={12} color="error">{msg}</Typography>}
+            {msg && <Typography variant="caption" color="error">{msg}</Typography>}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setNovaOpen(false)} disabled={criando} sx={{ fontWeight: 700 }}>Cancelar</Button>
           <Button variant="contained" disableElevation onClick={criarCampanha} disabled={criando || !nome.trim() || !conceito.trim()}
             startIcon={criando ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+            sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
             {criando ? 'Montando o fluxo…' : 'Criar campanha'}
           </Button>
         </DialogActions>

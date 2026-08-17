@@ -1,3 +1,4 @@
+import { PALETTE } from './theme'
 // Templates de workflow prontos (catálogo embutido — não vivem no banco).
 // Cada um vira um NOVO workflow ao ser usado (clona nodes/edges).
 // Os tipos/data dos nós espelham o StudioCanvas: prompt, formato, generate,
@@ -140,8 +141,8 @@ export const WORKFLOW_TEMPLATES = _list
 
 // Cor por categoria — usada na miniatura dos cards (sem imagem).
 export const TEMPLATE_CAT_COLOR = {
-  Social: '#0D9E7A',
-  Advertising: '#E8185A',
-  Branding: '#7F77DD',
-  Mockup: '#EF9F27',
+  Social: PALETTE.data.positivo,
+  Advertising: PALETTE.data.critico,
+  Branding: PALETTE.data.neutro,
+  Mockup: PALETTE.data.atencao,
 }

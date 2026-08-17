@@ -20,6 +20,7 @@ import {
 } from '../../lib/credits'
 import { durLabel } from '../../lib/videoModels'
 import { PageHeader }     from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"]
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"]
@@ -43,7 +44,7 @@ function TabEmpresa({ workspace, reload }) {
   }
 
   return (
-    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
       {msg && <Alert severity="success" sx={{ borderRadius: 2 }}>{msg}</Alert>}
       <TextField fullWidth label="Nome da empresa *" value={form.nome} onChange={setF('nome')} required />
       <TextField fullWidth label="Domínio" value={form.dominio} onChange={setF('dominio')} placeholder="www.empresa.com.br" />
@@ -145,7 +146,7 @@ function TabEquipe({ workspace }) {
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {convMsg && <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setConvMsg('')}>{convMsg}</Alert>}
 
-      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: 1.5, mb: 3, maxWidth: 560 }}>
+      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: '1.5px', mb: 3, maxWidth: 560 }}>
         <TextField
           fullWidth size="small" label="E-mail do convidado"
           value={email} onChange={e => setEmail(e.target.value)} type="email"
@@ -181,11 +182,11 @@ function TabEquipe({ workspace }) {
                 membros.map(m => (
                   <TableRow key={m.id} hover>
                     <TableCell sx={{ fontSize: 13, fontWeight: 700 }}>
-                      {m.nome || <span style={{ color: '#8A9AB0' }}>—</span>}
+                      {m.nome || <Typography component="span" sx={{ color: PALETTE.neutral[400] }}>—</Typography>}
                       {m.is_self && <Chip label="você" size="small" sx={{ ml: 1, height: 16, fontSize: 9 }} />}
                     </TableCell>
                     <TableCell sx={{ fontSize: 13, color: 'text.secondary' }}>
-                      {m.email || <span style={{ color: '#8A9AB0' }}>—</span>}
+                      {m.email || <Typography component="span" sx={{ color: PALETTE.neutral[400] }}>—</Typography>}
                     </TableCell>
                     <TableCell sx={{ fontSize: 13 }}>
                       <Chip
@@ -205,13 +206,13 @@ function TabEquipe({ workspace }) {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title={m.is_self ? 'Não é possível remover você mesmo' : 'Remover'}>
-                        <span>
+                        <Typography component="span">
                           <IconButton size="small" disabled={m.is_self}
                             onClick={() => setConfirmDel(m)}
                             sx={{ color: 'error.main', '&.Mui-disabled': { color: 'action.disabled' } }}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
-                        </span>
+                        </Typography>
                       </Tooltip>
                     </TableCell>
                   </TableRow>
@@ -268,11 +269,11 @@ function CreditRow({ label, beneficio, creditos }) {
   return (
     <TableRow>
       <TableCell sx={{ py: 1 }}>
-        <Typography fontSize={13} fontWeight={700}>{label}</Typography>
-        {beneficio && <Typography fontSize={11} color="text.secondary">{beneficio}</Typography>}
+        <Typography variant="subtitle2">{label}</Typography>
+        {beneficio && <Typography variant="caption" color="text.secondary">{beneficio}</Typography>}
       </TableCell>
       <TableCell align="right" sx={{ py: 1, whiteSpace: 'nowrap' }}>
-        <Typography fontSize={13} fontWeight={800} sx={{ color: 'primary.main' }}>{creditos}</Typography>
+        <Typography variant="subtitle2" sx={{ color: 'primary.main' }}>{creditos}</Typography>
       </TableCell>
     </TableRow>
   )
@@ -319,22 +320,22 @@ function TabPlano({ workspace }) {
         <Typography variant="body2" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" mb={1}>
           Créditos do contrato
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
-          <Typography fontWeight={900} fontSize={28} sx={{ color: 'primary.main' }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '1.5px', flexWrap: 'wrap' }}>
+          <Typography variant="h4" sx={{ color: 'primary.main' }}>
             {cMes.toLocaleString('pt-BR')} créditos/mês
           </Typography>
-          <Typography fontSize={12} color="text.secondary">
+          <Typography variant="caption" color="text.secondary">
             créditos cobrem o custo de geração (1 crédito ≈ R$0,33 de insumo de IA, repassado sem margem)
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: '0.75px', flexWrap: 'wrap', mt: 1.5 }}>
           {planoAtual.studio && <Chip label="Studio" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
           <Chip label="Brand Intelligence · fair-use" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
           {planoAtual.social_listening && <Chip label="Social Listening" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
           <Chip label={`${planoAtual.membros === Infinity ? '∞' : planoAtual.membros} membros`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
           <Chip label={`${planoAtual.concorrentes} concorrentes`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
         </Box>
-        <Typography fontSize={11} color="text.secondary" mt={1.5}>
+        <Typography variant="caption" color="text.secondary" mt={1.5}>
           Diagnóstico, social listening e Brand Assistant não consomem crédito (fair-use).
         </Typography>
       </Paper>
@@ -345,17 +346,17 @@ function TabPlano({ workspace }) {
           <Typography variant="body2" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em">
             Saldo do ciclo
           </Typography>
-          {reset && <Typography fontSize={11} color="text.secondary">renova em {new Date(reset).toLocaleDateString('pt-BR')}</Typography>}
+          {reset && <Typography variant="caption" color="text.secondary">renova em {new Date(reset).toLocaleDateString('pt-BR')}</Typography>}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
-          <Typography fontWeight={900} fontSize={26} sx={{ color: saldoBaixo ? 'secondary.main' : 'primary.main' }}>
+          <Typography variant="h4" sx={{ color: saldoBaixo ? 'secondary.main' : 'primary.main' }}>
             {saldoAtual.toLocaleString('pt-BR')}
           </Typography>
-          <Typography fontSize={14} color="text.secondary">de {cMes.toLocaleString('pt-BR')} créditos</Typography>
+          <Typography variant="body1" color="text.secondary">de {cMes.toLocaleString('pt-BR')} créditos</Typography>
         </Box>
         <LinearProgress variant="determinate" value={saldoPct} color={saldoBaixo ? 'secondary' : 'primary'} sx={{ height: 6, borderRadius: 3, bgcolor: 'divider' }} />
         {saldoBaixo && (
-          <Typography fontSize={11} sx={{ color: 'secondary.main', mt: 1, fontWeight: 700 }}>
+          <Typography variant="caption" sx={{ color: 'secondary.main', mt: 1, fontWeight: 700 }}>
             Saldo baixo — fale com a LOUDR para ampliar os créditos do contrato.
           </Typography>
         )}
@@ -365,7 +366,7 @@ function TabPlano({ workspace }) {
       <Typography variant="body2" color="text.secondary" fontWeight={700} mb={0.5} textTransform="uppercase" letterSpacing="0.08em">
         Custo em créditos por modelo
       </Typography>
-      <Typography fontSize={12} color="text.secondary" mb={2}>
+      <Typography variant="caption" color="text.secondary" mb={2}>
         Modelos mais caros custam mais créditos — você escolhe o equilíbrio entre qualidade e custo.
       </Typography>
 
@@ -414,7 +415,7 @@ function TabPlano({ workspace }) {
         </TableBody>
       </Table>
 
-      <Typography fontSize={11} color="text.secondary" mb={4}>
+      <Typography variant="caption" color="text.secondary" mb={4}>
         <strong>Fair-use (0 crédito):</strong> Brand Intelligence — diagnóstico, social listening e Brand Assistant.
         Vídeos com áudio (Veo) e modelos premium consomem mais créditos por serem mais caros de gerar.
       </Typography>
@@ -426,7 +427,7 @@ function TabPlano({ workspace }) {
       {txs == null ? (
         <Box sx={{ py: 3, textAlign: 'center' }}><CircularProgress size={18} /></Box>
       ) : txs.length === 0 ? (
-        <Typography fontSize={13} color="text.secondary" sx={{ py: 2 }}>Nenhum consumo de crédito ainda.</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>Nenhum consumo de crédito ainda.</Typography>
       ) : (
         <Table size="small">
           <TableHead>
@@ -447,11 +448,11 @@ function TabPlano({ workspace }) {
                     {new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </TableCell>
                   <TableCell sx={{ py: 0.75 }}>
-                    <Typography fontSize={13} fontWeight={700}>{desc}</Typography>
-                    {t.modelo && t.modelo !== 'auto' && <Typography fontSize={10} color="text.secondary">{t.modelo}</Typography>}
+                    <Typography variant="subtitle2">{desc}</Typography>
+                    {t.modelo && t.modelo !== 'auto' && <Typography variant="caption" color="text.secondary">{t.modelo}</Typography>}
                   </TableCell>
                   <TableCell align="right" sx={{ py: 0.75, whiteSpace: 'nowrap' }}>
-                    <Typography fontSize={13} fontWeight={800} sx={{ color: pos ? 'primary.main' : 'text.primary' }}>
+                    <Typography variant="subtitle2" sx={{ color: pos ? 'primary.main' : 'text.primary' }}>
                       {pos ? '+' : ''}{t.delta}
                     </Typography>
                   </TableCell>
@@ -480,7 +481,7 @@ function TabAlertas({ workspace }) {
   }
 
   return (
-    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
       {msg && <Alert severity="success" sx={{ borderRadius: 2 }}>{msg}</Alert>}
       <TextField fullWidth select label="Frequência de alertas" value={config.frequencia}
         onChange={e => setConfig(c => ({ ...c, frequencia: e.target.value }))}>

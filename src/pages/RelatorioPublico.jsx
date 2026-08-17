@@ -10,18 +10,19 @@ import CircularProgress       from '@mui/material/CircularProgress'
 import { supabase }          from '../lib/supabase'
 import { themeLight }        from '../lib/theme'
 import { RelatorioCompleto } from '../components/RelatorioCompleto'
-import { GlobalStyle }       from '../components/GlobalStyle'
 import { PublicHeader }      from '../components/PublicHeader'
 import { PublicFooter }      from '../components/PublicFooter'
+import { PALETTE } from '../lib/theme'
+import Button from "@mui/material/Button";
 
 const CALENDLY = import.meta.env.VITE_CALENDLY_URL
-const NAV_BG   = '#08111F'
-const NAV_DIV  = '#1E3348'
+const NAV_BG   = PALETTE.neutral[950]
+const NAV_DIV  = PALETTE.neutral[800]
 
 function scoreHex(s) {
-  if (s >= 7) return '#0D9E7A'
-  if (s >= 5) return '#EF9F27'
-  return '#E8185A'
+  if (s >= 7) return PALETTE.data.positivo
+  if (s >= 5) return PALETTE.data.atencao
+  return PALETTE.data.critico
 }
 function scoreLabel(s) {
   if (s >= 7) return 'Sólido'
@@ -47,28 +48,26 @@ export function RelatorioPublico() {
   }, [id])
 
   if (loading) return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#F5F7F6', display: 'flex', flexDirection: 'column' }}>
-      <GlobalStyle />
+    <Box sx={{ minHeight: '100vh', bgcolor: PALETTE.neutral[25], display: 'flex', flexDirection: 'column' }}>
       <PublicHeader sticky />
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress sx={{ color: '#0D9E7A' }} size={32} />
+        <CircularProgress sx={{ color: PALETTE.data.positivo }} size={32} />
       </Box>
     </Box>
   )
 
   if (error) return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#F5F7F6', display: 'flex', flexDirection: 'column' }}>
-      <GlobalStyle />
+    <Box sx={{ minHeight: '100vh', bgcolor: PALETTE.neutral[25], display: 'flex', flexDirection: 'column' }}>
       <PublicHeader sticky />
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
         <Box sx={{ textAlign: 'center', maxWidth: 360 }}>
-          <Box sx={{ width: 52, height: 52, borderRadius: '50%', background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 20, color: '#E8185A' }}>
+          <Box sx={{ width: 52, height: 52, borderRadius: '50%', background: PALETTE.neutral[0], display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 20, color: PALETTE.data.critico }}>
             ✕
           </Box>
-          <Box sx={{ fontSize: 18, fontWeight: 900, color: '#0D1B2A', mb: 1.25, fontFamily: "'Cairo', sans-serif" }}>
+          <Box sx={{ fontSize: 18, fontWeight: 900, color: PALETTE.neutral[900], mb: 1.25, fontFamily: "'Cairo', sans-serif" }}>
             Relatório não encontrado
           </Box>
-          <Box sx={{ fontSize: 13, color: '#8A9AB0', lineHeight: 1.7, fontFamily: "'Cairo', sans-serif" }}>{error}</Box>
+          <Box sx={{ fontSize: 13, color: PALETTE.neutral[400], lineHeight: 1.7, fontFamily: "'Cairo', sans-serif" }}>{error}</Box>
         </Box>
       </Box>
     </Box>
@@ -84,46 +83,35 @@ export function RelatorioPublico() {
 
   return (
     <ThemeProvider theme={themeLight}>
-      <GlobalStyle />
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <PublicHeader sticky>
           {CALENDLY && (
             <a
               href={CALENDLY} target="_blank" rel="noopener noreferrer"
-              style={{
-                background: '#0D9E7A', border: 'none',
-                padding: '10px 20px', fontSize: 10, fontWeight: 800,
-                letterSpacing: '0.14em', textTransform: 'uppercase',
-                color: '#fff', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+              sx={{
                 textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
               }}
             >
               Agendar apresentação →
             </a>
           )}
-          <button
-            style={{
-              background: 'none', border: `1px solid ${NAV_DIV}`,
-              padding: '10px 20px', fontSize: 10, fontWeight: 800,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: '#7A8899', cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
-            }}
+          <Button variant="outlined" size="small"
             onClick={() => { navigate('#/register') }}
           >
             Criar conta →
-          </button>
+          </Button>
         </PublicHeader>
 
         {/* ── Hero band ─────────────────────────────────────── */}
         <Box sx={{ bgcolor: NAV_BG, px: { xs: '24px', md: '52px' }, py: { xs: '48px', md: '60px' } }}>
           <Box>
-            <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#0D9E7A', mb: 1.5, fontFamily: "'Cairo', sans-serif" }}>
-              — Diagnóstico de Marca · LOUDR
+            <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.22em', textTransform: 'uppercase', color: PALETTE.data.positivo, mb: 1.5, fontFamily: "'Cairo', sans-serif" }}>
+              — Diagnóstico de Marca · BR4NDCODE
             </Typography>
             <Typography sx={{ fontSize: 'clamp(32px, 4vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', color: '#fff', lineHeight: 1, mb: 1, fontFamily: "'Cairo', sans-serif" }}>
               {data.empresa}
             </Typography>
-            <Typography sx={{ fontSize: 13, color: '#7A8899', mb: 4, fontFamily: "'Cairo', sans-serif" }}>
+            <Typography sx={{ fontSize: 13, color: PALETTE.neutral[400], mb: 4, fontFamily: "'Cairo', sans-serif" }}>
               {[data.setor, data.porte, data.dominio].filter(Boolean).join(' · ')}
             </Typography>
 
@@ -135,24 +123,24 @@ export function RelatorioPublico() {
                 const pct = Math.round(((val ?? 0) / 10) * 100)
                 return (
                   <Box key={s.key} sx={{ minWidth: 140 }}>
-                    <Typography sx={{ fontSize: 10, fontWeight: 700, color: '#3D4E60', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 0.75, fontFamily: "'Cairo', sans-serif" }}>
+                    <Typography sx={{ fontSize: 10, fontWeight: 700, color: PALETTE.neutral[600], textTransform: 'uppercase', letterSpacing: '0.14em', mb: 0.75, fontFamily: "'Cairo', sans-serif" }}>
                       {s.label}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '0.5px', mb: 0.5 }}>
                       <Typography sx={{ fontSize: 'clamp(36px, 3vw, 48px)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em', color: hex, fontFamily: "'Cairo', sans-serif" }}>
                         {val ?? '—'}
                       </Typography>
-                      <Typography sx={{ fontSize: 14, color: '#3D4E60', fontFamily: "'Cairo', sans-serif" }}>/10</Typography>
+                      <Typography sx={{ fontSize: 14, color: PALETTE.neutral[600], fontFamily: "'Cairo', sans-serif" }}>/10</Typography>
                     </Box>
                     <Chip
                       label={scoreLabel(val ?? 0)}
                       size="small"
-                      sx={{ bgcolor: hex + '18', color: hex, fontWeight: 700, fontSize: '0.6rem', height: 18, mb: 1, borderRadius: '4px' }}
+                      sx={{ bgcolor: hex + '18', color: hex, fontWeight: 700, fontSize: '0.6rem', height: 18, mb: 1, }}
                     />
                     <LinearProgress
                       variant="determinate"
                       value={pct}
-                      sx={{ height: 2, bgcolor: '#1E3348', '& .MuiLinearProgress-bar': { bgcolor: hex } }}
+                      sx={{ height: 2, bgcolor: PALETTE.neutral[800], '& .MuiLinearProgress-bar': { bgcolor: hex } }}
                     />
                   </Box>
                 )
@@ -160,8 +148,8 @@ export function RelatorioPublico() {
             </Box>
 
             {data.frase_diagnostico && (
-              <Box sx={{ pl: 2, borderLeft: '3px solid #0D9E7A', maxWidth: 600 }}>
-                <Typography sx={{ fontSize: 15, fontStyle: 'italic', color: '#B0BACB', lineHeight: 1.7, fontFamily: "'Cairo', sans-serif" }}>
+              <Box sx={{ pl: 2, borderLeft: `3px solid ${PALETTE.data.positivo}`, maxWidth: 600 }}>
+                <Typography sx={{ fontSize: 15, fontStyle: 'italic', color: PALETTE.neutral[300], lineHeight: 1.7, fontFamily: "'Cairo', sans-serif" }}>
                   "{data.frase_diagnostico}"
                 </Typography>
               </Box>

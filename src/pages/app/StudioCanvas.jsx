@@ -39,6 +39,7 @@ import { CreditBadge } from '../../components/CreditBadge'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel } from '../../lib/studioModels'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
+import { PALETTE } from '../../lib/theme'
 import {
   nodeTypes, PURPLE, TEAL, GRAY, CORAL, INDIGO, AMBER,
   fmtElapsed, imgUrls, toUrls, sizeFor, PRODUCES_IMAGE, NODE_TEMPLATES, MAX_REF, isVideoUrl,
@@ -783,7 +784,7 @@ export function StudioCanvas({ brandId, workflowId }) {
   saveRef.current = save
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <PageHeader
         title={
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -792,14 +793,14 @@ export function StudioCanvas({ brandId, workflowId }) {
                 variant="standard" placeholder="Nome do workflow" InputProps={{ disableUnderline: true }}
                 sx={{ minWidth: 200, maxWidth: 460, '& input': { fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', py: 0 } }} />
             </Tooltip>
-            {dirty && <Tooltip title="Alterações não salvas"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#EF9F27', flexShrink: 0 }} /></Tooltip>}
+            {dirty && <Tooltip title="Alterações não salvas"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PALETTE.data.atencao, flexShrink: 0 }} /></Tooltip>}
           </Stack>
         }
         subtitle="Studio · Workflow"
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             {running && (
-              <Typography sx={{ fontSize: 12, color: elapsed >= 90 ? '#EF9F27' : 'text.secondary' }}>
+              <Typography sx={{ fontSize: 12, color: elapsed >= 90 ? PALETTE.data.atencao : 'text.secondary' }}>
                 {fmtElapsed(elapsed)}{elapsed >= 90 ? ' · modelos lentos podem levar alguns min' : ''}
               </Typography>
             )}
@@ -808,7 +809,7 @@ export function StudioCanvas({ brandId, workflowId }) {
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
             <Button size="small" variant="contained" disabled={running} onClick={() => run()}
               startIcon={running ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, minWidth: 104 }}>
+              sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, minWidth: 104 }}>
               {running ? (progress.total ? `Gerando… ${progress.done}/${progress.total}` : 'Gerando…') : 'Gerar'}
             </Button>
           </Stack>
@@ -816,9 +817,9 @@ export function StudioCanvas({ brandId, workflowId }) {
       />
       <Box ref={flowWrapRef} sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {/* Rail vertical de ações do workflow */}
-        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 3 }}>
+        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25px', p: 0.5, borderRadius: 3 }}>
           <Tooltip title="Adicionar nó" placement="right">
-            <IconButton onClick={e => setAddAnchor(e.currentTarget)} sx={{ bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' }, mb: 0.25 }}>
+            <IconButton onClick={e => setAddAnchor(e.currentTarget)} sx={{ bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, mb: 0.25 }}>
               <AddIcon />
             </IconButton>
           </Tooltip>
@@ -828,12 +829,12 @@ export function StudioCanvas({ brandId, workflowId }) {
           <Tooltip title="Gerar" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'generate'))}><AutoFixHighOutlinedIcon sx={{ fontSize: 19, color: TEAL }} /></IconButton></Tooltip>
           <Tooltip title="Vídeo" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'videoGen'))}><MovieOutlinedIcon sx={{ fontSize: 19, color: INDIGO }} /></IconButton></Tooltip>
           <Tooltip title="Imagem (upload)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'imageInput'))}><ImageOutlinedIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
-          <Tooltip title="Nota (sticky)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'note'))}><StickyNote2OutlinedIcon sx={{ fontSize: 19, color: '#E0B33A' }} /></IconButton></Tooltip>
+          <Tooltip title="Nota (sticky)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'note'))}><StickyNote2OutlinedIcon sx={{ fontSize: 19, color: PALETTE.data.atencao }} /></IconButton></Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
           <Tooltip title="Rodar tudo" placement="right">
-            <span><IconButton size="small" onClick={() => run()} disabled={running}>
-              {running ? <CircularProgress size={18} sx={{ color: TEAL }} /> : <PlayArrowIcon sx={{ fontSize: 21, color: TEAL }} />}
-            </IconButton></span>
+            <Typography component="span"><IconButton size="small" onClick={() => run()} disabled={running}>
+              {running ? <CircularProgress size={18} sx={{ color: 'primary.main' }} /> : <PlayArrowIcon sx={{ fontSize: 21, color: TEAL }} />}
+            </IconButton></Typography>
           </Tooltip>
           <Tooltip title="Ajustar à tela" placement="right"><IconButton size="small" onClick={() => rfRef.current?.fitView({ padding: 0.2, duration: 300 })}><FitScreenIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
         </Paper>
@@ -843,7 +844,7 @@ export function StudioCanvas({ brandId, workflowId }) {
         </Menu>
         {/* Alinhar / distribuir / agrupar — aparece com 2+ nós selecionados */}
         {selectedTop.length >= 2 && (
-          <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, display: 'flex', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 2 }}>
+          <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, display: 'flex', alignItems: 'center', gap: '0.25px', p: 0.5, borderRadius: 2 }}>
             <Tooltip title="Alinhar à esquerda"><IconButton size="small" onClick={() => align('left')}><AlignHorizontalLeftIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
             <Tooltip title="Centralizar horizontal"><IconButton size="small" onClick={() => align('hcenter')}><AlignHorizontalCenterIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
             <Tooltip title="Alinhar à direita"><IconButton size="small" onClick={() => align('right')}><AlignHorizontalRightIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
@@ -852,8 +853,8 @@ export function StudioCanvas({ brandId, workflowId }) {
             <Tooltip title="Centralizar vertical"><IconButton size="small" onClick={() => align('vcenter')}><AlignVerticalCenterIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
             <Tooltip title="Alinhar à base"><IconButton size="small" onClick={() => align('bottom')}><AlignVerticalBottomIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
             <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
-            <Tooltip title="Distribuir horizontal (3+)"><span><IconButton size="small" disabled={selectedTop.length < 3} onClick={() => distribute('h')}><ViewWeekOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></span></Tooltip>
-            <Tooltip title="Distribuir vertical (3+)"><span><IconButton size="small" disabled={selectedTop.length < 3} onClick={() => distribute('v')}><ViewStreamOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></span></Tooltip>
+            <Tooltip title="Distribuir horizontal (3+)"><Typography component="span"><IconButton size="small" disabled={selectedTop.length < 3} onClick={() => distribute('h')}><ViewWeekOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></Typography></Tooltip>
+            <Tooltip title="Distribuir vertical (3+)"><Typography component="span"><IconButton size="small" disabled={selectedTop.length < 3} onClick={() => distribute('v')}><ViewStreamOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></Typography></Tooltip>
             <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
             <Tooltip title="Agrupar"><IconButton size="small" onClick={groupSelection}><GroupWorkOutlinedIcon sx={{ fontSize: 18, color: PURPLE }} /></IconButton></Tooltip>
           </Paper>
@@ -870,9 +871,9 @@ export function StudioCanvas({ brandId, workflowId }) {
           onConnectStart={onConnectStart} onConnectEnd={onConnectEnd} onInit={inst => { rfRef.current = inst }}
           fitView proOptions={{ hideAttribution: true }}
         >
-          <Background gap={16} color="#1E3550" />
+          <Background gap={16} color={PALETTE.neutral[100]} />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable nodeColor={() => PURPLE} style={{ background: '#162840' }} />
+          <MiniMap pannable zoomable nodeColor={() => PURPLE} style={{ background: PALETTE.neutral[800] }} />
         </ReactFlow>
       </Box>
 
@@ -898,7 +899,7 @@ export function StudioCanvas({ brandId, workflowId }) {
                   <IconButton onClick={() => stepLightbox(1)} sx={{ position: 'absolute', top: '50%', right: 12, transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,.6)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,.85)' } }}>
                     <ChevronRightIcon />
                   </IconButton>
-                  <Box sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', bgcolor: 'rgba(0,0,0,.6)', color: '#fff', px: 1.2, py: 0.3, borderRadius: 5, fontSize: 12, fontWeight: 700 }}>
+                  <Box sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', bgcolor: 'rgba(0,0,0,.6)', color: '#fff', px: 1.2, py: 0.3,  fontSize: 12, fontWeight: 700 }}>
                     {lightbox.index + 1} / {lightbox.list.length}
                   </Box>
                 </>

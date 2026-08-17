@@ -8,15 +8,18 @@
 // v3 (backlog): blocos se reordenando pelo perfil de uso.
 import { useState, useEffect } from 'react'
 import { navigate } from '../../lib/helpers';
-import { Box, Paper, Typography, Stack, CircularProgress, Chip, Button } from '@mui/material'
+import { Box, Typography, Stack, CircularProgress, Chip, Button, Card, CardActionArea,
+         CardContent, List, ListItem, ListItemButton, ListItemText, Alert, AlertTitle } from '@mui/material'
+import Grid from '@mui/material/Grid2'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A', AMBER = '#EF9F27', PURPLE = '#7F77DD'
+const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico, AMBER = PALETTE.data.atencao, PURPLE = PALETTE.data.neutro
 const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
 const scoreCor = s => (s >= 7 ? TEAL : s >= 4 ? AMBER : s != null ? CORAL : 'text.disabled')
 const rel = iso => {
@@ -108,7 +111,7 @@ export function Home() {
     return () => { on = false }
   }, [workspace?.id, d?.brandId])
 
-  if (!d) return <Stack alignItems="center" py={10}><CircularProgress size={24} sx={{ color: TEAL }} /></Stack>
+  if (!d) return <Stack alignItems="center" py={10}><CircularProgress size={24} sx={{ color: 'primary.main' }} /></Stack>
 
   const brandPath = d.brandId ? `#/app/brands/${d.brandId}` : null
   const concNome = Object.fromEntries(d.concs.map(c => [c.id, c.nome]))
@@ -160,131 +163,151 @@ export function Home() {
     { label: 'Biblioteca', hash: `${brandPath}/studio/biblioteca`, k: '#brand/studio/biblioteca' },
   ].sort((a, b) => (freq[b.k] || 0) - (freq[a.k] || 0)).slice(0, 6)
 
-  const Card = ({ children, hash, sx }) => (
-    <Paper variant="outlined" onClick={hash ? () => { navigate(hash) } : undefined}
-      sx={{ p: 2, borderRadius: 2, cursor: hash ? 'pointer' : 'default', '&:hover': hash ? { borderColor: TEAL } : {}, ...sx }}>
+  // Bloco de seção — Typography variant, sem tamanho na mão
+  const Secao = ({ titulo, children }) => (
+    <Box>
+      <Typography variant="overline" color="text.secondary" component="div" sx={{ mb: 1 }}>
+        {titulo}
+      </Typography>
       {children}
-    </Paper>
-  )
-  const Rotulo = ({ children }) => (
-    <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.disabled', mb: 1 }}>{children}</Typography>
+    </Box>
   )
 
+  // Card do pulso: CardActionArea quando é clicável (ripple e foco do MUI de graça)
+  const Metrica = ({ titulo, hash, children }) => {
+    const corpo = <CardContent>{children}</CardContent>
+    return (
+      <Card variant="outlined" sx={{ height: '100%' }}>
+        {hash ? <CardActionArea onClick={() => navigate(hash)} sx={{ height: '100%' }}>{corpo}</CardActionArea> : corpo}
+      </Card>
+    )
+  }
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title={d.brand?.nome || workspace?.nome || 'Início'}
         subtitle={d.diag ? `Último diagnóstico ${rel(d.diag.created_at)}` : ''} />
 
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
-        <Stack spacing={3}>
+      <Stack spacing={4} sx={{ maxWidth: 1100, width: '100%', mx: 'auto', mt: 3 }}>
 
-          {/* ── 1. PULSO ── */}
-          <Box>
-            <Rotulo>O pulso da marca</Rotulo>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-              <Card hash="#/app/reports">
-                <Typography fontSize={11} fontWeight={800} color="text.secondary">Diagnóstico</Typography>
+        {/* ── 1. PULSO ── */}
+        <Secao titulo="O pulso da marca">
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Metrica titulo="Diagnóstico" hash="#/app/reports">
+                <Typography variant="body2" color="text.secondary" gutterBottom>Diagnóstico</Typography>
                 {d.diag ? (
-                  <Stack direction="row" spacing={1.5} mt={0.5}>
+                  <Stack direction="row" spacing={2}>
                     {[['Sing', d.diag.score_singularidade], ['Cons', d.diag.score_consistencia], ['Pos', d.diag.score_posicionamento]].map(([l, sc]) => (
-                      <Box key={l}><Typography fontSize={22} fontWeight={900} sx={{ color: scoreCor(sc), lineHeight: 1 }}>{sc ?? '—'}</Typography>
-                        <Typography fontSize={9.5} color="text.disabled">{l}</Typography></Box>
+                      <Box key={l}>
+                        <Typography variant="h5" sx={{ color: scoreCor(sc), lineHeight: 1.2 }}>{sc ?? '—'}</Typography>
+                        <Typography variant="caption" color="text.secondary">{l}</Typography>
+                      </Box>
                     ))}
                   </Stack>
-                ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>sem diagnóstico ainda</Typography>}
-              </Card>
-              <Card hash="#/app/inteligencia">
-                <Typography fontSize={11} fontWeight={800} color="text.secondary">Inteligência</Typography>
+                ) : <Typography variant="body2" color="text.disabled">sem diagnóstico ainda</Typography>}
+              </Metrica>
+            </Grid>
+
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Metrica titulo="Inteligência" hash="#/app/inteligencia">
+                <Typography variant="body2" color="text.secondary" gutterBottom>Inteligência</Typography>
                 {d.intel ? (
                   <>
-                    <Typography fontSize={22} fontWeight={900} sx={{ color: PURPLE, lineHeight: 1.2 }}>
+                    <Typography variant="h5" sx={{ lineHeight: 1.2 }}>
                       v{d.intel.versao} · {pct(d.intel.confianca_media)}
                       {intelDelta != null && intelDelta !== 0 && (
-                        <Typography component="span" fontSize={12} fontWeight={800} sx={{ ml: 0.5, color: intelDelta > 0 ? TEAL : CORAL }}>
-                          {intelDelta > 0 ? '▲' : '▼'}{Math.abs(intelDelta)}</Typography>
+                        <Typography component="span" variant="body2" sx={{ ml: 0.5, color: intelDelta > 0 ? TEAL : CORAL }}>
+                          {intelDelta > 0 ? '▲' : '▼'}{Math.abs(intelDelta)}
+                        </Typography>
                       )}
                     </Typography>
-                    <Typography fontSize={9.5} color="text.disabled">confiança do aprendizado</Typography>
+                    <Typography variant="caption" color="text.secondary">confiança do aprendizado</Typography>
                   </>
-                ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>ainda formando</Typography>}
-              </Card>
-              <Card hash="#/app/listening">
-                <Typography fontSize={11} fontWeight={800} color="text.secondary">Sentimento</Typography>
+                ) : <Typography variant="body2" color="text.disabled">ainda formando</Typography>}
+              </Metrica>
+            </Grid>
+
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Metrica titulo="Sentimento" hash="#/app/listening">
+                <Typography variant="body2" color="text.secondary" gutterBottom>Sentimento</Typography>
                 {sentDom ? (
                   <>
-                    <Typography fontSize={22} fontWeight={900} sx={{ color: sentDom[2], lineHeight: 1.2 }}>{Math.round(sentDom[1])}%</Typography>
-                    <Typography fontSize={9.5} color="text.disabled">{sentDom[0]} domina</Typography>
+                    <Typography variant="h5" sx={{ color: sentDom[2], lineHeight: 1.2 }}>{Math.round(sentDom[1])}%</Typography>
+                    <Typography variant="caption" color="text.secondary">{sentDom[0]} domina</Typography>
                   </>
-                ) : <Typography fontSize={12.5} color="text.disabled" mt={1}>sem escuta ainda</Typography>}
-              </Card>
-              <Card hash="#/app/inteligencia">
-                <Typography fontSize={11} fontWeight={800} color="text.secondary">Evidências · 7 dias</Typography>
-                <Typography fontSize={22} fontWeight={900} sx={{ lineHeight: 1.2 }}>{d.evidSemana}</Typography>
-                <Typography fontSize={9.5} color="text.disabled">tudo que a marca vive vira aprendizado</Typography>
-              </Card>
-            </Box>
-          </Box>
+                ) : <Typography variant="body2" color="text.disabled">sem escuta ainda</Typography>}
+              </Metrica>
+            </Grid>
 
-          {/* ── 2. FEED ── */}
-          {feed.length > 0 && (
-            <Box>
-              <Rotulo>O que aconteceu</Rotulo>
-              <Stack spacing={1}>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Metrica titulo="Evidências" hash="#/app/inteligencia">
+                <Typography variant="body2" color="text.secondary" gutterBottom>Evidências · 7 dias</Typography>
+                <Typography variant="h5" sx={{ lineHeight: 1.2 }}>{d.evidSemana}</Typography>
+                <Typography variant="caption" color="text.secondary">tudo que a marca vive vira aprendizado</Typography>
+              </Metrica>
+            </Grid>
+          </Grid>
+        </Secao>
+
+        {/* ── 2. FEED ── */}
+        {feed.length > 0 && (
+          <Secao titulo="O que aconteceu">
+            <Card variant="outlined">
+              <List disablePadding>
                 {feed.slice(0, 6).map((f, i) => (
-                  <Card key={i} hash={f.hash} sx={{ py: 1.5 }}>
-                    <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Typography fontSize={16}>{f.e}</Typography>
-                      <Typography fontSize={13.5} sx={{ flex: 1, lineHeight: 1.5 }}>{f.t}</Typography>
-                      {f.q && <Typography fontSize={11} color="text.disabled" sx={{ flexShrink: 0 }}>{rel(f.q)}</Typography>}
-                    </Stack>
-                  </Card>
+                  <ListItemButton key={i} onClick={() => navigate(f.hash)} divider={i < Math.min(feed.length, 6) - 1}>
+                    <Typography component="span" sx={{ mr: 1.5 }}>{f.e}</Typography>
+                    <ListItemText primary={f.t} />
+                    {f.q && <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, ml: 2 }}>{rel(f.q)}</Typography>}
+                  </ListItemButton>
                 ))}
-              </Stack>
-            </Box>
-          )}
+              </List>
+            </Card>
+          </Secao>
+        )}
 
-          {/* ── 3. AGORA: recomendação + continuar + atalhos ── */}
-          <Box>
-            <Rotulo>E agora?</Rotulo>
-            <Stack spacing={1.5}>
-              {reco && (
-                <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid rgba(127,119,221,0.35)', bgcolor: 'rgba(127,119,221,0.06)' }}>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    {reco.origem === 'cerebro'
-                      ? <AutoAwesomeIcon sx={{ color: PURPLE, fontSize: 20 }} />
-                      : <TrendingUpIcon sx={{ color: PURPLE, fontSize: 20 }} />}
-                    <Typography fontSize={13.5} sx={{ flex: 1, lineHeight: 1.5 }}>{reco.t}</Typography>
-                    <Button size="small" endIcon={<ArrowForwardIcon sx={{ fontSize: '14px !important' }} />}
-                      onClick={() => { navigate(reco.hash) }}
-                      sx={{ fontWeight: 800, color: PURPLE, flexShrink: 0 }}>{reco.cta}</Button>
-                  </Stack>
-                </Paper>
+        {/* ── 3. AGORA ── */}
+        <Secao titulo="E agora?">
+          <Stack spacing={2}>
+            {reco && (
+              <Alert
+                severity="info"
+                icon={reco.origem === 'cerebro' ? <AutoAwesomeIcon /> : <TrendingUpIcon />}
+                action={
+                  <Button color="inherit" size="small" endIcon={<ArrowForwardIcon />}
+                    onClick={() => navigate(reco.hash)}>
+                    {reco.cta}
+                  </Button>
+                }
+              >
+                {reco.t}
+              </Alert>
+            )}
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {d.wf && (
+                <Chip color="primary" variant="outlined"
+                  label={`Continuar no fluxo "${(d.wf.nome || '').slice(0, 32)}"`}
+                  onClick={() => navigate(`#/app/brands/${d.wf.brand_id}/studio/workflow/${d.wf.id}`)} />
               )}
-
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {d.wf && (
-                  <Chip label={`Continuar no fluxo "${(d.wf.nome || '').slice(0, 32)}"`} onClick={() => { navigate(`#/app/brands/${d.wf.brand_id}/studio/workflow/${d.wf.id}`) }}
-                    sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
-                )}
-                {d.conv && brandPath && (
-                  <Chip label="Continuar conversa no Copiloto" onClick={() => { navigate(`${brandPath}/assistant`) }}
-                    sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
-                )}
-                {d.ultimaPeca && brandPath && (
-                  <Chip label={`Ver última peça criada (${rel(d.ultimaPeca.created_at)})`}
-                    onClick={() => { navigate(`${brandPath}/studio/biblioteca`) }}
-                    sx={{ fontWeight: 700, bgcolor: 'rgba(13,158,122,0.1)', color: TEAL }} />
-                )}
-                {atalhos.map(a => (
-                  <Chip key={a.label} label={a.label} variant="outlined" onClick={() => { navigate(a.hash) }}
-                    sx={{ fontWeight: 700 }} />
-                ))}
-              </Stack>
+              {d.conv && brandPath && (
+                <Chip color="primary" variant="outlined" label="Continuar conversa no Copiloto"
+                  onClick={() => navigate(`${brandPath}/assistant`)} />
+              )}
+              {d.ultimaPeca && brandPath && (
+                <Chip color="primary" variant="outlined"
+                  label={`Ver última peça criada (${rel(d.ultimaPeca.created_at)})`}
+                  onClick={() => navigate(`${brandPath}/studio/biblioteca`)} />
+              )}
+              {atalhos.map(a => (
+                <Chip key={a.label} label={a.label} variant="outlined" onClick={() => navigate(a.hash)} />
+              ))}
             </Stack>
-          </Box>
+          </Stack>
+        </Secao>
 
-        </Stack>
-      </Box>
+      </Stack>
     </Box>
   )
 }

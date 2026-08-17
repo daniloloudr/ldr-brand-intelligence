@@ -1,8 +1,13 @@
 import { useTheme } from "@mui/material/styles";
-import { DS, F } from "../lib/constants";
 import { sc, normalizeSector, navigate } from "../lib/helpers";
 import { Bar } from "../components/Bar";
-import { Tooltip } from "../components/Tooltip";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import Link from "@mui/material/Link";
+import Box from "@mui/material/Box";
+import { PALETTE } from '../lib/theme'
+import Button from "@mui/material/Button";
+import LinearProgress from "@mui/material/LinearProgress";
 
 const goToMetodologia = () => { navigate("#/metodologia"); };
 
@@ -15,24 +20,24 @@ const SCORE_TOOLTIPS = {
 
 /* ─── sub-components ─────────────────────────────────────────────── */
 
-function SectionTitle({ children, C }) {
+function SectionTitle({ children }) {
   return (
-    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: C.textDis, fontFamily: F, marginBottom: 12 }}>
+    <Box sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: 'text.disabled', marginBottom: '12px' }}>
       {children}
-    </div>
+    </Box>
   );
 }
 
-function PanelCard({ children, C, style = {} }) {
+function PanelCard({ children, style = {} }) {
   return (
-    <div style={{
-      background: C.paper, border: `1px solid ${C.border}`,
-      borderRadius: 10, padding: "18px 20px",
-      boxShadow: `0 1px 4px ${C.shadow}`,
+    <Box sx={{
+      background: 'background.paper', border: 1, borderColor: 'divider',
+       padding: "18px 20px",
+      boxShadow: `0 1px 4px transparent`,
       ...style,
     }}>
       {children}
-    </div>
+    </Box>
   );
 }
 
@@ -42,27 +47,6 @@ export function DashboardHistorico({ historico, onVerRelatorio, onVerTodos, onSe
   const muiTheme = useTheme();
   const isDark   = muiTheme.palette.mode === "dark";
 
-  const C = isDark ? {
-    bg:      "#0D1B2A",
-    paper:   "#162840",
-    border:  "#2A4A68",
-    text:    "#D8E4F0",
-    textSec: "#96AABF",
-    textDis: "#4D6070",
-    shadow:  "rgba(0,0,0,0.25)",
-    rowHover:"#1B3050",
-    divider: "#2A4A68",
-  } : {
-    bg:      "#F0F2F5",
-    paper:   "#FFFFFF",
-    border:  "#E2EBE8",
-    text:    "#0D1B2A",
-    textSec: "#4A5A6A",
-    textDis: "#8A9AB0",
-    shadow:  "rgba(0,0,0,0.04)",
-    rowHover:"#F5F7F6",
-    divider: "#E2EBE8",
-  };
 
   if (!historico.length) return null;
 
@@ -95,18 +79,20 @@ export function DashboardHistorico({ historico, onVerRelatorio, onVerTodos, onSe
   const setores = Object.entries(setorMap).sort((a, b) => b[1] - a[1]);
 
   const tierDefs = [
-    { label: "Referência",         range: "9–10", color: "#7F77DD", min: 9,   max: 10   },
-    { label: "Sólido",             range: "7–8",  color: DS.green,  min: 7,   max: 8.99 },
-    { label: "Em desenvolvimento", range: "4–6",  color: DS.amber,  min: 4,   max: 6.99 },
-    { label: "Crítico",            range: "1–3",  color: DS.pink,   min: 0,   max: 3.99 },
+    { label: "Referência",         range: "9–10", color: PALETTE.data.neutro, min: 9,   max: 10   },
+    { label: "Sólido",             range: "7–8",  color: PALETTE.data.positivo,  min: 7,   max: 8.99 },
+    { label: "Em desenvolvimento", range: "4–6",  color: PALETTE.data.atencao,  min: 4,   max: 6.99 },
+    { label: "Crítico",            range: "1–3",  color: PALETTE.data.critico,   min: 0,   max: 3.99 },
   ];
   const tiers = tierDefs.map(t => ({
     ...t,
     count: withAvg.filter(d => d.avgScore >= t.min && d.avgScore <= t.max).length,
   }));
+  // maior tier — base da proporção das barras
+  const maxTier = Math.max(...tiers.map(t => t.count), 0);
 
   const kpis = [
-    { label: "Marcas analisadas",    value: historico.length, suffix: "",     color: isDark ? DS.green : DS.navy,  bg: isDark ? DS.green + "18"   : DS.greenPale, key: null },
+    { label: "Marcas analisadas",    value: historico.length, suffix: "",     color: isDark ? PALETTE.data.positivo : PALETTE.neutral[900],  bg: isDark ? PALETTE.data.positivo + "18"   : PALETTE.data.positivoFraco, key: null },
     { label: "Média Singularidade",  value: avgSing,          suffix: "/10",  color: sc(avgSing  || 0), bg: sc(avgSing  || 0) + "18",  key: "singularidade" },
     { label: "Média Consistência",   value: avgCons,          suffix: "/10",  color: sc(avgCons  || 0), bg: sc(avgCons  || 0) + "18",  key: "consistencia" },
     { label: "Média Posicionamento", value: avgPos,           suffix: "/10",  color: sc(avgPos   || 0), bg: sc(avgPos   || 0) + "18",  key: "posicionamento" },
@@ -114,182 +100,184 @@ export function DashboardHistorico({ historico, onVerRelatorio, onVerTodos, onSe
   ];
 
   return (
-    <div>
+    <Box>
 
       {/* ── Row 1: KPI strip ─────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: '12px', marginBottom: '20px' }}>
         {kpis.map((k, i) => (
-          <PanelCard key={i} C={C} style={{ padding: "16px 18px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
-              <div>
-                <div style={{ fontSize: 26, fontWeight: 900, color: k.color, lineHeight: 1, fontFamily: F }}>
+          <PanelCard key={i}>
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: '6px' }}>
+              <Box>
+                <Box sx={{ fontSize: 26, fontWeight: 900, color: k.color, lineHeight: 1 }}>
                   {k.value ?? "—"}{k.value != null ? k.suffix : ""}
-                </div>
-                <div style={{ fontSize: 11, color: C.textDis, marginTop: 5, lineHeight: 1.3, fontFamily: F }}>{k.label}</div>
-              </div>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 16 }}>
+                </Box>
+                <Box sx={{ fontSize: 11, color: 'text.disabled', marginTop: '5px', lineHeight: 1.3 }}>{k.label}</Box>
+              </Box>
+              <Box sx={{ width: 36, height: 36,  background: k.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Typography component="span" sx={{ fontSize: 16 }}>
                   {i === 0 ? "📊" : i === 1 ? "⬡" : i === 2 ? "◈" : i === 3 ? "◎" : "✦"}
-                </span>
-              </div>
-            </div>
+                </Typography>
+              </Box>
+            </Box>
             {k.key && (
-              <div style={{ marginTop: 10 }}>
+              <Box sx={{ marginTop: '10px' }}>
                 <Bar score={k.value || 0} color={k.color} />
-              </div>
+              </Box>
             )}
           </PanelCard>
         ))}
-      </div>
+      </Box>
 
       {/* ── Row 2: Ranking + Maturidade/Setores ──────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 12, marginBottom: 20 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: '12px', marginBottom: '20px' }}>
 
         {/* Ranking */}
-        <PanelCard C={C}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <SectionTitle C={C}>Ranking das marcas · score médio</SectionTitle>
+        <PanelCard>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '16px' }}>
+            <SectionTitle>Ranking das marcas · score médio</SectionTitle>
             {withAvg.length > 10 && onVerTodos && (
-              <button onClick={onVerTodos}
-                style={{ fontSize: 11, color: DS.green, background: "none", border: "none", cursor: "pointer", fontFamily: F, fontWeight: 700 }}>
+              <Button variant="outlined" size="small" onClick={onVerTodos}>
                 Ver todos {withAvg.length} →
-              </button>
+              </Button>
             )}
-          </div>
-          <div>
+          </Box>
+          <Box>
             {withAvg.slice(0, 10).map((d, i) => (
-              <div key={d.id} onClick={() => onVerRelatorio && onVerRelatorio(d)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12, padding: "9px 0",
-                  borderBottom: i < Math.min(withAvg.length, 10) - 1 ? `1px solid ${C.divider}` : "none",
-                  cursor: "pointer", transition: "opacity 0.15s",
+              <Box key={d.id} onClick={() => onVerRelatorio && onVerRelatorio(d)}
+                sx={{
+                  display: "flex", alignItems: "center", gap: "12px", padding: "9px 0",
+                  borderBottom: i < Math.min(withAvg.length, 10) - 1 ? 1 : 0, borderColor: "divider",
+                  cursor: "pointer", "&:hover": { opacity: 0.65 },
                 }}
                 onMouseEnter={e => e.currentTarget.style.opacity = "0.65"}
                 onMouseLeave={e => e.currentTarget.style.opacity = "1"}
               >
-                <div style={{
+                <Box sx={{
                   width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                  background: i < 3 ? DS.green + "22" : C.border + "44",
-                  color: i < 3 ? DS.green : C.textDis,
+                  background: i < 3 ? PALETTE.data.positivo + "22" : 'divider' + "44",
+                  color: i < 3 ? PALETTE.data.positivo : 'text.disabled',
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 900, fontFamily: F,
+                  fontSize: 11, fontWeight: 900,
                 }}>
                   {i + 1}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: F }}>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary', whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {d.empresa}
-                  </div>
+                  </Box>
                   {(d.setor || d.porte) && (
-                    <div style={{ fontSize: 10, color: C.textDis, fontFamily: F }}>
+                    <Box sx={{ fontSize: 10, color: 'text.disabled' }}>
                       {[normalizeSector(d.setor), d.porte].filter(Boolean).join(" · ")}
-                    </div>
+                    </Box>
                   )}
-                </div>
-                <div style={{ minWidth: 110 }}>
+                </Box>
+                <Box sx={{ minWidth: 110 }}>
                   <Bar score={d.avgScore} color={sc(d.avgScore)} />
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 900, color: sc(d.avgScore), minWidth: 28, textAlign: "right", fontFamily: F }}>
+                </Box>
+                <Box sx={{ fontSize: 13, fontWeight: 900, color: sc(d.avgScore), minWidth: 28, textAlign: "right" }}>
                   {d.avgScore}
-                </div>
-              </div>
+                </Box>
+              </Box>
             ))}
-          </div>
+          </Box>
         </PanelCard>
 
         {/* Right column: Maturidade + Setores */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: '12px' }}>
 
           {/* Maturidade */}
-          <PanelCard C={C}>
-            <SectionTitle C={C}>Maturidade de marca</SectionTitle>
+          <PanelCard>
+            <SectionTitle>Maturidade de marca</SectionTitle>
             {tiers.map((t, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: i < tiers.length - 1 ? 12 : 0 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: t.color, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: F }}>{t.label}</span>
-                  <span style={{ fontSize: 10, color: C.textDis, marginLeft: 6, fontFamily: F }}>{t.range}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ height: 5, borderRadius: 3, background: t.count > 0 ? t.color : C.border, width: Math.max(t.count * 16, 4), transition: "width 0.6s ease" }} />
-                  <span style={{ fontSize: 13, fontWeight: 900, color: t.count > 0 ? t.color : C.textDis, minWidth: 18, textAlign: "right", fontFamily: F }}>
+              <Box key={i} sx={{ display: "flex", alignItems: "center", gap: '10px', marginBottom: i < tiers.length - 1 ? '12px' : '0px'}}>
+                <Box sx={{ width: 8, height: 8,  background: t.color, flexShrink: 0 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography component="span" sx={{ fontSize: 12, fontWeight: 700, color: 'text.primary' }}>{t.label}</Typography>
+                  <Typography component="span" sx={{ fontSize: 10, color: 'text.disabled', marginLeft: '6px' }}>{t.range}</Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: '8px' }}>
+                  {/* Proporcional ao maior tier — antes era count*16px, que passava de
+                      1400px quando um tier tinha muitas marcas e estourava a página. */}
+                  <LinearProgress variant="determinate"
+                    value={maxTier > 0 ? (t.count / maxTier) * 100 : 0}
+                    sx={{ width: 120, height: 5, '& .MuiLinearProgress-bar': { backgroundColor: t.color } }} />
+                  <Typography component="span" sx={{ fontSize: 13, fontWeight: 900, color: t.count > 0 ? t.color : 'text.disabled', minWidth: 18, textAlign: "right" }}>
                     {t.count}
-                  </span>
-                </div>
-              </div>
+                  </Typography>
+                </Box>
+              </Box>
             ))}
           </PanelCard>
 
           {/* Setores */}
           {setores.length > 0 && (
-            <PanelCard C={C}>
-              <SectionTitle C={C}>Setores analisados</SectionTitle>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <PanelCard>
+              <SectionTitle>Setores analisados</SectionTitle>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: '6px' }}>
                 {setores.map(([setor, count]) => (
-                  <button key={setor} onClick={() => onSetorClick && onSetorClick(setor)}
-                    style={{
-                      background: isDark ? DS.green + "18" : DS.greenPale,
-                      borderRadius: 6, padding: "5px 10px",
-                      display: "flex", alignItems: "center", gap: 6,
-                      border: `1px solid ${DS.green}33`,
+                  <Button variant="outlined" size="small" key={setor} onClick={() => onSetorClick && onSetorClick(setor)}
+                    sx={{
+                      display: "flex", alignItems: "center", gap: "6px",
                       cursor: onSetorClick ? "pointer" : "default",
                       transition: "opacity 0.15s",
                     }}
                     onMouseEnter={e => { if (onSetorClick) e.currentTarget.style.opacity = "0.75"; }}
                     onMouseLeave={e => e.currentTarget.style.opacity = "1"}
                   >
-                    <span style={{ fontSize: 12, color: DS.green, fontWeight: 600, fontFamily: F }}>{setor}</span>
-                    <span style={{ fontSize: 11, background: DS.green + "33", color: DS.green, borderRadius: 99, padding: "1px 6px", fontWeight: 700, fontFamily: F }}>{count}</span>
-                  </button>
+                    <Typography component="span" sx={{ fontSize: 12, color: PALETTE.data.positivo, fontWeight: 600 }}>{setor}</Typography>
+                    <Typography component="span" sx={{ fontSize: 11, background: PALETTE.data.positivo + "33", color: PALETTE.data.positivo,  padding: "1px 6px", fontWeight: 700 }}>{count}</Typography>
+                  </Button>
                 ))}
-              </div>
+              </Box>
             </PanelCard>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* ── Row 3: Score por dimensão ─────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: '12px' }}>
         {[
           { label: "Singularidade",  desc: "Diferenciação de marca",  val: avgSing, key: "singularidade" },
           { label: "Consistência",   desc: "Coerência de identidade", val: avgCons, key: "consistencia"  },
           { label: "Posicionamento", desc: "Clareza estratégica",     val: avgPos,  key: "posicionamento" },
         ].map(d => (
-          <PanelCard key={d.label} C={C}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: F }}>{d.label}</span>
-                  <Tooltip
-                    title={SCORE_TOOLTIPS[d.key].title}
-                    description={SCORE_TOOLTIPS[d.key].description}
-                    link={{ label: "Ver metodologia", onClick: goToMetodologia }}
-                  >
-                    <span style={{
+          <PanelCard key={d.label}>
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: '10px' }}>
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: '6px', marginBottom: '2px' }}>
+                  <Typography component="span" sx={{ fontSize: 13, fontWeight: 800, color: 'text.primary' }}>{d.label}</Typography>
+                  <Tooltip arrow placement="top" title={
+                    <Box sx={{ p: 0.5 }}>
+                      <Typography variant="subtitle2">{SCORE_TOOLTIPS[d.key].title}</Typography>
+                      <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>{SCORE_TOOLTIPS[d.key].description}</Typography>
+                      <Link component="button" variant="caption" onClick={goToMetodologia} sx={{ mt: 1 }}>Ver metodologia</Link>
+                    </Box>
+                  }>
+                    <Typography component="span" sx={{
                       width: 14, height: 14, borderRadius: "50%",
-                      background: C.border, color: C.textDis,
+                      background: 'divider', color: 'text.disabled',
                       fontSize: 9, fontWeight: 700,
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      cursor: "default", fontFamily: F,
-                    }}>?</span>
+                      cursor: "default",
+                    }}>?</Typography>
                   </Tooltip>
-                </div>
-                <div style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>{d.desc}</div>
-              </div>
+                </Box>
+                <Box sx={{ fontSize: 11, color: 'text.disabled' }}>{d.desc}</Box>
+              </Box>
               {d.val != null && (
-                <div style={{ fontSize: 28, fontWeight: 900, color: sc(d.val), lineHeight: 1, fontFamily: F }}>
+                <Box sx={{ fontSize: 28, fontWeight: 900, color: sc(d.val), lineHeight: 1 }}>
                   {d.val}
-                </div>
+                </Box>
               )}
-            </div>
+            </Box>
             {d.val != null
               ? <Bar score={d.val} color={sc(d.val)} />
-              : <div style={{ fontSize: 12, color: C.textDis, fontFamily: F }}>—</div>
+              : <Box sx={{ fontSize: 12, color: 'text.disabled' }}>—</Box>
             }
           </PanelCard>
         ))}
-      </div>
+      </Box>
 
-    </div>
+    </Box>
   );
 }

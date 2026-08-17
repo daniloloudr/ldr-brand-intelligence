@@ -11,8 +11,9 @@ import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { WORKFLOW_TEMPLATES, TEMPLATE_CAT_COLOR } from '../../lib/studioWorkflowTemplates'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A'
+const TEAL = PALETTE.data.positivo
 
 function relativeTime(iso) {
   if (!iso) return ''
@@ -143,7 +144,7 @@ export function StudioWorkflows({ brandId }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           backgroundImage: wf.thumbnail_url ? `url(${wf.thumbnail_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center',
         }}>
-          {tpl && <Chip label="Template" size="small" sx={{ position: 'absolute', top: 6, left: 6, height: 18, fontSize: 9, fontWeight: 800, bgcolor: TEAL, color: '#fff' }} />}
+          {tpl && <Chip label="Template" size="small" sx={{ position: 'absolute', top: 6, left: 6, height: 18, fontSize: 9, fontWeight: 800, bgcolor: 'primary.main', color: '#fff' }} />}
           {!wf.thumbnail_url && <AccountTreeOutlinedIcon sx={{ fontSize: 32, color: 'text.disabled' }} />}
         </Box>
         <Box sx={{ px: 1.5, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -160,13 +161,13 @@ export function StudioWorkflows({ brandId }) {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader
         title="Fluxos"
         subtitle="Pipelines nodais de geração — construa em pedaços"
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={novo}
-            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+            sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
             Novo workflow
           </Button>
         }
@@ -196,15 +197,15 @@ export function StudioWorkflows({ brandId }) {
                   fullWidth size="small" multiline maxRows={3} sx={{ '& .MuiInputBase-input': { fontSize: 13 } }} />
                 <Button variant="contained" onClick={criarPorPrompt} disabled={building || !iaPrompt.trim()}
                   startIcon={building ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-                  sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   {building ? 'Montando…' : 'Criar com IA'}
                 </Button>
               </Stack>
-              {iaMsg && <Typography sx={{ fontSize: 12, color: '#E8185A', mt: 1 }}>{iaMsg}</Typography>}
+              {iaMsg && <Typography sx={{ fontSize: 12, color: PALETTE.data.critico, mt: 1 }}>{iaMsg}</Typography>}
             </Paper>
 
             {loading ? (
-              <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+              <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
             ) : regulares.length === 0 ? (
               <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
                 <AccountTreeOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
@@ -212,7 +213,7 @@ export function StudioWorkflows({ brandId }) {
                 <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 380 }}>
                   Crie um fluxo do zero, por prompt, ou comece de um template na aba ao lado.
                 </Typography>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={novo} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800, mt: 1 }}>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={novo} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800, mt: 1 }}>
                   Novo workflow
                 </Button>
               </Stack>
@@ -233,10 +234,10 @@ export function StudioWorkflows({ brandId }) {
                 <Typography sx={{ fontSize: 11.5, color: 'text.disabled' }}>qualquer fluxo vira template pelo menu ⋮ → "Salvar como template"</Typography>
               </Stack>
               {loading ? (
-                <Stack alignItems="center" sx={{ py: 4 }}><CircularProgress size={20} sx={{ color: TEAL }} /></Stack>
+                <Stack alignItems="center" sx={{ py: 4 }}><CircularProgress size={20} sx={{ color: 'primary.main' }} /></Stack>
               ) : templates.length === 0 ? (
                 <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
-                  <Typography fontSize={13} color="text.secondary">
+                  <Typography variant="body2" color="text.secondary">
                     Você ainda não salvou templates. Monte um fluxo que funcionou e salve — sua coleção evolui com o uso.
                   </Typography>
                 </Paper>
@@ -247,9 +248,9 @@ export function StudioWorkflows({ brandId }) {
               )}
             </Box>
 
-            {/* Galeria brandcode (catálogo embutido — ponto de partida) */}
+            {/* Galeria BR4NDCODE (catálogo embutido — ponto de partida) */}
             <Box>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Galeria brandcode</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 1 }}>Galeria BR4NDCODE</Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
                 {WORKFLOW_TEMPLATES.map(t => {
                   const cor = TEMPLATE_CAT_COLOR[t.categoria] || TEAL
@@ -275,12 +276,12 @@ export function StudioWorkflows({ brandId }) {
       </Box>
 
       <Menu anchorEl={menu?.anchor} open={!!menu} onClose={() => setMenu(null)}>
-        {menu?.wf?.is_template && <MenuItem onClick={() => usarTemplate(menu.wf)} sx={{ fontSize: 13, fontWeight: 700, color: TEAL }}>Usar template</MenuItem>}
+        {menu?.wf?.is_template && <MenuItem onClick={() => usarTemplate(menu.wf)} sx={{ fontSize: 13, fontWeight: 700, color: 'primary.main' }}>Usar template</MenuItem>}
         <MenuItem onClick={() => { setMenu(null); abrir(menu.wf) }} sx={{ fontSize: 13 }}>Abrir</MenuItem>
         <MenuItem onClick={() => renomear(menu.wf)} sx={{ fontSize: 13 }}>Renomear</MenuItem>
         <MenuItem onClick={() => duplicar(menu.wf)} sx={{ fontSize: 13 }}>Duplicar</MenuItem>
         <MenuItem onClick={() => toggleTemplate(menu.wf)} sx={{ fontSize: 13 }}>{menu?.wf?.is_template ? 'Remover dos templates' : 'Salvar como template'}</MenuItem>
-        <MenuItem onClick={() => excluir(menu.wf)} sx={{ fontSize: 13, color: '#E8185A' }}>Excluir</MenuItem>
+        <MenuItem onClick={() => excluir(menu.wf)} sx={{ fontSize: 13, color: PALETTE.data.critico }}>Excluir</MenuItem>
       </Menu>
     </Box>
   )

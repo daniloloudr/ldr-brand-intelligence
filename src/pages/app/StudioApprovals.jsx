@@ -8,8 +8,9 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A'
+const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico
 
 export function StudioApprovals({ brandId }) {
   const [pecas, setPecas] = useState(null)
@@ -56,31 +57,31 @@ export function StudioApprovals({ brandId }) {
   const vazio = pecas !== null && pecas.length === 0 && camps.length === 0
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Aprovações" subtitle="Tudo que espera o seu julgamento — cada aprovação ensina a marca" />
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {pecas === null ? (
-          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
         ) : vazio ? (
           <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
             <CheckCircleOutlineIcon sx={{ fontSize: 36, color: TEAL, mb: 1 }} />
-            <Typography fontWeight={900} fontSize={16}>Fila zerada</Typography>
-            <Typography fontSize={13} color="text.secondary">Nenhuma peça ou campanha aguardando aprovação. Cada julgamento feito aqui vira aprendizado da marca.</Typography>
+            <Typography variant="h6">Fila zerada</Typography>
+            <Typography variant="body2" color="text.secondary">Nenhuma peça ou campanha aguardando aprovação. Cada julgamento feito aqui vira aprendizado da marca.</Typography>
           </Paper>
         ) : (
           <Stack spacing={3}>
             {camps.length > 0 && (
               <Box>
-                <Typography fontSize={13} fontWeight={800} mb={1.5}>Campanhas concluídas — aguardando aprovação ({camps.length})</Typography>
+                <Typography variant="subtitle2" mb={1.5}>Campanhas concluídas — aguardando aprovação ({camps.length})</Typography>
                 <Stack spacing={1.5}>
                   {camps.map(c => (
                     <Paper key={c.id} variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={800} fontSize={14}>{c.nome}</Typography>
-                        {c.conceito && <Typography fontSize={12.5} color="text.secondary" noWrap>{c.conceito}</Typography>}
+                        <Typography variant="subtitle1">{c.nome}</Typography>
+                        {c.conceito && <Typography variant="body2" color="text.secondary" noWrap>{c.conceito}</Typography>}
                       </Box>
                       <Button size="small" variant="contained" disabled={acting[c.id]} onClick={() => aprovarCampanha(c)}
-                        sx={{ fontWeight: 800, bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>
+                        sx={{ fontWeight: 800, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}>
                         {acting[c.id] ? 'Aprovando…' : 'Aprovar campanha'}
                       </Button>
                     </Paper>
@@ -91,8 +92,8 @@ export function StudioApprovals({ brandId }) {
 
             {pecas.length > 0 && (
               <Box>
-                <Typography fontSize={13} fontWeight={800} mb={1.5}>Peças sem julgamento ({pecas.length})</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
+                <Typography variant="subtitle2" mb={1.5}>Peças sem julgamento ({pecas.length})</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5px' }}>
                   {pecas.map(p => (
                     <Paper key={p.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                       <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default' }}>
@@ -107,12 +108,12 @@ export function StudioApprovals({ brandId }) {
                         <Chip label={p.formato || p.media_type} size="small" sx={{ fontSize: 10, fontWeight: 700, height: 18 }} />
                         <Box flex={1} />
                         <Tooltip title="Aprovar — ensina o que funciona">
-                          <span><IconButton size="small" disabled={acting[p.id]} onClick={() => votar(p, 'up')}>
-                            <ThumbUpOutlinedIcon sx={{ fontSize: 17, color: TEAL }} /></IconButton></span>
+                          <Typography component="span"><IconButton size="small" disabled={acting[p.id]} onClick={() => votar(p, 'up')}>
+                            <ThumbUpOutlinedIcon sx={{ fontSize: 17, color: TEAL }} /></IconButton></Typography>
                         </Tooltip>
                         <Tooltip title="Reprovar — ensina o que evitar">
-                          <span><IconButton size="small" disabled={acting[p.id]} onClick={() => votar(p, 'down')}>
-                            <ThumbDownOutlinedIcon sx={{ fontSize: 17, color: CORAL }} /></IconButton></span>
+                          <Typography component="span"><IconButton size="small" disabled={acting[p.id]} onClick={() => votar(p, 'down')}>
+                            <ThumbDownOutlinedIcon sx={{ fontSize: 17, color: CORAL }} /></IconButton></Typography>
                         </Tooltip>
                       </Stack>
                     </Paper>

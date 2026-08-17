@@ -24,8 +24,9 @@ import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL } from '../../lib/studioModels'
 import { creditsForImage, creditsForVideo } from '../../lib/credits'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
+import { PALETTE } from '../../lib/theme'
 
-const PURPLE = '#7F77DD', TEAL = '#0D9E7A', GRAY = '#8A9AB0', CORAL = '#E8185A', INDIGO = '#6C4BE0', AMBER = '#E0B33A'
+const PURPLE = PALETTE.data.neutro, TEAL = PALETTE.data.positivo, GRAY = PALETTE.neutral[400], CORAL = PALETTE.data.critico, INDIGO = PALETTE.neutral[500], AMBER = PALETTE.data.atencao
 const isVideoUrl = u => /\.(mp4|webm|mov)(\?|$)/i.test(u || '')
 const FORMATOS = [
   { v: '1:1',  label: 'Feed 1:1' },
@@ -44,13 +45,13 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
   return (
     <Paper elevation={0} sx={{
       width: '100%', height: '100%', minWidth: 160, minHeight: 100, boxSizing: 'border-box', border: '1px solid', borderColor: 'divider',
-      borderTop: `3px solid ${color}`, borderRadius: '5px', bgcolor: 'background.paper', overflow: 'hidden',
+      borderTop: `3px solid ${color}`,  bgcolor: 'background.paper', overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
       <NodeResizer color={color} isVisible={selected} minWidth={160} minHeight={100} onResizeEnd={() => onResize?.()} />
       {(onDelete || onDuplicate || onRun || onRegen) && (
         <NodeToolbar position={Position.Top} offset={6}>
-          <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
+          <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: '0.25px', p: 0.25, borderRadius: 1.5 }}>
             {onRun && <Tooltip title="Rodar este + jusante"><IconButton size="small" onClick={() => onRun(id)}><PlayArrowIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton></Tooltip>}
             {onRegen && <Tooltip title="Regerar só este (usa o que já veio antes)"><IconButton size="small" onClick={e => regenMenu ? setRegenAnchor(e.currentTarget) : onRegen(id)}><ReplayIcon sx={{ fontSize: 15, color: TEAL }} /></IconButton></Tooltip>}
             {regenMenu && (
@@ -102,7 +103,7 @@ const PromptNode = memo(({ id, data, selected }) => (
         <Button size="small" disabled={data.improving || !(data.text || '').trim()}
           startIcon={data.improving ? <CircularProgress size={11} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 14 }} />}
           onClick={() => data.onImprove?.(id)}
-          sx={{ fontSize: 10, fontWeight: 700, color: TEAL, minWidth: 0, py: 0 }}>
+          sx={{ fontSize: 10, fontWeight: 700, color: 'primary.main', minWidth: 0, py: 0 }}>
           {data.improving ? 'Melhorando…' : 'Melhorar'}
         </Button>
       </Stack>
@@ -163,8 +164,8 @@ const GenerateNode = memo(({ id, data, selected }) => (
       <Typography sx={{ fontSize: 9.5, color: 'text.disabled' }}>
         {(() => { const c = creditsForImage((data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL); return `${c} crédito${c > 1 ? 's' : ''} por geração` })()}
       </Typography>
-      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
-      {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>✓ concluído</Typography>}
+      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: 'primary.main' }} /><Typography sx={{ fontSize: 10, color: 'primary.main' }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
+      {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: 'primary.main', fontWeight: 700 }}>✓ concluído</Typography>}
       {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
     </Stack>
   </NodeShell>
@@ -192,16 +193,16 @@ const PreviewNode = memo(({ id, data, selected }) => (
             </IconButton>
           </Tooltip>
           <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
-            <span>
+            <Typography component="span">
               <IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, data)}>
                 <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
               </IconButton>
-            </span>
+            </Typography>
           </Tooltip>
         </Stack>
       </>
     ) : (
-      <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: '0.75px', alignItems: 'center', justifyContent: 'center' }}>
         {data.loading
           ? <><CircularProgress size={20} sx={{ color: CORAL }} /><Typography sx={{ fontSize: 10, color: CORAL, fontWeight: 700 }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></>
           : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>}
@@ -231,9 +232,9 @@ const AppNode = memo(({ id, data, selected }) => (
             <Box sx={{ flex: 1 }} />
             <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}><DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
             <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
-              <span><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, formato: data.op })}>
+              <Typography component="span"><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, formato: data.op })}>
                 <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
-              </IconButton></span>
+              </IconButton></Typography>
             </Tooltip>
           </Stack>
         </>
@@ -287,7 +288,7 @@ const ImageInputNode = memo(({ id, data, selected }) => {
         )}
 
         {/* Demais imagens (até 4) + upload */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0.5, flexShrink: 0 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5px', flexShrink: 0 }}>
           {urls.slice(1).map(u => (
             <Box key={u} onClick={() => data.onOpen?.(u, urls)}
               sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover .rmBtn': { opacity: 1 } }}>
@@ -313,16 +314,16 @@ const ImageInputNode = memo(({ id, data, selected }) => {
 // Sticky note — organização visual (não entra na execução). Redimensionável.
 const NoteNode = memo(({ id, data, selected }) => (
   <Box sx={{ width: '100%', height: '100%' }}>
-    <NodeResizer color="#E0B33A" isVisible={selected} minWidth={150} minHeight={80} onResizeEnd={() => data.onResize?.()} />
+    <NodeResizer color={PALETTE.data.atencao} isVisible={selected} minWidth={150} minHeight={80} onResizeEnd={() => data.onResize?.()} />
     <NodeToolbar position={Position.Top} offset={6}>
       <Paper elevation={3} className="nodrag" sx={{ p: 0.25, borderRadius: 1.5 }}>
         <Tooltip title="Excluir"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
       </Paper>
     </NodeToolbar>
-    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', bgcolor: '#FFF6C8', border: '1px solid #ECD27A', borderRadius: '5px', p: 1 }}>
+    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', bgcolor: PALETTE.data.atencaoFraco, border: '1px solid ${PALETTE.neutral[50]}',  p: 1 }}>
       <TextField value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
         placeholder="Anotação…" multiline variant="standard" fullWidth className="nodrag" InputProps={{ disableUnderline: true }}
-        sx={{ height: '100%', '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start', p: 0 }, '& textarea': { fontSize: 12, color: '#7A6A20', lineHeight: 1.4 } }} />
+        sx={{ height: '100%', '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start', p: 0 }, '& textarea': { fontSize: 12, color: PALETTE.neutral[500], lineHeight: 1.4 } }} />
     </Box>
   </Box>
 ))
@@ -332,12 +333,12 @@ const GroupNode = memo(({ id, data, selected }) => (
   <Box sx={{ width: '100%', height: '100%' }}>
     <NodeResizer color={PURPLE} isVisible={selected} minWidth={180} minHeight={140} onResizeEnd={() => data.onResize?.()} />
     <NodeToolbar position={Position.Top} offset={6}>
-      <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
+      <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: '0.25px', p: 0.25, borderRadius: 1.5 }}>
         <Tooltip title="Desagrupar"><IconButton size="small" onClick={() => data.onUngroup(id)}><WorkspacesOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
         <Tooltip title="Excluir grupo e nós"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
       </Paper>
     </NodeToolbar>
-    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', border: `1.5px dashed ${PURPLE}`, borderRadius: '5px', bgcolor: 'rgba(127,119,221,0.06)' }}>
+    <Box sx={{ width: '100%', height: '100%', boxSizing: 'border-box', border: `1.5px dashed ${PURPLE}`,  bgcolor: 'rgba(127,119,221,0.06)' }}>
       <TextField value={data.label ?? 'Grupo'} onChange={e => data.onChange(id, { label: e.target.value })}
         variant="standard" className="nodrag" InputProps={{ disableUnderline: true }}
         sx={{ position: 'absolute', top: 4, left: 8, '& input': { fontSize: 11, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em', py: 0 } }} />
@@ -398,9 +399,9 @@ const VideoGenNode = memo(({ id, data, selected }) => {
               <Box sx={{ flex: 1 }} />
               <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}><DownloadOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
               <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
-                <span><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, mediaType: 'video', formato: data.formato, saved: data.saved })}>
+                <Typography component="span"><IconButton size="small" disabled={data.saved} onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, mediaType: 'video', formato: data.formato, saved: data.saved })}>
                   <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
-                </IconButton></span>
+                </IconButton></Typography>
               </Tooltip>
             </Stack>
             {adjOpen && (
@@ -412,7 +413,7 @@ const VideoGenNode = memo(({ id, data, selected }) => {
                 <Button size="small" variant="contained" disabled={adjusting || !(data.adjust || '').trim()}
                   startIcon={adjusting ? <CircularProgress size={11} sx={{ color: '#fff' }} /> : <ReplayIcon sx={{ fontSize: 14 }} />}
                   onClick={() => data.onRegen?.(id)}
-                  sx={{ alignSelf: 'flex-end', fontSize: 10, fontWeight: 700, bgcolor: AMBER, color: '#000', py: 0.25, '&:hover': { bgcolor: '#CDA02F' } }}>
+                  sx={{ alignSelf: 'flex-end', fontSize: 10, fontWeight: 700, bgcolor: AMBER, color: '#000', py: 0.25, '&:hover': { bgcolor: PALETTE.data.atencaoDim } }}>
                   {adjusting ? 'Reajustando…' : 'Reajustar'}
                 </Button>
               </Stack>

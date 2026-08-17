@@ -5,6 +5,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material'
 import { theme } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { Wordmark } from '../../components/Wordmark'
+import { PALETTE } from '../../lib/theme'
 
 export function ForcePasswordPage({ onDone, onLogout }) {
   const [password, setPassword] = useState('')
@@ -58,7 +59,7 @@ export function ForcePasswordPage({ onDone, onLogout }) {
               size="large"
               disabled={loading}
               fullWidth
-              sx={{ mt: 1, bgcolor: '#0D9E7A', '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}
+              sx={{ mt: 1, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}
             >
               {loading ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Salvar e acessar'}
             </Button>

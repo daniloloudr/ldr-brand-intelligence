@@ -70,7 +70,7 @@ export function BrandOnboarding() {
             Defina só a <strong>identidade básica</strong>. O resto da marca — missão, valores,
             personalidade, design — é extraído do <strong>manual (PDF)</strong> no próximo passo.
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
             <TextField
               label="Nome da marca *"
               value={nome}

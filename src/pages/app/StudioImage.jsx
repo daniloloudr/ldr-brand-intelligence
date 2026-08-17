@@ -24,8 +24,9 @@ import { CreditBadge } from '../../components/CreditBadge'
 import { creditsForImage } from '../../lib/credits'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A'
+const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico
 const MAX_REFS = 5   // até 5 referências p/ ajudar composições e banners
 
 // Ações inline pós-geração (reaproveitam studio-edit.js)
@@ -289,7 +290,7 @@ export function StudioImage({ brandId }) {
   const visibleItems = items.filter(p => p.status !== 'error' && !broken[p.id])
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Estúdio" subtitle="Geração de imagem" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
@@ -303,7 +304,7 @@ export function StudioImage({ brandId }) {
               <Box sx={{ flex: 1 }} />
               <Chip label="⚔️ Duelo de modelos" size="small" clickable disabled={generating}
                 onClick={() => setDuelMode(v => !v)} variant={duelMode ? 'filled' : 'outlined'}
-                sx={{ fontWeight: 700, fontSize: 11.5, ...(duelMode && { bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }) }} />
+                sx={{ fontWeight: 700, fontSize: 11.5, ...(duelMode && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
             </Stack>
             {duelMode ? (<>
               <Select multiple value={duelModels}
@@ -346,7 +347,7 @@ export function StudioImage({ brandId }) {
             <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>Prompt</Typography>
             <Box sx={{ flex: 1 }} />
             <Button size="small" startIcon={improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 16 }} />}
-              onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: TEAL }}>
+              onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>
               {improving ? 'Melhorando…' : 'Melhorar o Prompt'}
             </Button>
           </Stack>
@@ -368,7 +369,7 @@ export function StudioImage({ brandId }) {
               <Tooltip title={refUrls.length ? 'Adicionar referência' : 'Imagens de referência'}>
                 <Box onClick={() => !generating && !refUploading && fileRef.current?.click()}
                   sx={{ width: 56, height: 56, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: generating || refUploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: TEAL, color: TEAL } }}>
+                    cursor: generating || refUploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}>
                   {refUploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />}
                 </Box>
               </Tooltip>
@@ -385,7 +386,7 @@ export function StudioImage({ brandId }) {
             {FORMATOS.map(f => (
               <Chip key={f.v} label={f.label} clickable disabled={generating} onClick={() => setFormato(f.v)}
                 variant={formato === f.v ? 'filled' : 'outlined'}
-                sx={{ fontWeight: 700, ...(formato === f.v && { bgcolor: TEAL, color: '#fff', '&:hover': { bgcolor: '#0B8567' } }) }} />
+                sx={{ fontWeight: 700, ...(formato === f.v && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
             ))}
             <Box sx={{ flex: 1 }} />
             {!duelMode && (<>
@@ -393,7 +394,7 @@ export function StudioImage({ brandId }) {
               {[1, 2, 4].map(n => (
                 <Chip key={n} label={n} clickable disabled={generating} onClick={() => setCount(n)} size="small"
                   variant={count === n ? 'filled' : 'outlined'}
-                  sx={{ fontWeight: 700, ...(count === n && { bgcolor: TEAL, color: '#fff' }) }} />
+                  sx={{ fontWeight: 700, ...(count === n && { bgcolor: 'primary.main', color: '#fff' }) }} />
               ))}
             </>)}
           </Stack>
@@ -414,7 +415,7 @@ export function StudioImage({ brandId }) {
             </Typography>
             <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+              onClick={gerar} disabled={generating} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
               {generating ? 'Gerando…' : duelMode ? 'Gerar duelo' : 'Gerar'}
             </Button>
           </Stack>
@@ -430,7 +431,7 @@ export function StudioImage({ brandId }) {
               <Box sx={{ flex: 1 }} />
               <IconButton size="small" onClick={() => setDuel(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
             </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${duel.entries.length}, 1fr)` }, gap: 1.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${duel.entries.length}, 1fr)` }, gap: '1.5px' }}>
               {duel.entries.map(e => {
                 const it = items.find(i => i.id === e.genId)
                 const done = it?.status === 'done' && it.image_url
@@ -443,15 +444,15 @@ export function StudioImage({ brandId }) {
                       sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: done ? 'zoom-in' : 'default' }}>
                       {done
                         ? <Box component="img" src={it.image_url} alt={label} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
+                        : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: 'primary.main' }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
                     </Box>
                     <Stack sx={{ p: 1 }} spacing={0.75} alignItems="center">
                       <Typography sx={{ fontSize: 11.5, fontWeight: 800 }}>{label}</Typography>
                       {isWinner
-                        ? <Chip size="small" label="🏆 Vencedora" sx={{ fontWeight: 800, fontSize: 11, bgcolor: TEAL, color: '#fff' }} />
+                        ? <Chip size="small" label="🏆 Vencedora" sx={{ fontWeight: 800, fontSize: 11, bgcolor: 'primary.main', color: '#fff' }} />
                         : !duel.winner && (
                           <Button size="small" variant="outlined" disabled={!done || duel.saving} onClick={() => escolherVencedora(e)}
-                            sx={{ fontSize: 11, fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
+                            sx={{ fontSize: 11, fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: PALETTE.data.positivoDim, bgcolor: 'rgba(13,158,122,.06)' } }}>
                             Escolher vencedora
                           </Button>
                         )}
@@ -470,7 +471,7 @@ export function StudioImage({ brandId }) {
 
         {/* Galeria persistente */}
         {loading ? (
-          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
         ) : visibleItems.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
             <ImageOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
@@ -493,33 +494,33 @@ export function StudioImage({ brandId }) {
                     ? <Box component="img" src={p.image_url} alt="" loading="lazy"
                         onError={() => setBroken(b => ({ ...b, [p.id]: true }))}
                         sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
+                    : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: 'primary.main' }} /><Typography sx={{ fontSize: 10, color: 'text.disabled' }}>gerando…</Typography></Stack>}
                 </Box>
                 {done && (
                   <Box sx={{ px: 0.5, py: 0.5, display: 'flex', alignItems: 'center' }}>
                     {APP_ACTIONS.map(({ op, label, Icon }) => (
                       <Tooltip key={op} title={label}>
-                        <span><IconButton size="small" disabled={acting[`${p.id}:${op}`]} onClick={() => runApp(p, op)}>
+                        <Typography component="span"><IconButton size="small" disabled={acting[`${p.id}:${op}`]} onClick={() => runApp(p, op)}>
                           {acting[`${p.id}:${op}`] ? <CircularProgress size={14} /> : <Icon sx={{ fontSize: 16 }} />}
-                        </IconButton></span>
+                        </IconButton></Typography>
                       </Tooltip>
                     ))}
                     <Box sx={{ flex: 1 }} />
                     <Tooltip title="Aprovar">
-                      <span><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'up')}>
+                      <Typography component="span"><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'up')}>
                         {p.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 16, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 16 }} />}
-                      </IconButton></span>
+                      </IconButton></Typography>
                     </Tooltip>
                     <Tooltip title="Reprovar">
-                      <span><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'down')}>
+                      <Typography component="span"><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'down')}>
                         {p.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 16, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 16 }} />}
-                      </IconButton></span>
+                      </IconButton></Typography>
                     </Tooltip>
                     <Tooltip title="Baixar"><IconButton size="small" onClick={() => downloadImage(p.image_url)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                     <Tooltip title={saved[p.id] ? 'Salvo nos assets' : 'Salvar nos assets'}>
-                      <span><IconButton size="small" disabled={saved[p.id] || saving[p.id]} onClick={() => saveToAssets(p)}>
+                      <Typography component="span"><IconButton size="small" disabled={saved[p.id] || saving[p.id]} onClick={() => saveToAssets(p)}>
                         {saving[p.id] ? <CircularProgress size={14} /> : <BookmarkAddOutlinedIcon sx={{ fontSize: 16, color: saved[p.id] ? TEAL : 'inherit' }} />}
-                      </IconButton></span>
+                      </IconButton></Typography>
                     </Tooltip>
                   </Box>
                 )}
@@ -530,7 +531,7 @@ export function StudioImage({ brandId }) {
           <Stack alignItems="center" mt={2.5}>
             <Button variant="outlined" size="small"
               onClick={() => { sessionStorage.setItem('biblioteca_root', 'imagens'); navigate(`#/app/brands/${brandId}/studio/biblioteca`) }}
-              sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
+              sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: PALETTE.data.positivoDim, bgcolor: 'rgba(13,158,122,.06)' } }}>
               Ver todas na Biblioteca →
             </Button>
           </Stack></>

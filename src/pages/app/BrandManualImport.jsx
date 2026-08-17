@@ -7,6 +7,7 @@ import UploadFileIcon  from '@mui/icons-material/UploadFile'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
+import { PALETTE } from '../../lib/theme'
 
 const STEPS = [
   'Fazendo upload do PDF...',
@@ -126,15 +127,15 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth
       PaperProps={{ sx: { bgcolor: 'background.paper' } }}>
       <DialogTitle sx={{ fontWeight: 900, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 1 }}>
-        <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 20 }} />
+        <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 20 }} />
         Importar Brand Manual
       </DialogTitle>
 
       <DialogContent>
         {done ? (
           <Box sx={{ py: 3, textAlign: 'center' }}>
-            <CheckCircleIcon sx={{ fontSize: 48, color: '#0D9E7A', mb: 2 }} />
-            <Typography fontWeight={900} fontSize={18} mb={1}>
+            <CheckCircleIcon sx={{ fontSize: 48, color: PALETTE.data.positivo, mb: 2 }} />
+            <Typography variant="h6" mb={1}>
               Brand manual importado!
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -144,9 +145,9 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
           </Box>
         ) : importing ? (
           <Box sx={{ py: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 3 }}>
               <CircularProgress size={18} color="primary" />
-              <Typography fontWeight={700} fontSize={14}>{STEPS[step]}</Typography>
+              <Typography variant="subtitle1">{STEPS[step]}</Typography>
             </Box>
             <LinearProgress
               variant="determinate"

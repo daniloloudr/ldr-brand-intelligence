@@ -67,25 +67,16 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, sem markdown:
 
 REGRAS: scores 1-3 crítico, 4-6 em desenvolvimento, 7-8 sólido, 9-10 referência. Use apenas dados reais.`;
 
-// Identidade brandcode — Vercel light: chrome monocromático (navy/text/border → preto/cinza),
-// cores semânticas (green/pink/amber/purple) preservadas só p/ dados (scores, sentimento, praticas).
-export const DS = {
-  navy:"#171717", navyMid:"#333333", navyLight:"#525252",
-  green:"#0D9E7A", greenDim:"#0B8567", greenPale:"#E1F5EE",
-  pink:"#E8185A", pinkPale:"#FBEAF0",
-  white:"#FFFFFF", offwhite:"#FAFAFA",
-  border:"#EAEAEA", gray:"#8A8A8A", grayLight:"#F5F5F5",
-  text:"#171717", textMid:"#666666", textLight:"#999999",
-  amber:"#EF9F27", amberPale:"#FEF3C7", purple:"#7F77DD",
-};
-
-export const F = "'Cairo', sans-serif";
+// Paleta: ver `theme.js` (arquivo único de cor). DS é apelido em extinção —
+// re-exportado aqui só para não quebrar os call-sites antigos.
+import { PALETTE, themeLight } from './theme'
+export { PALETTE }
 
 export const PRATICAS = [
-  { key:"inteligencia_singularidade", label:"Inteligência & Singularidade", sub:"Posicionamento · Arquitetura · Cultura", color:DS.green },
-  { key:"experiencia_expressao",      label:"Experiência & Expressão",      sub:"Identidade · Design · Storytelling",  color:DS.pink },
-  { key:"plataformas_ecossistemas",   label:"Plataformas & Ecossistemas",   sub:"Produto · Digital · Engenharia",      color:DS.purple },
-  { key:"futuro_escala",              label:"Futuro & Escala",              sub:"Data · AI · Growth · Performance",    color:DS.amber },
+  { key:"inteligencia_singularidade", label:"Inteligência & Singularidade", sub:"Posicionamento · Arquitetura · Cultura", color:PALETTE.data.positivo },
+  { key:"experiencia_expressao",      label:"Experiência & Expressão",      sub:"Identidade · Design · Storytelling",  color:PALETTE.data.critico },
+  { key:"plataformas_ecossistemas",   label:"Plataformas & Ecossistemas",   sub:"Produto · Digital · Engenharia",      color:PALETTE.data.neutro },
+  { key:"futuro_escala",              label:"Futuro & Escala",              sub:"Data · AI · Growth · Performance",    color:PALETTE.data.atencao },
 ];
 
 export const STEPS = [

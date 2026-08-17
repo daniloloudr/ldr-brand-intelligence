@@ -21,15 +21,16 @@ import { EssenciaSection, NegocioSection, ExperienciaSection, PersonalidadeSecti
 import { VisualIdentitySection } from './VisualIdentitySection'
 import { PageHeader }           from '../../components/shell/PageHeader'
 import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
+import { PALETTE } from '../../lib/theme'
 
 const SECTIONS = [
   // Árvore Strategy (2026-07-10, fiel): Culture→Brand Essence · Business→Função+Experience · Communication→Personality+Expression
-  { key: 'essencia',      label: 'Essência',      color: '#0D9E7A' },
-  { key: 'negocio',       label: 'Função',        color: '#E8185A' },
-  { key: 'experiencia',   label: 'Experiência',   color: '#EF9F27' },
-  { key: 'personalidade', label: 'Personalidade', color: '#7F77DD' },
-  { key: 'expression',    label: 'Expressão',     color: '#0D9E7A' },
-  { key: 'history',       label: 'Histórico',     color: '#8A9AB0' },
+  { key: 'essencia',      label: 'Essência',      color: PALETTE.data.positivo },
+  { key: 'negocio',       label: 'Função',        color: PALETTE.data.critico },
+  { key: 'experiencia',   label: 'Experiência',   color: PALETTE.data.atencao },
+  { key: 'personalidade', label: 'Personalidade', color: PALETTE.data.neutro },
+  { key: 'expression',    label: 'Expressão',     color: PALETTE.data.positivo },
+  { key: 'history',       label: 'Histórico',     color: PALETTE.neutral[400] },
 ]
 
 // Map legacy section keys → estrutura nova (rotas antigas continuam funcionando)
@@ -49,7 +50,7 @@ function HistorySection({ history }) {
     )
   }
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
       {history.map(h => (
         <Paper key={h.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>

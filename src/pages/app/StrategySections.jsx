@@ -10,6 +10,7 @@ import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import { supabase } from '../../lib/supabase'
 import { buildDesignMd } from '../../lib/designMd'
 import { FieldLabel, SectionDivider, ChipInput } from './BrandSection'
+import { PALETTE } from '../../lib/theme'
 
 const tf = { '& .MuiInputBase-input': { fontSize: 14 } }
 
@@ -155,7 +156,7 @@ export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visua
         placeholder="A jornada do cliente — do primeiro contato ao pós-venda, com os momentos-chave da marca" />
 
       <SectionDivider>Design System — design.md</SectionDivider>
-      <Typography fontSize={12.5} color="text.secondary" sx={{ mt: -2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
         Gerado automaticamente do que a marca já tem (paleta, tipografia, tokens, logos, princípios) — nada para preencher duas vezes.
         É o artefato que times de produto e agentes de IA consomem.
       </Typography>
@@ -170,7 +171,7 @@ export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visua
       </Grid2>
       <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography fontSize={12} fontWeight={800} sx={{ flex: 1 }}>design.md</Typography>
+          <Typography variant="caption" sx={{ flex: 1 }}>design.md</Typography>
           <Chip label={copied ? 'Copiado!' : 'Copiar'} size="small" onClick={copiar} sx={{ fontWeight: 700, mr: 1 }} />
           <Chip label="Baixar .md" size="small" onClick={baixar} variant="outlined" sx={{ fontWeight: 700 }} />
         </Stack>
@@ -210,12 +211,12 @@ export function PersonalidadeSection({ verbal = {}, strategy = {}, onVerbal, onS
       {territorioIA && (
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(127,119,221,0.06)', borderColor: 'rgba(127,119,221,0.35)' }}>
           <Stack direction="row" spacing={1.25} alignItems="flex-start">
-            <PsychologyOutlinedIcon sx={{ color: '#7F77DD', fontSize: 20, mt: 0.25 }} />
+            <PsychologyOutlinedIcon sx={{ color: PALETTE.data.neutro, fontSize: 20, mt: 0.25 }} />
             <Box>
-              <Typography fontSize={11} fontWeight={800} sx={{ color: '#7F77DD', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <Typography variant="overline" sx={{ color: PALETTE.data.neutro, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Território aprendido pela IA (v{territorioIA.v})
               </Typography>
-              <Typography fontSize={13.5} sx={{ lineHeight: 1.6 }}>{territorioIA.valor}</Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{territorioIA.valor}</Typography>
             </Box>
           </Stack>
         </Paper>
