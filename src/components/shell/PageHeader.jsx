@@ -1,26 +1,26 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Stack } from "@mui/material";
 
+// Cabeçalho de página — usado pelo app e pelo admin. 100% MUI: tipografia por
+// variante, sem tamanho nem peso escritos na mão.
 export function PageHeader({ title, subtitle, action }) {
   return (
-    <Box sx={{
-      background: theme => theme.palette.background.paper,
-      borderBottom: 1, borderColor: "divider",
-      px: { xs: 2.5, md: 3.5 }, py: 2,
-      display: "flex", alignItems: "center", gap: 2,
-    }}>
+    <Stack
+      direction="row"
+      sx={{
+        alignItems: "center", gap: 2,
+        borderBottom: 1, borderColor: "divider",
+        pb: 2, mb: 1,
+      }}
+    >
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        {typeof title === "string" ? (
-          <Typography sx={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-            {title}
-          </Typography>
-        ) : title}
+        {typeof title === "string" ? <Typography variant="h5">{title}</Typography> : title}
         {subtitle && (
-          <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>
-            {subtitle}
-          </Typography>
+          <Typography variant="body2" color="text.secondary">{subtitle}</Typography>
         )}
       </Box>
       {action && <Box sx={{ flexShrink: 0 }}>{action}</Box>}
-    </Box>
+    </Stack>
   );
 }
+
+export default PageHeader;

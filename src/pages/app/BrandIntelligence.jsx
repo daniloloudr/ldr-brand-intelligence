@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Box, Paper, Typography, Stack, CircularProgress, Chip, LinearProgress, Divider, Tooltip } from '@mui/material'
+import { Box, Paper, Typography, Stack, CircularProgress, Chip, LinearProgress, Divider, Tooltip,
+         Card, CardContent, Alert } from '@mui/material'
+import Grid from '@mui/material/Grid2'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -8,8 +10,9 @@ import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { NeuralGraph } from '../../components/NeuralGraph'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A', PURPLE = '#7F77DD'
+const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico, PURPLE = PALETTE.data.neutro
 const pct = n => (n == null ? '—' : `${Math.round(n * 100)}%`)
 const shortProvider = p => (p || '?').split('/').slice(-2).join('/')
 const SIGNAL_LABEL = { image_vote: 'Avaliações de peças', campaign_verdict: 'Campanhas', diagnostic: 'Diagnósticos', listening_sentiment: 'Sentimento do público', brandbook_edit: 'Ajustes no brand book', assistant_correction: 'Ensinamentos no Assistant', competitive: 'Movimentos de mercado', content_used: 'Conteúdos adotados', image_regen: 'Regenerações (não convenceu)', writing_edit: 'Copy reescrita (ensino de voz)' }
@@ -36,7 +39,7 @@ function diffList(curr, prev) {
 // Título de seção com dica explicativa (?)
 const SectionTitle = ({ children, help }) => (
   <Stack direction="row" spacing={0.75} alignItems="center" mb={1}>
-    <Typography fontSize={13} fontWeight={800}>{children}</Typography>
+    <Typography variant="subtitle2">{children}</Typography>
     {help && <Tooltip title={help}><HelpOutlineIcon sx={{ fontSize: 15, color: 'text.disabled' }} /></Tooltip>}
   </Stack>
 )
@@ -144,41 +147,44 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
   const terrChanged = pm && model?.territorio?.valor && !similar(model.territorio.valor, pm?.territorio?.valor || '')
   const hasDiff = facetDiffs.length || vozChanged || posChanged || terrChanged || (confDelta != null && confDelta !== 0)
 
-  const Card = ({ children, sx }) => <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, ...sx }}>{children}</Paper>
+  // Card local removido: usa Card/CardContent do MUI direto (ver render)
+  const Bloco = ({ children, sx }) => (
+    <Card variant="outlined" sx={{ height: '100%', ...sx }}><CardContent>{children}</CardContent></Card>
+  )
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
-      <PageHeader title="Inteligência brandcode" subtitle="O cérebro que aprende a sua marca com o uso" />
+    <Box>
+      <PageHeader title="Inteligência BR4NDCODE" subtitle="O cérebro que aprende a sua marca com o uso" />
 
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
+      <Box sx={{ maxWidth: 1100, width: '100%', mx: 'auto', mt: 3 }}>
         {/* ── Explicação (sempre visível) ── */}
-        <Paper sx={{ p: 3, mb: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+        <Card variant="outlined" sx={{ mb: 3 }}><CardContent>
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
             <PsychologyOutlinedIcon sx={{ fontSize: 26, color: PURPLE, mt: 0.25 }} />
             <Box>
-              <Typography fontWeight={900} fontSize={16} mb={0.5}>O que é a Inteligência brandcode</Typography>
-              <Typography fontSize={13.5} color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                É o núcleo do brandcode. A cada peça que você gera e avalia, campanha que aprova e diagnóstico que roda,
-                o brandcode entende mais profundamente <strong>o que é a sua marca</strong> — e aplica esse aprendizado
+              <Typography variant="h6" gutterBottom>O que é a Inteligência BR4NDCODE</Typography>
+              <Typography variant="body2" color="text.secondary">
+                É o núcleo do BR4NDCODE. A cada peça que você gera e avalia, campanha que aprova e diagnóstico que roda,
+                o BR4NDCODE entende mais profundamente <strong>o que é a sua marca</strong> — e aplica esse aprendizado
                 <strong> automaticamente</strong> em tudo que cria: imagens, vídeos e no Copiloto.
-                Quanto mais você usa e avalia, mais assertivo o brandcode fica com a sua marca.
+                Quanto mais você usa e avalia, mais assertivo o BR4NDCODE fica com a sua marca.
               </Typography>
-              <Typography fontSize={12.5} sx={{ mt: 1.25, color: TEAL, fontWeight: 700 }}>
+              <Typography variant="body2" sx={{ mt: 1.5, color: 'success.main' }}>
                 💡 Como deixar mais inteligente: avalie suas peças no Studio com 👍 / 👎 — cada avaliação ensina a marca.
               </Typography>
             </Box>
           </Stack>
-        </Paper>
+        </CardContent></Card>
 
         {loading ? (
-          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
         ) : !current ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 6, textAlign: 'center' }}>
             <PsychologyOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
             <Typography variant="h6" fontWeight={900}>A sua marca ainda está se formando</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 460 }}>
               A Inteligência começa a se formar assim que você gera e avalia peças. Vá ao Studio, gere e dê 👍/👎 —
-              quando houver evidência suficiente, o brandcode forma a primeira leitura da sua marca e ela aparece aqui,
+              quando houver evidência suficiente, o BR4NDCODE forma a primeira leitura da sua marca e ela aparece aqui,
               ficando mais assertiva com o tempo.
             </Typography>
             {totalSignals > 0 && <Chip label={`${totalSignals} avaliações já registradas — em breve viram aprendizado`} size="small" />}
@@ -187,10 +193,8 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
           <Stack spacing={2.5}>
             {/* A prova viva em uma frase — números reais, não promessa */}
             {versions.length > 1 && dataInicio && (
-              <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'rgba(127,119,221,0.35)', bgcolor: 'rgba(127,119,221,0.06)' }}>
-                <Stack direction="row" spacing={1.25} alignItems="center">
-                  <TrendingUpIcon sx={{ color: PURPLE, fontSize: 22 }} />
-                  <Typography fontSize={13.5} sx={{ lineHeight: 1.55 }}>
+              <Alert severity="info" icon={<TrendingUpIcon />}>
+                  <Typography variant="body2">
                     Desde <strong>{dataInicio}</strong>, a sua marca transformou <strong>{totalSignals} evidências de uso</strong> em{' '}
                     <strong>{versions.length} versões de aprendizado</strong> — {aprendizados} aprendizados ativos hoje
                     {confDesdeInicio != null && confDesdeInicio !== 0 && (
@@ -198,54 +202,53 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                       <strong>{pct(v1.confianca_media)}</strong> para <strong>{pct(current.confianca_media)}</strong></>
                     )}.
                   </Typography>
-                </Stack>
-              </Paper>
+              </Alert>
             )}
 
             {/* Métricas de topo */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-              <Card>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6, md: 3 }}><Bloco>
                 <SectionTitle help="Cada avanço no aprendizado da sua marca gera uma versão nova.">Versão</SectionTitle>
-                <Typography fontWeight={900} fontSize={28} sx={{ color: PURPLE }}>v{current.versao}</Typography>
-                {dataInicio && <Typography fontSize={11} color="text.secondary">aprendendo desde {dataInicio}</Typography>}
-              </Card>
-              <Card>
+                <Typography variant="h4" sx={{ color: PURPLE }}>v{current.versao}</Typography>
+                {dataInicio && <Typography variant="caption" color="text.secondary" component="div">aprendendo desde {dataInicio}</Typography>}
+              </Bloco></Grid>
+              <Grid size={{ xs: 6, md: 3 }}><Bloco>
                 <SectionTitle help="O quanto a inteligência está segura do que aprendeu sobre a sua marca. Sobe conforme as evidências se confirmam.">Confiança</SectionTitle>
-                <Typography fontWeight={900} fontSize={28} sx={{ color: TEAL }}>
+                <Typography variant="h4" sx={{ color: 'primary.main' }}>
                   {pct(current.confianca_media)}
                   {confDesdeInicio != null && confDesdeInicio !== 0 && (
-                    <Typography component="span" fontSize={13} fontWeight={800} sx={{ ml: 0.75, color: confDesdeInicio > 0 ? TEAL : CORAL }}>
+                    <Typography component="span" variant="body2" sx={{ ml: 0.75, color: confDesdeInicio > 0 ? TEAL : CORAL }}>
                       {confDesdeInicio > 0 ? '▲' : '▼'}{Math.abs(confDesdeInicio)} pts
                     </Typography>
                   )}
                 </Typography>
-                {versions.length > 1 && <Typography fontSize={11} color="text.secondary">início: {pct(v1?.confianca_media)}</Typography>}
-              </Card>
-              <Card>
-                <SectionTitle help="A fração das peças que você aprovou — reflete o quanto o brandcode já acerta o tom da sua marca.">Aprovação</SectionTitle>
-                <Typography fontWeight={900} fontSize={28}>{pct(approval)}</Typography>
-                <Typography fontSize={11} color="text.secondary">
+                {versions.length > 1 && <Typography variant="caption" color="text.secondary" component="div">início: {pct(v1?.confianca_media)}</Typography>}
+              </Bloco></Grid>
+              <Grid size={{ xs: 6, md: 3 }}><Bloco>
+                <SectionTitle help="A fração das peças que você aprovou — reflete o quanto o BR4NDCODE já acerta o tom da sua marca.">Aprovação</SectionTitle>
+                <Typography variant="h4">{pct(approval)}</Typography>
+                <Typography variant="caption" color="text.secondary" component="div">
                   {ups} 👍 · {downs} 👎{janelaAprovacao != null ? ` · última janela: ${pct(janelaAprovacao)}` : ''}
                 </Typography>
-              </Card>
-              <Card>
+              </Bloco></Grid>
+              <Grid size={{ xs: 6, md: 3 }}><Bloco>
                 <SectionTitle help="Cada avaliação, campanha e diagnóstico é uma evidência que alimenta o aprendizado.">Evidências</SectionTitle>
-                <Typography fontWeight={900} fontSize={28}>{totalSignals}</Typography>
-                <Typography fontSize={11} color="text.secondary">{aprendizados} aprendizados ativos</Typography>
-              </Card>
-            </Box>
+                <Typography variant="h4">{totalSignals}</Typography>
+                <Typography variant="caption" color="text.secondary" component="div">{aprendizados} aprendizados ativos</Typography>
+              </Bloco></Grid>
+            </Grid>
 
             {/* A rede viva — tudo que está sendo capturado e onde vira criação */}
-            <Card>
-              <SectionTitle help="O mapa vivo da inteligência: à esquerda, tudo que a marca vive e o brandcode captura (o número é a quantidade real de evidências); no centro, as facetas que ela aprendeu; à direita, onde esse aprendizado é aplicado automaticamente.">
+            <Bloco>
+              <SectionTitle help="O mapa vivo da inteligência: à esquerda, tudo que a marca vive e o BR4NDCODE captura (o número é a quantidade real de evidências); no centro, as facetas que ela aprendeu; à direita, onde esse aprendizado é aplicado automaticamente.">
                 A rede da sua marca
               </SectionTitle>
               <NeuralGraph signalStats={signalStats} model={model} versao={current.versao} />
-            </Card>
+            </Bloco>
 
             {/* Evolução */}
             {trend.length > 1 ? (
-              <Card>
+              <Bloco>
                 <SectionTitle help="A prova de que a sua marca fica mais assertiva a cada versão — não é promessa, é medida.">Evolução da assertividade</SectionTitle>
                 <Box sx={{ height: 200 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -261,40 +264,40 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                   </ResponsiveContainer>
                 </Box>
                 {(hasDesempenho || hasRetrabalho) && (
-                  <Typography fontSize={11} color="text.secondary" mt={1}>
-                    <span style={{ color: TEAL, fontWeight: 700 }}>—</span> Confiança do que a marca sabe{hasDesempenho && <> · <span style={{ color: PURPLE, fontWeight: 700 }}>- -</span> Aprovação das peças</>}{hasRetrabalho && <> · <span style={{ color: CORAL, fontWeight: 700 }}>- -</span> Retrabalho por versão (quanto MENOR, mais o cérebro acerta de primeira)</>}
+                  <Typography variant="caption" color="text.secondary" mt={1}>
+                    <Typography component="span" sx={{ color: 'primary.main', fontWeight: 700 }}>—</Typography> Confiança do que a marca sabe{hasDesempenho && <> · <Typography component="span" sx={{ color: PURPLE, fontWeight: 700 }}>- -</Typography> Aprovação das peças</>}{hasRetrabalho && <> · <Typography component="span" sx={{ color: CORAL, fontWeight: 700 }}>- -</Typography> Retrabalho por versão (quanto MENOR, mais o cérebro acerta de primeira)</>}
                   </Typography>
                 )}
-              </Card>
+              </Bloco>
             ) : (
-              <Card sx={{ bgcolor: 'action.hover' }}>
-                <Typography fontSize={12.5} color="text.secondary">
+              <Bloco sx={{ bgcolor: 'action.hover' }}>
+                <Typography variant="body2" color="text.secondary">
                   📈 <strong>Evolução da assertividade</strong> — o gráfico da confiança ao longo do tempo aparece a partir da segunda versão. Continue gerando e avaliando para acompanhar a marca ficar mais assertiva.
                 </Typography>
-              </Card>
+              </Bloco>
             )}
 
             {/* Win-rate por modelo */}
             {providerRates.length > 0 && (
-              <Card>
-                <SectionTitle help="Quais motores de geração entregam os melhores resultados para a SUA marca. O brandcode usa isso para priorizar o que mais funciona.">Desempenho por modelo de geração</SectionTitle>
+              <Bloco>
+                <SectionTitle help="Quais motores de geração entregam os melhores resultados para a SUA marca. O BR4NDCODE usa isso para priorizar o que mais funciona.">Desempenho por modelo de geração</SectionTitle>
                 <Stack spacing={1.25}>
                   {providerRates.map(p => (
                     <Box key={p.provider}>
                       <Stack direction="row" justifyContent="space-between" mb={0.25}>
-                        <Typography fontSize={12} fontWeight={600}>{shortProvider(p.provider)}</Typography>
-                        <Typography fontSize={12} fontWeight={800} sx={{ color: p.rate >= 0.5 ? TEAL : CORAL }}>{pct(p.rate)} <Typography component="span" fontSize={10} color="text.secondary">({p.total} aval.)</Typography></Typography>
+                        <Typography variant="caption">{shortProvider(p.provider)}</Typography>
+                        <Typography variant="caption" sx={{ color: p.rate >= 0.5 ? TEAL : CORAL }}>{pct(p.rate)} <Typography variant="caption" component="span" color="text.secondary">({p.total} aval.)</Typography></Typography>
                       </Stack>
                       <LinearProgress variant="determinate" value={p.rate * 100} sx={{ height: 6, borderRadius: 3, bgcolor: 'divider', '& .MuiLinearProgress-bar': { bgcolor: p.rate >= 0.5 ? TEAL : CORAL } }} />
                     </Box>
                   ))}
                 </Stack>
-              </Card>
+              </Bloco>
             )}
 
             {/* O que a marca aprendeu */}
-            <Card>
-              <SectionTitle help="Os padrões que o brandcode já reconhece como 'a cara da sua marca' — aplicados automaticamente em cada nova peça que você gera.">O que a marca já aprendeu (v{current.versao})</SectionTitle>
+            <Bloco>
+              <SectionTitle help="Os padrões que o BR4NDCODE já reconhece como 'a cara da sua marca' — aplicados automaticamente em cada nova peça que você gera.">O que a marca já aprendeu (v{current.versao})</SectionTitle>
               <Stack spacing={2}>
                 <ModelList title="✅ Visual que funciona" items={(model?.preferencias_visuais?.aprovado || []).map(a => a?.padrao)} color={TEAL} />
                 <ModelList title="❌ Visual a evitar" items={(model?.preferencias_visuais?.reprovado || []).map(a => a?.padrao)} color={CORAL} />
@@ -304,11 +307,11 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                 <ModelList title="Temas de conteúdo que funcionam" items={model?.conteudo?.temas} color={PURPLE} />
                 <ModelList title="Fatos consolidados" items={(model?.fatos || []).map(f => f?.fato)} />
               </Stack>
-            </Card>
+            </Bloco>
 
             {/* O que mudou (diff entre versões) */}
             {prev && hasDiff && (
-              <Card>
+              <Bloco>
                 <SectionTitle help="O que a inteligência da sua marca passou a entender nesta última versão, em relação à anterior. É a evolução, item a item.">
                   O que mudou na v{current.versao}
                 </SectionTitle>
@@ -329,11 +332,11 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                   )}
                   {facetDiffs.map(f => <DiffBlock key={f.label} {...f} />)}
                 </Stack>
-              </Card>
+              </Bloco>
             )}
 
             {/* Proveniência */}
-            <Card>
+            <Bloco>
               <SectionTitle help="As fontes de evidência que formam o aprendizado da sua marca.">De onde vem esse aprendizado</SectionTitle>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {Object.entries(signalStats).sort((a, b) => b[1] - a[1]).map(([tipo, n]) => (
@@ -341,10 +344,10 @@ export function BrandIntelligence({ brandId: brandIdProp }) {
                 ))}
               </Stack>
               <Divider sx={{ my: 1.5 }} />
-              <Typography fontSize={11} color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 {versions.length} versão(ões) do aprendizado · última atualização em {new Date(current.created_at).toLocaleString('pt-BR')}.
               </Typography>
-            </Card>
+            </Bloco>
           </Stack>
         )}
       </Box>
@@ -356,18 +359,18 @@ function DiffBlock({ label, color, added, removed }) {
   if (!added.length && !removed.length) return null
   return (
     <Box>
-      <Typography fontSize={11} fontWeight={800} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" mb={0.5}>{label}</Typography>
+      <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" mb={0.5}>{label}</Typography>
       <Stack spacing={0.5}>
         {added.map((t, i) => (
           <Stack key={'a' + i} direction="row" spacing={1} alignItems="flex-start">
-            <Typography component="span" fontSize={11} fontWeight={900} sx={{ color: color || '#0D9E7A', mt: '2px', flexShrink: 0 }}>NOVO</Typography>
-            <Typography fontSize={13} color="text.primary">{t}</Typography>
+            <Typography variant="caption" component="span" sx={{ color: color || PALETTE.data.positivo, mt: '2px', flexShrink: 0 }}>NOVO</Typography>
+            <Typography variant="body2" color="text.primary">{t}</Typography>
           </Stack>
         ))}
         {removed.map((t, i) => (
           <Stack key={'r' + i} direction="row" spacing={1} alignItems="flex-start">
-            <Typography component="span" fontSize={11} fontWeight={900} sx={{ color: 'text.disabled', mt: '2px', flexShrink: 0 }}>revisto</Typography>
-            <Typography fontSize={13} color="text.disabled" sx={{ textDecoration: 'line-through' }}>{t}</Typography>
+            <Typography variant="caption" component="span" sx={{ color: 'text.disabled', mt: '2px', flexShrink: 0 }}>revisto</Typography>
+            <Typography variant="body2" color="text.disabled" sx={{ textDecoration: 'line-through' }}>{t}</Typography>
           </Stack>
         ))}
       </Stack>
@@ -380,12 +383,12 @@ function ModelList({ title, items, color }) {
   if (!list.length) return null
   return (
     <Box>
-      <Typography fontSize={11} fontWeight={800} color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" mb={0.5}>{title}</Typography>
+      <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing="0.06em" mb={0.5}>{title}</Typography>
       <Stack spacing={0.5}>
         {list.map((t, i) => (
           <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
             <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: color || 'text.disabled', mt: '7px', flexShrink: 0 }} />
-            <Typography fontSize={13} color="text.primary">{t}</Typography>
+            <Typography variant="body2" color="text.primary">{t}</Typography>
           </Stack>
         ))}
       </Stack>

@@ -1,10 +1,61 @@
 import { useState } from "react";
-import { navigate } from '../lib/helpers';
+import { navigate, PRODUCT_NAME } from "../lib/helpers";
 import { supabase } from "../lib/supabase";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+import Button from "@mui/material/Button";
+import Alert from "@mui/material/Alert";
+import CircularProgress from "@mui/material/CircularProgress";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import { themeLight } from "../lib/theme";
+import { Wordmark } from "../components/Wordmark";
 
-// Login — split estilo Runway: showcase à esquerda + form à direita.
-// Identidade brandcode = Vercel light (monocromático). Form em CSS puro; auth Supabase intacta.
-// O visual da esquerda é placeholder — trocável por imagem/vídeo de marca quando pronta.
+// Login — template "Sign-in side" do MUI: showcase à esquerda, card do form
+// à direita. 100% componentes MUI (decisão Danilo 2026-08-17); a auth do
+// Supabase segue idêntica.
+const PILARES = [
+  { icon: MenuBookOutlinedIcon,      titulo: "Estratégia",  desc: "O brand book vivo: essência, negócio, experiência e personalidade num lugar só." },
+  { icon: InsightsOutlinedIcon,      titulo: "Inteligência", desc: "Diagnóstico, concorrentes, escuta e tendências — atualizados sozinhos." },
+  { icon: PhotoLibraryOutlinedIcon,  titulo: "Estúdio",     desc: "Imagem, vídeo e texto gerados no tom da marca, julgados antes de sair." },
+  { icon: AutoAwesomeOutlinedIcon,   titulo: "Copiloto",    desc: "Conversa com mãos: lê a inteligência da marca e cria a peça." },
+];
+
+function Showcase() {
+  return (
+    <Stack sx={{ flexDirection: "column", gap: 4, maxWidth: 450 }}>
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: "-0.02em" }}>
+          A marca no meio da operação.
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mt: 1.5 }}>
+          Diagnóstico com IA, inteligência de mercado e criação on-brand — a memória
+          viva da sua marca, em tempo real.
+        </Typography>
+      </Box>
+      {PILARES.map(({ icon: Icon, titulo, desc }) => (
+        <Stack key={titulo} direction="row" sx={{ gap: 2, alignItems: "flex-start" }}>
+          <Icon sx={{ color: "text.secondary" }} />
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{titulo}</Typography>
+            <Typography variant="body2" color="text.secondary">{desc}</Typography>
+          </Box>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
 export function LoginPage({ onLogin }) {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -21,209 +72,53 @@ export function LoginPage({ onLogin }) {
     navigate("/app");
   }
 
-  const CSS = `
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; background: #fff; }
-
-    .sp-root {
-      --text:     #171717;
-      --muted:    #666666;
-      --faint:    #999999;
-      --border:   #EAEAEA;
-      --border-h: #CFCFCF;
-      --btn:      #000000;
-      --btn-h:    #333333;
-      --sans: system-ui, -apple-system, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
-      --mono: ui-monospace, 'Geist Mono', 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
-
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      min-height: 100vh;
-      font-family: var(--sans);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-    }
-    .sp-root ::selection { background: #171717; color: #fff; }
-
-    /* ── ESQUERDA: showcase ── */
-    .sp-show {
-      position: relative;
-      border-right: 1px solid var(--border);
-      padding: 44px 48px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      overflow: hidden;
-      background:
-        radial-gradient(120% 80% at 100% 0%, #FFFFFF 0%, transparent 55%),
-        linear-gradient(150deg, #FAFAFA 0%, #F0F0F0 100%);
-    }
-    /* textura geométrica sutil (grid de pontos) — precisão técnica */
-    .sp-show::before {
-      content: '';
-      position: absolute; inset: 0;
-      background-image: radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1.4px);
-      background-size: 22px 22px;
-      mask-image: linear-gradient(160deg, #000 10%, transparent 75%);
-      -webkit-mask-image: linear-gradient(160deg, #000 10%, transparent 75%);
-      pointer-events: none;
-    }
-    .sp-nav {
-      position: relative;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 18px;
-      font-family: var(--mono);
-      font-size: 10.5px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--faint);
-    }
-    .sp-nav b { color: var(--text); font-weight: 500; }
-    .sp-foot { position: relative; max-width: 460px; }
-    .sp-head {
-      font-size: clamp(30px, 3.6vw, 46px);
-      font-weight: 600;
-      line-height: 1.04;
-      letter-spacing: -0.035em;
-      color: var(--text);
-      margin: 0 0 16px;
-    }
-    .sp-sub {
-      font-size: 15px;
-      line-height: 1.6;
-      color: var(--muted);
-      margin: 0;
-      max-width: 400px;
-    }
-
-    /* ── DIREITA: form ── */
-    .sp-form {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fff;
-      padding: 48px 24px;
-    }
-    .sp-card { width: 100%; max-width: 320px; }
-    @media (prefers-reduced-motion: no-preference) {
-      .sp-card { animation: spUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-    }
-    @keyframes spUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-
-    .sp-mark {
-      text-align: center;
-      font-weight: 600;
-      font-size: 23px;
-      letter-spacing: -0.04em;
-      color: #171717;
-      margin: 0 0 26px;
-    }
-    .sp-title { text-align: center; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; }
-    .sp-desc  { text-align: center; font-size: 13px; color: var(--muted); margin: 0 0 26px; }
-
-    .sp-error {
-      font-size: 13px; line-height: 1.5;
-      color: #B4232A; background: #FDF3F3;
-      border: 1px solid #F3D4D4;
-      padding: 10px 13px; border-radius: 6px; margin-bottom: 16px;
-    }
-
-    .sp-input {
-      width: 100%;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--sans);
-      font-size: 14px;
-      padding: 11px 13px;
-      outline: none;
-      margin-bottom: 10px;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .sp-input::placeholder { color: var(--faint); }
-    .sp-input:hover { border-color: var(--border-h); }
-    .sp-input:focus { border-color: #171717; box-shadow: 0 0 0 1px #171717; }
-
-    .sp-btn {
-      width: 100%; margin-top: 6px;
-      background: var(--btn); color: #fff;
-      border: 1px solid var(--btn); border-radius: 8px;
-      padding: 11px;
-      font-family: var(--sans); font-size: 14px; font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
-    }
-    .sp-btn:hover:not(:disabled) { background: var(--btn-h); border-color: var(--btn-h); }
-    .sp-btn:disabled { opacity: 0.6; cursor: default; }
-    .sp-btn:focus-visible { outline: 2px solid #171717; outline-offset: 2px; }
-
-    .sp-alt { text-align: center; margin-top: 22px; font-size: 13px; color: var(--muted); }
-    .sp-alt button {
-      background: none; border: none; color: var(--text);
-      font-family: var(--sans); font-size: 13px; font-weight: 500;
-      cursor: pointer; padding: 0 0 0 4px;
-      text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--border-h);
-      transition: text-decoration-color 0.15s;
-    }
-    .sp-alt button:hover { text-decoration-color: var(--text); }
-
-    /* ── MOBILE: só o form ── */
-    @media (max-width: 860px) {
-      .sp-root { grid-template-columns: 1fr; }
-      .sp-show { display: none; }
-    }
-  `;
-
   return (
-    <div className="sp-root">
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+    <ThemeProvider theme={themeLight}>
+      <CssBaseline enableColorScheme />
+      <Stack component="main" sx={{ justifyContent: "center", minHeight: "100vh", p: 2 }}>
+        <Stack
+          direction={{ xs: "column-reverse", md: "row" }}
+          sx={{ justifyContent: "center", alignItems: "center", gap: { xs: 6, md: 12 }, mx: "auto" }}
+        >
+          <Box sx={{ display: { xs: "none", md: "flex" } }}><Showcase /></Box>
 
-      {/* ── Showcase ── */}
-      <div className="sp-show">
-        <div className="sp-nav">
-          <span><b>Estratégia</b></span>
-          <span>Inteligência</span>
-          <span>Estúdio</span>
-          <span>Copiloto</span>
-        </div>
-        <div className="sp-foot">
-          <h2 className="sp-head">A marca no meio da operação.</h2>
-          <p className="sp-sub">
-            Diagnóstico com IA, inteligência de mercado e criação on-brand — a memória
-            viva da sua marca, em tempo real.
-          </p>
-        </div>
-      </div>
+          <Card variant="outlined" sx={{ width: "100%", maxWidth: 420 }}>
+            <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Wordmark size={26} sx={{ mb: 0.5 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
+                Entre na sua conta
+              </Typography>
 
-      {/* ── Form ── */}
-      <div className="sp-form">
-        <div className="sp-card">
-          <div className="sp-mark">brandcode</div>
-          <h1 className="sp-title">Entre na sua conta</h1>
-          <p className="sp-desc">Brand intelligence platform</p>
+              {error && <Alert severity="error">{error}</Alert>}
 
-          {error && <div className="sp-error" role="alert">{error}</div>}
-
-          <form onSubmit={handleLogin}>
-            <input
-              className="sp-input" type="email" value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="E-mail" autoComplete="email" required autoFocus
-            />
-            <input
-              className="sp-input" type="password" value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Senha" autoComplete="current-password" required
-            />
-            <button className="sp-btn" type="submit" disabled={loading}>
-              {loading ? "Entrando…" : "Entrar"}
-            </button>
-          </form>
-
-        </div>
-      </div>
-    </div>
+              <Box component="form" onSubmit={handleLogin}
+                sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <FormControl>
+                  <FormLabel htmlFor="email">E-mail</FormLabel>
+                  <TextField
+                    id="email" type="email" name="email" placeholder="voce@empresa.com"
+                    autoComplete="email" autoFocus required fullWidth
+                    value={email} onChange={e => setEmail(e.target.value)}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel htmlFor="password">Senha</FormLabel>
+                  <TextField
+                    id="password" type="password" name="password" placeholder="••••••••"
+                    autoComplete="current-password" required fullWidth
+                    value={password} onChange={e => setPassword(e.target.value)}
+                  />
+                </FormControl>
+                <Button type="submit" fullWidth variant="contained" disabled={loading}>
+                  {loading ? <CircularProgress size={22} color="inherit" /> : "Entrar"}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Stack>
+      </Stack>
+    </ThemeProvider>
   );
 }
+
+export default LoginPage;

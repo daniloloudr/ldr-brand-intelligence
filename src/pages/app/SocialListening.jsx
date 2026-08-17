@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase'
 import { fmtDate, navigate } from '../../lib/helpers'
 import { PLANOS } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
 const PERIODOS = [
   { label: '7 dias',  value: '7d',  days: 7  },
@@ -28,9 +29,9 @@ const PERIODOS = [
 ]
 
 const SENT_CFG = {
-  positivo: { color: '#0D9E7A', Icon: SentimentSatisfiedAltIcon },
-  neutro:   { color: '#EF9F27', Icon: SentimentNeutralIcon      },
-  negativo: { color: '#E8185A', Icon: SentimentDissatisfiedIcon },
+  positivo: { color: PALETTE.data.positivo, Icon: SentimentSatisfiedAltIcon },
+  neutro:   { color: PALETTE.data.atencao, Icon: SentimentNeutralIcon      },
+  negativo: { color: PALETTE.data.critico, Icon: SentimentDissatisfiedIcon },
 }
 
 // Arredonda fatias para INTEIROS que somam exatamente 100% (maior resto).
@@ -71,14 +72,14 @@ function CustomTooltip({ active, payload, label }) {
 function SentimentScore({ label, value, color, Icon }) {
   return (
     <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
-      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: '1.5px' }}>
         <Icon sx={{ color, fontSize: 28, flexShrink: 0 }} />
         <Box>
           <Typography variant="caption" color="text.secondary" fontWeight={700}
             textTransform="uppercase" letterSpacing="0.08em" display="block">
             {label}
           </Typography>
-          <Typography fontSize={30} fontWeight={900} sx={{ color, lineHeight: 1 }}>
+          <Typography variant="h4" sx={{ color, lineHeight: 1 }}>
             {value > 0 ? `${Math.round(value)}%` : '—'}
           </Typography>
         </Box>
@@ -126,7 +127,7 @@ function EventRow({ ev }) {
             {ev.conteudo.length > 200 ? ev.conteudo.slice(0, 200) + '…' : ev.conteudo}
           </Typography>
         )}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px' }}>
           <Typography variant="caption" color="text.disabled">{fmtDate(ev.created_at)}</Typography>
           {ev.score_impacto != null && (
             <Typography variant="caption" sx={{ color: cfg.color, fontWeight: 700 }}>
@@ -141,7 +142,7 @@ function EventRow({ ev }) {
               rel="noopener noreferrer"
               variant="caption"
               sx={{
-                display: 'inline-flex', alignItems: 'center', gap: 0.3,
+                display: 'inline-flex', alignItems: 'center', gap: '0.3px',
                 color: 'text.disabled', textDecoration: 'none', ml: 'auto',
                 '&:hover': { color: 'primary.main' },
               }}
@@ -431,9 +432,9 @@ export function SocialListening() {
 
           {/* Score cards */}
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
-            <SentimentScore label="Positivo" value={posPct} color="#0D9E7A" Icon={SentimentSatisfiedAltIcon} />
-            <SentimentScore label="Neutro"   value={neuPct} color="#EF9F27" Icon={SentimentNeutralIcon}     />
-            <SentimentScore label="Negativo" value={negPct} color="#E8185A" Icon={SentimentDissatisfiedIcon} />
+            <SentimentScore label="Positivo" value={posPct} color={PALETTE.data.positivo} Icon={SentimentSatisfiedAltIcon} />
+            <SentimentScore label="Neutro"   value={neuPct} color={PALETTE.data.atencao} Icon={SentimentNeutralIcon}     />
+            <SentimentScore label="Negativo" value={negPct} color={PALETTE.data.critico} Icon={SentimentDissatisfiedIcon} />
           </Box>
 
           {/* Gráfico de área */}
@@ -445,21 +446,21 @@ export function SocialListening() {
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
                   <defs>
-                    {[['gPos', '#0D9E7A'], ['gNeu', '#EF9F27'], ['gNeg', '#E8185A']].map(([id, c]) => (
+                    {[['gPos', PALETTE.data.positivo], ['gNeu', PALETTE.data.atencao], ['gNeg', PALETTE.data.critico]].map(([id, c]) => (
                       <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%"  stopColor={c} stopOpacity={0.3} />
                         <stop offset="95%" stopColor={c} stopOpacity={0.0} />
                       </linearGradient>
                     ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E3550" />
-                  <XAxis dataKey="data" tick={{ fill: '#8A9AB0', fontSize: 11 }} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#8A9AB0', fontSize: 11 }} unit="%" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={PALETTE.neutral[100]} />
+                  <XAxis dataKey="data" tick={{ fill: PALETTE.neutral[400], fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fill: PALETTE.neutral[400], fontSize: 11 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ fontSize: 12, fontFamily: "'Cairo', sans-serif", paddingTop: 12 }} iconType="circle" />
-                  <Area type="monotone" dataKey="Positivo" stroke="#0D9E7A" strokeWidth={2} fill="url(#gPos)" />
-                  <Area type="monotone" dataKey="Neutro"   stroke="#EF9F27" strokeWidth={2} fill="url(#gNeu)" />
-                  <Area type="monotone" dataKey="Negativo" stroke="#E8185A" strokeWidth={2} fill="url(#gNeg)" />
+                  <Area type="monotone" dataKey="Positivo" stroke={PALETTE.data.positivo} strokeWidth={2} fill="url(#gPos)" />
+                  <Area type="monotone" dataKey="Neutro"   stroke={PALETTE.data.atencao} strokeWidth={2} fill="url(#gNeu)" />
+                  <Area type="monotone" dataKey="Negativo" stroke={PALETTE.data.critico} strokeWidth={2} fill="url(#gNeg)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

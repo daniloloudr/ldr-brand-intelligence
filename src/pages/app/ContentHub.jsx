@@ -9,8 +9,9 @@ import { ContentPalavras }     from './ContentPalavras'
 import { ContentOportunidades } from './ContentOportunidades'
 import { ContentIdeias }        from './ContentIdeias'
 import { PageHeader }           from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const CORES = ['#0D9E7A', '#E8185A', '#7F77DD', '#EF9F27', '#4A9ECC', '#FF7043']
+const CORES = [PALETTE.data.positivo, PALETTE.data.critico, PALETTE.data.neutro, PALETTE.data.atencao, PALETTE.data.info, PALETTE.data.critico]
 
 function enrichClusters(clusters) {
   return (clusters || []).map((cl, i) => ({ ...cl, cor: CORES[i % CORES.length] }))
@@ -190,7 +191,7 @@ export function ContentHub() {
                   Oportunidades
                   <Chip label={totalOportunidades} size="small"
                     sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800,
-                      bgcolor: tab === 1 ? '#EF9F27' : 'rgba(255,255,255,0.08)',
+                      bgcolor: tab === 1 ? PALETTE.data.atencao : 'rgba(255,255,255,0.08)',
                       color: tab === 1 ? '#fff' : 'text.secondary' }} />
                 </Box>
               } />
@@ -199,7 +200,7 @@ export function ContentHub() {
                   Ideias de Conteúdo
                   <Chip label={ideias.length} size="small"
                     sx={{ height: 18, fontSize: '0.6rem', fontWeight: 800,
-                      bgcolor: tab === 2 ? '#7F77DD' : 'rgba(255,255,255,0.08)',
+                      bgcolor: tab === 2 ? PALETTE.data.neutro : 'rgba(255,255,255,0.08)',
                       color: tab === 2 ? '#fff' : 'text.secondary' }} />
                 </Box>
               } />

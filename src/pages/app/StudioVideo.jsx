@@ -22,8 +22,9 @@ import { PageHeader } from '../../components/shell/PageHeader'
 import { CreditBadge } from '../../components/CreditBadge'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', CORAL = '#E8185A', AMBER = '#E0B33A'
+const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico, AMBER = PALETTE.data.atencao
 const ARMAP = { '16:9': '16 / 9', '9:16': '9 / 16', '1:1': '1 / 1', '4:5': '4 / 5' }
 
 export function StudioVideo({ brandId }) {
@@ -226,7 +227,7 @@ export function StudioVideo({ brandId }) {
   const visibleItems = items.filter(p => p.status !== 'error' && !broken[p.id])
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Estúdio" subtitle="Geração de vídeo" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
@@ -253,7 +254,7 @@ export function StudioVideo({ brandId }) {
             <Typography sx={inpLabel}>Prompt</Typography>
             <Box sx={{ flex: 1 }} />
             <Button size="small" startIcon={improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 16 }} />}
-              onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: TEAL }}>
+              onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>
               {improving ? 'Melhorando…' : 'Melhorar o Prompt'}
             </Button>
           </Stack>
@@ -273,7 +274,7 @@ export function StudioVideo({ brandId }) {
                 ) : (
                   <Box onClick={() => !generating && !uploading && ref.current?.click()}
                     sx={{ width: 72, height: 72, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: generating || uploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: TEAL, color: TEAL } }}>
+                      cursor: generating || uploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}>
                     {uploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
                   </Box>
                 )}
@@ -306,7 +307,7 @@ export function StudioVideo({ brandId }) {
               <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Duração:</Typography>
               {model.durations.map(d => (
                 <Chip key={d} label={durLabel(d)} clickable disabled={generating} onClick={() => setDuration(d)} size="small"
-                  variant={duration === d ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(duration === d && { bgcolor: TEAL, color: '#fff' }) }} />
+                  variant={duration === d ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(duration === d && { bgcolor: 'primary.main', color: '#fff' }) }} />
               ))}
             </>}
             {model?.aspects && !srcUrl && <>
@@ -314,7 +315,7 @@ export function StudioVideo({ brandId }) {
               <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Formato:</Typography>
               {model.aspects.map(a => (
                 <Chip key={a} label={a} clickable disabled={generating} onClick={() => setAspect(a)} size="small"
-                  variant={aspect === a ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(aspect === a && { bgcolor: TEAL, color: '#fff' }) }} />
+                  variant={aspect === a ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(aspect === a && { bgcolor: 'primary.main', color: '#fff' }) }} />
               ))}
             </>}
             {srcUrl && model?.aspects && <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>Formato vem da imagem de origem</Typography>}
@@ -328,7 +329,7 @@ export function StudioVideo({ brandId }) {
             {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
             <CreditBadge />
             <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              onClick={gerar} disabled={generating} sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+              onClick={gerar} disabled={generating} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
               {generating ? 'Enviando…' : 'Gerar vídeo'}
             </Button>
           </Stack>
@@ -336,7 +337,7 @@ export function StudioVideo({ brandId }) {
 
         {/* Galeria */}
         {loading ? (
-          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" sx={{ py: 8 }}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
         ) : visibleItems.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 8, textAlign: 'center' }}>
             <MovieOutlinedIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
@@ -359,16 +360,16 @@ export function StudioVideo({ brandId }) {
                           onError={() => setBroken(b => ({ ...b, [p.id]: true }))}
                           onMouseEnter={e => e.currentTarget.play?.().catch(() => {})} onMouseLeave={e => e.currentTarget.pause?.()}
                           sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                      : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: '#bbb' }}>gerando vídeo…</Typography></Stack>}
+                      : <Stack alignItems="center" spacing={1}><CircularProgress size={18} sx={{ color: 'primary.main' }} /><Typography sx={{ fontSize: 10, color: '#bbb' }}>gerando vídeo…</Typography></Stack>}
                   </Box>
                   {done && (
                     <Box sx={{ px: 0.5, py: 0.5, display: 'flex', alignItems: 'center' }}>
-                      <Tooltip title="Aprovar"><span><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'up')}>
+                      <Tooltip title="Aprovar"><Typography component="span"><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'up')}>
                         {p.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 16, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 16 }} />}
-                      </IconButton></span></Tooltip>
-                      <Tooltip title="Reprovar"><span><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'down')}>
+                      </IconButton></Typography></Tooltip>
+                      <Tooltip title="Reprovar"><Typography component="span"><IconButton size="small" disabled={voting[p.id]} onClick={() => votar(p, 'down')}>
                         {p.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 16, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 16 }} />}
-                      </IconButton></span></Tooltip>
+                      </IconButton></Typography></Tooltip>
                       {p.params && (
                         <Tooltip title="Ajustar (retoque sutil + reajustar)"><IconButton size="small" onClick={() => setAdjOpen(o => ({ ...o, [p.id]: !o[p.id] }))}>
                           <TuneOutlinedIcon sx={{ fontSize: 16, color: adjOpen[p.id] || adjText[p.id] ? AMBER : 'inherit' }} />
@@ -377,9 +378,9 @@ export function StudioVideo({ brandId }) {
                       <Box sx={{ flex: 1 }} />
                       <Tooltip title="Baixar"><IconButton size="small" onClick={() => downloadVideo(p.image_url)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                       <Tooltip title={saved[p.id] ? 'Salvo nos assets' : 'Salvar nos assets'}>
-                        <span><IconButton size="small" disabled={saved[p.id] || saving[p.id]} onClick={() => saveToAssets(p)}>
+                        <Typography component="span"><IconButton size="small" disabled={saved[p.id] || saving[p.id]} onClick={() => saveToAssets(p)}>
                           {saving[p.id] ? <CircularProgress size={14} /> : <BookmarkAddOutlinedIcon sx={{ fontSize: 16, color: saved[p.id] ? TEAL : 'inherit' }} />}
-                        </IconButton></span>
+                        </IconButton></Typography>
                       </Tooltip>
                     </Box>
                   )}
@@ -391,7 +392,7 @@ export function StudioVideo({ brandId }) {
                       <Button size="small" variant="contained" disabled={adjusting[p.id] || !(adjText[p.id] || '').trim()}
                         startIcon={adjusting[p.id] ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <ReplayIcon sx={{ fontSize: 15 }} />}
                         onClick={() => reajustar(p)}
-                        sx={{ alignSelf: 'flex-end', fontWeight: 800, bgcolor: AMBER, color: '#000', '&:hover': { bgcolor: '#CDA02F' } }}>
+                        sx={{ alignSelf: 'flex-end', fontWeight: 800, bgcolor: AMBER, color: '#000', '&:hover': { bgcolor: PALETTE.data.atencaoDim } }}>
                         {adjusting[p.id] ? 'Reajustando…' : 'Reajustar'}
                       </Button>
                     </Stack>
@@ -403,7 +404,7 @@ export function StudioVideo({ brandId }) {
           <Stack alignItems="center" mt={2.5}>
             <Button variant="outlined" size="small"
               onClick={() => { sessionStorage.setItem('biblioteca_root', 'videos'); navigate(`#/app/brands/${brandId}/studio/biblioteca`) }}
-              sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: '#0B8567', bgcolor: 'rgba(13,158,122,.06)' } }}>
+              sx={{ fontWeight: 800, borderColor: TEAL, color: TEAL, '&:hover': { borderColor: PALETTE.data.positivoDim, bgcolor: 'rgba(13,158,122,.06)' } }}>
               Ver todos na Biblioteca →
             </Button>
           </Stack></>

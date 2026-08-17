@@ -15,6 +15,8 @@ import { fmtDate, navigate } from '../../lib/helpers'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
+import Link from "@mui/material/Link";
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
@@ -288,11 +290,11 @@ function buildSystemPrompt(brand, book, ragChunks, intelligence) {
     missao || proposito || paleta || (ragChunks?.length) || intelligence?.modelo)
 
   if (!hasContent) {
-    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma brandcode.
+    return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma BR4NDCODE.
 Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
   }
 
-  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma brandcode.
+  let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma BR4NDCODE.
 Você conhece profundamente esta marca e responde com base exclusivamente no brand book abaixo.
 Seja estratégico, direto e on-brand. Nunca invente informações que não estão no brand book.
 
@@ -464,14 +466,14 @@ function inlineParts(text, keyBase) {
     if (IMG_URL.test(part) && /^https?:\/\//.test(part))
       return (
         <Box key={`${keyBase}-img${i}`} sx={{ my: 1 }}>
-          <img src={part} alt="peça gerada" style={{ maxWidth: '100%', maxHeight: 340, borderRadius: 8, display: 'block' }} />
+          <Box component="img" src={part} alt="peça gerada" sx={{ maxWidth: '100%', maxHeight: 340, borderRadius: 8, display: 'block' }} />
         </Box>
       )
     if (/^https?:\/\//.test(part))
-      return <a key={`${keyBase}-a${i}`} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#7F77DD', fontWeight: 700 }}>{part}</a>
+      return <Link key={`${keyBase}-a${i}`} href={part} target="_blank" rel="noopener noreferrer">{part}</Link>
     if (part.startsWith('#/app/'))
-      return <a key={`${keyBase}-e${i}`} href={part} style={{ color: '#7F77DD', fontWeight: 700 }}>abrir no Estúdio →</a>
-    return <span key={`${keyBase}-t${i}`}>{mdInline(part, `${keyBase}-${i}`)}</span>
+      return <Link key={`${keyBase}-e${i}`} href={part} sx={{ fontWeight: 700 }}>abrir no Estúdio →</Link>
+    return <Typography component="span" key={`${keyBase}-t${i}`}>{mdInline(part, `${keyBase}-${i}`)}</Typography>
   })
 }
 
@@ -524,14 +526,14 @@ function renderRich(text) {
     const li = line.match(/^\s*[-*•]\s+(.*)/)
     if (li) {
       out.push(
-        <Box key={i} sx={{ display: 'flex', gap: 0.75, pl: 1 }}>
-          <span>•</span><span style={{ flex: 1 }}>{inlineParts(li[1], i)}</span>
+        <Box key={i} sx={{ display: 'flex', gap: '0.75px', pl: 1 }}>
+          <Typography component="span">•</Typography><Typography component="span" sx={{ flex: 1 }}>{inlineParts(li[1], i)}</Typography>
         </Box>
       )
       continue
     }
     if (!line.trim()) { out.push(<Box key={i} sx={{ height: 8 }} />); continue }
-    out.push(<div key={i}>{inlineParts(line, i)}</div>)
+    out.push(<Box key={i}>{inlineParts(line, i)}</Box>)
   }
   return out
 }
@@ -555,7 +557,7 @@ function ChatBubble({ msg, question, onTeach }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', mb: 2 }}>
       {!isUser && (
-        <Avatar sx={{ width: 28, height: 28, bgcolor: '#7F77DD', mr: 1, mt: 0.5, flexShrink: 0, fontSize: 13, fontFamily: "'Cairo', sans-serif" }}>
+        <Avatar sx={{ width: 28, height: 28, bgcolor: PALETTE.data.neutro, mr: 1, mt: 0.5, flexShrink: 0, fontSize: 13, fontFamily: "'Cairo', sans-serif" }}>
           <AutoAwesomeIcon sx={{ fontSize: 14 }} />
         </Avatar>
       )}
@@ -603,7 +605,7 @@ function ChatBubble({ msg, question, onTeach }) {
         )}
       </Box>
       {isUser && (
-        <Avatar sx={{ width: 28, height: 28, bgcolor: '#0D9E7A', ml: 1, mt: 0.5, flexShrink: 0, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
+        <Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.main', ml: 1, mt: 0.5, flexShrink: 0, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
           U
         </Avatar>
       )}
@@ -906,7 +908,7 @@ export function BrandAssistant({ brandId }) {
   }
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <PageHeader
         title={`${brand?.nome || ''} — Copiloto`}
         subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
@@ -916,7 +918,7 @@ export function BrandAssistant({ brandId }) {
           </Button>
         }
       />
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 130px)', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* ── Esquerda: histórico de conversas ── */}
       <Box sx={{
@@ -970,15 +972,15 @@ export function BrandAssistant({ brandId }) {
         {/* Mensagens */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
           {messages.length === 0 && !streaming && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1.5 }}>
-              <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 36, mb: 1 }} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: '1.5px' }}>
+              <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 36, mb: 1 }} />
               <Typography fontWeight={800} textAlign="center">
                 Como posso ajudar com a {brand?.nome}?
               </Typography>
               <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={400}>
                 Faço estratégia, briefings, copy e orientações de marca — tudo baseado no brand book.
               </Typography>
-              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 0.75, width: '100%', maxWidth: 420 }}>
+              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: '0.75px', width: '100%', maxWidth: 420 }}>
                 {SUGESTOES.slice(0, 3).map(s => (
                   <Button
                     key={s}
@@ -1010,12 +1012,12 @@ export function BrandAssistant({ brandId }) {
           {pendingAction && (
             <Paper sx={{ p: 2, mb: 2, ml: 4.5, maxWidth: 520, borderRadius: 2, border: '1px solid rgba(127,119,221,0.45)', bgcolor: 'rgba(127,119,221,0.06)' }}>
               <Stack direction="row" spacing={1} alignItems="center" mb={0.75}>
-                <AutoAwesomeIcon sx={{ fontSize: 16, color: '#7F77DD' }} />
+                <AutoAwesomeIcon sx={{ fontSize: 16, color: PALETTE.data.neutro }} />
                 <Typography sx={{ fontSize: 13, fontWeight: 800 }}>
                   {ACTION_LABEL[pendingAction.name]?.titulo || pendingAction.name}
                 </Typography>
                 <Chip label={ACTION_LABEL[pendingAction.name]?.custo || ''} size="small"
-                  sx={{ height: 18, fontSize: 10, fontWeight: 800, bgcolor: 'rgba(127,119,221,0.14)', color: '#7F77DD' }} />
+                  sx={{ height: 18, fontSize: 10, fontWeight: 800, bgcolor: 'rgba(127,119,221,0.14)', color: PALETTE.data.neutro }} />
               </Stack>
               <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.5, mb: 1.5 }}>
                 {pendingAction.input?.prompt || pendingAction.input?.objetivo || ''}
@@ -1024,7 +1026,7 @@ export function BrandAssistant({ brandId }) {
               </Typography>
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="contained" disableElevation onClick={confirmarAcao}
-                  sx={{ fontWeight: 800, bgcolor: '#7F77DD', '&:hover': { bgcolor: '#6A62C8' } }}>Confirmar e executar</Button>
+                  sx={{ fontWeight: 800, bgcolor: PALETTE.data.neutro, '&:hover': { bgcolor: PALETTE.neutral[500] } }}>Confirmar e executar</Button>
                 <Button size="small" variant="text" color="inherit" onClick={cancelarAcao} sx={{ fontWeight: 700 }}>Agora não</Button>
               </Stack>
             </Paper>
@@ -1032,8 +1034,8 @@ export function BrandAssistant({ brandId }) {
 
           {streaming && toolStatus && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, pl: 4.5 }}>
-              <CircularProgress size={14} sx={{ color: '#7F77DD' }} />
-              <Typography variant="caption" sx={{ color: '#7F77DD', fontWeight: 700 }}>{toolStatus}</Typography>
+              <CircularProgress size={14} sx={{ color: PALETTE.data.neutro }} />
+              <Typography variant="caption" sx={{ color: PALETTE.data.neutro, fontWeight: 700 }}>{toolStatus}</Typography>
             </Box>
           )}
 
@@ -1046,14 +1048,14 @@ export function BrandAssistant({ brandId }) {
             </Box>
           )}
 
-          <div ref={bottomRef} />
+          <Box ref={bottomRef} />
         </Box>
 
         {/* Input */}
         <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
           {anexo?.url && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <img src={anexo.url} alt="peça anexada" style={{ height: 44, borderRadius: 6 }} />
+              <Box component="img" src={anexo.url} alt="peça anexada" sx={{ height: 44, borderRadius: 6 }} />
               <Typography sx={{ fontSize: 12, color: 'text.secondary', flex: 1 }}>Peça anexada — o Copiloto avalia como diretor de arte</Typography>
               <IconButton size="small" onClick={() => setAnexo(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
             </Box>
@@ -1062,12 +1064,12 @@ export function BrandAssistant({ brandId }) {
             onChange={e => { anexarImagem(e.target.files?.[0]); e.target.value = '' }} />
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
             <Tooltip title="Anexar peça para o diretor de arte avaliar">
-              <span>
+              <Typography component="span">
                 <IconButton onClick={() => fileRef.current?.click()} disabled={streaming || anexando}
                   sx={{ borderRadius: 2, width: 42, height: 42, flexShrink: 0, border: '1px solid', borderColor: 'divider' }}>
                   {anexando ? <CircularProgress size={16} /> : <ImageOutlinedIcon fontSize="small" />}
                 </IconButton>
-              </span>
+              </Typography>
             </Tooltip>
             <TextField
               fullWidth

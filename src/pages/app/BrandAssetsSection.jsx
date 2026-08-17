@@ -10,6 +10,7 @@ import UploadFileIcon     from '@mui/icons-material/UploadFile'
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
 import OpenInNewIcon      from '@mui/icons-material/OpenInNew'
 import { supabase }       from '../../lib/supabase'
+import { PALETTE } from '../../lib/theme'
 
 const STORAGE_BUCKET = 'brand-assets'
 
@@ -37,7 +38,7 @@ function isDark(hex) {
 /* ─── Brand Marks (múltiplos SVGs — variações da marca) ─────────────── */
 
 const MARK_BGS = [
-  { bg: '#FFFFFF', label: 'Light' },
+  { bg: PALETTE.neutral[0], label: 'Light' },
   { bg: '#F3F4F6', label: 'Light Gray' },
   { bg: '#111827', label: 'Dark' },
 ]
@@ -61,7 +62,7 @@ function BrandMarksPanel({ marks, onSave, onDelete }) {
 
   return (
     <Box sx={{ mb: 6 }}>
-      <SectionLabel label="Brand Mark" color="#7F77DD" count={marks.length} />
+      <SectionLabel label="Brand Mark" color={PALETTE.data.neutro} count={marks.length} />
       <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.25 }}>
         Variações da marca em SVG — logo principal, símbolo, versões horizontais/reduzidas. Clique no preview para alternar o fundo.
       </Typography>
@@ -141,13 +142,13 @@ function BrandMarkCard({ asset, onDelete }) {
         <Box sx={{ display: 'flex', flexShrink: 0 }}>
           <Tooltip title={copied ? 'Copiado!' : 'Copiar SVG'}>
             <IconButton size="small" onClick={copyValue}
-              sx={{ color: copied ? '#0D9E7A' : 'text.disabled' }}>
+              sx={{ color: copied ? PALETTE.data.positivo : 'text.disabled' }}>
               {copied ? <CheckIcon sx={{ fontSize: 15 }} /> : <ContentCopyIcon sx={{ fontSize: 15 }} />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Remover">
             <IconButton size="small" onClick={() => onDelete(asset.id)}
-              sx={{ color: 'text.disabled', '&:hover': { color: '#E8185A' } }}>
+              sx={{ color: 'text.disabled', '&:hover': { color: PALETTE.data.critico } }}>
               <DeleteOutlineIcon sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
@@ -171,7 +172,7 @@ function ColorPalette({ items, onDelete }) {
   if (!items.length) return null
   return (
     <Box sx={{ mb: 6 }}>
-      <SectionLabel label="Cores" color="#0D9E7A" count={items.length} />
+      <SectionLabel label="Cores" color={PALETTE.data.positivo} count={items.length} />
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0, mt: 2,
         border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
         {items.map((asset, i) => {
@@ -191,7 +192,7 @@ function ColorPalette({ items, onDelete }) {
               <Box sx={{ height: 100, bgcolor: hex || 'divider', position: 'relative' }}>
                 <Box className="swatch-actions" sx={{
                   position: 'absolute', top: 6, right: 6,
-                  display: 'flex', gap: 0.5, opacity: 0, transition: 'opacity 0.15s',
+                  display: 'flex', gap: '0.5px', opacity: 0, transition: 'opacity 0.15s',
                 }}>
                   <Tooltip title={copiedId === asset.id ? 'Copiado!' : 'Copiar hex'}>
                     <IconButton size="small" onClick={() => copy(asset.id, hex || asset.valor)}
@@ -218,7 +219,7 @@ function ColorPalette({ items, onDelete }) {
                 </Typography>
                 {hex && (
                   <Typography sx={{ fontSize: 11, fontFamily: 'monospace',
-                    color: '#0D9E7A', fontWeight: 700, mt: 0.25 }}>
+                    color: PALETTE.data.positivo, fontWeight: 700, mt: 0.25 }}>
                     {hex.toUpperCase()}
                   </Typography>
                 )}
@@ -260,7 +261,7 @@ function TypographyCard({ asset, onDelete }) {
         <Box>
           <Chip label="Tipografia" size="small"
             sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800, mb: 1,
-              bgcolor: 'rgba(239,159,39,0.12)', color: '#EF9F27' }} />
+              bgcolor: 'rgba(239,159,39,0.12)', color: PALETTE.data.atencao }} />
           <Typography sx={{ fontSize: 14, fontWeight: 900 }}>{asset.nome}</Typography>
           {asset.valor && (
             <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: 'text.disabled', mt: 0.25 }}>
@@ -270,7 +271,7 @@ function TypographyCard({ asset, onDelete }) {
         </Box>
         <IconButton className="del" size="small" onClick={() => onDelete(asset.id)}
           sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-            '&:hover': { color: '#E8185A' } }}>
+            '&:hover': { color: PALETTE.data.critico } }}>
           <DeleteOutlineIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Box>
@@ -302,7 +303,7 @@ function TypographyCard({ asset, onDelete }) {
 
 /* ─── Other assets ──────────────────────────────────────────────────── */
 
-const TIPO_COR = { icone: '#4A9ECC', padrao: '#E8185A', outro: '#8A9AB0' }
+const TIPO_COR = { icone: PALETTE.data.info, padrao: PALETTE.data.critico, outro: PALETTE.neutral[400] }
 
 function OtherCard({ asset, onDelete }) {
   const cor = TIPO_COR[asset.tipo] || TIPO_COR.outro
@@ -340,7 +341,7 @@ function OtherCard({ asset, onDelete }) {
               bgcolor: cor + '18', color: cor }} />
           <IconButton className="del" size="small" onClick={() => onDelete(asset.id)}
             sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-              '&:hover': { color: '#E8185A' } }}>
+              '&:hover': { color: PALETTE.data.critico } }}>
             <DeleteOutlineIcon sx={{ fontSize: 14 }} />
           </IconButton>
         </Box>
@@ -438,7 +439,7 @@ function UploadPanel({ brandId, onUploaded }) {
 
   return (
     <Box sx={{ mb: 5 }}>
-      <SectionLabel label="Upload de arquivos" color="#0D9E7A" count={files.length} />
+      <SectionLabel label="Upload de arquivos" color={PALETTE.data.positivo} count={files.length} />
 
       <Box
         onClick={() => fileRef.current?.click()}
@@ -465,10 +466,10 @@ function UploadPanel({ brandId, onUploaded }) {
       </Box>
 
       {files.length > 0 && (
-        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
           {files.map((f, idx) => (
             <Box key={idx} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px 1fr 30px' }, gap: 1.5, alignItems: 'center' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px 1fr 30px' }, gap: '1.5px', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {f.file.name}
@@ -517,9 +518,9 @@ function UploadPanel({ brandId, onUploaded }) {
 
 function SectionLabel({ label, color, count }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5,
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', pb: 1.5,
       borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Box sx={{ width: 3, height: 18, bgcolor: color, borderRadius: 4 }} />
+      <Box sx={{ width: 3, height: 18, bgcolor: color, }} />
       <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase',
         letterSpacing: '0.12em', color }}>
         {label}
@@ -564,7 +565,7 @@ export function BrandAssetsSection({ assets, brandId, onDelete, onSave }) {
       {/* Tipografia */}
       {tipos.length > 0 && (
         <Box sx={{ mb: 6 }}>
-          <SectionLabel label="Tipografia" color="#EF9F27" count={tipos.length} />
+          <SectionLabel label="Tipografia" color={PALETTE.data.atencao} count={tipos.length} />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
             {tipos.map(a => <TypographyCard key={a.id} asset={a} onDelete={onDelete} />)}
           </Box>
@@ -574,7 +575,7 @@ export function BrandAssetsSection({ assets, brandId, onDelete, onSave }) {
       {/* Galeria (todos os arquivos uploadados, agrupados por tipo) */}
       {galeria.length > 0 && (
         <Box sx={{ mb: 4 }}>
-          <SectionLabel label="Galeria de assets" color="#8A9AB0" count={galeria.length} />
+          <SectionLabel label="Galeria de assets" color={PALETTE.neutral[400]} count={galeria.length} />
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2, mt: 2 }}>
             {galeria.map(a => <OtherCard key={a.id} asset={a} onDelete={onDelete} />)}
           </Box>

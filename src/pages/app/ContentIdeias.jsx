@@ -5,23 +5,24 @@ import {
 import AutoAwesomeIcon         from '@mui/icons-material/AutoAwesome'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import { ContentGerarDrawer }  from './ContentGerarDrawer'
+import { PALETTE } from '../../lib/theme'
 
-const OPOR_COR = { alta: '#0D9E7A', media: '#EF9F27', baixa: '#8A9AB0' }
+const OPOR_COR = { alta: PALETTE.data.positivo, media: PALETTE.data.atencao, baixa: PALETTE.neutral[400] }
 
 const FORMATO_COR = {
-  Artigo:     '#4A9ECC',
-  Vídeo:      '#E8185A',
-  Post:       '#7F77DD',
-  Newsletter: '#0D9E7A',
-  Webinar:    '#EF9F27',
+  Artigo:     PALETTE.data.info,
+  Vídeo:      PALETTE.data.critico,
+  Post:       PALETTE.data.neutro,
+  Newsletter: PALETTE.data.positivo,
+  Webinar:    PALETTE.data.atencao,
 }
 
-const INTENT_COR = { informacional: '#4A9ECC', transacional: '#E8185A', navegacional: '#7F77DD' }
+const INTENT_COR = { informacional: PALETTE.data.info, transacional: PALETTE.data.critico, navegacional: PALETTE.data.neutro }
 const INTENT_LABEL = { informacional: 'Informacional', transacional: 'Transacional', navegacional: 'Navegacional' }
 
 function IdeiaCard({ ideia, clusterCor, clusterNome, onGerar }) {
-  const formatoCor = FORMATO_COR[ideia.formato] || '#8A9AB0'
-  const intentCor  = INTENT_COR[ideia.intencao] || '#8A9AB0'
+  const formatoCor = FORMATO_COR[ideia.formato] || PALETTE.neutral[400]
+  const intentCor  = INTENT_COR[ideia.intencao] || PALETTE.neutral[400]
 
   return (
     <Card sx={{
@@ -121,7 +122,7 @@ export function ContentIdeias({ ideias, clusters, workspace }) {
           exclusive
           onChange={(_, v) => { if (v) setFiltroFormato(v) }}
           size="small"
-          sx={{ flexWrap: 'wrap', gap: 0.5,
+          sx={{ flexWrap: 'wrap', gap: '0.5px',
             '& .MuiToggleButton-root': { px: 2, py: 0.5, fontSize: 12, fontWeight: 700,
               fontFamily: "'Cairo', sans-serif", borderRadius: '4px !important',
               border: '1px solid !important', borderColor: 'divider !important',
@@ -152,7 +153,7 @@ export function ContentIdeias({ ideias, clusters, workspace }) {
               <IdeiaCard
                 key={ideia.id || i}
                 ideia={ideia}
-                clusterCor={cl?.cor || '#0D9E7A'}
+                clusterCor={cl?.cor || PALETTE.data.positivo}
                 clusterNome={cl?.nome || ideia.cluster}
                 onGerar={() => setDrawerItem({ ...ideia, _tipo: 'ideia' })}
               />

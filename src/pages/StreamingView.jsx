@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@mui/material/styles";
-import { DS, F, RATE_LIMIT_WAIT, MAX_RETRIES } from "../lib/constants";
+import { RATE_LIMIT_WAIT, MAX_RETRIES } from "../lib/constants";
 import { sc } from "../lib/helpers";
 import { Bar } from "../components/Bar";
-import { Lbl } from "../components/Lbl";
-import { Card } from "../components/Card";
+import { PALETTE } from '../lib/theme'
+import { Box, Typography } from "@mui/material";
+import Skeleton from "@mui/material/Skeleton";
+import { Card, CardContent } from "@mui/material";
 
 const TOTAL_SEARCHES = 5;
 
@@ -31,109 +33,75 @@ const GENERATING_MSGS = [
   "Finalizando o diagnóstico...",
 ];
 
-const PRACTICE_COLORS = ["#0D9E7A", "#E8185A", "#7F77DD", "#EF9F27"];
+const PRACTICE_COLORS = [PALETTE.data.positivo, PALETTE.data.critico, PALETTE.data.neutro, PALETTE.data.atencao];
 
-function useC() {
-  const muiTheme = useTheme();
-  const dark = muiTheme.palette.mode === "dark";
-  return dark ? {
-    bg:      "#0D1B2A",
-    panel:   "#162840",
-    panelMid:"#1E3550",
-    border:  "#2A4A68",
-    text:    "#D8E4F0",
-    textSec: "#96AABF",
-    textDis: "#4D6070",
-    stepBg:  "#2A4A68",
-    italic:  "#96AABF",
-  } : {
-    bg:      "#FFFFFF",
-    panel:   "#F5F7F6",
-    panelMid:"#E2EBE8",
-    border:  "#E2EBE8",
-    text:    "#0D1B2A",
-    textSec: "#4A5A6A",
-    textDis: "#8A9AB0",
-    stepBg:  "#F0F4F3",
-    italic:  "#4A5A6A",
-  };
-}
 
-function SkeletonLine({ width = "100%", height = 12, bg, style = {} }) {
-  const C = useC();
-  return (
-    <div style={{
-      width, height, borderRadius: 4,
-      background: bg || C.panelMid,
-      animation: "pulse 1.6s ease-in-out infinite",
-      ...style,
-    }} />
-  );
+// Skeleton do MUI — antes era um Box com keyframe "pulse" próprio
+function SkeletonLine({ width = "100%", height = 12, sx = {} }) {
+  return <Skeleton variant="rounded" animation="wave" width={width} height={height} sx={sx} />;
 }
 
 function RateLimitView({ countdown, attempt }) {
-  const C = useC();
   return (
-    <div style={{ background: C.panel, borderRadius: 16, padding: "28px 32px", border: `1px solid ${DS.amber}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: DS.amber, animation: "pulse 1s infinite" }} />
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: DS.amber, textTransform: "uppercase", fontFamily: F }}>
+    <Box sx={{ background: 'background.paper',  padding: "28px 32px", border: `1px solid ${PALETTE.data.atencao}` }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: '10px', marginBottom: '12px' }}>
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: PALETTE.data.atencao, animation: "pulse 1s infinite" }} />
+        <Box sx={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: PALETTE.data.atencao, textTransform: "uppercase" }}>
           Aguardando limite da API — tentativa {attempt}/{MAX_RETRIES}
-        </div>
-      </div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 8, fontFamily: F }}>
+        </Box>
+      </Box>
+      <Box sx={{ fontSize: 20, fontWeight: 900, color: 'text.primary', marginBottom: '8px' }}>
         Limite de requisições atingido
-      </div>
-      <p style={{ fontSize: 13, color: C.textSec, marginBottom: 20, fontFamily: F, lineHeight: 1.7 }}>
+      </Box>
+      <Typography sx={{ fontSize: 13, color: 'text.secondary', marginBottom: '20px', lineHeight: 1.7 }}>
         A API tem um limite de tokens por minuto. O agent retomará automaticamente — não feche a página.
-      </p>
-      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <div style={{ position: "relative", width: 68, height: 68, flexShrink: 0 }}>
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: '20px' }}>
+        <Box sx={{ position: "relative", width: 68, height: 68, flexShrink: 0 }}>
           <svg viewBox="0 0 64 64" style={{ transform: "rotate(-90deg)", width: 68, height: 68 }}>
-            <circle cx="32" cy="32" r="28" fill="none" stroke={C.panelMid} strokeWidth="5" />
-            <circle cx="32" cy="32" r="28" fill="none" stroke={DS.amber} strokeWidth="5"
+            <circle cx="32" cy="32" r="28" fill="none" stroke={'divider'} strokeWidth="5" />
+            <circle cx="32" cy="32" r="28" fill="none" stroke={PALETTE.data.atencao} strokeWidth="5"
               strokeDasharray={`${(countdown / RATE_LIMIT_WAIT) * 175.9} 175.9`}
               style={{ transition: "stroke-dasharray 1s linear" }} />
           </svg>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 900, color: C.text, fontFamily: F }}>
+          <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 900, color: 'text.primary' }}>
             {countdown}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4, fontFamily: F }}>
+          </Box>
+        </Box>
+        <Box>
+          <Box sx={{ fontSize: 15, fontWeight: 700, color: 'text.primary', marginBottom: '4px' }}>
             Retomando em {countdown}s
-          </div>
-          <div style={{ fontSize: 12, color: C.textSec, fontFamily: F }}>
+          </Box>
+          <Box sx={{ fontSize: 12, color: 'text.secondary' }}>
             O diagnóstico continuará do ponto onde parou.
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
 function SkeletonReport({ elapsed, tokenCount }) {
-  const C = useC();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fu 0.5s ease both" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: '10px', animation: "fu 0.5s ease both" }}>
       {/* Generating indicator */}
-      <div style={{ background: C.bg, borderRadius: 12, padding: "22px 26px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: DS.green, animation: "pulse 1.2s infinite" }} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: DS.green, textTransform: "uppercase", letterSpacing: "0.18em", fontFamily: F }}>
+      <Box sx={{ background: 'background.default',  padding: "22px 26px" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '16px' }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: '8px' }}>
+            <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: PALETTE.data.positivo, animation: "pulse 1.2s infinite" }} />
+            <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, color: PALETTE.data.positivo, textTransform: "uppercase", letterSpacing: "0.18em" }}>
               IA escrevendo diagnóstico
-            </span>
-          </div>
+            </Typography>
+          </Box>
           {tokenCount > 0 && (
-            <span style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>
+            <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled' }}>
               ~{tokenCount} tokens gerados
-            </span>
+            </Typography>
           )}
-        </div>
+        </Box>
 
         {/* Animated writing cursor lines */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: '7px' }}>
           {[
             { w: "52%", h: 20, delay: 0 },
             { w: "36%", h: 11, delay: 0.1 },
@@ -141,80 +109,79 @@ function SkeletonReport({ elapsed, tokenCount }) {
             { w: "76%", h: 9,  delay: 0.3 },
             { w: "60%", h: 9,  delay: 0.4 },
           ].map((l, i) => (
-            <SkeletonLine key={i} width={l.w} height={l.h} style={{ animationDelay: `${l.delay}s` }} />
+            <SkeletonLine key={i} width={l.w} height={l.h} sx={{ animationDelay: `${l.delay}s` }} />
           ))}
-        </div>
+        </Box>
 
         {/* Writing cursor */}
-        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 2, height: 14, background: DS.green, animation: "blink 0.9s step-end infinite", borderRadius: 1 }} />
-          <span style={{ fontSize: 11, color: C.textSec, fontFamily: F }}>sintetizando dados...</span>
-        </div>
-      </div>
+        <Box sx={{ marginTop: '12px', display: "flex", alignItems: "center", gap: '6px' }}>
+          <Box sx={{ width: 2, height: 14, background: PALETTE.data.positivo, animation: "blink 0.9s step-end infinite", }} />
+          <Typography component="span" sx={{ fontSize: 11, color: 'text.secondary' }}>sintetizando dados...</Typography>
+        </Box>
+      </Box>
 
       {/* Practices grid skeleton */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: '10px' }}>
         {PRACTICE_COLORS.map((color, i) => (
-          <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", borderTop: `3px solid ${color}`, animation: `fu 0.4s ${i * 0.07}s ease both` }}>
-            <SkeletonLine width="65%" height={13} style={{ marginBottom: 10 }} />
-            <SkeletonLine width="100%" height={9} style={{ marginBottom: 5 }} />
-            <SkeletonLine width="80%" height={9} style={{ marginBottom: 14 }} />
+          <Box key={i} sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: "16px 18px", borderTop: `3px solid ${color}`, animation: `fu 0.4s ${i * 0.07}s ease both` }}>
+            <SkeletonLine width="65%" height={13} sx={{ marginBottom: 10 }} />
+            <SkeletonLine width="100%" height={9} sx={{ marginBottom: 5 }} />
+            <SkeletonLine width="80%" height={9} sx={{ marginBottom: 14 }} />
             <SkeletonLine width="100%" height={5} />
-          </div>
+          </Box>
         ))}
-      </div>
+      </Box>
 
       {/* Scores skeleton */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: '10px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", animation: `fu 0.4s ${0.28 + i * 0.07}s ease both` }}>
-            <SkeletonLine width="55%" height={11} style={{ marginBottom: 10 }} />
+          <Box key={i} sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: "16px 18px", animation: `fu 0.4s ${0.28 + i * 0.07}s ease both` }}>
+            <SkeletonLine width="55%" height={11} sx={{ marginBottom: 10 }} />
             <SkeletonLine width="100%" height={5} />
-          </div>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
 function PartialDataPreview({ data }) {
-  const C = useC();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fu 0.5s ease both" }}>
-      <div style={{ background: C.bg, borderRadius: 12, padding: "22px 26px" }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 4, fontFamily: F }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: '10px', animation: "fu 0.5s ease both" }}>
+      <Box sx={{ background: 'background.default',  padding: "22px 26px" }}>
+        <Box sx={{ fontSize: 22, fontWeight: 900, color: 'text.primary', marginBottom: '4px' }}>
           {data.empresa}
-        </div>
-        <div style={{ fontSize: 13, color: C.textSec, fontFamily: F }}>
+        </Box>
+        <Box sx={{ fontSize: 13, color: 'text.secondary' }}>
           {[data.setor, data.porte, data.dominio].filter(Boolean).join(" · ")}
-        </div>
+        </Box>
         {data.frase_diagnostico && (
-          <div style={{ marginTop: 14, borderLeft: `3px solid ${DS.green}`, paddingLeft: 14, fontSize: 13, color: C.italic, fontStyle: "italic", fontFamily: F, lineHeight: 1.65 }}>
+          <Box sx={{ marginTop: '14px', borderLeft: `3px solid ${PALETTE.data.positivo}`, paddingLeft: '14px', fontSize: 13, color: 'text.secondary', fontStyle: "italic", lineHeight: 1.65 }}>
             "{data.frase_diagnostico}"
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
       {data.resumo_executivo && (
-        <Card>
-          <Lbl color={DS.green}>Resumo executivo</Lbl>
-          <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.7, fontFamily: F }}>{data.resumo_executivo}</p>
-        </Card>
+        <Card variant="outlined"><CardContent>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Resumo executivo</Typography>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.7 }}>{data.resumo_executivo}</Typography>
+        </CardContent></Card>
       )}
       {(data.score_singularidade || data.score_consistencia) && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: '8px' }}>
           {[
             { l: "Singularidade",  k: "score_singularidade" },
             { l: "Consistência",   k: "score_consistencia" },
             { l: "Posicionamento", k: "score_posicionamento" },
           ].filter(s => data[s.k]).map(s => (
-            <Card key={s.k}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, fontFamily: F, color: C.text }}>{s.l}</div>
+            <Card variant="outlined" key={s.k}><CardContent>
+              <Box sx={{ fontSize: 12, fontWeight: 700, marginBottom: '8px', color: 'text.primary' }}>{s.l}</Box>
               <Bar score={data[s.k]} color={sc(data[s.k])} />
-            </Card>
+            </CardContent></Card>
           ))}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -230,7 +197,6 @@ const TICK_MS  = 500;
 const STEP     = (98 / DURATION) / (1000 / TICK_MS);
 
 export function StreamingView({ searchSteps, partialData, rateLimitCountdown, rateLimitAttempt, streamText = "" }) {
-  const C = useC();
   const [msgIdx, setMsgIdx]     = useState(0);
   const [elapsed, setElapsed]   = useState(0);
   const [progress, setProgress] = useState(0);
@@ -275,78 +241,78 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
   }
 
   return (
-    <div>
+    <Box>
 
       {/* ── Status header ── */}
-      <div style={{ background: C.bg, borderRadius: 16, padding: "28px 32px", marginBottom: 14, position: "relative", overflow: "hidden", border: `1px solid ${C.border}` }}>
-        <div style={{ position: "absolute", right: -40, top: -40, width: 200, height: 200, borderRadius: "50%", background: DS.green, opacity: 0.04 }} />
+      <Box sx={{ background: 'background.default',  padding: "28px 32px", marginBottom: '14px', position: "relative", overflow: "hidden", border: 1, borderColor: 'divider' }}>
+        <Box sx={{ position: "absolute", right: -40, top: -40, width: 200, height: 200, borderRadius: "50%", background: PALETTE.data.positivo, opacity: 0.04 }} />
 
         {/* Phase label + elapsed */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: DS.green, animation: "pulse 1.1s infinite", flexShrink: 0 }} />
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: DS.green, textTransform: "uppercase", fontFamily: F }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '16px' }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: '10px' }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: PALETTE.data.positivo, animation: "pulse 1.1s infinite", flexShrink: 0 }} />
+            <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: PALETTE.data.positivo, textTransform: "uppercase" }}>
               {isWaiting
                 ? "Agent inicializando"
                 : allDone
                 ? "Gerando diagnóstico"
                 : `Pesquisando · ${searchCount} de ${TOTAL_SEARCHES}`}
-            </span>
-          </div>
-          <span style={{ fontSize: 12, color: C.textSec, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
+            </Typography>
+          </Box>
+          <Typography component="span" sx={{ fontSize: 12, color: 'text.secondary', fontVariantNumeric: "tabular-nums" }}>
             {formatElapsed(elapsed)}
-          </span>
-        </div>
+          </Typography>
+        </Box>
 
         {/* Rotating message */}
         <div
           key={`${msgIdx}-${isWaiting}-${allDone}`}
-          style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 8, fontFamily: F, animation: "fu 0.35s ease both" }}
+          sx={{ typography: "h5", color: "text.primary", mb: 1, animation: "fu 0.35s ease both" }}
         >
           {messages[msgIdx % messages.length]}
-        </div>
+        </Box>
 
-        <p style={{ fontSize: 13, color: C.textSec, marginBottom: 22, fontFamily: F }}>
+        <Typography sx={{ fontSize: 13, color: 'text.secondary', marginBottom: '22px' }}>
           {isGenerating
             ? "A IA está sintetizando todos os dados coletados. Isso pode levar até 60 segundos."
             : "Não feche esta página. O relatório será exibido ao final da análise."}
-        </p>
+        </Typography>
 
         {/* Progress bar */}
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: C.textDis, fontFamily: F }}>Progresso da análise</span>
-            <span style={{ fontSize: 11, color: DS.green, fontWeight: 700, fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
+        <Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: '6px' }}>
+            <Typography component="span" sx={{ fontSize: 11, color: 'text.disabled' }}>Progresso da análise</Typography>
+            <Typography component="span" sx={{ fontSize: 11, color: PALETTE.data.positivo, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
               {Math.round(progressPct)}%
-            </span>
-          </div>
-          <div style={{ background: C.panelMid, borderRadius: 99, height: 5, overflow: "hidden" }}>
-            <div style={{
+            </Typography>
+          </Box>
+          <Box sx={{ background: 'divider',  height: 5, overflow: "hidden" }}>
+            <Box sx={{
               height: "100%",
-              background: `linear-gradient(90deg, ${DS.green}, #0ecf9f)`,
-              borderRadius: 99,
+              background: `linear-gradient(90deg, ${PALETTE.data.positivo}, ${PALETTE.neutral[500]})`,
+              
               width: `${progressPct}%`,
               transition: "width 1.2s cubic-bezier(.22,1,.36,1)",
             }} />
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         {/* Token counter strip — visible only during generating */}
         {isGenerating && tokenCount > 0 && (
-          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, animation: "fu 0.3s ease both" }}>
-            <div style={{ flex: 1, height: 1, background: C.panelMid }} />
-            <span style={{ fontSize: 11, color: C.textSec, fontFamily: F, whiteSpace: "nowrap" }}>
+          <Box sx={{ marginTop: '14px', display: "flex", alignItems: "center", gap: '8px', animation: "fu 0.3s ease both" }}>
+            <Box sx={{ flex: 1, height: '1px', background: 'divider' }} />
+            <Typography component="span" sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: "nowrap" }}>
               {tokenCount.toLocaleString("pt-BR")} tokens gerados
-            </span>
-            <div style={{ flex: 1, height: 1, background: C.panelMid }} />
-          </div>
+            </Typography>
+            <Box sx={{ flex: 1, height: '1px', background: 'divider' }} />
+          </Box>
         )}
-      </div>
+      </Box>
 
       {/* ── Search timeline ── */}
-      <Card style={{ marginBottom: 14 }}>
-        <Lbl color={DS.green}>Fontes pesquisadas</Lbl>
-        <div>
+      <Card variant="outlined" sx={{ marginBottom: '14px' }}><CardContent>
+        <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Fontes pesquisadas</Typography>
+        <Box>
           {SEARCH_LABELS.map((label, i) => {
             const done     = i < searchCount - 1;
             const active   = i === searchCount - 1;
@@ -357,10 +323,10 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
             return (
               <div
                 key={stateKey}
-                style={{
-                  display: "flex", alignItems: "flex-start", gap: 12,
+                sx={{
+                  display: "flex", alignItems: "flex-start", gap: "12px",
                   padding: "10px 0",
-                  borderBottom: i < SEARCH_LABELS.length - 1 ? `1px solid ${C.border}` : "none",
+                  borderBottom: i < SEARCH_LABELS.length - 1 ? 1 : 0, borderColor: "divider",
                   opacity: upcoming ? 0.28 : 1,
                   animation: active ? "lightUp 0.65s ease both"
                             : done   ? "fu 0.3s ease both"
@@ -376,67 +342,67 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                 }}
               >
                 {/* Step indicator */}
-                <div style={{
-                  width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: 1,
+                <Box sx={{
+                  width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: '1px',
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 800, fontFamily: F,
-                  background: done ? DS.green : active ? "transparent" : C.stepBg,
-                  border: active ? `2px solid ${DS.green}` : done ? "none" : `1px solid ${C.border}`,
-                  color: done ? "#fff" : active ? DS.green : C.textDis,
+                  fontSize: 10, fontWeight: 800,
+                  background: done ? PALETTE.data.positivo : active ? "transparent" : 'action.selected',
+                  border: active ? `2px solid ${PALETTE.data.positivo}` : done ? "none" : `1px solid divider`,
+                  color: done ? "#fff" : active ? PALETTE.data.positivo : 'text.disabled',
                   animation: done   ? "checkPop 0.4s ease both"
                             : active ? "pulse 1.3s ease infinite"
                             : "none",
                 }}>
                   {done ? "✓" : i + 1}
-                </div>
+                </Box>
 
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontSize: 11, fontFamily: F, color: C.textSec,
-                    marginBottom: upcoming ? 0 : 2,
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{
+                    fontSize: 11, color: 'text.secondary',
+                    marginBottom: upcoming ? '0px' : '2px',
                   }}>
                     {label}
-                  </div>
+                  </Box>
                   {!upcoming && (
-                    <div style={{
-                      fontSize: 13, fontFamily: F, lineHeight: 1.45,
-                      color: done ? C.textSec : active ? C.text : C.textSec,
+                    <Box sx={{
+                      fontSize: 13, lineHeight: 1.45,
+                      color: done ? 'text.secondary' : active ? 'text.primary' : 'text.secondary',
                       fontWeight: active ? 600 : 400,
                     }}>
                       {query}
-                    </div>
+                    </Box>
                   )}
                   {active && (
-                    <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                    <Box sx={{ display: "flex", gap: '4px', marginTop: '6px' }}>
                       {[0, 1, 2].map(d => (
-                        <div key={d} style={{
+                        <Box key={d} sx={{
                           width: 5, height: 5, borderRadius: "50%",
-                          background: DS.green,
+                          background: PALETTE.data.positivo,
                           animation: `pulse 1.2s ${d * 0.22}s ease infinite`,
                         }} />
                       ))}
-                    </div>
+                    </Box>
                   )}
-                </div>
+                </Box>
 
                 {done && (
-                  <span style={{
-                    fontSize: 11, color: DS.green, fontWeight: 700, flexShrink: 0, fontFamily: F, paddingTop: 2,
+                  <Typography component="span" sx={{
+                    fontSize: 11, color: PALETTE.data.positivo, fontWeight: 700, flexShrink: 0, paddingTop: '2px',
                     animation: "fu 0.35s 0.1s ease both",
                   }}>
                     concluído
-                  </span>
+                  </Typography>
                 )}
-              </div>
+              </Box>
             );
           })}
-        </div>
-      </Card>
+        </Box>
+      </CardContent></Card>
 
       {/* ── Skeleton or partial data ── */}
       {isGenerating && <SkeletonReport elapsed={elapsed} tokenCount={tokenCount} />}
       {!isGenerating && partialData?.empresa && <PartialDataPreview data={partialData} />}
 
-    </div>
+    </Box>
   );
 }

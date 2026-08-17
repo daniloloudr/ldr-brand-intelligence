@@ -9,6 +9,7 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, navigate, currentPath } from '../../lib/helpers'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
 const DIMENSOES = [
   { key: 'tom_voz',        label: 'Tom de voz'         },
@@ -18,9 +19,9 @@ const DIMENSOES = [
 ]
 
 function scoreColor(score) {
-  if (score >= 7) return '#0D9E7A'
-  if (score >= 5) return '#EF9F27'
-  return '#E8185A'
+  if (score >= 7) return PALETTE.data.positivo
+  if (score >= 5) return PALETTE.data.atencao
+  return PALETTE.data.critico
 }
 
 function DimensaoRow({ label, dim }) {
@@ -30,8 +31,8 @@ function DimensaoRow({ label, dim }) {
     <Box sx={{ mb: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
         {dim.ok
-          ? <CheckCircleIcon sx={{ fontSize: 16, color: '#0D9E7A' }} />
-          : <CancelIcon      sx={{ fontSize: 16, color: '#E8185A' }} />}
+          ? <CheckCircleIcon sx={{ fontSize: 16, color: PALETTE.data.positivo }} />
+          : <CancelIcon      sx={{ fontSize: 16, color: PALETTE.data.critico }} />}
         <Typography variant="caption" fontWeight={800} textTransform="uppercase" letterSpacing="0.08em">
           {label}
         </Typography>
@@ -93,7 +94,7 @@ export function CampaignDetail({ brandId, campaignId }) {
   const verdict = campaign.verdict
   const approved = verdict?.aprovado === true || campaign.status === 'approved'
   const score = verdict?.score_geral
-  const scoreColor_ = score != null ? scoreColor(score) : '#8A9AB0'
+  const scoreColor_ = score != null ? scoreColor(score) : PALETTE.neutral[400]
   const content = campaign.content || {}
 
   return (
@@ -146,27 +147,27 @@ export function CampaignDetail({ brandId, campaignId }) {
         ) : (
           <Card sx={{
             border: '1px solid',
-            borderColor: approved ? '#0D9E7A' : '#E8185A',
-            borderTop: `3px solid ${approved ? '#0D9E7A' : '#E8185A'}`,
+            borderColor: approved ? PALETTE.data.positivo : PALETTE.data.critico,
+            borderTop: `3px solid ${approved ? PALETTE.data.positivo : PALETTE.data.critico}`,
           }}>
             <CardContent>
               {/* Score geral */}
               <Box sx={{ textAlign: 'center', mb: 3 }}>
                 {approved
-                  ? <CheckCircleIcon sx={{ fontSize: 40, color: '#0D9E7A', mb: 1 }} />
-                  : <CancelIcon      sx={{ fontSize: 40, color: '#E8185A', mb: 1 }} />}
+                  ? <CheckCircleIcon sx={{ fontSize: 40, color: PALETTE.data.positivo, mb: 1 }} />
+                  : <CancelIcon      sx={{ fontSize: 40, color: PALETTE.data.critico, mb: 1 }} />}
                 <Typography variant="overline" color="text.disabled" display="block">
                   Veredicto IA
                 </Typography>
-                <Typography fontWeight={900} fontSize={28} sx={{ color: scoreColor_, lineHeight: 1.1 }}>
+                <Typography variant="h4" sx={{ color: scoreColor_, lineHeight: 1.1 }}>
                   {score != null ? `${score}/10` : '—'}
                 </Typography>
                 <Chip
                   label={approved ? 'Campanha aprovada' : 'Campanha reprovada'}
                   sx={{
                     mt: 1,
-                    bgcolor: (approved ? '#0D9E7A' : '#E8185A') + '18',
-                    color: approved ? '#0D9E7A' : '#E8185A',
+                    bgcolor: (approved ? PALETTE.data.positivo : PALETTE.data.critico) + '18',
+                    color: approved ? PALETTE.data.positivo : PALETTE.data.critico,
                     fontWeight: 800,
                   }}
                 />
@@ -198,10 +199,10 @@ export function CampaignDetail({ brandId, campaignId }) {
                   <Typography variant="overline" color="text.disabled" display="block" mb={1.5}>
                     Termos problemáticos
                   </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
                     {verdict.palavras_problematicas.map(p => (
                       <Chip key={p} label={p} size="small"
-                        sx={{ bgcolor: 'rgba(232,24,90,0.08)', color: '#E8185A', fontWeight: 700, fontSize: '0.65rem' }} />
+                        sx={{ bgcolor: 'rgba(232,24,90,0.08)', color: PALETTE.data.critico, fontWeight: 700, fontSize: '0.65rem' }} />
                     ))}
                   </Box>
                 </>
@@ -218,7 +219,7 @@ export function CampaignDetail({ brandId, campaignId }) {
                     {verdict.sugestoes.map((s, i) => (
                       <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                         <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: 'rgba(127,119,221,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.1 }}>
-                          <Typography sx={{ fontSize: 10, fontWeight: 900, color: '#7F77DD' }}>{i + 1}</Typography>
+                          <Typography sx={{ fontSize: 10, fontWeight: 900, color: PALETTE.data.neutro }}>{i + 1}</Typography>
                         </Box>
                         <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>{s}</Typography>
                       </Box>

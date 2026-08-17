@@ -26,8 +26,9 @@ import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A'
+const TEAL = PALETTE.data.positivo
 
 // Assets de MÍDIA/arquivo (cor e tipografia são valores de identidade — ficam no Brand Book)
 const TIPOS_BIBLIOTECA = ['logo', 'foto', 'video', 'icone', 'padrao', 'documento', 'outro']
@@ -339,7 +340,7 @@ export function StudioLibrary({ brandId }) {
     setCopiado(true); setTimeout(() => setCopiado(false), 1500)
   }
 
-  // Logo/imagem do header (lockup MARCA.brandcode) — funcionalidade herdada dos
+  // Logo/imagem do header (lockup MARCA.BR4NDCODE) — funcionalidade herdada dos
   // Ativos: um asset com metadata.header=true; o AppShell ouve o evento e troca ao vivo.
   const headerId = assets.find(a => a.metadata?.header)?.id
     || assets.find(a => a.tipo === 'logo')?.id   // fallback: primeiro logo (comportamento padrão)
@@ -393,7 +394,7 @@ export function StudioLibrary({ brandId }) {
   const rootDef = ROOTS.find(r => r.id === root)
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Estúdio" subtitle="Biblioteca — o repositório da marca: tudo que ela cria e tudo que a define" />
 
       {/* Tela inteira (estilo Drive): sem maxWidth, padding lateral só */}
@@ -429,22 +430,22 @@ export function StudioLibrary({ brandId }) {
             <Button size="small" variant="contained" disableElevation disabled={uploading}
               startIcon={uploading ? <CircularProgress size={13} sx={{ color: '#fff' }} /> : <UploadFileOutlinedIcon sx={{ fontSize: 17 }} />}
               onClick={() => fileRef.current?.click()}
-              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>
+              sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
               {uploading ? 'Enviando…' : 'Upload'}
             </Button>
           </>)}
           {root === 'campanhas' && (
             <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />}
               onClick={() => { navigate(`#/app/brands/${brandId}/studio/campanhas`) }}
-              sx={{ bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' }, fontWeight: 800 }}>Nova campanha</Button>
+              sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>Nova campanha</Button>
           )}
         </Stack>
 
         {/* Barra de seleção múltipla — mover em lote, excluir em lote */}
         {selCount > 0 && (
           <Paper variant="outlined" sx={{ px: 1.5, py: 0.75, mb: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1, borderColor: TEAL }}>
-            <Typography fontSize={12.5} fontWeight={800}>{selCount} selecionado{selCount > 1 ? 's' : ''}</Typography>
-            <Typography fontSize={11} color="text.disabled">arraste qualquer um deles para uma pasta, ou use as ações →</Typography>
+            <Typography variant="subtitle2">{selCount} selecionado{selCount > 1 ? 's' : ''}</Typography>
+            <Typography variant="caption" color="text.disabled">arraste qualquer um deles para uma pasta, ou use as ações →</Typography>
             <Box sx={{ flex: 1 }} />
             <Button size="small" startIcon={<DriveFileMoveOutlinedIcon sx={{ fontSize: 15 }} />}
               onClick={() => { setOrg({ kind: 'bulk' }); setOrgPasta(''); setOrgTags([]) }} sx={{ fontWeight: 700 }}>Mover</Button>
@@ -455,7 +456,7 @@ export function StudioLibrary({ brandId }) {
         )}
 
         {loading ? (
-          <Stack alignItems="center" py={10}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" py={10}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
 
         ) : !root ? (
           /* ── HOME: as pastas-raiz do repositório ── */
@@ -465,11 +466,11 @@ export function StudioLibrary({ brandId }) {
                 sx={{ p: 2.5, borderRadius: 2.5, cursor: 'pointer', '&:hover': { borderColor: TEAL, boxShadow: 1 } }}>
                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
                   <Icon sx={{ fontSize: 26, color: TEAL }} />
-                  <Typography fontSize={15} fontWeight={900}>{label}</Typography>
+                  <Typography variant="subtitle1">{label}</Typography>
                   <Box sx={{ flex: 1 }} />
                   <Chip size="small" label={porRoot[id].length} sx={{ fontWeight: 800, fontSize: 11 }} />
                 </Stack>
-                <Typography fontSize={12} color="text.secondary">{desc}</Typography>
+                <Typography variant="caption" color="text.secondary">{desc}</Typography>
               </Paper>
             ))}
           </Box>
@@ -478,16 +479,16 @@ export function StudioLibrary({ brandId }) {
           <>
             {/* Subpastas (Drive: pastas primeiro) — some quando busca ativa ou dentro de pasta */}
             {temPastas && !pasta && !busca.trim() && subpastas.length > 0 && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.25, mb: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25px', mb: 2.5 }}>
                 {subpastas.map(p => {
                   const n = escopo.filter(i => i.pasta === p).length
                   return (
                     <Paper key={p} variant="outlined" onClick={() => navegar(root, p)} {...dropProps(p)}
                       sx={{ px: 1.5, py: 1.25, borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
                         '&:hover': { borderColor: TEAL }, '&:hover .del-pasta': { opacity: 1 } }}>
-                      <FolderIcon sx={{ fontSize: 20, color: '#F2C14E' }} />
-                      <Typography fontSize={13} fontWeight={800} noWrap sx={{ flex: 1 }}>{p}</Typography>
-                      <Typography fontSize={11} color="text.disabled">{n}</Typography>
+                      <FolderIcon sx={{ fontSize: 20, color: PALETTE.data.atencao }} />
+                      <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>{p}</Typography>
+                      <Typography variant="caption" color="text.disabled">{n}</Typography>
                       <Tooltip title="Apagar pasta (itens voltam para a raiz)">
                         <IconButton className="del-pasta" size="small" onClick={e => { e.stopPropagation(); apagarPasta(p) }}
                           sx={{ opacity: 0, transition: 'opacity .15s', p: 0.25 }}>
@@ -502,10 +503,10 @@ export function StudioLibrary({ brandId }) {
 
             {visiveis.length === 0 ? (
               <Paper variant="outlined" sx={{ p: 6, borderRadius: 2, textAlign: 'center' }}>
-                <Typography fontSize={13.5} fontWeight={800} mb={0.5}>
+                <Typography variant="subtitle2" mb={0.5}>
                   {busca.trim() ? 'Nada encontrado' : pasta ? 'Pasta vazia' : `Nada em ${rootDef?.label} ainda`}
                 </Typography>
-                <Typography fontSize={12} color="text.secondary">
+                <Typography variant="caption" color="text.secondary">
                   {root === 'textos' ? 'Salve peças na Redação ou peça ao Copiloto — tudo que a marca escreve mora aqui.'
                     : root === 'referencias' ? 'Suba aqui o que DEFINE a marca: logos, padrões e imagens-referência que ensinam o cérebro.'
                     : root === 'campanhas' ? 'A campanha agrupa as peças de um mesmo conceito — crie a primeira.'
@@ -526,8 +527,8 @@ export function StudioLibrary({ brandId }) {
                         sx={{ p: 0.25, '&.Mui-checked': { color: TEAL } }} />
                       <ArticleOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography fontSize={13.5} fontWeight={800} noWrap>{t.titulo}</Typography>
-                        <Typography fontSize={11} color="text.secondary">
+                        <Typography variant="subtitle2" noWrap>{t.titulo}</Typography>
+                        <Typography variant="caption" color="text.secondary">
                           {[t.formato, t.origem === 'copiloto' ? 'Copiloto' : t.origem === 'redacao' ? 'Redação' : t.origem, t.pasta && `📁 ${t.pasta}`].filter(Boolean).join(' · ')} · {new Date(t.created_at).toLocaleDateString('pt-BR')}
                         </Typography>
                       </Box>
@@ -547,11 +548,11 @@ export function StudioLibrary({ brandId }) {
                     <Stack direction="row" spacing={1} alignItems="center">
                       <CampaignOutlinedIcon sx={{ fontSize: 18, color: TEAL }} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography fontSize={13.5} fontWeight={800} noWrap>{c.nome}</Typography>
-                        <Typography fontSize={11} color="text.secondary" noWrap>{(c.conceito || '').slice(0, 120)}</Typography>
+                        <Typography variant="subtitle2" noWrap>{c.nome}</Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap>{(c.conceito || '').slice(0, 120)}</Typography>
                       </Box>
                       <Chip label={c.status} size="small" variant="outlined" sx={{ fontSize: 10.5, fontWeight: 700 }} />
-                      <Typography fontSize={11} color="text.disabled">{new Date(c.created_at).toLocaleDateString('pt-BR')}</Typography>
+                      <Typography variant="caption" color="text.disabled">{new Date(c.created_at).toLocaleDateString('pt-BR')}</Typography>
                     </Stack>
                   </Paper>
                 ))}
@@ -559,7 +560,7 @@ export function StudioLibrary({ brandId }) {
 
             ) : (
               /* Grid de mídia (Imagens/Vídeos/Referências) — tela cheia, render paginado */
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 1.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '1.5px' }}>
                 {visiveis.slice(0, renderLimit).map(a => (
                   <Paper key={a.id} variant="outlined" draggable onDragStart={e => onDragItem(e, a)}
                     sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative',
@@ -576,11 +577,11 @@ export function StudioLibrary({ brandId }) {
                       <AssetPreview a={a} />
                     </Box>
                     <Box sx={{ px: 1.25, pt: 0.75 }}>
-                      <Typography fontSize={12} fontWeight={800} noWrap>{a.nome}</Typography>
+                      <Typography variant="caption" noWrap>{a.nome}</Typography>
                       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minHeight: 18, flexWrap: 'wrap' }}>
-                        {busca.trim() && a.pasta && <Typography fontSize={10} color="text.secondary" noWrap>📁 {a.pasta}</Typography>}
+                        {busca.trim() && a.pasta && <Typography variant="caption" color="text.secondary" noWrap>📁 {a.pasta}</Typography>}
                         {(a.tags || []).slice(0, 3).map(t => (
-                          <Typography key={t} fontSize={10} sx={{ color: TEAL, fontWeight: 700 }}>#{t}</Typography>
+                          <Typography variant="caption" key={t} sx={{ color: 'primary.main', fontWeight: 700 }}>#{t}</Typography>
                         ))}
                       </Stack>
                     </Box>
@@ -594,10 +595,10 @@ export function StudioLibrary({ brandId }) {
                         </Tooltip>
                       )}
                       {root === 'referencias' && a.kind === 'asset' && !isVideo(a) && (
-                        <Tooltip title={headerId === a.id ? 'Aparece no header (antes do .brandcode)' : 'Usar no header'}>
+                        <Tooltip title={headerId === a.id ? 'Aparece no header (antes do .BR4NDCODE)' : 'Usar no header'}>
                           <IconButton size="small" onClick={() => usarNoHeader(a)}>
                             {headerId === a.id
-                              ? <StarIcon sx={{ fontSize: 16, color: '#E8185A' }} />
+                              ? <StarIcon sx={{ fontSize: 16, color: PALETTE.data.critico }} />
                               : <StarBorderIcon sx={{ fontSize: 16 }} />}
                           </IconButton>
                         </Tooltip>
@@ -616,8 +617,8 @@ export function StudioLibrary({ brandId }) {
             {/* Sentinela do scroll infinito + contador */}
             {visiveis.length > renderLimit && (
               <Stack ref={sentinelRef} alignItems="center" py={3}>
-                <CircularProgress size={18} sx={{ color: TEAL }} />
-                <Typography fontSize={11} color="text.disabled" mt={0.75}>
+                <CircularProgress size={18} sx={{ color: 'primary.main' }} />
+                <Typography variant="caption" color="text.disabled" mt={0.75}>
                   {Math.min(renderLimit, visiveis.length)} de {visiveis.length}
                 </Typography>
               </Stack>
@@ -669,9 +670,9 @@ export function StudioLibrary({ brandId }) {
         </DialogTitle>
         <DialogContent>
           {certLoading ? (
-            <Stack alignItems="center" py={4}><CircularProgress size={20} sx={{ color: TEAL }} /></Stack>
+            <Stack alignItems="center" py={4}><CircularProgress size={20} sx={{ color: 'primary.main' }} /></Stack>
           ) : !certGen ? (
-            <Typography fontSize={12.5} color="text.secondary">Trilha de geração não encontrada para esta peça.</Typography>
+            <Typography variant="body2" color="text.secondary">Trilha de geração não encontrada para esta peça.</Typography>
           ) : (
             <Stack spacing={1.75} mt={0.5}>
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
@@ -686,18 +687,18 @@ export function StudioLibrary({ brandId }) {
                     ['Cérebro da marca', certGen.brand_context?.intelligence_versao ? `v${certGen.brand_context.intelligence_versao} na época da geração` : 'contexto base (sem versão destilada)'],
                   ].map(([k, v]) => (
                     <Stack key={k} direction="row" spacing={1} sx={{ py: 0.25 }}>
-                      <Typography fontSize={11.5} color="text.secondary" sx={{ width: 120, flexShrink: 0 }}>{k}</Typography>
-                      <Typography fontSize={11.5} fontWeight={700} sx={{ wordBreak: 'break-word' }}>{v}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ width: 120, flexShrink: 0 }}>{k}</Typography>
+                      <Typography variant="caption" sx={{ wordBreak: 'break-word' }}>{v}</Typography>
                     </Stack>
                   ))}
                 </Box>
               </Stack>
               <Box>
-                <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
+                <Typography variant="overline" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
                   Julgamentos ({certSignals.length})
                 </Typography>
                 {certSignals.length === 0 ? (
-                  <Typography fontSize={12} color="text.secondary">Nenhum julgamento registrado para esta peça ainda.</Typography>
+                  <Typography variant="caption" color="text.secondary">Nenhum julgamento registrado para esta peça ainda.</Typography>
                 ) : (
                   <Stack spacing={0.75}>
                     {certSignals.map((s, i) => {
@@ -708,12 +709,12 @@ export function StudioLibrary({ brandId }) {
                         <Paper key={i} variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
                           <Stack direction="row" spacing={1} alignItems="center" mb={p.resumo || p.ajustes?.length ? 0.5 : 0}>
                             <Chip size="small" label={humano ? (aprovado ? 'Aprovada pelo time' : 'Reprovada pelo time') : `Diretor de Arte · ${p.veredito || 'parecer'}${p.modo === 'fidelidade' ? ' · fidelidade' : ''}`}
-                              sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: aprovado ? '#E5F5EF' : '#FDECEA', color: aprovado ? '#0B8567' : '#B3261E' }} />
-                            <Typography fontSize={10.5} color="text.disabled">{new Date(s.created_at).toLocaleString('pt-BR')}</Typography>
+                              sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: aprovado ? PALETTE.neutral[0] : PALETTE.neutral[0], color: aprovado ? PALETTE.data.positivoDim : PALETTE.neutral[800] }} />
+                            <Typography variant="caption" color="text.disabled">{new Date(s.created_at).toLocaleString('pt-BR')}</Typography>
                           </Stack>
-                          {p.resumo && <Typography fontSize={11.5} sx={{ lineHeight: 1.5 }}>{p.resumo}</Typography>}
+                          {p.resumo && <Typography variant="caption" sx={{ lineHeight: 1.5 }}>{p.resumo}</Typography>}
                           {Array.isArray(p.ajustes) && p.ajustes.length > 0 && (
-                            <Typography fontSize={11} color="text.secondary" sx={{ mt: 0.25 }}>Ajustes: {p.ajustes.join(' · ')}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25 }}>Ajustes: {p.ajustes.join(' · ')}</Typography>
                           )}
                         </Paper>
                       )
@@ -722,7 +723,7 @@ export function StudioLibrary({ brandId }) {
                 )}
               </Box>
               <Box>
-                <Typography fontSize={11} fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
+                <Typography variant="overline" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
                   Prompt final enviado
                 </Typography>
                 <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, maxHeight: 160, overflow: 'auto', bgcolor: 'background.default' }}>
@@ -731,7 +732,7 @@ export function StudioLibrary({ brandId }) {
                   </Typography>
                 </Paper>
               </Box>
-              <Typography fontSize={10} color="text.disabled" sx={{ fontFamily: 'ui-monospace, monospace' }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'ui-monospace, monospace' }}>
                 geração {certGen.id}{certGen.provider_request_id ? ` · job ${certGen.provider_request_id}` : ''} — trilha auditável (compliance §4)
               </Typography>
             </Stack>
@@ -765,7 +766,7 @@ export function StudioLibrary({ brandId }) {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={() => setOrg(null)} sx={{ color: 'text.secondary', fontWeight: 700 }}>Cancelar</Button>
           <Button size="small" variant="contained" disabled={savingOrg} onClick={salvarOrg}
-            sx={{ fontWeight: 800, bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>
+            sx={{ fontWeight: 800, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}>
             {savingOrg ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogActions>

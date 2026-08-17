@@ -19,8 +19,9 @@ import { WRITING_FRAMEWORKS } from '../../lib/writingFrameworks'
 import { compileWritingWorkflow, DERIVE_RULES } from '../../lib/writingToWorkflow'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A', PURPLE = '#7F77DD'
+const TEAL = PALETTE.data.positivo, PURPLE = PALETTE.data.neutro
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
@@ -169,11 +170,11 @@ function renderMarkdown(text) {
   return text.split('\n').map((line, i) => {
     if (line.startsWith('## ')) return (
       <Typography key={i} sx={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase',
-        letterSpacing: '0.08em', color: TEAL, mt: i ? 2.5 : 0, mb: 0.75 }}>{line.slice(3)}</Typography>
+        letterSpacing: '0.08em', color: 'primary.main', mt: i ? 2.5 : 0, mb: 0.75 }}>{line.slice(3)}</Typography>
     )
     if (line.startsWith('- ') || line.startsWith('* ')) return (
       <Typography key={i} sx={{ fontSize: 13.5, lineHeight: 1.65, pl: 1.5,
-        '&::before': { content: '"·"', mr: 1, color: TEAL } }}>{line.slice(2)}</Typography>
+        '&::before': { content: '"·"', mr: 1, color: 'primary.main' } }}>{line.slice(2)}</Typography>
     )
     if (line.trim()) return (
       <Typography key={i} sx={{ fontSize: 13.5, lineHeight: 1.75 }}
@@ -369,7 +370,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Estúdio" subtitle="Redação — copy no tom da marca" />
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
@@ -379,7 +380,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
           sx={{ mb: 2, fontWeight: 700, bgcolor: 'rgba(127,119,221,0.12)', color: PURPLE }} />
       )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, gap: 2.5, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, gap: '2.5px', alignItems: 'start' }}>
         {/* Coluna esquerda: frameworks + campos */}
         <Stack spacing={1.25}>
           {WRITING_FRAMEWORKS.map(f => {
@@ -389,8 +390,8 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                 sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer',
                   borderColor: on ? TEAL : 'divider', bgcolor: on ? 'rgba(13,158,122,0.06)' : 'background.paper',
                   '&:hover': { borderColor: TEAL } }}>
-                <Typography fontSize={13.5} fontWeight={800}>{f.label}</Typography>
-                <Typography fontSize={12} color="text.secondary">{f.desc}</Typography>
+                <Typography variant="subtitle2">{f.label}</Typography>
+                <Typography variant="caption" color="text.secondary">{f.desc}</Typography>
               </Paper>
             )
           })}
@@ -405,10 +406,10 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                 ))}
                 <Button variant="contained" disabled={streaming} onClick={gerar}
                   startIcon={streaming ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
-                  sx={{ fontWeight: 800, bgcolor: TEAL, '&:hover': { bgcolor: '#0B8567' } }}>
+                  sx={{ fontWeight: 800, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}>
                   {streaming ? 'Escrevendo…' : 'Escrever no tom da marca'}
                 </Button>
-                {error && <Typography fontSize={12} color="error">{error}</Typography>}
+                {error && <Typography variant="caption" color="error">{error}</Typography>}
               </Stack>
             </Paper>
           )}
@@ -418,8 +419,8 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, minHeight: 320 }}>
           {!fw && !text ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Typography fontSize={14} fontWeight={800} mb={0.5}>Escolha um formato ao lado</Typography>
-              <Typography fontSize={12.5} color="text.secondary">
+              <Typography variant="subtitle1" mb={0.5}>Escolha um formato ao lado</Typography>
+              <Typography variant="body2" color="text.secondary">
                 Cada framework já vem com a estrutura que funciona — você só dá o tema.<br />
                 A voz, o território e os temas vêm do que a marca aprendeu.
               </Typography>
@@ -427,16 +428,16 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
           ) : streaming && !text ? (
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 4 }}>
               <CircularProgress size={16} />
-              <Typography fontSize={13} color="text.secondary">Escrevendo no tom da marca…</Typography>
+              <Typography variant="body2" color="text.secondary">Escrevendo no tom da marca…</Typography>
             </Stack>
           ) : streaming ? (
             <Box>
               {renderMarkdown(text)}
-              <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>
+              <Typography component="span" sx={{ color: 'primary.main', fontWeight: 700 }}>▋</Typography>
             </Box>
           ) : blocks.length ? (
             <Box>
-              <Typography fontSize={11.5} color="text.secondary" mb={1.5}>
+              <Typography variant="caption" color="text.secondary" mb={1.5}>
                 Cada seção pode ser <strong>editada</strong> ou <strong>refeita</strong> sozinha — o resto da peça não muda.
               </Typography>
               <Stack spacing={1.5}>
@@ -445,13 +446,13 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                     opacity: redoing != null && redoing !== i ? 0.55 : 1,
                     borderColor: redoing === i ? TEAL : editing === i ? PURPLE : 'divider' }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" mb={0.75}>
-                      <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: TEAL }}>
+                      <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'primary.main' }}>
                         {b.header}
                       </Typography>
                       <Stack direction="row" spacing={0.5}>
                         {editing === i ? (
                           <>
-                            <Tooltip title="Salvar edição"><IconButton size="small" onClick={() => saveEdit(i)} sx={{ color: TEAL }}><CheckIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                            <Tooltip title="Salvar edição"><IconButton size="small" onClick={() => saveEdit(i)} sx={{ color: 'primary.main' }}><CheckIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                             <Tooltip title="Cancelar"><IconButton size="small" onClick={() => setEditing(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                           </>
                         ) : (
@@ -460,9 +461,9 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                               <IconButton size="small" disabled={redoing != null} onClick={() => startEdit(i)}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
                             </Tooltip>
                             <Tooltip title="Refazer só esta seção — o resto da peça não muda">
-                              <span><IconButton size="small" disabled={redoing != null} onClick={() => redoBlock(i)}>
+                              <Typography component="span"><IconButton size="small" disabled={redoing != null} onClick={() => redoBlock(i)}>
                                 {redoing === i ? <CircularProgress size={14} /> : <ReplayIcon sx={{ fontSize: 16 }} />}
-                              </IconButton></span>
+                              </IconButton></Typography>
                             </Tooltip>
                           </>
                         )}
@@ -474,7 +475,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                     ) : (
                       <Box>
                         {renderMarkdown(b.body)}
-                        {redoing === i && <Typography component="span" sx={{ color: TEAL, fontWeight: 700 }}>▋</Typography>}
+                        {redoing === i && <Typography component="span" sx={{ color: 'primary.main', fontWeight: 700 }}>▋</Typography>}
                       </Box>
                     )}
                   </Paper>
@@ -503,13 +504,13 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
                   <Tooltip title="Compila a peça num workflow: um caminho de geração por seção (Reel vira imagem→vídeo). Você revisa os prompts no canvas antes de gerar.">
                     <Button variant="contained" size="small" onClick={criarWorkflow} disabled={redoing != null || compiling}
                       startIcon={compiling ? <CircularProgress size={14} color="inherit" /> : <AccountTreeOutlinedIcon />}
-                      sx={{ fontWeight: 800, bgcolor: PURPLE, '&:hover': { bgcolor: '#665EC4' } }}>
+                      sx={{ fontWeight: 800, bgcolor: PURPLE, '&:hover': { bgcolor: PALETTE.neutral[500] } }}>
                       {compiling ? 'Montando o workflow…' : 'Criar workflow com as peças'}
                     </Button>
                   </Tooltip>
                 )}
               </Stack>
-              {error && <Typography fontSize={12} color="error" mt={1}>{error}</Typography>}
+              {error && <Typography variant="caption" color="error" mt={1}>{error}</Typography>}
             </Box>
           ) : (
             <Box>{renderMarkdown(text)}</Box>

@@ -96,7 +96,7 @@ async function webhook(text) {
   try {
     await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: `🚨 brandcode · ${text}` }),
+      body: JSON.stringify({ text: `🚨 BR4NDCODE · ${text}` }),
     })
   } catch (e) { console.error('[watchdog] envio ao webhook falhou:', e.message) }
 }

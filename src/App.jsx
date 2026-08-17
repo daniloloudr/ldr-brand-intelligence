@@ -1,12 +1,14 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
-import { DS } from "./lib/constants";
+import {} from "./lib/constants";
 import { getRoute, navigate, getTenantSlug, tenantUrl, ROOT_DOMAIN } from "./lib/helpers";
-import { GlobalStyle } from "./components/GlobalStyle";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitePage } from "./pages/auth/Invite";
 import { ForcePasswordPage } from "./pages/auth/ForcePassword";
 import { AppShell } from "./pages/app/AppShell";
+import { PALETTE } from './lib/theme'
+import { Box } from "@mui/material";
+import Button from "@mui/material/Button";
 // Carregados sob demanda: admin (grande, raro) e páginas públicas (fora do fluxo logado)
 const AppInterno       = lazy(() => import("./pages/AppInterno").then(m => ({ default: m.AppInterno })));
 const PaginaMetodologia = lazy(() => import("./pages/PaginaMetodologia").then(m => ({ default: m.PaginaMetodologia })));
@@ -14,10 +16,9 @@ const RelatorioPublico = lazy(() => import("./pages/RelatorioPublico").then(m =>
 
 // Fallback simples enquanto o chunk carrega (mesmo visual do loader de auth)
 const PageFallback = () => (
-  <div style={{ minHeight: "100vh", background: DS.navy, display: "flex", alignItems: "center", justifyContent: "center" }}>
-    <GlobalStyle />
-    <div style={{ width: 40, height: 40, border: `3px solid ${DS.navyMid}`, borderTopColor: DS.green, borderRadius: "50%", animation: "spin 0.75s linear infinite" }} />
-  </div>
+  <Box sx={{ minHeight: "100vh", background: PALETTE.neutral[900], display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <Box sx={{ width: 40, height: 40, border: `3px solid ${PALETTE.neutral[700]}`, borderTopColor: PALETTE.data.positivo, borderRadius: "50%", animation: "spin 0.75s linear infinite" }} />
+  </Box>
 );
 
 const WORKSPACE_ROUTES = [
@@ -128,10 +129,9 @@ export default function App() {
   if (isInviteFlow) return <InvitePage onDone={() => setInviteFlow(false)} />;
 
   if (authLoading) return (
-    <div style={{ minHeight: "100vh", background: DS.navy, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <GlobalStyle />
-      <div style={{ width: 40, height: 40, border: `3px solid ${DS.navyMid}`, borderTopColor: DS.green, borderRadius: "50%", animation: "spin 0.75s linear infinite" }} />
-    </div>
+    <Box sx={{ minHeight: "100vh", background: PALETTE.neutral[900], display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ width: 40, height: 40, border: `3px solid ${PALETTE.neutral[700]}`, borderTopColor: PALETTE.data.positivo, borderRadius: "50%", animation: "spin 0.75s linear infinite" }} />
+    </Box>
   );
 
   if (route === "metodologia")       return <Suspense fallback={<PageFallback />}><PaginaMetodologia /></Suspense>;
@@ -205,14 +205,13 @@ export default function App() {
 // sistema é exclusivo do admin; aqui só resta sair e entrar pelo endereço da marca.
 function RestritoSistema({ onLogout }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 32, textAlign: "center" }}>
-      <GlobalStyle />
-      <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: "#171717" }}>Acesso restrito</div>
-      <div style={{ fontSize: 14, color: "#666", maxWidth: 380, lineHeight: 1.5 }}>
+    <Box sx={{ minHeight: "100vh", background: PALETTE.neutral[0], display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: '12px', padding: '32px', textAlign: "center" }}>
+      <Box sx={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: PALETTE.neutral[900] }}>Acesso restrito</Box>
+      <Box sx={{ fontSize: 14, color: "#666", maxWidth: 380, lineHeight: 1.5 }}>
         Este endereço é do painel administrativo. Entre pelo endereço da sua marca
         (<strong>marca.br4ndcode.com</strong>).
-      </div>
-      <button onClick={onLogout} style={{ marginTop: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, color: "#171717", background: "transparent", border: "1px solid #EAEAEA", borderRadius: 8, cursor: "pointer" }}>Sair</button>
-    </div>
+      </Box>
+      <Button variant="outlined" size="small" onClick={onLogout}>Sair</Button>
+    </Box>
   );
 }

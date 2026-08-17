@@ -8,12 +8,13 @@ import InfoOutlinedIcon        from '@mui/icons-material/InfoOutlined'
 import AutoAwesomeIcon         from '@mui/icons-material/AutoAwesome'
 import { useWorkspace }        from '../../lib/WorkspaceContext'
 import { ContentGerarDrawer }  from './ContentGerarDrawer'
+import { PALETTE } from '../../lib/theme'
 
-const OPOR_COR   = { alta: '#0D9E7A', media: '#EF9F27', baixa: '#8A9AB0' }
+const OPOR_COR   = { alta: PALETTE.data.positivo, media: PALETTE.data.atencao, baixa: PALETTE.neutral[400] }
 const OPOR_SCORE = { alta: 3, media: 2, baixa: 1 }
 const VOL_LABEL  = { alto: 'Alto', medio: 'Médio', baixo: 'Nicho' }
-const VOL_COR    = { alto: '#0D9E7A', medio: '#EF9F27', baixo: '#8A9AB0' }
-const INTENT_COR = { informacional: '#4A9ECC', transacional: '#E8185A', navegacional: '#7F77DD' }
+const VOL_COR    = { alto: PALETTE.data.positivo, medio: PALETTE.data.atencao, baixo: PALETTE.neutral[400] }
+const INTENT_COR = { informacional: PALETTE.data.info, transacional: PALETTE.data.critico, navegacional: PALETTE.data.neutro }
 const INTENT_LABEL = { informacional: 'Informacional', transacional: 'Transacional', navegacional: 'Navegacional' }
 
 function oporLabel(o) {
@@ -50,18 +51,18 @@ function OporRow({ kw, cor, clusterNome, onGerar }) {
       <Typography sx={{ fontSize: 11, fontWeight: 700, color: cor, opacity: 0.85 }}>
         {clusterNome}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px' }}>
         <LocalFireDepartmentIcon sx={{ fontSize: 13, color: OPOR_COR[kw.oportunidade] }} />
         <Typography sx={{ fontSize: 12, fontWeight: 700, color: OPOR_COR[kw.oportunidade] }}>
           {oporLabel(kw.oportunidade)}
         </Typography>
       </Box>
-      <Typography sx={{ fontSize: 12, fontWeight: 700, color: VOL_COR[kw.volume] || '#8A9AB0' }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 700, color: VOL_COR[kw.volume] || PALETTE.neutral[400] }}>
         {VOL_LABEL[kw.volume] || kw.volume}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <InfoOutlinedIcon sx={{ fontSize: 13, color: INTENT_COR[kw.intencao] || '#8A9AB0' }} />
-        <Typography sx={{ fontSize: 12, fontWeight: 600, color: INTENT_COR[kw.intencao] || '#8A9AB0' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px' }}>
+        <InfoOutlinedIcon sx={{ fontSize: 13, color: INTENT_COR[kw.intencao] || PALETTE.neutral[400] }} />
+        <Typography sx={{ fontSize: 12, fontWeight: 600, color: INTENT_COR[kw.intencao] || PALETTE.neutral[400] }}>
           {INTENT_LABEL[kw.intencao] || kw.intencao}
         </Typography>
       </Box>
@@ -97,7 +98,7 @@ export function ContentOportunidades({ clusters }) {
   return (
     <Box>
       {/* Cluster filter */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: '1.5px', mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant="overline" color="text.disabled" sx={{ fontSize: '0.6rem', flexShrink: 0 }}>
           Filtrar por território:
         </Typography>
@@ -122,13 +123,13 @@ export function ContentOportunidades({ clusters }) {
       {/* Summary stats */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 4 }}>
         {[
-          { label: 'Alta prioridade',  count: contAlta,  cor: '#0D9E7A', desc: 'Gap crítico — concorrência baixa, volume alto' },
-          { label: 'Média prioridade', count: contMedia, cor: '#EF9F27', desc: 'Boas oportunidades para expansão gradual' },
-          { label: 'Baixa prioridade', count: contBaixa, cor: '#8A9AB0', desc: 'Nichos específicos e long-tail' },
+          { label: 'Alta prioridade',  count: contAlta,  cor: PALETTE.data.positivo, desc: 'Gap crítico — concorrência baixa, volume alto' },
+          { label: 'Média prioridade', count: contMedia, cor: PALETTE.data.atencao, desc: 'Boas oportunidades para expansão gradual' },
+          { label: 'Baixa prioridade', count: contBaixa, cor: PALETTE.neutral[400], desc: 'Nichos específicos e long-tail' },
         ].map(({ label, count, cor, desc }) => (
           <Box key={label} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2,
             p: 2.5, borderTop: `3px solid ${cor}` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75px', mb: 0.5 }}>
               <LocalFireDepartmentIcon sx={{ fontSize: 15, color: cor }} />
               <Typography sx={{ fontSize: 11, fontWeight: 700, color: cor, textTransform: 'uppercase',
                 letterSpacing: '0.08em' }}>{label}</Typography>
@@ -140,8 +141,8 @@ export function ContentOportunidades({ clusters }) {
       </Box>
 
       {/* Tabela */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-        <TrendingUpIcon sx={{ fontSize: 18, color: '#EF9F27' }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 2 }}>
+        <TrendingUpIcon sx={{ fontSize: 18, color: PALETTE.data.atencao }} />
         <Box>
           <Typography sx={{ fontSize: 15, fontWeight: 900, lineHeight: 1.2 }}>
             Oportunidades de expansão
@@ -152,7 +153,7 @@ export function ContentOportunidades({ clusters }) {
         </Box>
         <Chip label={`${todasOpors.length} oportunidades`} size="small"
           sx={{ ml: 'auto', fontWeight: 700, fontSize: '0.65rem',
-            bgcolor: 'rgba(239,159,39,0.12)', color: '#EF9F27', height: 20 }} />
+            bgcolor: 'rgba(239,159,39,0.12)', color: PALETTE.data.atencao, height: 20 }} />
       </Box>
 
       <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>

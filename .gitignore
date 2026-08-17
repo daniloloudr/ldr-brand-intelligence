@@ -36,3 +36,6 @@ supabase/.temp/
 backups/
 *.dump
 *.sql.gz
+
+# cache do Vite
+.vite/

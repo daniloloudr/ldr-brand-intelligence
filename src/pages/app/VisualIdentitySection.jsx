@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { BrandAssetsSection } from './BrandAssetsSection'
 import { FieldLabel, SectionDivider, ChipInput } from './BrandSection'
+import { PALETTE } from '../../lib/theme'
 
 const tf = { '& .MuiInputBase-input': { fontSize: 14 } }
 
@@ -31,7 +32,7 @@ function ItemList({ label, items, onChange, fields, addLabel = 'Adicionar', empt
         )}
         {(items || []).map((it, idx) => (
           <Paper key={idx} variant="outlined" sx={{ p: 2, position: 'relative', borderRadius: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: columns === 2 ? { xs: '1fr', md: '1fr 1fr' } : '1fr', gap: 1.25 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: columns === 2 ? { xs: '1fr', md: '1fr 1fr' } : '1fr', gap: '1.25px' }}>
               {fields.map(f => (
                 <TextField
                   key={f.key}
@@ -68,7 +69,7 @@ function ColorSwatchRow({ item, onChange, onRemove }) {
   const isValidHex = /^#[0-9A-Fa-f]{6}$/i.test(hex)
   return (
     <Paper variant="outlined" sx={{ p: 2, position: 'relative', borderRadius: 2 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '90px 1fr 1fr 130px' }, gap: 1.25, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '90px 1fr 1fr 130px' }, gap: '1.25px', alignItems: 'start' }}>
         <Box>
           <Box
             onClick={() => document.getElementById(`swatch-${item._key}`)?.click()}
@@ -87,7 +88,7 @@ function ColorSwatchRow({ item, onChange, onRemove }) {
           placeholder="Ex: Verde Principal" fullWidth size="medium"
           InputProps={{ sx: { fontSize: 14 } }} InputLabelProps={{ sx: { fontSize: 14 } }} />
         <TextField label="Hex" value={hex} onChange={e => onChange('hex', e.target.value)}
-          placeholder="#0D9E7A" fullWidth size="medium"
+          placeholder={PALETTE.data.positivo} fullWidth size="medium"
           InputProps={{ sx: { fontSize: 14, fontFamily: 'monospace' } }} InputLabelProps={{ sx: { fontSize: 14 } }} />
         <TextField label="Tipo" value={item.tipo || ''} onChange={e => onChange('tipo', e.target.value)}
           placeholder="primária / secundária / neutra / acento" fullWidth size="medium"
@@ -145,7 +146,7 @@ function Diretrizes({ data, onChange }) {
     <Box sx={{ maxWidth: 920 }}>
 
       {/* ── Logos ── */}
-      <SectionDivider label="Logos" color="#7F77DD" />
+      <SectionDivider label="Logos" color={PALETTE.data.neutro} />
       <ItemList
         label="Versões de logo"
         items={d.logos}
@@ -180,15 +181,15 @@ function Diretrizes({ data, onChange }) {
         <ChipInput label="Usos proibidos" values={d.usos_proibidos}
           onChange={v => up('usos_proibidos', v)}
           placeholder="Ex: distorcer, mudar cor, aplicar sombra — Enter"
-          color="#E8185A" />
+          color={PALETTE.data.critico} />
       </Box>
 
       {/* ── Paleta de cores ── */}
-      <SectionDivider label="Paleta de cores" color="#7F77DD" />
+      <SectionDivider label="Paleta de cores" color={PALETTE.data.neutro} />
       <PaletaEditor label="Cores da marca" items={d.paleta} onChange={v => up('paleta', v)} />
 
       {/* ── Tipografia ── */}
-      <SectionDivider label="Tipografia" color="#7F77DD" />
+      <SectionDivider label="Tipografia" color={PALETTE.data.neutro} />
       <Grid2>
         <Box>
           <FieldLabel>Família principal</FieldLabel>
@@ -242,7 +243,7 @@ function Diretrizes({ data, onChange }) {
       </Box>
 
       {/* ── Iconografia ── */}
-      <SectionDivider label="Iconografia" color="#7F77DD" />
+      <SectionDivider label="Iconografia" color={PALETTE.data.neutro} />
       <Grid2>
         <Box>
           <FieldLabel>Estilo</FieldLabel>
@@ -269,7 +270,7 @@ function Diretrizes({ data, onChange }) {
       </Box>
 
       {/* ── Ilustração ── */}
-      <SectionDivider label="Ilustração" color="#7F77DD" />
+      <SectionDivider label="Ilustração" color={PALETTE.data.neutro} />
       <Grid2>
         <Box>
           <FieldLabel>Estilo</FieldLabel>
@@ -290,7 +291,7 @@ function Diretrizes({ data, onChange }) {
       </Box>
 
       {/* ── Fotografia ── */}
-      <SectionDivider label="Fotografia" color="#7F77DD" />
+      <SectionDivider label="Fotografia" color={PALETTE.data.neutro} />
       <Box>
         <FieldLabel>Mood / atmosfera</FieldLabel>
         <TextField value={d.foto_mood || ''} onChange={e => up('foto_mood', e.target.value)}
@@ -320,7 +321,7 @@ function Diretrizes({ data, onChange }) {
           <ChipInput label="Evite (DON'T)" values={d.foto_dont}
             onChange={v => up('foto_dont', v)}
             placeholder="Ex: stock genérico — Enter"
-            color="#E8185A" />
+            color={PALETTE.data.critico} />
         </Grid2>
       </Box>
 
@@ -331,7 +332,7 @@ function Diretrizes({ data, onChange }) {
       </Box>
 
       {/* ── Vídeo & Motion ── */}
-      <SectionDivider label="Vídeo & Motion" color="#7F77DD" />
+      <SectionDivider label="Vídeo & Motion" color={PALETTE.data.neutro} />
       <Grid2>
         <Box>
           <FieldLabel>Estilo de vídeo</FieldLabel>
@@ -361,7 +362,7 @@ function Diretrizes({ data, onChange }) {
       </Box>
 
       {/* ── Texturas & Padrões ── */}
-      <SectionDivider label="Texturas & Padrões" color="#7F77DD" />
+      <SectionDivider label="Texturas & Padrões" color={PALETTE.data.neutro} />
       <ItemList
         label="Padrões gráficos"
         items={d.padroes}
@@ -377,7 +378,7 @@ function Diretrizes({ data, onChange }) {
       />
 
       {/* ── Grids editoriais ── */}
-      <SectionDivider label="Grids editoriais" color="#7F77DD" />
+      <SectionDivider label="Grids editoriais" color={PALETTE.data.neutro} />
       <Box>
         <FieldLabel>Sistema de grid</FieldLabel>
         <TextField value={d.grid_descricao || ''} onChange={e => up('grid_descricao', e.target.value)}
@@ -391,7 +392,7 @@ function Diretrizes({ data, onChange }) {
       </Box>
 
       {/* ── Aplicações ── */}
-      <SectionDivider label="Aplicações" color="#7F77DD" />
+      <SectionDivider label="Aplicações" color={PALETTE.data.neutro} />
       <ItemList
         label="Aplicações da marca"
         items={d.aplicacoes}

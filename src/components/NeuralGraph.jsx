@@ -1,11 +1,12 @@
-// NeuralGraph — a rede viva da Inteligência da Marca (painel Inteligência brandcode).
+// NeuralGraph — a rede viva da Inteligência da Marca (painel Inteligência BR4NDCODE).
 // Três camadas: EVIDÊNCIAS capturadas (com contagem real) → FACETAS do
-// aprendizado (acesas quando a marca já aprendeu) → onde o brandcode APLICA.
+// aprendizado (acesas quando a marca já aprendeu) → onde o BR4NDCODE APLICA.
 // SVG puro, animado (fluxo nas conexões ativas), dados 100% reais.
 // Copy didática — nunca revela o mecanismo interno.
 import { Box, Typography } from '@mui/material'
+import { PALETTE } from '../lib/theme'
 
-const TEAL = '#0D9E7A', PURPLE = '#7F77DD', GRAY = '#8A9AB0'
+const TEAL = PALETTE.data.positivo, PURPLE = PALETTE.data.neutro, GRAY = PALETTE.neutral[400]
 
 const INPUTS = [
   { k: 'image_vote',           label: 'Avaliações de peças' },
@@ -153,8 +154,8 @@ export function NeuralGraph({ signalStats = {}, model, versao }) {
           </g>
         ))}
       </Box>
-      <Typography fontSize={11} color="text.secondary" mt={0.5}>
-        Cada uso vira evidência · cada evidência fortalece uma faceta do aprendizado · cada faceta guia o que o brandcode cria.
+      <Typography variant="caption" color="text.secondary" mt={0.5}>
+        Cada uso vira evidência · cada evidência fortalece uma faceta do aprendizado · cada faceta guia o que o BR4NDCODE cria.
         Nós apagados ainda não têm evidência — são os próximos a acender.
       </Typography>
     </Box>

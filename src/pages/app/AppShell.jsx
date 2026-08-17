@@ -2,6 +2,11 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { Box, CircularProgress, Typography, Button, Stack, Divider } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined'
+import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { theme as themeDark, themeLight } from '../../lib/theme'
@@ -47,28 +52,21 @@ const TrendsPage      = lazy(() => import('./IntelligencePages').then(m => ({ de
 const ReportsPage     = lazy(() => import('./IntelligencePages').then(m => ({ default: m.ReportsPage })))
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { Wordmark } from '../../components/Wordmark'
+import { PALETTE } from '../../lib/theme'
 
-/* ─── icons ──────────────────────────────────────────────────────── */
-const IcoHome    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-const IcoDiag    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-const IcoSocial  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-const IcoContent = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-const IcoBrand   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-const IcoStudio  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
-const IcoAssist  = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.4L12 15l-1.9-4.6L5.5 9l4.6-1.4z"/></svg>
 
 const USER_MENU = [
   { label: 'Configurações da conta', hash: '#/app/conta' },
   { label: 'Créditos & Consumo',     hash: '#/app/plano' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
-  { label: 'Inteligência brandcode',   hash: '#/app/inteligencia' },
+  { label: 'Inteligência BR4NDCODE',   hash: '#/app/inteligencia' },
 ]
 
 function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const { workspace, loading, denied, user, onLogout } = useWorkspace()
 
-  // Lockup do produto: MARCA.brandcode — logo escolhido nos Ativos (metadata.header)
+  // Lockup do produto: MARCA.BR4NDCODE — logo escolhido nos Ativos (metadata.header)
   // ou o primeiro logo; senão o nome. Ouve 'brand-lockup-refresh' p/ troca ao vivo.
   const [brandLockup, setBrandLockup] = useState(null)
   useEffect(() => {
@@ -91,7 +89,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       if (!on) return
       const nome = b?.nome || workspace?.nome || null
       setBrandLockup({ nome, logoUrl, logoSvg })
-      if (nome) document.title = `${nome}.brandcode`
+      if (nome) document.title = `${nome}.BR4NDCODE`
     }
     loadLockup()
     const refresh = () => loadLockup()
@@ -124,7 +122,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
 
   if (loading) return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <CircularProgress sx={{ color: '#0D9E7A' }} />
+      <CircularProgress sx={{ color: PALETTE.data.positivo }} />
     </Box>
   )
 
@@ -188,8 +186,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const nav = [
     // Nova arquitetura (2026-07-10): Strategy · Intelligence · Studio · Copilot
     // Onda 1 = só navegação (rotas e schema intactos). Rótulos via i18n (pt/en/es).
-    { type: 'item', label: t('nav.home'), icon: IcoHome, hash: '#/app', active: route === 'app-home' },
-    { type: 'group', label: t('nav.strategy'), icon: IcoBrand, active: route === 'brands-detail', children: [
+    { type: 'item', label: t('nav.home'), icon: HomeOutlinedIcon, hash: '#/app', active: route === 'app-home' },
+    { type: 'group', label: t('nav.strategy'), icon: MenuBookOutlinedIcon, active: route === 'brands-detail', children: [
       { type: 'sub', label: t('nav.sub.culture') },
       { label: t('nav.strategy.essencia'),      hash: brandLink('/essencia'),      active: route === 'brands-detail' && section === 'essencia' },
       { type: 'sub', label: t('nav.sub.business') },
@@ -199,7 +197,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.strategy.personalidade'), hash: brandLink('/personalidade'), active: route === 'brands-detail' && section === 'personalidade' },
       { label: t('nav.strategy.expression'),    hash: brandLink('/expression'),    active: route === 'brands-detail' && section === 'expression' },
     ] },
-    { type: 'group', label: t('nav.intelligence'), icon: IcoDiag, children: [
+    { type: 'group', label: t('nav.intelligence'), icon: InsightsOutlinedIcon, children: [
       // Ordem definida pelo Danilo (2026-08-02): Relatórios → Concorrentes →
       // Mercado → Escuta → Insights → Tendências → Palavras-Chave
       // Reports = a medição da marca (ressignificação da antiga página Posicionamento — decisão Q3)
@@ -212,7 +210,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       { label: t('nav.intelligence.trends'),    hash: '#/app/trends',      active: route === 'trends' },
       { label: t('nav.intelligence.content'),   hash: '#/app/content-hub', active: route === 'content-hub' },
     ] },
-    { type: 'group', label: t('nav.studio'), icon: IcoStudio, children: [
+    { type: 'group', label: t('nav.studio'), icon: PhotoLibraryOutlinedIcon, children: [
       // Ativos saiu do menu (2026-07-14): a casa é a Biblioteca > Referências da
       // marca; a rota /studio/assets segue viva p/ links antigos
       { label: t('nav.studio.image'),    hash: brandLink('/studio'),          active: route === 'brands-studio' },
@@ -224,7 +222,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     ] },
     // Copilot enxuto (decisão 2026-07-10): só o Chat — modos viraram sugestões
     // na lateral do chat; Agents & Automações entram quando existirem de verdade.
-    { type: 'item', label: t('nav.copilot'), icon: IcoAssist, hash: brandLink('/assistant'), active: route === 'brands-assistant' },
+    { type: 'item', label: t('nav.copilot'), icon: AutoAwesomeOutlinedIcon, hash: brandLink('/assistant'), active: route === 'brands-assistant' },
   ]
 
   function renderPage() {
@@ -269,13 +267,13 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   const topBanner = impersonating ? (
     <Box sx={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-      bgcolor: '#EF9F27', color: '#0D1B2A',
+      bgcolor: PALETTE.data.atencao, color: PALETTE.neutral[900],
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
       px: 2, py: 1, fontSize: 13, fontWeight: 700,
     }}>
-      <span>Você está no ambiente de <strong>{impersonating.workspaceName}</strong></span>
+      <Typography component="span">Você está no ambiente de <strong>{impersonating.workspaceName}</strong></Typography>
       <Box component="button" onClick={onStopImpersonating} sx={{
-        bgcolor: '#0D1B2A', color: '#EF9F27', border: 'none', borderRadius: 0.5,
+        bgcolor: PALETTE.neutral[900], color: PALETTE.data.atencao, border: 'none', borderRadius: 0.5,
         px: 1.5, py: 0.5, fontWeight: 800, fontSize: 12, cursor: 'pointer',
       }}>Sair</Box>
     </Box>
@@ -328,7 +326,7 @@ function renderBellContent(jobs, close) {
             const isProcessing = j.status === 'processing'
             const isDone       = j.status === 'done'
             const isError      = j.status === 'error'
-            const color = isError ? '#E8185A' : isDone ? '#0D9E7A' : '#EF9F27'
+            const color = isError ? PALETTE.data.critico : isDone ? PALETTE.data.positivo : PALETTE.data.atencao
             const Icon  = isError ? ErrorOutlineIcon : isDone ? CheckCircleOutlineIcon : AutoAwesomeIcon
             const titulo = isProcessing ? 'Analisando manual de marca…'
                          : isDone       ? 'Manual de marca analisado'
@@ -346,7 +344,7 @@ function renderBellContent(jobs, close) {
                   p: 2, borderBottom: i < jobs.length - 1 ? 1 : 0, borderColor: 'divider',
                   cursor: isDone ? 'pointer' : 'default',
                   '&:hover': isDone ? { bgcolor: 'action.hover' } : {},
-                  display: 'flex', alignItems: 'flex-start', gap: 1.5,
+                  display: 'flex', alignItems: 'flex-start', gap: '1.5px',
                 }}>
                 {isProcessing ? (
                   <CircularProgress size={18} thickness={5} sx={{ color, mt: 0.25 }} />
@@ -378,14 +376,15 @@ function renderBellContent(jobs, close) {
 
 export function AppShell({ user, onLogout, impersonating, onStopImpersonating }) {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('loudr-workspace-theme')
-    return saved !== null ? saved === 'dark' : true
+    // Padrão é CLARO (regra do Danilo); o escuro segue disponível no toggle.
+    const saved = localStorage.getItem('brandcode-theme') ?? localStorage.getItem('loudr-workspace-theme')
+    return saved !== null ? saved === 'dark' : false
   })
 
   function handleToggle() {
     setIsDark(d => {
       const next = !d
-      localStorage.setItem('loudr-workspace-theme', next ? 'dark' : 'light')
+      localStorage.setItem('brandcode-theme', next ? 'dark' : 'light')
       return next
     })
   }

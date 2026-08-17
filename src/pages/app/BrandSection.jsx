@@ -1,4 +1,5 @@
 import { Box, Typography, TextField, Chip, Divider } from '@mui/material'
+import { PALETTE } from '../../lib/theme'
 
 /* ─── helpers ──────────────────────────────────────────────────────── */
 
@@ -14,12 +15,12 @@ export function FieldLabel({ children }) {
 export function SectionDivider({ label, color }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 4 }}>
-      <Box sx={{ width: 3, height: 18, bgcolor: color, borderRadius: 4, flexShrink: 0 }} />
+      <Box sx={{ width: 3, height: 18, bgcolor: color,  flexShrink: 0 }} />
       <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase',
         letterSpacing: '0.14em', color }}>
         {label}
       </Typography>
-      <Box sx={{ flex: 1, height: 1, bgcolor: 'divider' }} />
+      <Divider sx={{ flex: 1 }} />
     </Box>
   )
 }
@@ -36,7 +37,7 @@ export function ArquetipoSelector({ value, onChange }) {
   return (
     <Box>
       <FieldLabel>Arquétipo</FieldLabel>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
         {ARQUETIPOS.map(a => (
           <Chip key={a} label={a} size="small"
             onClick={() => onChange(value === a ? '' : a)}
@@ -61,7 +62,7 @@ export function ChipInput({ label, values, onChange, placeholder, color = 'prima
   return (
     <Box>
       <FieldLabel>{label}</FieldLabel>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1, minHeight: 28 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px', mb: 1, minHeight: 28 }}>
         {(values || []).map(v => (
           <Chip key={v} label={v} size="small"
             onDelete={() => onChange(values.filter(x => x !== v))}
@@ -96,7 +97,7 @@ export function BrandSection({ book, onUpdate }) {
     <Box sx={{ maxWidth: 860 }}>
 
       {/* ── Identidade ── */}
-      <SectionDivider label="Identidade" color="#0D9E7A" />
+      <SectionDivider label="Identidade" color={PALETTE.data.positivo} />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
         <Box>
@@ -146,11 +147,11 @@ export function BrandSection({ book, onUpdate }) {
           values={id.vocabulario_proibido}
           onChange={v => upId('vocabulario_proibido', v)}
           placeholder="Palavra ou expressão proibida — Enter"
-          color="#E8185A" />
+          color={PALETTE.data.critico} />
       </Box>
 
       {/* ── Posicionamento ── */}
-      <SectionDivider label="Posicionamento" color="#7F77DD" />
+      <SectionDivider label="Posicionamento" color={PALETTE.data.neutro} />
 
       <Box>
         <FieldLabel>Posicionamento principal</FieldLabel>
@@ -178,7 +179,7 @@ export function BrandSection({ book, onUpdate }) {
       </Box>
 
       {/* ── Referências ── */}
-      <SectionDivider label="Referências" color="#E8185A" />
+      <SectionDivider label="Referências" color={PALETTE.data.critico} />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
         <Box>

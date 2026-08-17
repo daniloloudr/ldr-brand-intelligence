@@ -9,14 +9,15 @@ import CheckIcon       from '@mui/icons-material/Check'
 import { supabase } from '../../lib/supabase'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
+import { PALETTE } from '../../lib/theme'
 
 const API_URL = import.meta.env.DEV
   ? '/api/v1/messages'
   : '/.netlify/functions/anthropic'
 
 const INTENT_LABEL = { informacional: 'Informacional', transacional: 'Transacional', navegacional: 'Navegacional' }
-const OPOR_COR     = { alta: '#0D9E7A', media: '#EF9F27', baixa: '#8A9AB0' }
-const VOL_COR      = { alto: '#0D9E7A', medio: '#EF9F27', baixo: '#8A9AB0' }
+const OPOR_COR     = { alta: PALETTE.data.positivo, media: PALETTE.data.atencao, baixa: PALETTE.neutral[400] }
+const VOL_COR      = { alto: PALETTE.data.positivo, medio: PALETTE.data.atencao, baixo: PALETTE.neutral[400] }
 const VOL_LABEL    = { alto: 'Alto', medio: 'Médio', baixo: 'Nicho' }
 
 function buildPrompt(item, workspace, intelBlock) {
@@ -263,7 +264,7 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
         <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AutoAwesomeIcon sx={{ color: '#7F77DD', fontSize: 18 }} />
+              <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 18 }} />
               <Typography sx={{ fontSize: 13, fontWeight: 900, letterSpacing: '-0.01em' }}>
                 Briefing de conteúdo
               </Typography>
@@ -277,11 +278,11 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
             {titulo}
           </Typography>
 
-          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: '0.75px', flexWrap: 'wrap' }}>
             {badges.map(b => (
               <Chip key={b} label={b} size="small"
                 sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700,
-                  bgcolor: 'rgba(127,119,221,0.12)', color: '#7F77DD' }} />
+                  bgcolor: 'rgba(127,119,221,0.12)', color: PALETTE.data.neutro }} />
             ))}
           </Box>
         </Box>
@@ -291,7 +292,7 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
           {error ? (
             <Typography color="error" variant="body2">{error}</Typography>
           ) : streaming && !text ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', py: 4 }}>
               <CircularProgress size={16} color="primary" />
               <Typography variant="body2" color="text.secondary">Gerando briefing…</Typography>
             </Box>
@@ -309,7 +310,7 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
         {!streaming && text && (
           <>
             <Divider />
-            <Box sx={{ p: 2.5, display: 'flex', gap: 1.5 }}>
+            <Box sx={{ p: 2.5, display: 'flex', gap: '1.5px' }}>
               <Button
                 variant="outlined" size="small" fullWidth
                 startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}

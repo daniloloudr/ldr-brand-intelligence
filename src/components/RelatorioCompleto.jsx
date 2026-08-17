@@ -10,14 +10,32 @@ import { PRATICAS }            from '../lib/constants'
 import { fmtDate, sc }         from '../lib/helpers'
 import { gerarPDF }            from '../lib/pdf'
 import { Bar }                 from './Bar'
-import { Pill, ipill, apill, ppill } from './Pill'
-import { Lbl }                 from './Lbl'
-import { Card }                from './Card'
+import { PALETTE } from '../lib/theme'
+import Chip from "@mui/material/Chip";
+import { Card, CardContent } from "@mui/material";
+
+// Selos de impacto/ameaça/prática — Chip do MUI, cor pelo papel semântico.
+// (Vinham do componente Pill do design system antigo, já removido.)
+const ipill = v =>
+  v === 'alto'  ? <Chip size="small" label="impacto alto"  color="success" variant="outlined" /> :
+  v === 'medio' ? <Chip size="small" label="impacto médio" color="warning" variant="outlined" /> :
+                  <Chip size="small" label="impacto baixo" variant="outlined" />
+
+const apill = v =>
+  v === 'alta'  ? <Chip size="small" label="ameaça alta"  color="error"   variant="outlined" /> :
+  v === 'media' ? <Chip size="small" label="ameaça média" color="warning" variant="outlined" /> :
+                  <Chip size="small" label="ameaça baixa" variant="outlined" />
+
+const ppill = key => {
+  const p = PRATICAS.find(p => p.key === key)
+  return p ? <Chip size="small" label={p.label} sx={{ bgcolor: p.color + '22', color: p.color, fontWeight: 700 }} /> : null
+}
+
 
 // Território (novo schema): rótulos de confiança + micro-campo de evidência
 const CONF_LABEL = { alta: 'Território sólido', media: 'Território promissor', hipotese: 'Hipótese a validar' }
 const CONF_BG    = { alta: 'rgba(13,158,122,0.12)', media: 'rgba(239,159,39,0.12)', hipotese: 'rgba(122,136,153,0.14)' }
-const CONF_COLOR = { alta: '#0D9E7A', media: '#EF9F27', hipotese: '#7A8899' }
+const CONF_COLOR = { alta: PALETTE.data.positivo, media: PALETTE.data.atencao, hipotese: PALETTE.neutral[400] }
 
 function MicroField({ label, val }) {
   if (!val) return null
@@ -73,7 +91,7 @@ function SharePanel({ meta, data }) {
       `Ver relatório completo:`,
       shareUrl,
       ``,
-      `Diagnóstico gerado por LOUDR Brand Intelligence`,
+      `Diagnóstico gerado por BR4NDCODE`,
       `loudr.com.br`,
     ].join('\n')
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
@@ -134,12 +152,12 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
     <Box>
       {meta && (
         <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.25 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25px' }}>
             {onBack
               ? <Button variant="text" onClick={onBack} sx={{ color: 'text.disabled', p: 0, fontWeight: 400, fontSize: 13, textTransform: 'none', minWidth: 0 }}>{backLabel}</Button>
               : <Box />
             }
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.25px', flexWrap: 'wrap' }}>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 {meta.created_at && fmtDate(meta.created_at)}{meta.user_name && ` · por ${meta.user_name}`}
               </Typography>
@@ -163,7 +181,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
         <Box sx={{ position: 'absolute', right: -24, top: -24, width: 200, height: 200, borderRadius: '50%', bgcolor: 'primary.main', opacity: 0.05 }} />
         <Box sx={{ width: 14, height: 14, bgcolor: 'secondary.main', mb: 2 }} />
         <Typography variant="overline" sx={{ color: 'primary.main', display: 'block', mb: 1 }}>
-          Brand Intelligence Report · LOUDR
+          Brand Intelligence Report · BR4NDCODE
         </Typography>
         <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: '-0.03em', color: 'text.primary', mb: 0.5 }}>
           {data.empresa}
@@ -184,12 +202,12 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
       </Box>}
 
       {/* Resumo executivo */}
-      <Card sx={{ mb: '14px' }}>
-        <Lbl>Resumo executivo</Lbl>
+      <Card variant="outlined" sx={{ mb: '14px' }}><CardContent>
+        <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Resumo executivo</Typography>
         <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.8 }}>
           {data.resumo_executivo}
         </Typography>
-      </Card>
+      </CardContent></Card>
 
       {/* Diagnóstico por prática */}
       <Box sx={{ mb: '14px' }}>
@@ -202,7 +220,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
             if (!pr) return null
             return (
               <Box key={p.key} sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderTop: `3px solid ${p.color}`, p: '18px 20px' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 1.25 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: '1.5px', mb: 1.25 }}>
                   <Box>
                     <Typography sx={{ fontSize: 13, fontWeight: 800, color: 'text.primary' }}>{p.label}</Typography>
                     <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>{p.sub}</Typography>
@@ -241,30 +259,30 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
           { label: 'Consistência',   key: 'score_consistencia',   desc: 'Coerência'     },
           { label: 'Posicionamento', key: 'score_posicionamento', desc: 'Clareza'       },
         ].map(s => (
-          <Card key={s.key}>
+          <Card variant="outlined" key={s.key}><CardContent>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary', mb: 0.25 }}>{s.label}</Typography>
             <Typography sx={{ fontSize: 11, color: 'text.disabled', mb: 1.25 }}>{s.desc}</Typography>
             <Bar score={data[s.key]} color={sc(data[s.key])} />
-          </Card>
+          </CardContent></Card>
         ))}
       </Box>
 
       {/* Identidade declarada / percebida */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '10px', mb: '14px' }}>
         {[
-          { label: 'Identidade declarada', key: 'identidade_declarada', accent: '#0D9E7A' },
-          { label: 'Identidade percebida', key: 'identidade_percebida', accent: '#E8185A' },
+          { label: 'Identidade declarada', key: 'identidade_declarada', accent: PALETTE.data.positivo },
+          { label: 'Identidade percebida', key: 'identidade_percebida', accent: PALETTE.data.critico },
         ].map(b => (
-          <Card key={b.key} sx={{ borderTop: `3px solid ${b.accent}` }}>
-            <Lbl color={b.accent}>{b.label}</Lbl>
+          <Card variant="outlined" key={b.key} sx={{ borderTop: `3px solid ${b.accent}` }}><CardContent>
+            <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>{b.label}</Typography>
             <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.7 }}>{data[b.key]}</Typography>
-          </Card>
+          </CardContent></Card>
         ))}
       </Box>
 
       {/* Gap de identidade */}
-      <Box sx={{ bgcolor: 'rgba(239,159,39,0.08)', borderLeft: '4px solid #EF9F27', p: '16px 20px', mb: '14px' }}>
-        <Lbl color="#EF9F27">Gap de identidade</Lbl>
+      <Box sx={{ bgcolor: 'rgba(239,159,39,0.08)', borderLeft: `4px solid ${PALETTE.data.atencao}`, p: '16px 20px', mb: '14px' }}>
+        <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Gap de identidade</Typography>
         <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>{data.gap_identidade}</Typography>
       </Box>
 
@@ -279,9 +297,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 0.75 }}>
                 <Typography sx={{ fontSize: 15, fontWeight: 900, color: 'text.primary' }}>{t.nome}</Typography>
                 {t.confianca && (
-                  <Pill bg={CONF_BG[t.confianca] || CONF_BG.hipotese} color={CONF_COLOR[t.confianca] || CONF_COLOR.hipotese}>
-                    {CONF_LABEL[t.confianca] || t.confianca}
-                  </Pill>
+                  <Chip size="small" label={CONF_LABEL[t.confianca] || t.confianca} sx={{ bgcolor: CONF_BG[t.confianca] || CONF_BG.hipotese, color: CONF_COLOR[t.confianca] || CONF_COLOR.hipotese, fontWeight: 700 }} />
                 )}
               </Box>
               {t.tese && (
@@ -304,7 +320,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
         </Box>
       ) : data.territorio_inexplorado ? (
         <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '20px 24px', mb: '14px' }}>
-          <Lbl>Território inexplorado</Lbl>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Território inexplorado</Typography>
           <Typography sx={{ fontSize: 14, color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.7 }}>
             {data.territorio_inexplorado}
           </Typography>
@@ -314,18 +330,18 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
       {/* Pergunta provocativa */}
       {data.pergunta_provocativa && (
         <Box sx={{ bgcolor: 'rgba(232,24,90,0.06)', borderLeft: '4px solid', borderLeftColor: 'secondary.main', p: '16px 20px', mb: '14px' }}>
-          <Lbl color="#E8185A">Se essa marca sumisse amanhã...</Lbl>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Se essa marca sumisse amanhã...</Typography>
           <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>{data.pergunta_provocativa}</Typography>
         </Box>
       )}
 
       {/* Concorrentes */}
       {data.concorrentes?.length > 0 && (
-        <Card sx={{ mb: '14px' }}>
-          <Lbl color="text.disabled">Contexto competitivo</Lbl>
+        <Card variant="outlined" sx={{ mb: '14px' }}><CardContent>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Contexto competitivo</Typography>
           {data.concorrentes.map((c, i) => (
             <Box key={i}>
-              <Box sx={{ display: 'flex', gap: 1.5, py: 1, alignItems: 'flex-start' }}>
+              <Box sx={{ display: 'flex', gap: '1.5px', py: 1, alignItems: 'flex-start' }}>
                 <Box sx={{ width: 170, minWidth: 170, flexShrink: 0 }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary' }}>{c.nome}</Typography>
                 </Box>
@@ -340,7 +356,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
               {i < data.concorrentes.length - 1 && <Divider />}
             </Box>
           ))}
-        </Card>
+        </CardContent></Card>
       )}
 
       {/* Oportunidades estratégicas */}
@@ -350,7 +366,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
             Oportunidades estratégicas
           </Typography>
           {data.oportunidades.map((op, i) => (
-            <Card key={i} sx={{ mb: '10px' }}>
+            <Card variant="outlined" key={i} sx={{ mb: '10px' }}><CardContent>
               <Box sx={{ display: 'flex', gap: '14px' }}>
                 <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: 'background.default', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>
                   {i + 1}
@@ -360,12 +376,12 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
                     <Typography sx={{ fontWeight: 800, fontSize: 13 }}>{op.titulo}</Typography>
                     {op.pratica_loudr && ppill(op.pratica_loudr)}
                     {ipill(op.impacto)}
-                    <Pill bg="rgba(13,158,122,0.12)" color="#0D9E7A">{op.prazo}</Pill>
+                    <Chip size="small" label={op.prazo} sx={{ bgcolor: "rgba(13,158,122,0.12)", color: PALETTE.data.positivo, fontWeight: 700 }} />
                   </Box>
                   <Typography sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.6 }}>{op.descricao}</Typography>
                 </Box>
               </Box>
-            </Card>
+            </CardContent></Card>
           ))}
         </Box>
       )}
@@ -373,9 +389,9 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
       {/* Quick wins */}
       {data.quick_wins?.length > 0 && (
         <Box sx={{ bgcolor: 'rgba(13,158,122,0.08)', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '16px 20px', mb: '14px' }}>
-          <Lbl>Quick wins</Lbl>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Quick wins</Typography>
           {data.quick_wins.map((qw, i) => (
-            <Box key={i} sx={{ display: 'flex', gap: 1.25, mb: 1 }}>
+            <Box key={i} sx={{ display: 'flex', gap: '1.25px', mb: 1 }}>
               <Typography sx={{ color: 'primary.main', fontWeight: 900, lineHeight: 1.5 }}>→</Typography>
               <Typography sx={{ fontSize: 13, color: 'primary.main', fontWeight: 600, lineHeight: 1.5 }}>{qw}</Typography>
             </Box>
@@ -386,7 +402,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
       {/* Por onde começar a explorar */}
       {data.porta_entrada_loudr && (
         <Box sx={{ bgcolor: 'background.paper', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '16px 20px', mb: '14px' }}>
-          <Lbl>Por onde começar a explorar</Lbl>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Por onde começar a explorar</Typography>
           <Typography sx={{ fontSize: 14, color: 'text.secondary', lineHeight: 1.7 }}>
             {data.porta_entrada_loudr}
           </Typography>
@@ -394,9 +410,9 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
       )}
 
       {/* Próximo passo CTA */}
-      <Box sx={{ bgcolor: 'background.default', p: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2.5, flexWrap: 'wrap', mb: '14px', border: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ bgcolor: 'background.default', p: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2.5px', flexWrap: 'wrap', mb: '14px', border: '1px solid', borderColor: 'divider' }}>
         <Box>
-          <Lbl>Próximo passo</Lbl>
+          <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Próximo passo</Typography>
           <Typography sx={{ fontSize: 16, fontWeight: 900, color: 'text.primary', mb: 0.75 }}>
             Esse diagnóstico é só o começo.
           </Typography>
@@ -411,7 +427,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
           onClick={() => window.open('https://loudr.com.br', '_blank')}
           sx={{ borderRadius: 0 }}
         >
-          Falar com a LOUDR →
+          Falar com a BR4NDCODE →
         </Button>
       </Box>
 

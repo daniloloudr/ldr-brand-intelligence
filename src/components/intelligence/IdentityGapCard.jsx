@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/helpers'
+import { PALETTE } from '../../lib/theme'
 
 function calcConsistenciaScore(designSystem) {
   if (!designSystem) return 0
@@ -47,7 +48,7 @@ function GapTooltip({ active, payload, label }) {
   return (
     <Paper sx={{ p: 1.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
       <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{label}</Typography>
-      <Typography variant="caption" fontWeight={700} sx={{ color: '#7F77DD' }}>
+      <Typography variant="caption" fontWeight={700} sx={{ color: PALETTE.data.neutro }}>
         Gap: {payload[0]?.value}
       </Typography>
     </Paper>
@@ -55,9 +56,9 @@ function GapTooltip({ active, payload, label }) {
 }
 
 function gapColor(score) {
-  if (score <= 2) return '#0D9E7A'
-  if (score <= 4) return '#EF9F27'
-  return '#E8185A'
+  if (score <= 2) return PALETTE.data.positivo
+  if (score <= 4) return PALETTE.data.atencao
+  return PALETTE.data.critico
 }
 
 function gapLabel(score) {
@@ -131,9 +132,9 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
             <Chip label={label} size="small"
               sx={{ bgcolor: color + '18', color, fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 1 }}>
-            <Typography fontSize={36} fontWeight={900} sx={{ color, lineHeight: 1 }}>{score}</Typography>
-            <Typography color="text.disabled" fontSize={13}>/10</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '0.5px', mb: 1 }}>
+            <Typography variant="h4" sx={{ color, lineHeight: 1 }}>{score}</Typography>
+            <Typography variant="body2" color="text.disabled">/10</Typography>
           </Box>
           <LinearProgress
             variant="determinate"
@@ -157,9 +158,9 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
           <Box sx={{ flex: 1 }}>
             <Typography variant="overline" color="text.disabled">Identity Gap Score</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, mt: 0.25 }}>
-              <Typography fontSize={48} fontWeight={900} sx={{ color, lineHeight: 1 }}>{score}</Typography>
-              <Typography color="text.disabled" fontSize={16}>/10</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '0.75px', mt: 0.25 }}>
+              <Typography variant="h4" sx={{ color, lineHeight: 1 }}>{score}</Typography>
+              <Typography variant="h6" color="text.disabled">/10</Typography>
             </Box>
             <Typography variant="caption" color="text.disabled">
               Última atualização: {fmtDate(latest.created_at)}
@@ -192,7 +193,7 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
             <Typography variant="overline" color="text.disabled" display="block" mb={1.5}>
               Gap por dimensão
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5px', mb: 3 }}>
               {dimensoes.map(d => {
                 const dimColor = gapColor(d.gap)
                 const IconDir  = d.direcao === 'mercado_supera' ? TrendingUpIcon
@@ -230,12 +231,12 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
             </Typography>
             <ResponsiveContainer width="100%" height={120}>
               <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E3550" />
-                <XAxis dataKey="data" tick={{ fill: '#8A9AB0', fontSize: 10 }} />
-                <YAxis domain={[0, 10]} tick={{ fill: '#8A9AB0', fontSize: 10 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={PALETTE.neutral[100]} />
+                <XAxis dataKey="data" tick={{ fill: PALETTE.neutral[400], fontSize: 10 }} />
+                <YAxis domain={[0, 10]} tick={{ fill: PALETTE.neutral[400], fontSize: 10 }} />
                 <Tooltip content={<GapTooltip />} />
-                <Line type="monotone" dataKey="gap" stroke="#7F77DD" strokeWidth={2.5}
-                  dot={{ r: 4, fill: '#7F77DD', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="gap" stroke={PALETTE.data.neutro} strokeWidth={2.5}
+                  dot={{ r: 4, fill: PALETTE.data.neutro, strokeWidth: 0 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </>

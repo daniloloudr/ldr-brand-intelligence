@@ -3,6 +3,7 @@ import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ContentCopyIcon   from '@mui/icons-material/ContentCopy'
 import CheckIcon         from '@mui/icons-material/Check'
+import { PALETTE } from '../../lib/theme'
 
 /* ─── helpers ──────────────────────────────────────────────────────── */
 
@@ -16,9 +17,9 @@ function isDark(hex) {
 
 function SectionLabel({ label, color, count }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, mb: 2,
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', pb: 1.5, mb: 2,
       borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Box sx={{ width: 3, height: 18, bgcolor: color, borderRadius: 4 }} />
+      <Box sx={{ width: 3, height: 18, bgcolor: color, }} />
       <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase',
         letterSpacing: '0.12em', color }}>
         {label}
@@ -85,16 +86,16 @@ function ColorTokenGrid({ tokens, onDelete }) {
 
                   {/* Value */}
                   <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700,
-                    color: '#0D9E7A', px: 1 }}>
+                    color: PALETTE.data.positivo, px: 1 }}>
                     {hex ? hex.toUpperCase() : t.valor}
                   </Typography>
 
                   {/* Actions */}
-                  <Box className="row-actions" sx={{ display: 'flex', gap: 0.25,
+                  <Box className="row-actions" sx={{ display: 'flex', gap: '0.25px',
                     opacity: 0, transition: 'opacity 0.15s', pr: 1 }}>
                     <Tooltip title={copiedId === t.id ? 'Copiado!' : 'Copiar'}>
                       <IconButton size="small" onClick={() => copy(t.id, t.valor)}
-                        sx={{ color: 'text.disabled', '&:hover': { color: '#0D9E7A' } }}>
+                        sx={{ color: 'text.disabled', '&:hover': { color: PALETTE.data.positivo } }}>
                         {copiedId === t.id
                           ? <CheckIcon sx={{ fontSize: 14 }} />
                           : <ContentCopyIcon sx={{ fontSize: 14 }} />}
@@ -102,7 +103,7 @@ function ColorTokenGrid({ tokens, onDelete }) {
                     </Tooltip>
                     <Tooltip title="Remover">
                       <IconButton size="small" onClick={() => onDelete(t.id)}
-                        sx={{ color: 'text.disabled', '&:hover': { color: '#E8185A' } }}>
+                        sx={{ color: 'text.disabled', '&:hover': { color: PALETTE.data.critico } }}>
                         <DeleteOutlineIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
@@ -143,12 +144,12 @@ function TypographyTokenTable({ tokens, onDelete }) {
             Aa Bb — The quick brown fox
           </Typography>
           <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700,
-            color: '#EF9F27' }}>
+            color: PALETTE.data.atencao }}>
             {t.valor}
           </Typography>
           <IconButton className="del" size="small" onClick={() => onDelete(t.id)}
             sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-              '&:hover': { color: '#E8185A' } }}>
+              '&:hover': { color: PALETTE.data.critico } }}>
             <DeleteOutlineIcon sx={{ fontSize: 14 }} />
           </IconButton>
         </Box>
@@ -178,18 +179,18 @@ function SpacingRow({ token, onDelete }) {
         {token.nome}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Box sx={{ height: 8, width: px || 4, bgcolor: '#4A9ECC', borderRadius: 1,
+        <Box sx={{ height: 8, width: px || 4, bgcolor: PALETTE.data.info, borderRadius: 1,
           transition: 'width 0.3s ease', minWidth: 4 }} />
         <Box sx={{ width: px || 4, height: px || 4, border: '1px dashed rgba(74,158,204,0.4)',
           flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
       </Box>
       <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700,
-        color: '#4A9ECC', textAlign: 'right' }}>
+        color: PALETTE.data.info, textAlign: 'right' }}>
         {token.valor}
       </Typography>
       <IconButton className="del" size="small" onClick={() => onDelete(token.id)}
         sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-          '&:hover': { color: '#E8185A' } }}>
+          '&:hover': { color: PALETTE.data.critico } }}>
         <DeleteOutlineIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Box>
@@ -212,16 +213,16 @@ function BorderRadiusRow({ token, onDelete }) {
         {token.nome}
       </Typography>
       <Box>
-        <Box sx={{ width: 48, height: 32, border: '2px solid #7F77DD',
+        <Box sx={{ width: 48, height: 32, border: `2px solid ${PALETTE.data.neutro}`,
           borderRadius: `${px}px`, opacity: 0.8 }} />
       </Box>
       <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700,
-        color: '#7F77DD', textAlign: 'right' }}>
+        color: PALETTE.data.neutro, textAlign: 'right' }}>
         {token.valor}
       </Typography>
       <IconButton className="del" size="small" onClick={() => onDelete(token.id)}
         sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-          '&:hover': { color: '#E8185A' } }}>
+          '&:hover': { color: PALETTE.data.critico } }}>
         <DeleteOutlineIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Box>
@@ -253,7 +254,7 @@ function ShadowRow({ token, onDelete }) {
       </Typography>
       <IconButton className="del" size="small" onClick={() => onDelete(token.id)}
         sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-          '&:hover': { color: '#E8185A' } }}>
+          '&:hover': { color: PALETTE.data.critico } }}>
         <DeleteOutlineIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Box>
@@ -285,7 +286,7 @@ function GenericRow({ token, onDelete }) {
       </Typography>
       <IconButton className="del" size="small" onClick={() => onDelete(token.id)}
         sx={{ opacity: 0, transition: 'opacity 0.15s', color: 'text.disabled',
-          '&:hover': { color: '#E8185A' } }}>
+          '&:hover': { color: PALETTE.data.critico } }}>
         <DeleteOutlineIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Box>
@@ -295,12 +296,12 @@ function GenericRow({ token, onDelete }) {
 /* ─── Main export ───────────────────────────────────────────────────── */
 
 const CAT_CONFIG = {
-  color:           { label: 'Color',         color: '#0D9E7A' },
-  typography:      { label: 'Typography',    color: '#EF9F27' },
-  spacing:         { label: 'Spacing',       color: '#4A9ECC' },
-  'border-radius': { label: 'Border Radius', color: '#7F77DD' },
-  shadow:          { label: 'Shadow',        color: '#8A9AB0' },
-  outro:           { label: 'Outros',        color: '#8A9AB0' },
+  color:           { label: 'Color',         color: PALETTE.data.positivo },
+  typography:      { label: 'Typography',    color: PALETTE.data.atencao },
+  spacing:         { label: 'Spacing',       color: PALETTE.data.info },
+  'border-radius': { label: 'Border Radius', color: PALETTE.data.neutro },
+  shadow:          { label: 'Shadow',        color: PALETTE.neutral[400] },
+  outro:           { label: 'Outros',        color: PALETTE.neutral[400] },
 }
 const CAT_ORDER = ['color', 'typography', 'spacing', 'border-radius', 'shadow', 'outro']
 
@@ -332,7 +333,7 @@ export function DesignTokensSection({ tokens, onDelete }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {sorted.map(cat => {
         const items = groups[cat]
-        const cfg   = CAT_CONFIG[cat] || { label: cat, color: '#8A9AB0' }
+        const cfg   = CAT_CONFIG[cat] || { label: cat, color: PALETTE.neutral[400] }
         return (
           <Box key={cat}>
             <SectionLabel label={cfg.label} color={cfg.color} count={items.length} />

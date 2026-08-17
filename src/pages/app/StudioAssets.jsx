@@ -10,8 +10,9 @@ import ConstructionOutlinedIcon from '@mui/icons-material/ConstructionOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { PALETTE } from '../../lib/theme'
 
-const TEAL = '#0D9E7A'
+const TEAL = PALETTE.data.positivo
 const TABS = [
   { key: 'logos',     label: 'Logos',     tipos: ['logo'] },
   { key: 'images',    label: 'Imagens',   tipos: ['foto'] },
@@ -46,7 +47,7 @@ export function StudioAssets({ brandId }) {
     return () => { on = false }
   }, [brandId])
 
-  // Escolhe qual logo aparece no header (MARCA.brandcode). Padrão: o primeiro.
+  // Escolhe qual logo aparece no header (MARCA.BR4NDCODE). Padrão: o primeiro.
   async function usarNoHeader(asset) {
     const atual = (assets || []).find(a => a.tipo === 'logo' && a.metadata?.header)
     if (atual && atual.id !== asset.id) {
@@ -68,7 +69,7 @@ export function StudioAssets({ brandId }) {
   const list = cfg.tipos ? (assets || []).filter(a => cfg.tipos.includes(a.tipo)) : []
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'auto' }}>
+    <Box>
       <PageHeader title="Ativos" subtitle="Os ativos oficiais da marca — organizados por tipo" />
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2.5, minHeight: 38, '& .MuiTab-root': { minHeight: 38, fontWeight: 800, fontSize: 13 } }}>
@@ -78,31 +79,31 @@ export function StudioAssets({ brandId }) {
         {cfg.vem ? (
           <Paper variant="outlined" sx={{ p: 5, borderRadius: 2, textAlign: 'center' }}>
             <ConstructionOutlinedIcon sx={{ fontSize: 34, color: 'text.disabled', mb: 1 }} />
-            <Typography fontWeight={900} fontSize={15} mb={0.5}>Em construção</Typography>
-            <Typography fontSize={13} color="text.secondary">O que vem: {cfg.vem}.</Typography>
+            <Typography variant="subtitle1" mb={0.5}>Em construção</Typography>
+            <Typography variant="body2" color="text.secondary">O que vem: {cfg.vem}.</Typography>
           </Paper>
         ) : assets === null ? (
-          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: TEAL }} /></Stack>
+          <Stack alignItems="center" py={8}><CircularProgress size={22} sx={{ color: 'primary.main' }} /></Stack>
         ) : list.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
-            <Typography fontSize={13.5} color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               Nenhum asset deste tipo ainda. Envie pelo Brand Book (Identidade Visual → Assets) ou salve peças do Studio.
             </Typography>
           </Paper>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.5px' }}>
             {list.map(a => (
               <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                 <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Preview a={a} />
                 </Box>
                 <Stack direction="row" alignItems="center" sx={{ px: 1.25, py: 0.75 }}>
-                  <Typography fontSize={12} fontWeight={800} noWrap sx={{ flex: 1 }}>{a.nome}</Typography>
+                  <Typography variant="caption" noWrap sx={{ flex: 1 }}>{a.nome}</Typography>
                   {a.tipo === 'logo' && (
-                    <Tooltip title={headerLogoId === a.id ? 'Este logo aparece no header (antes do .brandcode)' : 'Usar no header'}>
+                    <Tooltip title={headerLogoId === a.id ? 'Este logo aparece no header (antes do .BR4NDCODE)' : 'Usar no header'}>
                       <IconButton size="small" onClick={() => usarNoHeader(a)}>
                         {headerLogoId === a.id
-                          ? <StarIcon sx={{ fontSize: 16, color: '#E8185A' }} />
+                          ? <StarIcon sx={{ fontSize: 16, color: PALETTE.data.critico }} />
                           : <StarBorderIcon sx={{ fontSize: 16 }} />}
                       </IconButton>
                     </Tooltip>

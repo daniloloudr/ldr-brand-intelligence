@@ -1,9 +1,10 @@
-import { DS } from "./constants";
+import {} from "./constants";
+import { PALETTE } from '../lib/theme'
 
 // ─── Identidade do produto ───────────────────────────────────────────
-// Fonte única do nome visível (lockup MARCA.brandcode, login, títulos).
-// O "4" existe só no domínio: a marca escrita é "brandcode".
-export const PRODUCT_NAME = 'brandcode';
+// Fonte única do nome visível. A assinatura por extenso é BR4NDCODE
+// (brand.md §01) — o "4" faz parte da marca, não só do domínio.
+export const PRODUCT_NAME = 'BR4NDCODE';
 
 // ─── Multitenant por subdomínio (nomedamarca.br4ndcode.com) ──────────
 // Decisão 2026-07-20: o subdomínio é camada de RESOLUÇÃO + branding; o RLS por
@@ -83,7 +84,7 @@ export function getRoute() {
   if (p === '/app/time')             return 'time';
   if (p === '/app/plano')            return 'plano';
   if (p === '/app/alertas')          return 'alertas';
-  // 'ia-loudr' foi o nome interno até o relançamento como brandcode; a rota antiga
+  // 'ia-loudr' foi o nome interno até o relançamento como BR4NDCODE; a rota antiga
   // segue resolvendo para não quebrar deep-link de e-mail/feed já disparado.
   if (p === '/app/inteligencia')     return 'inteligencia';
   if (p === '/app/ia-loudr')         return 'inteligencia';
@@ -127,9 +128,9 @@ export function getWorkflowId() {
   return m ? m[1] : null
 }
 
-export const sc    = s => s >= 7 ? DS.green    : s >= 5 ? DS.amber    : DS.pink;
-export const scBg  = s => s >= 7 ? DS.greenPale: s >= 5 ? DS.amberPale: DS.pinkPale;
-export const scTxt = s => s >= 7 ? DS.greenDim : s >= 5 ? "#92400e"   : "#72243E";
+export const sc    = s => s >= 7 ? PALETTE.data.positivo    : s >= 5 ? PALETTE.data.atencao    : PALETTE.data.critico;
+export const scBg  = s => s >= 7 ? PALETTE.data.positivoFraco: s >= 5 ? PALETTE.data.atencaoFraco: PALETTE.data.criticoFraco;
+export const scTxt = s => s >= 7 ? PALETTE.data.positivoDim : s >= 5 ? "#92400e"   : "#72243E";
 
 export const fmtDate = iso => new Date(iso).toLocaleDateString("pt-BR", {
   day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
