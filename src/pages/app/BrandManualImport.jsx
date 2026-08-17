@@ -7,6 +7,7 @@ import UploadFileIcon  from '@mui/icons-material/UploadFile'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
+import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PALETTE } from '../../lib/theme'
 
 const STEPS = [
@@ -19,6 +20,7 @@ const STEPS = [
 ]
 
 export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
+  const { workspace } = useWorkspace()
   const [file, setFile]           = useState(null)
   const [step, setStep]           = useState(0)
   const [importing, setImporting] = useState(false)
@@ -77,6 +79,20 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
         body:    JSON.stringify({ brand_id: brandId, file_path: filePath, job_id: job.id }),
       })
       if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status} ao iniciar extração.`)
+
+      // Avisa o onboarding: a trilha da marca estava esperando este arquivo —
+      // possivelmente há dias. Mandamos o `job_id` porque a extração JÁ foi
+      // despachada acima; sem isso o servidor criaria um segundo job e a
+      // extração (que é paga) rodaria duas vezes.
+      // Best-effort: se o workspace não tem ambiente preparado, não há trilha
+      // para destravar e a importação segue normalmente.
+      if (workspace?.id) {
+        fetch('/.netlify/functions/workspace-onboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'manual', workspace_id: workspace.id, manual_path: filePath, job_id: job.id }),
+        }).catch(() => { /* a extração não depende disso */ })
+      }
 
       // Animate steps while polling
       setStep(2)

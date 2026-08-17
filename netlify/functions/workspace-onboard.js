@@ -23,11 +23,22 @@ export const handler = async (event) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
   if (authErr || !user) return { statusCode: 401, headers }
   const { data: admin } = await supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle()
-  if (!admin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Apenas platform admin' }) }
 
   let body; try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers } }
   const { action, workspace_id } = body
   if (!workspace_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'workspace_id obrigatório' }) }
+
+  // Preparar e avançar ambiente é do admin. Avisar que o manual chegou é do
+  // CLIENTE também — é ele quem sobe o arquivo, pela tela da marca, e pode
+  // fazer isso dias depois. Membro do próprio workspace basta.
+  if (!admin) {
+    if (action !== 'manual') {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Apenas platform admin' }) }
+    }
+    const { data: membro } = await supabase.from('workspace_members')
+      .select('id').eq('user_id', user.id).eq('workspace_id', workspace_id).maybeSingle()
+    if (!membro) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso a este workspace' }) }
+  }
 
   const { data: ws } = await supabase.from('workspaces')
     .select('id, nome, slug, dominio, onboarding').eq('id', workspace_id).single()
@@ -105,8 +116,11 @@ export const handler = async (event) => {
   // O manual chegou — no mesmo dia ou dias depois. Reabre a trilha da marca
   // sem tocar na inteligência, que a esta altura já rodou (ou está rodando).
   if (action === 'manual') {
-    const { manual_path } = body
-    if (!manual_path) return { statusCode: 400, headers, body: JSON.stringify({ error: 'manual_path obrigatório' }) }
+    // `job_id` vem quando quem chamou JÁ criou o job e despachou a extração
+    // (é o caso da tela da marca). Sem ele, criamos aqui. Sem essa distinção
+    // a mesma extração rodaria duas vezes — e ela é paga.
+    const { manual_path, job_id } = body
+    if (!manual_path && !job_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'manual_path ou job_id obrigatório' }) }
 
     const onb = ws.onboarding
     if (!onb?.steps) return { statusCode: 400, headers, body: JSON.stringify({ error: 'workspace ainda não tem ambiente preparado' }) }
@@ -116,11 +130,13 @@ export const handler = async (event) => {
     const brandId = onb.brand_id || brand?.id
     if (!brandId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'marca não encontrada' }) }
 
-    const { data: job } = await supabase.from('brand_manual_jobs')
-      .insert({ brand_id: brandId, file_path: manual_path, status: 'processing' }).select('id').single()
-    if (!job?.id) return { statusCode: 500, headers, body: JSON.stringify({ error: 'não foi possível criar o job de extração' }) }
-
-    const ok = await dispatch('brand-manual-extract-background', { brand_id: brandId, file_path: manual_path, job_id: job.id })
+    let ok = true
+    if (!job_id) {
+      const { data: job } = await supabase.from('brand_manual_jobs')
+        .insert({ brand_id: brandId, file_path: manual_path, status: 'processing' }).select('id').single()
+      if (!job?.id) return { statusCode: 500, headers, body: JSON.stringify({ error: 'não foi possível criar o job de extração' }) }
+      ok = await dispatch('brand-manual-extract-background', { brand_id: brandId, file_path: manual_path, job_id: job.id })
+    }
     const agora = now()
     onb.brand_id = brandId
     onb.steps.brand = ok ? 'running' : 'failed'
