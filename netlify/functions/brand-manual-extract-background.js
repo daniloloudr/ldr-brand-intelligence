@@ -283,10 +283,18 @@ export const handler = async (event) => {
   // primeira chamada escreve o documento no cache, a segunda lê a 10% do
   // preço. Trocar a ordem dos blocos ou mexer no documento entre as duas
   // quebraria o prefixo e o cache junto.
+  //
+  // TTL de 1h, não os 5 min padrão, e isso é medição e não preferência: o
+  // manual da PES tem 313 páginas e 592 mil tokens de entrada; só o prefill
+  // passa de 2 min, e a primeira passada ainda gera até 16 mil tokens depois
+  // disso. Com 5 min o cache expirava no meio da própria extração — a segunda
+  // passada pagaria o documento inteiro de novo E esperaria outro prefill,
+  // encostando no teto de 15 min da background function. A escrita custa 2x
+  // em vez de 1,25x; a leitura continua 10%.
   const documento = {
     type: 'document',
     source: { type: 'file', file_id: fileId },
-    cache_control: { type: 'ephemeral' },
+    cache_control: { type: 'ephemeral', ttl: '1h' },
   }
 
   const ler = async (prompt, maxTokens, tag) => {
