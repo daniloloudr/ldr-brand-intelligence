@@ -302,17 +302,32 @@ export const handler = async (event) => {
     smartbrand_gaps: smart.lacunas,
   }
 
+  // Se este código subir antes da migration 047, a coluna `smartbrand` não
+  // existe e o Postgres derruba a escrita INTEIRA — perdendo uma extração que
+  // já foi paga. Nesse caso salva o que existia antes e avisa alto.
+  const semSmartbrand = (erro) => /smartbrand/i.test(erro?.message || '')
+  const { smartbrand, smartbrand_gaps, ...camposBase } = campos
+  const gritar = () => console.error(
+    '[brand-manual] migration 047 ainda não rodou: brand book salvo SEM o smartbrand'
+  )
+
   if (existingBook?.id) {
-    const { error: upErr } = await supabase.from('brand_books').update({
-      ...campos,
-      version:    (existingBook.version || 1) + 1,
-      updated_at: new Date().toISOString(),
-    }).eq('id', existingBook.id)
+    const alvo = supabase.from('brand_books')
+    const patch = { version: (existingBook.version || 1) + 1, updated_at: new Date().toISOString() }
+    let { error: upErr } = await alvo.update({ ...campos, ...patch }).eq('id', existingBook.id)
+    if (semSmartbrand(upErr)) {
+      gritar()
+      ;({ error: upErr } = await alvo.update({ ...camposBase, ...patch }).eq('id', existingBook.id))
+    }
     if (upErr) console.error(`[brand-manual] UPDATE falhou:`, upErr.message)
     else       console.log(`[brand-manual] UPDATE concluído em ${existingBook.id}`)
   } else {
-    const { data: newBook, error: insErr } = await supabase.from('brand_books')
-      .insert({ brand_id, ...campos }).select('id').single()
+    const criar = (c) => supabase.from('brand_books').insert({ brand_id, ...c }).select('id').single()
+    let { data: newBook, error: insErr } = await criar(campos)
+    if (semSmartbrand(insErr)) {
+      gritar()
+      ;({ data: newBook, error: insErr } = await criar(camposBase))
+    }
     if (insErr) console.error(`[brand-manual] INSERT falhou:`, insErr.message)
     else        console.log(`[brand-manual] INSERT criou:`, newBook?.id)
   }
