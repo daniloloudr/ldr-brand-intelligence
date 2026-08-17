@@ -1032,18 +1032,36 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     if (createSignal > 0) { setShowCreate(true); setError(''); }
   }, [createSignal]);
 
-  // Polling do onboarding: enquanto o painel está aberto e não terminou, chama tick
+  // O painel LÊ o estado; quem avança o pipeline é o onboard-cron, de minuto
+  // em minuto. Fechar esta aba não para mais nada — antes o `tick` daqui era
+  // o único motor, e a preparação congelava com a página fechada.
   useEffect(() => {
     if (!onbId || !onb || onbComplete(onb)) return;
     const t = setInterval(async () => {
       try {
-        const j = await onboardCall(onbId, 'tick');
-        setOnb(j.onboarding || null);
-        if (j.onboarding) setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: j.onboarding } : w));
-      } catch { /* silencioso — tenta de novo no próximo tick */ }
+        const { data } = await supabase.from('workspaces').select('onboarding').eq('id', onbId).single();
+        if (data?.onboarding) {
+          setOnb(data.onboarding);
+          setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: data.onboarding } : w));
+        }
+      } catch { /* silencioso — lê de novo no próximo ciclo */ }
     }, 6000);
     return () => clearInterval(t);
   }, [onbId, onb]);
+
+  // "Avançar agora": empurra uma transição na frente do cron. Útil na frente
+  // do cliente; o pipeline não depende disso.
+  async function avancarAgora() {
+    setOnbBusy(true);
+    try {
+      const j = await onboardCall(onbId, 'tick');
+      if (j.onboarding) {
+        setOnb(j.onboarding);
+        setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: j.onboarding } : w));
+      }
+    } catch (e) { setError(e.message); }
+    finally { setOnbBusy(false); }
+  }
 
   async function fetchWorkspaces() {
     setLoading(true);
@@ -1384,8 +1402,14 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                       })}
 
                       {!terminou && (
-                        <Box sx={{ marginTop: '8px', fontSize: 12, color: 'text.disabled' }}>
-                          ⏳ Rodando… atualiza sozinho. A mineração leva ~15-30 min.
+                        <Box sx={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <Typography sx={{ fontSize: 12, color: 'text.disabled', flex: 1, minWidth: 220 }}>
+                            ⏳ Rodando sozinho — o servidor avança de minuto em minuto. Pode fechar esta aba.
+                            A mineração leva ~15-30 min.
+                          </Typography>
+                          <Button size="small" variant="outlined" onClick={avancarAgora} disabled={onbBusy}>
+                            {onbBusy ? 'Avançando…' : 'Avançar agora'}
+                          </Button>
                         </Box>
                       )}
                       {terminou && ok && (
