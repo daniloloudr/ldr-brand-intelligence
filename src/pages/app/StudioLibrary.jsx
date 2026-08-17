@@ -36,6 +36,8 @@ const TIPOS_BIBLIOTECA = ['logo', 'foto', 'video', 'icone', 'padrao', 'documento
 const TIPOS_REFERENCIA = ['logo', 'icone', 'padrao', 'documento']
 
 const isUrl   = v => /^https?:\/\//i.test(v || '')
+// Baixável = tem URL pública OU mora num bucket privado (URL assinada na hora)
+const baixavel = a => isUrl(a.full || a.valor) || !!(a.metadata?.bucket && a.file_path)
 const isVideo = a => a.tipo === 'video' || (a.mime_type || '').startsWith('video/')
 // Referência = o cliente subiu como identidade OU marcou como referência
 const isReferencia = a => TIPOS_REFERENCIA.includes(a.tipo) || a.metadata?.reference === true
@@ -358,8 +360,15 @@ export function StudioLibrary({ brandId }) {
     }
   }
 
-  function baixar(a) {
-    const url = a.full || a.valor   // gerações: download sempre em full-res
+  async function baixar(a) {
+    // Arquivo em bucket privado (o manual da marca) não tem URL pública: o
+    // asset guarda o caminho e o bucket, e a URL é assinada na hora de abrir.
+    let url = a.full || a.valor   // gerações: download sempre em full-res
+    if (!isUrl(url) && a.metadata?.bucket && a.file_path) {
+      const { data } = await supabase.storage
+        .from(a.metadata.bucket).createSignedUrl(a.file_path, 60)
+      url = data?.signedUrl
+    }
     if (!isUrl(url)) return
     const link = document.createElement('a')
     link.href = url; link.download = a.nome || 'asset'; link.target = '_blank'; link.click()
@@ -604,7 +613,7 @@ export function StudioLibrary({ brandId }) {
                         </Tooltip>
                       )}
                       <Box sx={{ flex: 1 }} />
-                      {isUrl(a.valor) && (
+                      {baixavel(a) && (
                         <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(a)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                       )}
                       <Tooltip title="Excluir"><IconButton size="small" onClick={() => excluir(a)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>

@@ -83,6 +83,29 @@ export const SECOES = [
       ['aplicacoes',           'Aplicações'],
     ],
   },
+  /* O manual diz duas coisas: o que está escrito e o que está mostrado. Esta
+     seção é a segunda — a descrição do que se vê aplicado nas páginas. É o
+     que responde "com o que esta marca se parece", que é o que o Studio e o
+     Copiloto precisam para gerar peça on-brand. Continua sendo informação
+     real (sai da página), mas é LEITURA, não citação — e o cabeçalho da seção
+     diz isso, para ninguém confundir descrição com regra escrita. */
+  {
+    titulo: 'Leitura visual', de: 'visual_reading',
+    nota: 'Descrição do que as páginas do manual **mostram** aplicado — observação, não texto citado.',
+    campos: [
+      ['assinatura_visual',        'Assinatura visual'],
+      ['uso_do_logo',              'O logo, aplicado'],
+      ['uso_da_cor',               'A cor, em proporção'],
+      ['uso_da_tipografia',        'A tipografia, em uso'],
+      ['tratamento_fotografico',   'Tratamento fotográfico'],
+      ['ilustracao_e_grafismos',   'Ilustração e grafismos'],
+      ['composicao_e_layout',      'Composição e layout'],
+      ['densidade_e_respiro',      'Densidade e respiro'],
+      ['aplicacoes_observadas',    'Peças aplicadas', renderAplicacoes],
+      ['recorrencias',             'O que se repete'],
+      ['contrastes_com_a_regra',   'Onde o mostrado diverge do escrito'],
+    ],
+  },
   {
     titulo: 'Sistema de design', de: 'design_system', campos: [
       ['colors',         'Cores'],
@@ -126,12 +149,30 @@ const renderValor = (v) => {
   return ''
 }
 
-const renderTextos = (lista) =>
-  lista.filter(t => !vazio(t?.texto)).map(t => {
+/* Declaração de função (não arrow) porque SECOES, lá em cima, guarda a
+   referência — hoisting resolve a ordem. O corpo só roda na renderização. */
+function renderAplicacoes(lista) {
+  // O modelo nem sempre respeita a forma do esquema — às vezes devolve uma
+  // string onde pedimos lista. Melhor renderizar torto do que quebrar.
+  if (!Array.isArray(lista)) return renderValor(lista)
+  return lista.filter(a => !vazio(a)).map(a => {
+    const cabeca = [a.peca || 'Peça', a.pagina && `— p. ${a.pagina}`].filter(Boolean).join(' ')
+    const detalhe = linhaObjeto({
+      cores_dominantes:     a.cores_dominantes,
+      tipografia_aparente:  a.tipografia_aparente,
+      composicao:           a.composicao,
+    })
+    return `**${cabeca}**\n\n${String(a.descricao || '').trim()}${detalhe ? `\n\n${detalhe}` : ''}`
+  }).join('\n\n')
+}
+
+const renderTextos = (lista) => Array.isArray(lista)
+  ? lista.filter(t => !vazio(t?.texto)).map(t => {
     const cabeca = [t.titulo, t.tipo && `(${t.tipo})`, t.publico && `· público: ${t.publico}`]
       .filter(Boolean).join(' ')
-    return `### ${cabeca || 'Texto de referência'}\n\n${String(t.texto).trim()}${t.notas ? `\n\n_${t.notas}_` : ''}`
-  }).join('\n\n')
+      return `### ${cabeca || 'Texto de referência'}\n\n${String(t.texto).trim()}${t.notas ? `\n\n_${t.notas}_` : ''}`
+    }).join('\n\n')
+  : renderValor(lista)
 
 /* ─── Documento ──────────────────────────────────────────────────────
    Devolve { markdown, lacunas, preenchidos, total }. As lacunas aparecem
@@ -145,8 +186,9 @@ export function renderSmartbrand(extraido, { marca = 'Marca', fonte = 'manual da
   const quando = data || new Date().toISOString().slice(0, 10)
   partes.push(`# ${marca} — smartbrand`)
   partes.push(
-    `> Gerado a partir do ${fonte} em ${quando}.\n` +
-    `> Contém **apenas** o que o manual diz. Campo em branco é lacuna conhecida, ` +
+    `> Gerado a partir do ${fonte} em ${quando}, em duas leituras: o que o manual ` +
+    `**escreve** e o que ele **mostra** aplicado.\n` +
+    `> Contém **apenas** o que veio do manual. Campo em branco é lacuna conhecida, ` +
     `não descuido — o Copiloto pode ajudar a preencher quando você quiser.`
   )
 
@@ -156,7 +198,7 @@ export function renderSmartbrand(extraido, { marca = 'Marca', fonte = 'manual da
   for (const secao of SECOES) {
     const bloco = dados[secao.de] || {}
     const linhas = []
-    for (const [chave, rotulo] of secao.campos) {
+    for (const [chave, rotulo, custom] of secao.campos) {
       total++
       const valor = bloco[chave]
       if (vazio(valor)) {
@@ -164,10 +206,11 @@ export function renderSmartbrand(extraido, { marca = 'Marca', fonte = 'manual da
         linhas.push(`### ${rotulo}\n\n_— em branco —_`)
       } else {
         preenchidos++
-        linhas.push(`### ${rotulo}\n\n${renderValor(valor)}`)
+        linhas.push(`### ${rotulo}\n\n${custom ? custom(valor) : renderValor(valor)}`)
       }
     }
-    partes.push(`## ${secao.titulo}\n\n${linhas.join('\n\n')}`)
+    const cabecalho = secao.nota ? `## ${secao.titulo}\n\n_${secao.nota}_` : `## ${secao.titulo}`
+    partes.push(`${cabecalho}\n\n${linhas.join('\n\n')}`)
   }
 
   total++

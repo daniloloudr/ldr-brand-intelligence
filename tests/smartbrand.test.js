@@ -100,3 +100,58 @@ describe('renderSmartbrand — só o que o manual disse', () => {
     expect(renderSmartbrand(null).lacunas.length).toBeGreaterThan(0)
   })
 })
+
+describe('leitura visual — o que o manual MOSTRA', () => {
+  it('a descrição do aplicado entra no documento', () => {
+    const r = renderSmartbrand({
+      visual_reading: {
+        assinatura_visual: 'Fundo preto quase integral, tipografia condensada em caixa alta.',
+        uso_da_cor: 'Preto domina; o verde entra só em um elemento pequeno por peça.',
+      },
+    })
+    expect(r.markdown).toContain('## Leitura visual')
+    expect(r.markdown).toContain('Fundo preto quase integral')
+    expect(r.markdown).toContain('o verde entra só em um elemento pequeno')
+  })
+
+  it('a seção se declara como observação, não como regra citada', () => {
+    // Sem isso, alguém lê uma descrição e a trata como texto do manual.
+    const r = renderSmartbrand({ visual_reading: { assinatura_visual: 'X' } })
+    const secao = r.markdown.split('## Leitura visual')[1].split('##')[0]
+    expect(secao).toMatch(/observação, não texto citado/)
+  })
+
+  it('peça aplicada rende com página, descrição e detalhe', () => {
+    const r = renderSmartbrand({
+      visual_reading: {
+        aplicacoes_observadas: [{
+          pagina: '42', peca: 'Cartaz de campanha',
+          descricao: 'Foto sangrada com título ancorado no rodapé.',
+          cores_dominantes: ['#000000', '#00FF55'],
+          tipografia_aparente: 'Condensada, caixa alta',
+          composicao: '',
+        }],
+      },
+    })
+    expect(r.markdown).toContain('**Cartaz de campanha — p. 42**')
+    expect(r.markdown).toContain('Foto sangrada com título ancorado no rodapé.')
+    expect(r.markdown).toContain('#00FF55')
+    expect(r.markdown).not.toContain('Composicao:')  // campo vazio não vira ruído
+  })
+
+  it('manual sem leitura visual deixa a seção inteira em lacuna, sem inventar', () => {
+    // É o caso de a segunda passada falhar: o documento nasce honesto.
+    const r = renderSmartbrand({ verbal_identity: { proposito: 'X' } })
+    const visuais = r.lacunas.filter(l => l.secao === 'Leitura visual')
+    expect(visuais.length).toBeGreaterThan(0)
+    expect(visuais.some(l => l.campo === 'visual_reading.assinatura_visual')).toBe(true)
+  })
+
+  it('não quebra quando o modelo devolve o esqueleto de peças vazio', () => {
+    const r = renderSmartbrand({
+      visual_reading: { aplicacoes_observadas: [{ pagina: '', peca: '', descricao: '' }] },
+    })
+    expect(r.lacunas.some(l => l.campo === 'visual_reading.aplicacoes_observadas')).toBe(true)
+  })
+})
+
