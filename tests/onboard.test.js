@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STEPS, TERMINAL, completo, veredito } from '../netlify/functions/_onboard.js'
+import { STEPS, TRILHAS, TERMINAL, completo, completoTrilha, veredito, trilhaDe } from '../netlify/functions/_onboard.js'
 
 // Estado de onboarding com todas as etapas no desfecho informado.
 const estado = (over = {}) => ({
@@ -64,5 +64,37 @@ describe('contrato dos estados', () => {
   })
   it('a ordem das etapas é a do pipeline', () => {
     expect(STEPS).toEqual(['brand', 'diagnostico', 'concorrentes', 'mineracao', 'sinteses', 'destilacao'])
+  })
+})
+
+describe('trilhas — a marca não segura a inteligência', () => {
+  it('cada etapa pertence a uma trilha só', () => {
+    expect(trilhaDe('brand')).toBe('marca')
+    expect(trilhaDe('destilacao')).toBe('inteligencia')
+    expect(TRILHAS.inteligencia).not.toContain('brand')
+  })
+
+  it('inteligência conclui com a marca ainda esperando o manual', () => {
+    const s = estado()
+    s.steps.brand = 'waiting'
+    expect(completoTrilha(s, 'inteligencia')).toBe(true)
+    expect(completoTrilha(s, 'marca')).toBe(false)  // esperando não é terminal
+    expect(completo(s)).toBe(false)                 // o conjunto não terminou
+    expect(veredito(s).ok).toBe(true)               // mas nada deu errado
+  })
+
+  it('esperar o manual não vira problema no painel', () => {
+    const s = estado()
+    s.steps.brand = 'waiting'
+    s.notas.brand = 'aguardando o manual da marca'
+    expect(veredito(s).problemas).toEqual([])
+  })
+
+  it('manual que falhou continua sendo problema', () => {
+    const s = estado()
+    s.steps.brand = 'failed'
+    s.notas.brand = 'a extração do manual falhou'
+    expect(veredito(s).ok).toBe(false)
+    expect(veredito(s).problemas).toHaveLength(1)
   })
 })

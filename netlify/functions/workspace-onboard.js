@@ -72,9 +72,11 @@ export const handler = async (event) => {
       })
     }
 
-    // Com manual (PDF): cria o job de extração e dispara — a marca é preenchida pela IA.
-    // Sem manual: a marca fica só com a identidade básica (brand step já 'done').
-    let brandStep = 'done'
+    // Com manual (PDF): cria o job de extração e dispara.
+    // SEM manual: a trilha da marca fica AGUARDANDO — não é sucesso nem falha,
+    // é o combinado. Ela destrava sozinha quando o arquivo chegar, hoje ou
+    // daqui a uma semana, sem segurar a trilha da inteligência.
+    let brandStep = 'waiting'
     const notas = {}
     if (manual_path) {
       const { data: job } = await supabase.from('brand_manual_jobs')
@@ -87,13 +89,45 @@ export const handler = async (event) => {
         else { brandStep = 'failed'; notas.brand = 'não foi possível despachar a extração do manual' }
       }
     } else {
-      notas.brand = 'sem manual — a marca fica só com a identidade básica'
+      notas.brand = 'aguardando o manual da marca — a inteligência já está rodando'
     }
 
+    const agora = now()
     const onb = {
-      started_at: now(), brand_id: brand.id, phase_at: now(), notas,
+      started_at: agora, brand_id: brand.id, phase_at: agora, rev: 0, notas,
+      fases: { inteligencia: agora, marca: agora },
       steps: { brand: brandStep, diagnostico: 'pending', concorrentes: 'pending', mineracao: 'pending', sinteses: 'pending', destilacao: 'pending' },
     }
+    return await save(onb)
+  }
+
+  // ── MANUAL ─────────────────────────────────────────────────────────
+  // O manual chegou — no mesmo dia ou dias depois. Reabre a trilha da marca
+  // sem tocar na inteligência, que a esta altura já rodou (ou está rodando).
+  if (action === 'manual') {
+    const { manual_path } = body
+    if (!manual_path) return { statusCode: 400, headers, body: JSON.stringify({ error: 'manual_path obrigatório' }) }
+
+    const onb = ws.onboarding
+    if (!onb?.steps) return { statusCode: 400, headers, body: JSON.stringify({ error: 'workspace ainda não tem ambiente preparado' }) }
+
+    const { data: brand } = await supabase.from('brands').select('id')
+      .eq('workspace_id', workspace_id).limit(1).maybeSingle()
+    const brandId = onb.brand_id || brand?.id
+    if (!brandId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'marca não encontrada' }) }
+
+    const { data: job } = await supabase.from('brand_manual_jobs')
+      .insert({ brand_id: brandId, file_path: manual_path, status: 'processing' }).select('id').single()
+    if (!job?.id) return { statusCode: 500, headers, body: JSON.stringify({ error: 'não foi possível criar o job de extração' }) }
+
+    const ok = await dispatch('brand-manual-extract-background', { brand_id: brandId, file_path: manual_path, job_id: job.id })
+    const agora = now()
+    onb.brand_id = brandId
+    onb.steps.brand = ok ? 'running' : 'failed'
+    onb.notas = onb.notas || {}
+    onb.notas.brand = ok ? null : 'não foi possível despachar a extração do manual'
+    onb.fases = { ...(onb.fases || {}), marca: agora }
+    onb.phase_at = agora
     return await save(onb)
   }
 
@@ -106,5 +140,5 @@ export const handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify(r) }
   }
 
-  return { statusCode: 400, headers, body: JSON.stringify({ error: 'action inválida (start|tick)' }) }
+  return { statusCode: 400, headers, body: JSON.stringify({ error: 'action inválida (start|manual|tick)' }) }
 }

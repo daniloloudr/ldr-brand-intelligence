@@ -125,5 +125,23 @@ export const handler = async (event) => {
   // Provisiona o subdomínio (best-effort — não bloqueia se falhar)
   const subdomain = await provisionSubdomain(slug)
 
-  return { statusCode: 200, headers, body: JSON.stringify({ workspace: ws, brand: brand || null, subdomain }) }
+  // A INTELIGÊNCIA começa aqui, sozinha. Ela só precisa do domínio, que acabou
+  // de ser cadastrado — não precisa do manual, que pode levar dias. A trilha da
+  // marca nasce em `waiting` e destrava quando o PDF chegar.
+  // Best-effort: se falhar, o admin ainda tem o botão "Preparar ambiente".
+  let onboarding = null
+  if (brand?.id && ws.dominio) {
+    const agora = new Date().toISOString()
+    onboarding = {
+      started_at: agora, brand_id: brand.id, phase_at: agora, rev: 0,
+      fases: { inteligencia: agora, marca: agora },
+      notas: { brand: 'aguardando o manual da marca — a inteligência já está rodando' },
+      steps: { brand: 'waiting', diagnostico: 'pending', concorrentes: 'pending',
+               mineracao: 'pending', sinteses: 'pending', destilacao: 'pending' },
+    }
+    const { error: onbErr } = await supabase.from('workspaces').update({ onboarding }).eq('id', ws.id)
+    if (onbErr) { console.error('[admin-create-workspace] onboarding não iniciou:', onbErr.message); onboarding = null }
+  }
+
+  return { statusCode: 200, headers, body: JSON.stringify({ workspace: { ...ws, onboarding }, brand: brand || null, subdomain }) }
 }

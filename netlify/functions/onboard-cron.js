@@ -11,7 +11,7 @@
 // scheduled é o TETO por rodada abaixo, não o fan-out.
 import { createClient } from '@supabase/supabase-js'
 import { withHeartbeat } from './_watchdog.js'
-import { avancarOnboarding, completo } from './_onboard.js'
+import { avancarOnboarding, STEPS, TERMINAL } from './_onboard.js'
 
 // Quantos workspaces avançam por rodada. Onboarding é raro e curto — não se
 // prepara 30 ambientes ao mesmo tempo — mas o teto existe para o scheduled
@@ -27,7 +27,16 @@ const run = async () => {
   const { data: comOnboarding } = await supabase
     .from('workspaces').select('id, nome, onboarding').not('onboarding', 'is', null)
 
-  const pendentes = (comOnboarding || []).filter(w => w.onboarding?.steps && !completo(w.onboarding))
+  // Tem o que avançar = alguma etapa fora dos terminais E fora de `waiting`.
+  // `waiting` é a marca esperando o manual, e isso pode durar dias: se o cron
+  // reivindicasse esses workspaces, seriam duas escritas por minuto, para
+  // sempre, sem nada a fazer. Quem destrava essa trilha é o upload do manual
+  // (ação `manual` do workspace-onboard), que é push e não polling.
+  const temTrabalho = (onb) => STEPS.some(s => {
+    const st = onb.steps[s]
+    return !TERMINAL.includes(st) && st !== 'waiting'
+  })
+  const pendentes = (comOnboarding || []).filter(w => w.onboarding?.steps && temTrabalho(w.onboarding))
   const fila = pendentes.slice(0, TETO_POR_RODADA)
   const sobraram = pendentes.length - fila.length
 

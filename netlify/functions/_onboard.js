@@ -9,12 +9,22 @@
 // detecta a saída no banco e encerra a atual.
 import { siteBase } from './_studio.js'
 
-export const STEPS = ['brand', 'diagnostico', 'concorrentes', 'mineracao', 'sinteses', 'destilacao']
+// Duas trilhas com relógios diferentes, e é por isso que elas são separadas:
+// a inteligência só precisa do DOMÍNIO (que já existe no cadastro) e roda em
+// minutos; a marca depende do manual em PDF, que pode chegar hoje ou daqui a
+// uma semana. Em fila única, a segunda segurava a primeira sem motivo.
+export const TRILHAS = {
+  inteligencia: ['diagnostico', 'concorrentes', 'mineracao', 'sinteses', 'destilacao'],
+  marca:        ['brand'],
+}
+export const STEPS = [...TRILHAS.marca, ...TRILHAS.inteligencia]
+export const trilhaDe = (step) => Object.keys(TRILHAS).find(t => TRILHAS[t].includes(step))
 
-// Estados de uma etapa. A distinção entre os três terminais é o ponto:
+// Estados de uma etapa. A distinção entre os desfechos é o ponto:
 //   done     produziu a saída esperada no banco
 //   expired  estourou o tempo sem produzir nada — seguimos, mas NÃO é sucesso
 //   failed   o despacho não saiu ou o job voltou com erro
+//   waiting  esperando insumo externo (o manual). Não é problema: é o combinado.
 export const TERMINAL = ['done', 'expired', 'failed']
 
 // teto por etapa: sem saída até aqui, a etapa expira (e fica registrado que expirou)
@@ -28,15 +38,23 @@ const now = () => new Date().toISOString()
 const minsSince = (iso) => iso ? (Date.now() - new Date(iso).getTime()) / 60000 : 0
 const segsSince = (iso) => iso ? (Date.now() - new Date(iso).getTime()) / 1000 : Infinity
 
-export const completo = (onb) => !!onb?.steps && STEPS.every(s => TERMINAL.includes(onb.steps[s]))
+// Uma trilha terminou quando todas as SUAS etapas chegaram a um terminal.
+export const completoTrilha = (onb, trilha) =>
+  !!onb?.steps && TRILHAS[trilha].every(s => TERMINAL.includes(onb.steps[s]))
 
-// Terminar ≠ dar certo: `ok` só é verdadeiro se TODA etapa concluiu de fato.
+export const completo = (onb) => !!onb?.steps && Object.keys(TRILHAS).every(t => completoTrilha(onb, t))
+
+// Terminar ≠ dar certo. `waiting` fica de fora dos problemas: esperar o manual
+// é o combinado, não uma falha.
 export const veredito = (onb) => {
   const problemas = STEPS
-    .filter(k => onb.steps[k] !== 'done')
+    .filter(k => onb.steps[k] !== 'done' && onb.steps[k] !== 'waiting')
     .map(k => ({ etapa: k, estado: onb.steps[k], motivo: onb.notas?.[k] || null }))
   return { ok: problemas.length === 0, problemas }
 }
+
+// Fase por trilha (registros antigos tinham um `phase_at` só — cai nele).
+const faseDe = (onb, trilha) => onb.fases?.[trilha] || onb.phase_at
 
 /**
  * Avança uma transição do onboarding de um workspace.
@@ -52,10 +70,15 @@ export async function avancarOnboarding(supabase, { workspaceId, authHeader = ''
 
   const started = onb.started_at
   const workspace_id = workspaceId
-  const step = STEPS.find(s => !TERMINAL.includes(onb.steps[s]))
+
+  // Uma transição por TRILHA a cada chamada — as duas andam no mesmo tick,
+  // sem uma esperar a outra.
+  const pendentes = Object.keys(TRILHAS)
+    .map(t => ({ trilha: t, step: TRILHAS[t].find(s => !TERMINAL.includes(onb.steps[s])) }))
+    .filter(x => x.step)
 
   // Nada a avançar: responde sem reivindicar nada (não suja o estado).
-  if (!step) return { onboarding: onb, complete: true, ...veredito(onb) }
+  if (!pendentes.length) return { onboarding: onb, complete: true, ...veredito(onb) }
 
   // ── Reivindica o avanço ────────────────────────────────────────────────
   // Compare-and-swap na revisão: quem perder a corrida sai sem despachar.
@@ -107,141 +130,171 @@ export async function avancarOnboarding(supabase, { workspaceId, authHeader = ''
     } catch { return null }
   }
 
-  // Encerra a etapa com um desfecho explícito e guarda o porquê.
+  // Encerra a etapa com um desfecho explícito e guarda o porquê. O relógio é
+  // por trilha: a marca pode ficar dias parada sem que isso expire nada da
+  // inteligência.
   onb.notas = onb.notas || {}
+  onb.fases = onb.fases || {}
+  let step, trilha
+  const marcar = (fase) => { onb.fases[trilha] = fase; onb.phase_at = fase }
   const settle = (desfecho, motivo) => {
     onb.steps[step] = desfecho
     if (motivo) onb.notas[step] = motivo
-    onb.phase_at = now()
+    marcar(now())
   }
   const advance  = () => settle('done')
   const expire   = (motivo) => settle('expired', motivo || 'estourou o tempo sem produzir saída')
   const fail     = (motivo) => settle('failed', motivo)
-  const fellBack = (s) => minsSince(onb.phase_at) >= (FALLBACK_MIN[s] || 999)
+  const wait     = (motivo) => { onb.steps[step] = 'waiting'; if (motivo) onb.notas[step] = motivo }
+  const fellBack = (s) => minsSince(faseDe(onb, trilha)) >= (FALLBACK_MIN[s] || 999)
 
-  if (step === 'brand') {
-    // Extração do manual (PDF). Antes `done` e `error` liberavam igual — um
-    // PDF que falhou deixava a marca vazia e TODO o resto rodava em cima de
-    // um brand book sem conteúdo. Agora os dois desfechos são distintos.
-    let extraiu = null, falhou = false
-    try {
-      const { data: jobs } = await supabase.from('brand_manual_jobs')
-        .select('status').eq('brand_id', onb.brand_id)
-        .gte('created_at', started).order('created_at', { ascending: false }).limit(1)
-      const st = jobs?.[0]?.status
-      extraiu = st === 'done'
-      falhou  = st === 'error'
-    } catch { extraiu = null }
-    if (extraiu) advance()
-    else if (falhou) fail('a extração do manual falhou — a marca segue sem conteúdo declarado')
-    else if (fellBack('brand')) expire('a extração do manual não terminou a tempo')
-  }
-
-  else if (step === 'diagnostico') {
-    if (onb.steps.diagnostico === 'pending') {
-      const ok = await dispatch('diagnostico-gerar-background', { workspace_id })
-      if (ok) { onb.steps.diagnostico = 'running'; onb.phase_at = now() }
-      else fail('não foi possível despachar a geração do diagnóstico')
-    } else {
-      const done = await hasSince('diagnosticos', started, { status: 'done' })
-      if (done) advance()
-      else if (fellBack('diagnostico')) expire('nenhum diagnóstico concluído no período')
-    }
-  }
-
-  else if (step === 'concorrentes') {
-    // lê os concorrentes sugeridos pelo diagnóstico e cadastra (dedup por nome)
-    const { data: diag } = await supabase.from('diagnosticos')
-      .select('data').eq('workspace_id', workspace_id).eq('status', 'done')
-      .gte('created_at', started).order('created_at', { ascending: false }).limit(1).maybeSingle()
-    const sugeridos = (diag?.data?.concorrentes || []).slice(0, 5)
-      .map(c => (typeof c === 'string' ? { nome: c } : c)).filter(c => c?.nome)
-    if (sugeridos.length) {
-      const { data: existentes } = await supabase.from('concorrentes').select('nome').eq('workspace_id', workspace_id)
-      const jaTem = new Set((existentes || []).map(c => (c.nome || '').toLowerCase()))
-      const novos = sugeridos.filter(c => !jaTem.has(c.nome.toLowerCase()))
-        .map(c => ({ workspace_id, nome: c.nome, dominio: c.dominio || null, ativo: true }))
-      if (novos.length) await supabase.from('concorrentes').insert(novos)
-    }
-    // Etapa instantânea, mas o resultado importa: sem concorrentes o clipping
-    // e o diagnóstico de rivais não têm o que minerar. Concluir em silêncio
-    // aqui é o que fazia a mineração "terminar" sem produzir nada.
-    const { count: totalConc } = await supabase.from('concorrentes')
-      .select('id', { count: 'exact', head: true }).eq('workspace_id', workspace_id)
-    if (totalConc > 0) advance()
-    else expire('o diagnóstico não sugeriu concorrentes — clipping e rivais não terão o que minerar')
-  }
-
-  else if (step === 'mineracao') {
-    if (onb.steps.mineracao === 'pending') {
-      const workers = [
-        ['clipping-workspace-background', { workspace_id, jitter: false }],
-        ['diagnostico-concorrentes-workspace-background', { workspace_id, jitter: false }],
-        ['trends-workspace-background', { workspace_id, jitter: false }],
-        ['listening-coletar-background', { workspace_id }],
-      ]
-      const enviados = await Promise.all(workers.map(([fn, p]) => dispatch(fn, p)))
-      const recusados = workers.filter((_, i) => !enviados[i]).map(([fn]) => fn)
-      if (recusados.length === workers.length) fail('nenhum worker de mineração aceitou o despacho')
-      else {
-        onb.steps.mineracao = 'running'; onb.phase_at = now()
-        if (recusados.length) onb.notas.mineracao = `não despachou: ${recusados.join(', ')}`
-      }
-    } else {
-      const [clip, trend, listen] = await Promise.all([
-        hasSince('concorrente_clipping', started),
-        hasSince('tendencias', started),
-        hasSince('listening_events', started),
-      ])
-      if (clip && trend && listen) advance()
-      else if (fellBack('mineracao')) {
-        const faltou = [!clip && 'clipping', !trend && 'tendências', !listen && 'escuta'].filter(Boolean)
-        expire(`sem saída de: ${faltou.join(', ')}`)
-      }
-    }
-  }
-
-  else if (step === 'sinteses') {
-    if (onb.steps.sinteses === 'pending') {
-      const [okMkt, okIns] = await Promise.all([
-        dispatch('market-sintese-background', { workspace_id }),
-        dispatch('insights-gerar-background', { workspace_id }),
-      ])
-      if (!okMkt && !okIns) fail('não foi possível despachar as sínteses')
-      else {
-        onb.steps.sinteses = 'running'; onb.phase_at = now()
-        if (!okMkt || !okIns) onb.notas.sinteses = `não despachou: ${!okMkt ? 'mercado' : 'insights'}`
-      }
-    } else {
-      const [market, insights] = await Promise.all([
-        hasSince('market_sinteses', started),
-        hasSince('consumer_insights', started),
-      ])
-      if (market && insights) advance()
-      else if (fellBack('sinteses')) {
-        const faltou = [!market && 'mercado', !insights && 'insights'].filter(Boolean)
-        expire(`sem saída de: ${faltou.join(', ')}`)
-      }
-    }
-  }
-
-  else if (step === 'destilacao') {
-    if (onb.steps.destilacao === 'pending') {
-      const ok = await dispatch('brand-distill-background', { brand_id: onb.brand_id })
-      if (ok) { onb.steps.destilacao = 'running'; onb.phase_at = now() }
-      else fail('não foi possível despachar a destilação')
-    } else {
-      // brand_intelligence é por brand_id (não workspace) — checagem própria
-      let done = null
+  const avancarEtapa = async () => {
+    if (step === 'brand') {
+      // Extração do manual (PDF). Antes `done` e `error` liberavam igual — um
+      // PDF que falhou deixava a marca vazia e TODO o resto rodava em cima de
+      // um brand book sem conteúdo. Agora os dois desfechos são distintos.
+      // Sem `gte(started)`: o manual pode chegar dias depois do início.
+      let extraiu = null, falhou = false, jobAtivo = false
       try {
-        const { count } = await supabase.from('brand_intelligence')
-          .select('id', { count: 'exact', head: true })
-          .eq('brand_id', onb.brand_id).gte('created_at', started)
-        done = (count || 0) > 0
-      } catch { done = null }
-      if (done) advance()
-      else if (fellBack('destilacao')) expire('o cérebro não produziu versão nova no período')
+        const { data: jobs } = await supabase.from('brand_manual_jobs')
+          .select('status').eq('brand_id', onb.brand_id)
+          .order('created_at', { ascending: false }).limit(1)
+        const st = jobs?.[0]?.status
+        extraiu   = st === 'done'
+        falhou    = st === 'error'
+        jobAtivo  = !!st && st !== 'done' && st !== 'error'
+      } catch { extraiu = null }
+      if (extraiu) {
+        advance()
+        // ── Convergência das trilhas ──
+        // O cérebro já destilou sem o manual (v1). Chegou a identidade
+        // declarada, ele precisa aprender de novo — agora com ela.
+        if (TERMINAL.includes(onb.steps.destilacao)) {
+          onb.steps.destilacao = 'pending'
+          onb.notas.destilacao = 'redestilando: o manual chegou depois da primeira versão'
+          onb.fases.inteligencia = now()
+        }
+      }
+      else if (falhou) fail('a extração do manual falhou — a marca segue sem conteúdo declarado')
+      else if (jobAtivo && fellBack('brand')) expire('a extração do manual não terminou a tempo')
+      else if (!jobAtivo) wait('aguardando o manual da marca — pode chegar a qualquer momento')
+    }
+
+    else if (step === 'diagnostico') {
+      if (onb.steps.diagnostico === 'pending') {
+        const ok = await dispatch('diagnostico-gerar-background', { workspace_id })
+        if (ok) { onb.steps.diagnostico = 'running'; onb.phase_at = now() }
+        else fail('não foi possível despachar a geração do diagnóstico')
+      } else {
+        const done = await hasSince('diagnosticos', started, { status: 'done' })
+        if (done) advance()
+        else if (fellBack('diagnostico')) expire('nenhum diagnóstico concluído no período')
+      }
+    }
+
+    else if (step === 'concorrentes') {
+      // lê os concorrentes sugeridos pelo diagnóstico e cadastra (dedup por nome)
+      const { data: diag } = await supabase.from('diagnosticos')
+        .select('data').eq('workspace_id', workspace_id).eq('status', 'done')
+        .gte('created_at', started).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      const sugeridos = (diag?.data?.concorrentes || []).slice(0, 5)
+        .map(c => (typeof c === 'string' ? { nome: c } : c)).filter(c => c?.nome)
+      if (sugeridos.length) {
+        const { data: existentes } = await supabase.from('concorrentes').select('nome').eq('workspace_id', workspace_id)
+        const jaTem = new Set((existentes || []).map(c => (c.nome || '').toLowerCase()))
+        const novos = sugeridos.filter(c => !jaTem.has(c.nome.toLowerCase()))
+          .map(c => ({ workspace_id, nome: c.nome, dominio: c.dominio || null, ativo: true }))
+        if (novos.length) await supabase.from('concorrentes').insert(novos)
+      }
+      // Etapa instantânea, mas o resultado importa: sem concorrentes o clipping
+      // e o diagnóstico de rivais não têm o que minerar. Concluir em silêncio
+      // aqui é o que fazia a mineração "terminar" sem produzir nada.
+      const { count: totalConc } = await supabase.from('concorrentes')
+        .select('id', { count: 'exact', head: true }).eq('workspace_id', workspace_id)
+      if (totalConc > 0) advance()
+      else expire('o diagnóstico não sugeriu concorrentes — clipping e rivais não terão o que minerar')
+    }
+
+    else if (step === 'mineracao') {
+      if (onb.steps.mineracao === 'pending') {
+        const workers = [
+          ['clipping-workspace-background', { workspace_id, jitter: false }],
+          ['diagnostico-concorrentes-workspace-background', { workspace_id, jitter: false }],
+          ['trends-workspace-background', { workspace_id, jitter: false }],
+          ['listening-coletar-background', { workspace_id }],
+        ]
+        const enviados = await Promise.all(workers.map(([fn, p]) => dispatch(fn, p)))
+        const recusados = workers.filter((_, i) => !enviados[i]).map(([fn]) => fn)
+        if (recusados.length === workers.length) fail('nenhum worker de mineração aceitou o despacho')
+        else {
+          onb.steps.mineracao = 'running'; onb.phase_at = now()
+          if (recusados.length) onb.notas.mineracao = `não despachou: ${recusados.join(', ')}`
+        }
+      } else {
+        const [clip, trend, listen] = await Promise.all([
+          hasSince('concorrente_clipping', started),
+          hasSince('tendencias', started),
+          hasSince('listening_events', started),
+        ])
+        if (clip && trend && listen) advance()
+        else if (fellBack('mineracao')) {
+          const faltou = [!clip && 'clipping', !trend && 'tendências', !listen && 'escuta'].filter(Boolean)
+          expire(`sem saída de: ${faltou.join(', ')}`)
+        }
+      }
+    }
+
+    else if (step === 'sinteses') {
+      if (onb.steps.sinteses === 'pending') {
+        const [okMkt, okIns] = await Promise.all([
+          dispatch('market-sintese-background', { workspace_id }),
+          dispatch('insights-gerar-background', { workspace_id }),
+        ])
+        if (!okMkt && !okIns) fail('não foi possível despachar as sínteses')
+        else {
+          onb.steps.sinteses = 'running'; onb.phase_at = now()
+          if (!okMkt || !okIns) onb.notas.sinteses = `não despachou: ${!okMkt ? 'mercado' : 'insights'}`
+        }
+      } else {
+        const [market, insights] = await Promise.all([
+          hasSince('market_sinteses', started),
+          hasSince('consumer_insights', started),
+        ])
+        if (market && insights) advance()
+        else if (fellBack('sinteses')) {
+          const faltou = [!market && 'mercado', !insights && 'insights'].filter(Boolean)
+          expire(`sem saída de: ${faltou.join(', ')}`)
+        }
+      }
+    }
+
+    else if (step === 'destilacao') {
+      if (onb.steps.destilacao === 'pending') {
+        const ok = await dispatch('brand-distill-background', { brand_id: onb.brand_id })
+        if (ok) { onb.steps.destilacao = 'running'; onb.phase_at = now() }
+        else fail('não foi possível despachar a destilação')
+      } else {
+        // brand_intelligence é por brand_id (não workspace) — checagem própria
+        let done = null
+        try {
+          const { count } = await supabase.from('brand_intelligence')
+            .select('id', { count: 'exact', head: true })
+            .eq('brand_id', onb.brand_id).gte('created_at', started)
+          done = (count || 0) > 0
+        } catch { done = null }
+        if (done) advance()
+        else if (fellBack('destilacao')) expire('o cérebro não produziu versão nova no período')
+      }
     }
   }
+
+  // Cada trilha anda uma transição por chamada. A ordem entre elas não
+  // importa — elas não se cruzam, exceto na convergência abaixo.
+  for (const p of pendentes) {
+    step = p.step
+    trilha = p.trilha
+    await avancarEtapa()
+  }
+
   return await save(onb)
 }
