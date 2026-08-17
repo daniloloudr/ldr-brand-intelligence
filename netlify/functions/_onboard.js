@@ -29,7 +29,13 @@ export const trilhaDe = (step) => Object.keys(TRILHAS).find(t => TRILHAS[t].incl
 export const TERMINAL = ['done', 'expired', 'failed']
 
 // teto por etapa: sem saída até aqui, a etapa expira (e fica registrado que expirou)
-const FALLBACK_MIN = { brand: 6, diagnostico: 8, mineracao: 22, sinteses: 12, destilacao: 10 }
+//
+// `brand` era 6 min, número herdado de quando a extração era uma chamada só
+// com o PDF em base64. Hoje são duas passadas sobre o documento: no manual da
+// PES (313 páginas, 592 mil tokens) só o prefill passa de 2 min. 6 minutos
+// expiraria uma extração saudável. 20 dá margem sobre o teto de 15 min da
+// própria background function — se ela morrer, a etapa expira logo depois.
+const FALLBACK_MIN = { brand: 20, diagnostico: 8, mineracao: 22, sinteses: 12, destilacao: 10 }
 
 // ── Quem espera o quê ────────────────────────────────────────────────
 // Clipping e diagnóstico de rivais precisam da lista de CONCORRENTES, que só
@@ -217,6 +223,13 @@ export async function avancarOnboarding(supabase, { workspaceId, authHeader = ''
         falhou    = st === 'error'
         jobAtivo  = !!st && st !== 'done' && st !== 'error'
       } catch { extraiu = null }
+      // O relógio da marca começa quando a EXTRAÇÃO começa, não antes.
+      // Sem este carimbo, `faseDe('marca')` caía no `phase_at`, que a trilha
+      // da inteligência sobrescreve a cada etapa: um manual que chega horas
+      // depois nascia com o relógio já estourado e era declarado expirado no
+      // primeiro tick, com a extração rodando normalmente.
+      if (jobAtivo && !onb.fases.marca) onb.fases.marca = now()
+
       if (extraiu) {
         advance()
         // ── Convergência das trilhas ──

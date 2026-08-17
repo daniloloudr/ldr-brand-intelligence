@@ -119,6 +119,55 @@ describe('partida — o que não depende de concorrentes sai na frente', () => {
   })
 })
 
+describe('relógio da marca — o manual chega quando chega', () => {
+  const horasAtras = (h) => new Date(Date.now() - h * 3600_000).toISOString()
+
+  it('extração que acabou de começar NÃO expira, mesmo com a inteligência antiga', async () => {
+    // O bug: `fases.marca` nunca era carimbado enquanto a trilha esperava, e o
+    // relógio caía no `phase_at`, que a inteligência sobrescreve. Manual que
+    // chegasse horas depois era declarado expirado no primeiro tick.
+    stubFetch()
+    const r = await rodar({
+      ws: { id: 'w1', nome: 'Vhita', onboarding: estado({
+        steps: { ...estado().steps, brand: 'waiting' },
+        phase_at: horasAtras(5),        // última transição da inteligência
+        fases: { inteligencia: horasAtras(5) },
+      }) },
+      jobs: [{ status: 'processing' }],
+    })
+
+    expect(r.onboarding.steps.brand).toBe('waiting')
+    expect(r.onboarding.fases.marca).toBeTruthy()   // relógio começou agora
+    expect(alertas).toHaveLength(0)
+  })
+
+  it('extração parada além do teto expira — o relógio existe para isso', async () => {
+    stubFetch()
+    const r = await rodar({
+      ws: { id: 'w1', nome: 'Vhita', onboarding: estado({
+        steps: { ...estado().steps, brand: 'waiting' },
+        fases: { marca: horasAtras(2) },   // começou há 2h e nada voltou
+      }) },
+      jobs: [{ status: 'processing' }],
+    })
+    expect(r.onboarding.steps.brand).toBe('expired')
+    expect(r.onboarding.notas.brand).toMatch(/não terminou a tempo/)
+  })
+
+  it('esperar o manual não faz o relógio andar', async () => {
+    stubFetch()
+    const r = await rodar({
+      ws: { id: 'w1', nome: 'Vhita', onboarding: estado({
+        steps: { ...estado().steps, brand: 'waiting' },
+        phase_at: horasAtras(48),
+      }) },
+      jobs: [],                            // nenhum manual ainda
+    })
+    expect(r.onboarding.steps.brand).toBe('waiting')
+    expect(r.onboarding.fases.marca).toBeUndefined()
+  })
+})
+
 describe('retentativa — um "não" não é o fim', () => {
   it('primeiro despacho recusado deixa a etapa pendente, não falha', async () => {
     stubFetch(() => false)
