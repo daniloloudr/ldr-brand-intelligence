@@ -12,7 +12,7 @@ import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
 import { NovoDiagnosticoDialog } from "./NovoManual";
@@ -1109,7 +1109,8 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== 'application/pdf') { setError('Selecione um PDF.'); return; }
-    if (file.size > 52_428_800) { setError('PDF muito grande (máx 50MB).'); return; }
+    const grande = checarTamanhoManual(file);
+    if (grande) { setError(grande); return; }
     setOnbUploading(true); setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();

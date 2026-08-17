@@ -9,6 +9,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PALETTE } from '../../lib/theme'
+import { checarTamanhoManual, MANUAL_MAX_MB } from '../../lib/helpers'
 
 const STEPS = [
   'Fazendo upload do PDF...',
@@ -33,13 +34,17 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
     const f = e.target.files?.[0]
     if (!f) return
     if (f.type !== 'application/pdf') { setError('Selecione um arquivo PDF.'); return }
-    if (f.size > 52_428_800) { setError('PDF muito grande (máx 50MB).'); return }
+    const grande = checarTamanhoManual(f)
+    if (grande) { setError(grande); return }
     setError('')
     setFile(f)
   }
 
   const fileSizeMB = file ? file.size / 1024 / 1024 : 0
-  const isLarge    = fileSizeMB > 10
+  // Só avisa perto do teto do bucket. Abaixo disso o tamanho não é problema:
+  // o PDF sobe pela Files API e páginas em alta resolução são o insumo da
+  // leitura visual, não um estorvo.
+  const isLarge    = fileSizeMB > MANUAL_MAX_MB * 0.8
 
   function advanceStep() {
     setStep(s => Math.min(s + 1, STEPS.length - 1))
@@ -213,16 +218,12 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
             {isLarge && !error && (
               <Alert severity="warning" sx={{ mt: 2 }} icon={false}>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
-                  Arquivo grande ({fileSizeMB.toFixed(1)} MB) — recomendamos comprimir antes de importar
+                  Arquivo grande ({fileSizeMB.toFixed(1)} MB de {MANUAL_MAX_MB} MB) — a leitura vai demorar mais
                 </Typography>
                 <Typography sx={{ fontSize: 11, color: 'text.secondary', lineHeight: 1.6 }}>
-                  PDFs menores são processados mais rapidamente e com maior precisão.
-                  Comprima gratuitamente em{' '}
-                  <Typography component="a" href="https://smallpdf.com/compress-pdf" target="_blank" rel="noopener noreferrer"
-                    sx={{ fontSize: 11, color: 'warning.main', fontWeight: 700 }}>
-                    smallpdf.com
-                  </Typography>
-                  {' '}ou no Mac: Arquivo → Exportar como PDF → Qualidade Reduzida.
+                  Pode importar assim mesmo. Se passar do limite, divida o manual em partes
+                  e suba uma de cada vez — <b>não comprima</b>: a extração lê as páginas,
+                  e é delas que saem logo, paleta e tipografia.
                 </Typography>
               </Alert>
             )}
