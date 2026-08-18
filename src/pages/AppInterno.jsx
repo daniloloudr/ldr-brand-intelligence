@@ -9,6 +9,7 @@ import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import WorkspacesOutlinedIcon from "@mui/icons-material/WorkspacesOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
+import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
@@ -388,6 +389,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     { id: "workspaces",   label: "Workspaces",       Icon: WorkspacesOutlinedIcon },
     { id: "custos",       label: "Custos",           Icon: PaidOutlinedIcon },
     { id: "cerebros",     label: "Cérebros",         Icon: PsychologyOutlinedIcon },
+    { id: "saude",        label: "Saúde",            Icon: MonitorHeartOutlinedIcon },
   ];
 
   const pendentesList = solicitacoes.filter(s => s.status === "pendente");
@@ -655,6 +657,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 
             {page === "custos" && <CustosAdmin />}
             {page === "cerebros" && <CerebrosAdmin />}
+            {page === "saude" && <SaudeAdmin />}
           </Box>
       </AppLayout>
 
@@ -669,6 +672,120 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
       />
 
     </ThemeProvider>
+  );
+}
+
+/* ─── SaudeAdmin — os alertas que ninguém via ─────────────────────── */
+// O watchdog grava em `cron_alerts` desde sempre, manda pro Sentry e tentaria um
+// webhook (ALERT_WEBHOOK_URL, ausente). Só que NENHUMA tela mostrava — e havia
+// alerta real ali: o cron-monitor morrendo desde 10/08, avisando para o vazio há
+// mais de uma semana. Alerta que ninguém lê não é alerta.
+function SaudeAdmin() {
+  const [alertas, setAlertas] = useState([]);
+  const [runs, setRuns]       = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const desde = new Date(Date.now() - 14 * 86400000).toISOString();
+      const [{ data: a }, { data: r }] = await Promise.all([
+        supabase.from('cron_alerts').select('*').gte('criado_em', desde).order('criado_em', { ascending: false }).limit(60),
+        supabase.from('cron_runs').select('cron, started_at, finished_at, ok').gte('started_at', desde).order('started_at', { ascending: false }).limit(400),
+      ]);
+      setAlertas(a || []); setRuns(r || []); setLoading(false);
+    })();
+  }, []);
+
+  // Última batida por cron: é o que responde "está vivo?" sem ler 400 linhas.
+  const porCron = {};
+  for (const r of runs) {
+    if (!porCron[r.cron]) porCron[r.cron] = { ultima: r, total: 0, falhas: 0 };
+    porCron[r.cron].total += 1;
+    if (r.finished_at && !r.ok) porCron[r.cron].falhas += 1;
+  }
+
+  const idade = (iso) => {
+    const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+    return h < 1 ? `${Math.round(h * 60)} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} d`;
+  };
+
+  if (loading) return <Box sx={{ textAlign: 'center', p: 6, color: 'text.disabled' }}>Carregando...</Box>;
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box>
+        <Typography variant="h6" sx={{ mb: 0.5 }}>Alertas</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Últimos 14 dias. Cada alerta é gravado uma vez por tipo a cada 24h — repetição
+          significa que o problema durou, não que avisou de novo.
+        </Typography>
+        {alertas.length === 0 ? (
+          <Alert severity="success" variant="outlined">Nenhum alerta nos últimos 14 dias.</Alert>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Quando</TableCell><TableCell>Origem</TableCell>
+                  <TableCell>Tipo</TableCell><TableCell>Motivo</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {alertas.map(a => (
+                  <TableRow key={a.id} hover>
+                    <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 12, color: 'text.secondary' }}>
+                      há {idade(a.criado_em)}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12, fontWeight: 700 }}>{a.cron}</TableCell>
+                    <TableCell>
+                      <Chip size="small" label={a.tipo}
+                        color={/morte|fora-do-ar|saldo/.test(a.tipo) ? 'error' : 'warning'} variant="outlined" />
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{a.motivo}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Box>
+
+      <Box>
+        <Typography variant="h6" sx={{ mb: 0.5 }}>Crons</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Última batida de cada rotina. Cron que sumiu do quadro parou de rodar.
+        </Typography>
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Cron</TableCell><TableCell>Última batida</TableCell>
+                <TableCell>Desfecho</TableCell><TableCell align="right">Batidas / falhas (14d)</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {Object.entries(porCron).sort((a, b) => a[0].localeCompare(b[0])).map(([cron, v]) => {
+                const inacabada = !v.ultima.finished_at;
+                return (
+                  <TableRow key={cron} hover>
+                    <TableCell sx={{ fontSize: 12, fontWeight: 700 }}>{cron}</TableCell>
+                    <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>há {idade(v.ultima.started_at)}</TableCell>
+                    <TableCell>
+                      <Chip size="small" variant="outlined"
+                        label={inacabada ? 'não terminou' : v.ultima.ok ? 'ok' : 'falhou'}
+                        color={inacabada ? 'error' : v.ultima.ok ? 'success' : 'error'} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                      {v.total} / {v.falhas}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    </Box>
   );
 }
 
