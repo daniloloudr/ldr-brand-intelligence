@@ -19,7 +19,6 @@ import { BrandSection }         from './BrandSection'
 import { VerbalIdentitySection } from './VerbalIdentitySection'
 import { EssenciaSection, NegocioSection, ExperienciaSection, PersonalidadeSection } from './StrategySections'
 import { VisualIdentitySection } from './VisualIdentitySection'
-import DownloadOutlinedIcon    from '@mui/icons-material/DownloadOutlined'
 import { PageHeader }           from '../../components/shell/PageHeader'
 import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 import { PALETTE } from '../../lib/theme'
@@ -70,17 +69,6 @@ function HistorySection({ history }) {
 /* ─── main ─────────────────────────────────────────────────────── */
 
 export function BrandBook({ brandId }) {
-  // O brand book em markdown, para IA. Fica aqui e não na biblioteca: lá ele
-  // seria um card gerado no meio de logos e fotos, e a biblioteca é dos
-  // arquivos da marca. O download se monta a partir da coluna, então é sempre
-  // a versão atual — não há cópia para envelhecer.
-  const [smartbrand, setSmartbrand] = useState('')
-  async function baixarSmartbrand() {
-    const url = URL.createObjectURL(new Blob([smartbrand], { type: 'text/markdown' }))
-    const link = document.createElement('a')
-    link.href = url; link.download = 'smartbrand.md'; link.click()
-    URL.revokeObjectURL(url)
-  }
 
   const { workspace, user } = useWorkspace()
   const [brand, setBrand]       = useState(null)
@@ -131,7 +119,6 @@ export function BrandBook({ brandId }) {
       .order('created_at', { ascending: false })
       .limit(1)
     const bb = books?.[0] || null
-    setSmartbrand(bb?.smartbrand || '')
     console.log('[BrandBook.load] brand_books rows encontradas:', books?.length, 'erro:', booksErr?.message)
 
     const [{ data: b }, { data: hist }, { data: ass }, { data: tok }] = await Promise.all([
@@ -261,13 +248,6 @@ export function BrandBook({ brandId }) {
         subtitle={`Brand Book · ${brand.nome}`}
         action={
           <Stack direction="row" spacing={1} alignItems="center">
-            {smartbrand && (
-              <Button size="small" variant="outlined" color="inherit" startIcon={<DownloadOutlinedIcon />}
-                onClick={baixarSmartbrand}
-                sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}>
-                smartbrand.md
-              </Button>
-            )}
             <Button size="small" variant="outlined" color="inherit" startIcon={<FileUploadIcon />}
               onClick={() => setImportOpen(true)}
               sx={{ fontWeight: 700, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }}>
