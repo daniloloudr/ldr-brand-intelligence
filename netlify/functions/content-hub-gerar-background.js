@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig, extractJSON, isDev } from './_ai.js'
 import { resolveBrandIntelligence } from './_brain.js'
+import { idiomaDe } from './_mercado.js'
 
 function buildDiagContext(diag) {
   if (!diag?.data) return ''
@@ -14,7 +15,7 @@ function buildDiagContext(diag) {
   return parts.join('\n')
 }
 
-function promptTerritorios(dominio, marca, diagCtx, nTerr, brandCtx) {
+function promptTerritorios(dominio, marca, diagCtx, nTerr, brandCtx, pais) {
   return `Você é especialista em SEO.
 
 PASSO 1 — Pesquise e leia o site "${dominio}":
@@ -29,17 +30,17 @@ ${diagCtx ? `\nContexto do negócio:\n${diagCtx}\n` : ''}${brandCtx ? `\nIdentid
 Agrupe em ${nTerr} clusters temáticos. Cada cluster deve ter EXATAMENTE 5 keywords próprias e 5 oportunidades (total 10 por cluster).
 
 Para cada cluster: id (kebab-case), nome descritivo, keywords.
-Cada keyword: termo (português brasileiro), tipo ("proprio"|"oportunidade"), intencao (informacional|transacional|navegacional), volume (alto|medio|baixo), oportunidade (alta|media|baixa).
+Cada keyword: termo em ${idiomaDe(pais)}, tipo ("proprio"|"oportunidade"), intencao (informacional|transacional|navegacional), volume (alto|medio|baixo), oportunidade (alta|media|baixa).
 
 Retorne APENAS JSON válido, sem markdown:
 {"clusters":[{"id":"...","nome":"...","keywords":[{"termo":"...","tipo":"proprio","intencao":"informacional","volume":"alto","oportunidade":"alta"}]}]}`
 }
 
-function promptIdeias(dominio, diagCtx, clusters, nIdeas, brandCtx) {
+function promptIdeias(dominio, diagCtx, clusters, nIdeas, brandCtx, pais) {
   const lista = clusters.map(c => `- "${c.id}": ${c.nome}`).join('\n')
   return `Você é estrategista de conteúdo.
 
-Para o site "${dominio}", gere ${nIdeas} ideias de conteúdo em português brasileiro.
+Para o site "${dominio}", gere ${nIdeas} ideias de conteúdo em ${idiomaDe(pais)}.
 ${diagCtx ? `\nContexto:\n${diagCtx}\n` : ''}${brandCtx ? `\nIdentidade e aprendizado da marca (as ideias devem soar como ESTA marca — voz, território, do/don't):\n${brandCtx}\n` : ''}
 Grupos de keywords do site:
 ${lista}
@@ -52,7 +53,7 @@ Retorne APENAS JSON válido, sem markdown:
 {"ideias":[{"id":"1","titulo":"...","cluster":"...","relevancia":"...","ideia":"...","formato":"Artigo","intencao":"informacional"}]}`
 }
 
-function promptDev(dominio, marca, diagCtx, brandCtx) {
+function promptDev(dominio, marca, diagCtx, brandCtx, pais) {
   return `SEO expert. Business: "${marca}" (${dominio}).
 ${diagCtx ? `Context:\n${diagCtx}\n` : ''}${brandCtx ? `Brand identity & learned preferences:\n${brandCtx}\n` : ''}
 Return JSON with 3 keyword clusters and 3 content ideas for this business.
@@ -87,7 +88,7 @@ export const handler = async (event) => {
   if (!member && !platformAdmin) return { statusCode: 403 }
 
   const { data: ws } = await supabase
-    .from('workspaces').select('id, nome, dominio').eq('id', workspace_id).single()
+    .from('workspaces').select('id, nome, dominio, pais').eq('id', workspace_id).single()
   if (!ws?.dominio) return { statusCode: 400 }
 
   const { data: diag } = await supabase
@@ -114,7 +115,7 @@ export const handler = async (event) => {
     if (dev) {
       const { text } = await callAI({
         ...aiConfig('fast'),
-        messages: [{ role: 'user', content: promptDev(dominio, marca, diagCtx, brandCtx) }],
+        messages: [{ role: 'user', content: promptDev(dominio, marca, diagCtx, brandCtx, ws.pais) }],
         supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       const parsed = extractJSON(text)
@@ -126,7 +127,7 @@ export const handler = async (event) => {
       const resC = await callAI({
         ...cfg,
         maxTokens: 5000,
-        messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6, brandCtx) }],
+        messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6, brandCtx, ws.pais) }],
         supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       clusters = extractJSON(resC.text)?.clusters
@@ -135,7 +136,7 @@ export const handler = async (event) => {
       const resI = await callAI({
         ...cfg,
         maxTokens: 2000,
-        messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6, brandCtx) }],
+        messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6, brandCtx, ws.pais) }],
         supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       ideias = extractJSON(resI.text)?.ideias

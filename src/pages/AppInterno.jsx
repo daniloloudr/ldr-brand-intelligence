@@ -956,6 +956,13 @@ function CerebrosAdmin() {
 /* ─── WorkspacesAdmin ────────────────────────────────────────────── */
 const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"];
 const WS_PORTES  = ["Startup","PME","Médio","Grande"];
+// País de origem da marca. A lista é curta de propósito: só entra país que o
+// _mercado.js sabe tratar (praças de reputação e variante do idioma). Adicionar
+// aqui sem adicionar lá faz a marca cair no padrão Brasil em silêncio.
+const WS_PAISES  = [
+  { cod: 'BR', rotulo: 'Brasil (padrão)' },
+  { cod: 'PT', rotulo: 'Portugal' },
+];
 const PLANO_COR  = { enterprise: PALETTE.data.positivo, pro: PALETTE.data.neutro, starter: PALETTE.data.atencao, trial: null };
 
 // Duas trilhas com relógios diferentes (ver _onboard.js): a inteligência roda
@@ -1018,7 +1025,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   const [creating, setCreating]           = useState(false);
   const [inviting, setInviting]           = useState(false);
   const [error, setError]                 = useState('');
-  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
+  const [form, setForm]                   = useState({ nome: '', dominio: '', setor: '', porte: '', pais: 'BR', creditos_mes: '', valor: '', slug: '' });
   const [showConfig, setShowConfig]       = useState(null);
   const [configForm, setConfigForm]       = useState({ creditos_mes: '', valor: '', slug: '' });
   const [savingConfig, setSavingConfig]   = useState(false);
@@ -1212,7 +1219,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         nome: form.nome, dominio: form.dominio, setor: form.setor, porte: form.porte,
-        slug: form.slug,
+        pais: form.pais, slug: form.slug,
         creditos_mes: parseInt(form.creditos_mes, 10) || 0,
         valor_mensal_centavos: reaisToCents(form.valor),
       }),
@@ -1221,7 +1228,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     setCreating(false);
     if (!res.ok) { setError(json.error || 'Erro ao criar workspace'); return; }
     setShowCreate(false);
-    setForm({ nome: '', dominio: '', setor: '', porte: '', creditos_mes: '', valor: '', slug: '' });
+    setForm({ nome: '', dominio: '', setor: '', porte: '', pais: 'BR', creditos_mes: '', valor: '', slug: '' });
     fetchWorkspaces();
     // aviso não-bloqueante se o subdomínio não provisionou automático
     if (json.subdomain && !json.subdomain.ok) {
@@ -1519,6 +1526,15 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
               <TextField select size="small"  value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))}>
                 <MenuItem value="">Porte</MenuItem>
                 {WS_PORTES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              </TextField>
+              {/* País de origem: define o mercado analisado, as praças de reputação
+                  e a variante do idioma. Marca portuguesa procurada no Reclame Aqui
+                  volta vazia — e conteúdo em português brasileiro entregue a uma
+                  marca de Portugal se denuncia na primeira linha. */}
+              <TextField select size="small" value={form.pais}
+                helperText="Define o mercado analisado, as praças de reputação e o idioma dos textos"
+                onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}>
+                {WS_PAISES.map(p => <MenuItem key={p.cod} value={p.cod}>{p.rotulo}</MenuItem>)}
               </TextField>
               <Box sx={{ display: 'flex', gap: '10px' }}>
                 <Box sx={{ flex: 1 }}>

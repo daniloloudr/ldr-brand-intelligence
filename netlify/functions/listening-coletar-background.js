@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig, extractJSON } from './_ai.js'
 import { buscarNaWeb, provedorDeBusca } from './_busca.js'
 import { sendAlert } from './_watchdog.js'
+import { mercado } from './_mercado.js'
 
 // ── A INVERSÃO (2026-08-18) ─────────────────────────────────────────────
 // Antes: o modelo buscava E respondia. A URL saía da resposta dele, o que é o
@@ -24,7 +25,6 @@ const JANELA_DIAS = 7
 // significa que o canal só aparece pelas buscas abertas (é o caso de imprensa e
 // de qualquer site que a gente não listou).
 const CANAIS = [
-  { nome: 'Reclame Aqui',   hosts: ['reclameaqui.com.br'],                busca: 'site:reclameaqui.com.br' },
   { nome: 'Twitter/X',      hosts: ['twitter.com', 'x.com'],              busca: 'site:x.com OR site:twitter.com' },
   { nome: 'Instagram',      hosts: ['instagram.com'],                     busca: 'site:instagram.com' },
   { nome: 'TikTok',         hosts: ['tiktok.com'],                        busca: 'site:tiktok.com' },
@@ -35,10 +35,17 @@ const CANAIS = [
   { nome: 'Glassdoor',      hosts: ['glassdoor.com.br', 'glassdoor.com'], busca: null },
 ]
 
-export function canalDoHost(host, url = '') {
+// Os canais fixos acima valem em qualquer mercado. A praça de RECLAMAÇÃO é que
+// muda de país para país — Reclame Aqui no Brasil, Portal da Queixa em Portugal
+// — e vem do perfil do mercado, não daqui.
+export function canaisDoMercado(pais) {
+  return [...mercado(pais).canaisEscuta, ...CANAIS]
+}
+
+export function canalDoHost(host, url = '', pais) {
   const h = String(host || '').toLowerCase().replace(/^www\./, '')
   const u = String(url || '').toLowerCase()
-  const achado = CANAIS.find(c => c.hosts.some(d =>
+  const achado = canaisDoMercado(pais).find(c => c.hosts.some(d =>
     d.includes('/') ? u.includes(d) : (h === d || h.endsWith(`.${d}`))
   ))
   return achado ? achado.nome : 'Web'
@@ -54,7 +61,7 @@ export function canalDoHost(host, url = '') {
 //    que falhou antes: aquele ia para a busca da Anthropic, que não tem o
 //    conteúdo dessas plataformas. O Google tem, ainda que parcialmente. Com
 //    janela de 7 dias muitos voltam vazios, e vazio aqui é resposta honesta.
-export function montarQueries(marca, termos = []) {
+export function montarQueries(marca, termos = [], pais) {
   const m = `"${marca}"`
   const abertas = [
     m,
@@ -62,7 +69,7 @@ export function montarQueries(marca, termos = []) {
     `${m} (recomendo OR excelente OR adorei OR melhor)`,
     `${m} (opinião OR avaliação OR review OR "vale a pena")`,
   ]
-  const porCanal = CANAIS.filter(c => c.busca).map(c => `${c.busca} ${m}`)
+  const porCanal = canaisDoMercado(pais).filter(c => c.busca).map(c => `${c.busca} ${m}`)
   // Termo extra do cliente entra como consulta aberta própria: ele existe
   // justamente para pegar o que o nome da marca sozinho não pega (apelido,
   // produto, hashtag, o domínio).
@@ -169,7 +176,7 @@ export const handler = async (event) => {
   }
 
   const { data: ws } = await supabase
-    .from('workspaces').select('id, nome, dominio').eq('id', workspace_id).single()
+    .from('workspaces').select('id, nome, dominio, pais').eq('id', workspace_id).single()
   if (!ws) return { statusCode: 404 }
 
   const { data: termsData } = await supabase
@@ -184,7 +191,7 @@ export const handler = async (event) => {
   const host = (ws.dominio || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '')
   if (host && host !== marca) termos.push(host)
 
-  const queries = montarQueries(marca, termos)
+  const queries = montarQueries(marca, termos, ws.pais)
   // A busca vem da camada, não de um provedor fixo. Padrão é a própria
   // Anthropic — a mesma chave que já pagamos, sem cota nova para vigiar. O
   // Google fica disponível como adaptador se algum dia a janela de data por
@@ -207,7 +214,7 @@ export const handler = async (event) => {
   // página cai em várias.
   const vistos = new Set()
   let itens = resultados.filter(r => !vistos.has(r.url) && vistos.add(r.url))
-    .map(r => ({ ...r, canal: canalDoHost(r.host, r.url) }))
+    .map(r => ({ ...r, canal: canalDoHost(r.host, r.url, ws.pais) }))
 
   // Dedup contra o que já está no banco: sem isso o cron semanal regrava a mesma
   // menção toda semana enquanto ela seguir indexada.
