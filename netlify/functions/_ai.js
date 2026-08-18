@@ -75,9 +75,17 @@ export function aiConfig(tier = 'standard') {
     retries:    1,
     retryDelay: 2000,
   }
+  // 'premium' é usado SÓ pelos dois caminhos de diagnóstico — mexer aqui não
+  // respinga em mais ninguém (conferido em 18/08).
+  //
+  // O teto era 8000 e ficou pequeno na troca para o Sonnet 5, que faz raciocínio
+  // adaptativo por padrão. Medido no diagnóstico da Pixel: 10.351 tokens de
+  // raciocínio + 15 chamadas de ferramenta, stop_reason max_tokens, ZERO
+  // caractere de texto. O raciocínio fica — é ele que desambigua homônimo, que
+  // é exatamente o problema desta marca — mas com espaço para escrever depois.
   if (tier === 'premium') return {
     model:      MODELS.smart,
-    maxTokens:  8000,
+    maxTokens:  32000,
     tools:      [TOOLS.webSearch],
     retries:    1,
     retryDelay: 5000,
@@ -237,6 +245,7 @@ export async function streamAI({
   maxTokens = 4000,
   apiKey,
   onText,
+  thinking,        // {type:'disabled'} corta o raciocínio; omitido = padrão do modelo
   idleMs,          // aborta se ficar SEM receber dados por N ms (ideal p/ streaming:
                    // não corta um stream saudável que flui, só um pendurado)
 }) {
@@ -264,6 +273,7 @@ export async function streamAI({
         messages,
         ...(system        ? { system: cachedSystem(system) } : {}),
         ...(tools?.length ? { tools }                        : {}),
+        ...(thinking      ? { thinking }                     : {}),
       }),
       signal:  controller?.signal,
     })
@@ -284,6 +294,7 @@ export async function streamAI({
   const reader  = resp.body.getReader()
   const decoder = new TextDecoder()
   let buf = '', fullText = ''
+  let stopReason = null, thinkingTokens = 0
 
   try {
     while (true) {
@@ -302,6 +313,13 @@ export async function streamAI({
           fullText += evt.delta.text || ''
           onText?.(fullText)
         }
+        // O desfecho vem no message_delta. Sem olhar isto, um estouro de teto
+        // chegava ao chamador como texto vazio, que ele traduzia em "JSON não
+        // extraído" — mensagem que aponta para o lugar errado e custou horas.
+        if (evt.type === 'message_delta') {
+          stopReason     = evt.delta?.stop_reason || stopReason
+          thinkingTokens = evt.usage?.output_tokens_details?.thinking_tokens || thinkingTokens
+        }
       }
     }
   } catch (e) {
@@ -311,6 +329,20 @@ export async function streamAI({
     clearIdle()
   }
 
+  // Texto vazio com teto estourado não é "resposta ruim": é resposta que nunca
+  // começou. Sonnet 5 pensa por padrão (thinking adaptativo) e, num diagnóstico
+  // com busca, gastou 10.351 tokens pensando e orquestrando buscas antes de
+  // escrever a primeira letra — chegou ao teto com zero caractere. Diagnosticar
+  // isso a partir de "JSON não extraído" é impossível.
+  if (!fullText && stopReason === 'max_tokens') {
+    throw new AIError(
+      `O modelo estourou o teto de ${maxTokens} tokens antes de escrever a resposta`
+      + `${thinkingTokens ? ` (${thinkingTokens} deles gastos pensando)` : ''}.`
+      + ' Aumente maxTokens ou reduza o raciocínio.', 507)
+  }
+  if (!fullText) {
+    throw new AIError(`O modelo não devolveu texto (stop_reason: ${stopReason || 'desconhecido'})`, 502)
+  }
   return fullText
 }
 

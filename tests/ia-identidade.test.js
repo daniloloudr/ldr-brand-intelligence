@@ -28,8 +28,27 @@ describe('o caso Pixel — a regressão que este módulo existe para impedir', (
     // Ia só "Pixel" — nome de dezenas de agências. O domínio era carregado na
     // linha seguinte do handler e nunca chegava ao prompt.
     expect(alvoDoDiagnostico(PIXEL_ENTRADA)).toBe('Pixel (pixelretail.com.br)')
-    expect(instrucaoDeIdentidade(PIXEL_ENTRADA)).toContain('pixelretail.com.br')
-    expect(instrucaoDeIdentidade(PIXEL_ENTRADA)).toMatch(/ELAS NÃO SÃO/)
+    const instrucao = instrucaoDeIdentidade(PIXEL_ENTRADA)
+    expect(instrucao).toContain('pixelretail.com.br')
+    expect(instrucao).toContain('"Pixel"')                  // o nome vai junto, como contexto
+    expect(instrucao).toMatch(/O DOMÍNIO decide/)           // e a hierarquia é explícita
+    expect(instrucao).toMatch(/domínio prevalece SEMPRE/)
+  })
+
+  it('nome e domínio divergentes: o domínio manda', () => {
+    // Nome fantasia, razão social e domínio raramente coincidem. Mandar só um
+    // perde informação; mandar os dois sem hierarquia devolve a ambiguidade ao
+    // modelo — que foi o que produziu o diagnóstico da empresa errada.
+    const i = instrucaoDeIdentidade({ nome: 'Casas Bahia', dominio: 'viavarejo.com.br' })
+    expect(i).toContain('viavarejo.com.br')
+    expect(i).toContain('"Casas Bahia"')
+    expect(i).toMatch(/pertencer a outro domínio, ele NÃO é do sujeito/)
+  })
+
+  it('sem domínio, nome ambíguo é recusa — não escolha pelo volume de material', () => {
+    const i = instrucaoDeIdentidade({ nome: 'Pixel' })
+    expect(i).toMatch(/NÃO escolha uma por ter mais material/)
+    expect(i).toMatch(/erro_identificacao/)
   })
 
   it('a identidade gravada é a da ENTRADA, não a resposta do modelo', () => {
