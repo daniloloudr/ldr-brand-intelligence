@@ -95,6 +95,45 @@ modelo, e repetir mascara o erro real.
 `modeloReserva`; há teste e mutação para isso, porque a primeira versão do teste
 passou despercebida por casar com a linha da desestruturação em vez da chamada.
 
+## O processo — quem pode mexer, e como
+
+> "Não dá pra todas as operações atuarem nos arquivos que tem LLM plugada."
+> — Danilo, 18/08/2026
+
+Em um único dia, mudanças feitas de passagem em arquivos com LLM plugada
+produziram: um relatório da empresa errada entregue a um cliente, o `callAI`
+devolvendo um fragmento como resposta inteira, o diagnóstico estourando o teto
+sem escrever nada, e a busca perdendo as citações. **Nenhuma foi imprudente
+isoladamente — todas foram "só um ajuste".**
+
+Por isso o núcleo tem porteiro, não só documentação:
+
+```
+npm run guarda:instalar   # uma vez por clone — instala o hook de pre-commit
+npm run nucleo            # lista o que é protegido e se o hook está ativo
+```
+
+Ao commitar qualquer um dos 11 arquivos do núcleo, o hook roda a suíte e a
+varredura de mutação e **bloqueia se algo reprovar**. Depois lembra, na tela, de
+rodar a avaliação ao vivo antes do deploy.
+
+**As regras:**
+
+1. **Mudança no núcleo é sempre mudança deliberada.** Não entra de carona em
+   commit de outra coisa. Se um refactor amplo precisa tocar o núcleo, separe em
+   dois commits — o do núcleo com a justificativa por escrito.
+2. **Todo defeito que escapar vira mutação.** Em `tests/guarda/mutacao.mjs`,
+   junto com o teste que o pega. A lista só cresce; ela é a memória do que já
+   deu errado.
+3. **Teste do núcleo se ancora no ponto exato, nunca no arquivo inteiro.**
+   Um teste que casa `/alvoDoDiagnostico\(alvo\)/` no arquivo apodrece sozinho
+   no dia em que outra linha passa a usar a mesma expressão — foi o que
+   aconteceu quando o rastreio de custo entrou, e a varredura pegou.
+4. **Antes de subir: `npm run guarda:ao-vivo`.** A suíte prova o arredor; só a
+   avaliação ao vivo diz se o modelo está alucinando.
+5. **`--no-verify` existe, mas fica no histórico.** Se pulou a guarda, diga por
+   quê no commit.
+
 ## Antes de qualquer deploy que toque o núcleo
 
 ```

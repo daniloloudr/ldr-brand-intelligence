@@ -105,7 +105,7 @@ Regras:
 - Devolva um objeto para CADA índice, inclusive os irrelevantes.`
 }
 
-async function classificar(marca, itens) {
+async function classificar(marca, itens, rastreio = {}) {
   const { text } = await callAI({
     // 'standard' e não 'fast': o juízo que carrega a rodada é o de RELEVÂNCIA
     // (homônimo, sigla igual, marca parecida no mesmo ramo), e errar ali suja o
@@ -116,6 +116,7 @@ async function classificar(marca, itens) {
     // busca aqui reabriria a porta que a inversão acabou de fechar.
     tools: undefined,
     messages: [{ role: 'user', content: promptClassificar(marca, itens) }],
+    ...rastreio,
   })
   const parsed = extractJSON(text)
   const juizos = new Map((parsed?.itens || []).map(j => [Number(j.i), j]))
@@ -188,7 +189,9 @@ export const handler = async (event) => {
   // Anthropic — a mesma chave que já pagamos, sem cota nova para vigiar. O
   // Google fica disponível como adaptador se algum dia a janela de data por
   // índice (`dateRestrict`) valer a cota; hoje não vale.
-  const { resultados, falhas, provedor } = await buscarNaWeb(queries, { dias: JANELA_DIAS })
+  const { resultados, falhas, provedor } = await buscarNaWeb(queries, {
+    dias: JANELA_DIAS, supabase, workspace_id, marca,
+  })
   if (falhas.length) console.error(`[listening-bg] ${falhas.length} falha(s) na busca (${provedor}):`, falhas[0]?.erro)
 
   // Cota estourada não pode virar "a marca não teve barulho esta semana".
@@ -223,7 +226,9 @@ export const handler = async (event) => {
   let eventos = []
   if (itens.length) {
     try {
-      eventos = await classificar(marca, itens)
+      eventos = await classificar(marca, itens, {
+        supabase, tag: 'escuta', workspace_id, operacao: `escuta:classificar:${marca}`,
+      })
     } catch (e) {
       console.error('[listening-bg] classificação falhou:', e.message)
       return { statusCode: 502, body: JSON.stringify({ erro: 'classificação falhou' }) }

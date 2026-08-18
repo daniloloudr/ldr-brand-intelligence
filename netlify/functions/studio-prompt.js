@@ -70,6 +70,7 @@ export const handler = async (event) => {
       maxTokens: limit ? Math.ceil(limit / 2) + 60 : 400,
       system,
       messages: [{ role: 'user', content }],
+      supabase, tag: 'studio', workspace_id: brand.workspace_id,
     })
     let promptOut = (text || '').trim().replace(/^["“']|["”']$/g, '')
     // Garantia dura do limite (corta no último espaço antes do teto p/ não cortar palavra)

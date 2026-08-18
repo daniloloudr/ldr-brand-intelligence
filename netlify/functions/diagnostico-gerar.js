@@ -57,6 +57,8 @@ export const handler = async (event) => {
       system:    SYSTEM_PROMPT,
       tools:     dev ? [] : [TOOLS.webSearch],
       messages:  [{ role: 'user', content: msgText }],
+      supabase, tag: 'diagnostico', workspace_id,
+      operacao:  `diagnostico:${alvoDoDiagnostico(alvo)}`,
     })
   } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) }

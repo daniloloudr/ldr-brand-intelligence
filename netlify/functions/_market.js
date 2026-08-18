@@ -7,14 +7,28 @@ import { resolveBrandIntelligence } from './_brain.js'
 
 export async function gerarSinteseMercado(supabase, { workspace_id, janela_dias = 7 }) {
   const desde = new Date(Date.now() - janela_dias * 86400000).toISOString()
-  const [{ data: clips }, { data: concs }, { data: brand }] = await Promise.all([
-    supabase.from('concorrente_clipping').select('concorrente_id, titulo, conteudo, fonte, sentiment, score_impacto, created_at')
-      .eq('workspace_id', workspace_id).gte('created_at', desde)
-      .order('score_impacto', { ascending: false }).limit(60),
-    supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspace_id),
+  // SÓ concorrentes ativos. A coleta já respeitava o `ativo`; a leitura não —
+  // e é a leitura que monta a síntese. Resultado real na Pixel Retail: os três
+  // concorrentes herdados do diagnóstico da empresa errada (agências digitais,
+  // quando a Pixel é retail media) foram desativados pelo cliente, mas seus 25
+  // itens de clipping continuavam sendo TODA a matéria-prima da síntese. A
+  // recomendação estratégica saía calibrada contra o mercado errado.
+  //
+  // Desativar não apaga: o histórico fica. O que muda é que ele para de
+  // alimentar a leitura do presente.
+  const [{ data: ativos }, { data: brand }] = await Promise.all([
+    supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspace_id).eq('ativo', true),
     supabase.from('brands').select('id, nome').eq('workspace_id', workspace_id)
       .order('created_at', { ascending: true }).limit(1).maybeSingle(),
   ])
+  if (!ativos?.length) return { status: 'sem_concorrentes' }
+
+  const { data: clips } = await supabase
+    .from('concorrente_clipping').select('concorrente_id, titulo, conteudo, fonte, sentiment, score_impacto, created_at')
+    .eq('workspace_id', workspace_id).gte('created_at', desde)
+    .in('concorrente_id', ativos.map(c => c.id))
+    .order('score_impacto', { ascending: false }).limit(60)
+  const concs = ativos
   if (!clips?.length) return { status: 'sem_clipping' }
   if (!brand)         return { status: 'sem_marca' }
 

@@ -1,0 +1,256 @@
+{
+  "motivo": "Concorrentes herdados do diagnóstico da empresa errada (Pixel Agência Digital em vez de Pixel Retail Media). Danilo autorizou a remoção em 18/08/2026.",
+  "desativados": [
+    {
+      "id": "70135504-fd30-4b41-9a89-fa778b9a136d",
+      "nome": "Orgânica Digital",
+      "ativo": false
+    },
+    {
+      "id": "db34b489-a7b8-45ae-be22-8b871ff3d81d",
+      "nome": "Go Biz",
+      "ativo": false
+    },
+    {
+      "id": "a3e53497-ebee-46d2-9136-f2c39e8484a0",
+      "nome": "Agência Mestre",
+      "ativo": false
+    }
+  ],
+  "sinais": [
+    {
+      "id": "16c06070-6ff3-4967-8758-dd4f01c0c1b2",
+      "brand_id": "7d8e2051-7441-4471-93b4-88b3117bb816",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "tipo": "competitive",
+      "fonte": "clipping",
+      "ref_id": "db34b489-a7b8-45ae-be22-8b871ff3d81d",
+      "payload": {
+        "dominio": null,
+        "movimentos": [
+          {
+            "titulo": "Site da Go Biz sem novos artigos desde janeiro de 2026",
+            "sentiment": "negativo",
+            "score_impacto": 4
+          }
+        ],
+        "concorrente": "Go Biz"
+      },
+      "peso": 0.5,
+      "created_at": "2026-08-18T13:59:42.925204+00:00",
+      "consumido_em": "2026-08-18T14:34:49.908+00:00"
+    },
+    {
+      "id": "a568b9cd-79da-4448-baa7-af103b7ca5fe",
+      "brand_id": "7d8e2051-7441-4471-93b4-88b3117bb816",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "tipo": "competitive",
+      "fonte": "clipping",
+      "ref_id": "70135504-fd30-4b41-9a89-fa778b9a136d",
+      "payload": {
+        "dominio": null,
+        "movimentos": [
+          {
+            "titulo": "Case Rede IOA conquista 2º lugar no Prêmio Limitless RD Station 2025",
+            "sentiment": "positivo",
+            "score_impacto": 8
+          },
+          {
+            "titulo": "Orgânica Digital entre as 10 melhores agências de marketing do Brasil",
+            "sentiment": "positivo",
+            "score_impacto": 8
+          },
+          {
+            "titulo": "Orgânica Digital finalista no Prêmio Colunistas – case Rede IOA",
+            "sentiment": "positivo",
+            "score_impacto": 7
+          },
+          {
+            "titulo": "Guilherme de Bortoli participa do CMO Summit 2026 debatendo IA e conteúdo",
+            "sentiment": "positivo",
+            "score_impacto": 7
+          },
+          {
+            "titulo": "Cliente Safecar dobra volume de vendas em 2026 com apoio da Orgânica",
+            "sentiment": "positivo",
+            "score_impacto": 6
+          }
+        ],
+        "concorrente": "Orgânica Digital"
+      },
+      "peso": 0.5,
+      "created_at": "2026-08-18T13:59:04.996448+00:00",
+      "consumido_em": "2026-08-18T14:34:49.908+00:00"
+    },
+    {
+      "id": "36977a76-2d9f-4070-9970-6eb7beaffb08",
+      "brand_id": "7d8e2051-7441-4471-93b4-88b3117bb816",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "tipo": "competitive",
+      "fonte": "concorrentes",
+      "ref_id": "70135504-fd30-4b41-9a89-fa778b9a136d",
+      "payload": {
+        "frase": "Uma agência com reputação real e método próprio que ainda comunica como se fosse mais uma entre muitas.",
+        "dominio": null,
+        "concorrente": "Orgânica Digital",
+        "territorios": [
+          {
+            "nome": "A Agência que Cresceu Junto com seus Clientes",
+            "confianca": "alta"
+          },
+          {
+            "nome": "Content+Performance como Ponto de Vista Público, Não Apenas como Método Interno",
+            "confianca": "media"
+          }
+        ],
+        "score_consistencia": 7,
+        "score_singularidade": 6,
+        "score_posicionamento": 5
+      },
+      "peso": 0.6,
+      "created_at": "2026-08-18T14:00:17.464674+00:00",
+      "consumido_em": "2026-08-18T14:34:49.908+00:00"
+    },
+    {
+      "id": "0b2a65f1-52fc-44d6-8bd4-f02ba90976ac",
+      "brand_id": "7d8e2051-7441-4471-93b4-88b3117bb816",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "tipo": "competitive",
+      "fonte": "clipping",
+      "ref_id": "a3e53497-ebee-46d2-9136-f2c39e8484a0",
+      "payload": {
+        "dominio": null,
+        "movimentos": [
+          {
+            "titulo": "Case GEO Mestre: +956% em SERP Features para Ludos Pro",
+            "sentiment": "positivo",
+            "score_impacto": 9
+          },
+          {
+            "titulo": "Agência Mestre aposta em GEO como novo serviço estratégico",
+            "sentiment": "positivo",
+            "score_impacto": 8
+          },
+          {
+            "titulo": "Imersão Mestre: nova edição em junho/2026 com lista de espera aberta",
+            "sentiment": "positivo",
+            "score_impacto": 7
+          },
+          {
+            "titulo": "Agência Mestre citada entre as 10 melhores de SEO e GEO do Brasil em 2026",
+            "sentiment": "neutro",
+            "score_impacto": 7
+          },
+          {
+            "titulo": "Case de tráfego pago: +90% em conversões e -40% no CPC para cliente veterinário",
+            "sentiment": "positivo",
+            "score_impacto": 7
+          }
+        ],
+        "concorrente": "Agência Mestre"
+      },
+      "peso": 0.5,
+      "created_at": "2026-08-18T14:00:30.224369+00:00",
+      "consumido_em": "2026-08-18T14:34:49.908+00:00"
+    },
+    {
+      "id": "7d8ef983-f69d-4428-b92d-466e232d92bf",
+      "brand_id": "7d8e2051-7441-4471-93b4-88b3117bb816",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "tipo": "competitive",
+      "fonte": "concorrentes",
+      "ref_id": "db34b489-a7b8-45ae-be22-8b871ff3d81d",
+      "payload": {
+        "frase": "A Go Biz tem o fazer, mas ainda não tem o nome: entrega resultado para o cliente, mas ainda não construiu uma marca que o mercado reconhece antes de buscar.",
+        "dominio": null,
+        "concorrente": "Go Biz",
+        "territorios": [
+          {
+            "nome": "A Agência que Pratica o que Prega",
+            "confianca": "media"
+          },
+          {
+            "nome": "Especialista em PMEs que Querem Crescer Sem Escalar o Caos",
+            "confianca": "media"
+          }
+        ],
+        "score_consistencia": 5,
+        "score_singularidade": 4,
+        "score_posicionamento": 4
+      },
+      "peso": 0.6,
+      "created_at": "2026-08-18T14:02:14.28962+00:00",
+      "consumido_em": "2026-08-18T14:34:49.908+00:00"
+    },
+    {
+      "id": "e5b834a4-5d81-4229-8854-e01e3035f519",
+      "brand_id": "7d8e2051-7441-4471-93b4-88b3117bb816",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "tipo": "competitive",
+      "fonte": "concorrentes",
+      "ref_id": "a3e53497-ebee-46d2-9136-f2c39e8484a0",
+      "payload": {
+        "frase": "A Mestre ensina o mercado a crescer — mas ainda não encontrou a linguagem para crescer ela mesma além do que já é.",
+        "dominio": null,
+        "concorrente": "Agência Mestre",
+        "territorios": [
+          {
+            "nome": "A Empresa que Forma o Padrão das Agências Brasileiras",
+            "confianca": "alta"
+          },
+          {
+            "nome": "A Agência que Entende de Marketing Digital com IA — Antes dos Outros",
+            "confianca": "hipotese"
+          }
+        ],
+        "score_consistencia": 6,
+        "score_singularidade": 5,
+        "score_posicionamento": 5
+      },
+      "peso": 0.6,
+      "created_at": "2026-08-18T14:04:41.082268+00:00",
+      "consumido_em": "2026-08-18T14:34:49.908+00:00"
+    }
+  ],
+  "sinteses": [
+    {
+      "id": "7a01847a-cf38-4fcc-82f0-24c861506c93",
+      "created_at": "2026-08-18T14:00:46.856703+00:00",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "bullets": [
+        "Agência Mestre dominou visibilidade com GEO: case de +956% em SERP Features para Ludos Pro e novo serviço oficial — sinal de que quem nomear e provar GEO primeiro captura autoridade de mercado.",
+        "Orgânica Digital acumulou reconhecimento institucional (top 10 RD Station, finalista Colunistas, case Safecar dobrando vendas) — construindo prova social em múltiplas frentes simultaneamente, o que eleva o patamar de comparação do setor.",
+        "Go Biz operou abaixo do radar: blog parado há 6+ meses e zero movimentos de impacto — abre espaço para quem estiver publicando e se posicionando ativamente agora."
+      ],
+      "para_marca": "O ciclo foi dominado por concorrentes que transformaram resultado em reputação pública. Para a Pixel, o risco não é ficar para trás em serviço — é ficar invisível enquanto outros constroem autoridade. Prioridade: tornar provas concretas em narrativa pública antes que o espaço se feche.",
+      "janela_dias": 7,
+      "mencoes": 25
+    },
+    {
+      "id": "f68275ba-2b9b-4ebc-89b1-3381f68197b4",
+      "created_at": "2026-08-18T19:12:42.31148+00:00",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "bullets": [
+        "Agência Mestre entrega case GEO com +956% em SERP Features (Ludos Pro) e reforça GEO como serviço estratégico — movimento de alta visibilidade técnica no território de IA avant-garde que já dominam.",
+        "Orgânica Digital acumula reconhecimento: top 10 Brasil (RD), 2º lugar Prêmio Limitless, finalista Colunistas e presença no CMO Summit 2026 — consolidação de autoridade pública e prova social massiva.",
+        "Go Biz sem novos artigos desde janeiro/2026 — queda visível de presença orgânica, abrindo espaço no território de PMEs que a marca ocupava com baixa consistência (singularidade=4, consistência=5)."
+      ],
+      "para_marca": "Concorrentes consolidam territórios com prova social e cases mensuráveis; Pixel precisa ocupar AGORA o vetor livre de 'confiança como entrega mensurável' com cases concretos B2B/PME. Momento de produzir resultado verificável e torná-lo público — a janela está aberta.",
+      "janela_dias": 7,
+      "mencoes": 25
+    },
+    {
+      "id": "2ef518d4-f762-4b0d-bd46-4012ab350cb7",
+      "created_at": "2026-08-18T20:00:16.822399+00:00",
+      "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+      "bullets": [
+        "Agência Mestre consolidou GEO como serviço estratégico com case Ludos Pro (+956% em SERP Features), ocupando vanguarda técnica em IA aplicada — movimento de alto impacto que reforça singularidade já forte.",
+        "Orgânica Digital acumula reconhecimento institucional (top 10 Brasil, prêmio Espada Ninja, presença CMO Summit) enquanto entrega resultado concreto (Safecar dobrou vendas) — domina narrativa de credibilidade.",
+        "Go Biz zerou produção de conteúdo desde janeiro/2026 — sinal de fragilidade operacional ou pivô silencioso, abrindo espaço no território de PME sem que ninguém ainda o reivindique ativamente."
+      ],
+      "para_marca": "O território 'Resultado concreto com responsabilidade e confiança' está livre, mas a janela é curta: Orgânica prova resultado+prêmios e Mestre lidera técnica+IA. Pixel precisa AGORA plantar bandeira com evidência mensurável (case, métrica, depoimento) que una entrega B2B + confiança verificável — ou será empurrada para genérico.",
+      "janela_dias": 7,
+      "mencoes": 25
+    }
+  ]
+}

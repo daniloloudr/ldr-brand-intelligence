@@ -100,6 +100,9 @@ export const handler = async (event) => {
         system:   SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msgText }],
         model, modeloReserva, tools, maxTokens,
+        // A operação mais cara do produto passava sem rastreio nenhum.
+        supabase, tag: 'diagnostico', workspace_id: workspaceId,
+        operacao: `diagnostico:${alvoDoDiagnostico(alvo)}`,
         idleMs:   120000,   // 2 min sem NENHUM chunk (pings inclusos) = stream morto
       })
       const p = extractJSON(text)

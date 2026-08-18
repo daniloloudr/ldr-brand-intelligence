@@ -71,7 +71,9 @@ async function run(event) {
       if (!alvo.nome && !alvo.dominio) continue
 
       console.log(`[cron-monitor] Gerando diagnóstico para ${ws.id} — ${alvo.dominio || alvo.nome}`)
-      const parsed = await gerarDiagnostico(alvo, null)
+      const parsed = await gerarDiagnostico(alvo, null, {
+        supabase, tag: 'diagnostico', workspace_id: ws.id, operacao: 'diagnostico:cron-semanal',
+      })
 
       // Este cron roda TODA SEGUNDA e grava por cima. Sem a guarda, um
       // diagnóstico de outra empresa entrava no histórico do cliente

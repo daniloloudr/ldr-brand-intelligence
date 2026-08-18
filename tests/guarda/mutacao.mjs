@@ -84,6 +84,15 @@ const MUTACOES = [
     de: 'drop policy if exists "leitura publica diagnosticos" on diagnosticos;',
     para: '-- removido' },
 
+  { nome: 'concorrente desativado volta a contar na síntese',
+    arq: 'netlify/functions/_market.js',
+    de: ".in('concorrente_id', ativos.map(c => c.id))", para: '' },
+
+  { nome: 'a tela volta a mostrar movimento de desativado',
+    arq: 'src/pages/app/IntelligencePages.jsx',
+    de: ".eq('workspace_id', workspace.id).eq('ativo', true)",
+    para: ".eq('workspace_id', workspace.id)" },
+
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",

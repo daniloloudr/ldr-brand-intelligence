@@ -32,8 +32,15 @@ describe('1 · quem é o sujeito da análise é ENTRADA, nunca saída', () => {
   const compartilhado = ler(`${FUNCOES}/_diagnostico.js`)
 
   it('o diagnóstico manda o domínio ao modelo', () => {
-    expect(bg).toMatch(/alvoDoDiagnostico\(alvo\)/)
-    expect(bg).toMatch(/instrucaoDeIdentidade\(alvo\)/)
+    // Recorte na MENSAGEM, não no arquivo. A varredura de mutação pegou este
+    // teste enfraquecendo sozinho: quando o rastreio de custo passou a usar
+    // `alvoDoDiagnostico(alvo)` numa segunda linha (o campo `operacao`),
+    // apagar a chamada da MENSAGEM deixou de ficar vermelho — a outra linha
+    // satisfazia o casamento. Teste que casa o arquivo inteiro apodrece assim,
+    // sem ninguém mexer nele.
+    const msg = bg.slice(bg.indexOf('const msgText'), bg.indexOf('const userName'))
+    expect(msg).toMatch(/alvoDoDiagnostico\(alvo\)/)
+    expect(msg).toMatch(/instrucaoDeIdentidade\(alvo\)/)
   })
 
   it('o diagnóstico NÃO grava a empresa que o modelo devolveu', () => {

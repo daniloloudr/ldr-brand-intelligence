@@ -92,6 +92,7 @@ export const handler = async (event) => {
       maxTokens: 1200,
       system: SYSTEM,
       messages: [{ role: 'user', content: `Intenção do usuário:\n${prompt.trim()}` }],
+      supabase, tag: 'studio', workspace_id: brand.workspace_id,
     })
     const json = (text || '').replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
     graph = JSON.parse(json)
