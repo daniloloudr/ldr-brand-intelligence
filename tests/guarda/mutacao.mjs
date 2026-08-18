@@ -93,6 +93,10 @@ const MUTACOES = [
     de: ".eq('workspace_id', workspace.id).eq('ativo', true)",
     para: ".eq('workspace_id', workspace.id)" },
 
+  { nome: 'modal volta a ficar transparente (token em CSS cru)',
+    arq: 'src/pages/AppInterno.jsx',
+    de: "bgcolor: 'background.paper', border: 1", para: "background: 'background.paper', border: 1" },
+
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",

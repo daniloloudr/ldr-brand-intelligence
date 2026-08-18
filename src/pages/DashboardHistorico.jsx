@@ -31,7 +31,7 @@ function SectionTitle({ children }) {
 function PanelCard({ children, style = {} }) {
   return (
     <Box sx={{
-      background: 'background.paper', border: 1, borderColor: 'divider',
+      bgcolor: 'background.paper', border: 1, borderColor: 'divider',
        padding: "18px 20px",
       boxShadow: `0 1px 4px transparent`,
       ...style,

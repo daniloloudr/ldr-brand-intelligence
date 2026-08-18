@@ -96,3 +96,27 @@ describe('não existe leitura anônima de diagnóstico', () => {
     expect(pub).not.toMatch(/Relatório não encontrado ou acesso negado/)
   })
 })
+
+// (mantido neste arquivo por ser a mesma família: coisa que o usuário VÊ e que
+// quebrou sem ninguém notar)
+describe('token de tema não vai para propriedade CSS crua', () => {
+  it('nenhum `background:` recebe caminho de paleta', () => {
+    // No sx do MUI, `background` é CSS cru — `background: 'background.paper'`
+    // vira literalmente isso no CSS, é inválido, e o elemento fica
+    // TRANSPARENTE. Foi assim que o modal de criar workspace virou vidro: dava
+    // para ler a lista atrás dele. 17 ocorrências, todas do mesmo commit de
+    // relançamento (d7852fb) que também produziu o espaçamento sub-pixel.
+    //
+    // `bgcolor`, `borderColor` e `color` SÃO props do sistema e resolvem token.
+    const rx = /\bbackground: *'(background|primary|secondary|error|warning|info|success|text|action|divider|grey)\./
+    const arquivos = []
+    const anda = (dir) => {
+      for (const f of readdirSync(dir, { withFileTypes: true })) {
+        if (f.isDirectory()) anda(`${dir}/${f.name}`)
+        else if (/\.jsx?$/.test(f.name) && rx.test(readFileSync(`${dir}/${f.name}`, 'utf8'))) arquivos.push(`${dir}/${f.name}`)
+      }
+    }
+    anda('src')
+    expect(arquivos).toEqual([])
+  })
+})
