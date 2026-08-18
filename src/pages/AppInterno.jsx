@@ -543,7 +543,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
                 ) : (
                   solicitacoes.map(sol => (
                     <Box key={sol.id} sx={{
-                      background: 'background.paper', border: 1, borderColor: 'divider',
+                      bgcolor: 'background.paper', border: 1, borderColor: 'divider',
                        padding: "16px 20px", marginBottom: '10px',
                       boxShadow: `0 1px 4px transparent`,
                     }}>
@@ -835,7 +835,7 @@ function CustosAdmin() {
   const brl = n => "R$ " + brlFromCredits(n).toFixed(2).replace(".", ",");
   const usd = n => "US$ " + usdFromCredits(n).toFixed(2);
 
-  const card = { background: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 12 };
+  const card = { bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 12 };
 
   if (loading) return <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled' }}>Carregando…</Box>;
 
@@ -985,7 +985,7 @@ function CerebrosAdmin() {
   }
 
   const pctFmt  = n => (n == null ? "—" : `${Math.round(n * 100)}%`);
-  const card = { background: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 12 };
+  const card = { bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 12 };
 
   if (loading) return <Box sx={{ textAlign: "center", padding: "3rem", color: 'text.disabled' }}>Carregando…</Box>;
 
@@ -1398,7 +1398,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     if (membersMap[showCreateUser.id]) { setMembersMap(m => ({ ...m, [showCreateUser.id]: undefined })); }
   }
 
-  const inp      = { fontSize: 13, color: 'text.primary', background: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
+  const inp      = { fontSize: 13, color: 'text.primary', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 8, padding: '8px 12px', width: '100%', boxSizing: 'border-box', outline: 'none' };
   const inpSm    = { ...inp, padding: '4px 8px', width: 'auto', fontSize: 11 };
   const btn      = (color = PALETTE.data.positivo) => ({ background: color, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer' });
   const btnGhost = { background: 'none', border: 1, borderColor: 'divider', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'text.secondary', cursor: 'pointer' };
@@ -1422,7 +1422,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
 
         return (
           <Box key={ws.id} sx={{
-            background: 'background.paper', border: `1px solid ${inativo ? 'divider' : 'divider'}`,
+            bgcolor: 'background.paper', border: `1px solid ${inativo ? 'divider' : 'divider'}`,
              marginBottom: '10px', opacity: inativo ? 0.6 : 1,
             overflow: 'hidden',
           }}>
@@ -1595,7 +1595,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {members.map(m => (
-                      <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', background: 'background.paper',  border: 1, borderColor: 'divider' }}>
+                      <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', bgcolor: 'background.paper',  border: 1, borderColor: 'divider' }}>
                         <Box sx={{ width: 28, height: 28, borderRadius: '50%', background: PALETTE.data.positivo + '33', color: PALETTE.data.positivo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>
                           {(m.nome || m.email || '?').charAt(0).toUpperCase()}
                         </Box>
@@ -1630,7 +1630,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
       {/* Modal criar workspace */}
       {showCreate && (
         <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
             <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '20px' }}>Criar workspace</Box>
             {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
             <Box component="form" onSubmit={handleCreate} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
@@ -1682,7 +1682,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
       {/* Modal configurar cobrança */}
       {showConfig && (
         <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
             <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Configurar · {showConfig.nome}</Box>
             <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>Define os créditos/mês e o valor do contrato. Salvar recompõe o saldo do mês para o novo pool e reinicia o ciclo.</Box>
             {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
@@ -1714,7 +1714,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
       {/* Modal convidar cliente */}
       {showInvite && (
         <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 400 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 400 }}>
             <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Convidar para {showInvite.nome}</Box>
             <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>O cliente receberá um e-mail com link para definir senha e acessar o workspace.</Box>
             {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
@@ -1732,7 +1732,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
       {/* Modal criar acesso (nome + email + senha) */}
       {showCreateUser && (
         <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <Box sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 420 }}>
             <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Criar acesso · {showCreateUser.nome}</Box>
             <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>Cria o login direto, com senha temporária. Sem email de confirmação — entregue as credenciais ao cliente. No primeiro acesso ele será obrigado a definir a senha pessoal.</Box>
             {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}

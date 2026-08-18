@@ -43,7 +43,7 @@ function SkeletonLine({ width = "100%", height = 12, sx = {} }) {
 
 function RateLimitView({ countdown, attempt }) {
   return (
-    <Box sx={{ background: 'background.paper',  padding: "28px 32px", border: `1px solid ${PALETTE.data.atencao}` }}>
+    <Box sx={{ bgcolor: 'background.paper',  padding: "28px 32px", border: `1px solid ${PALETTE.data.atencao}` }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: '10px', marginBottom: '12px' }}>
         <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: PALETTE.data.atencao, animation: "pulse 1s infinite" }} />
         <Box sx={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: PALETTE.data.atencao, textTransform: "uppercase" }}>
@@ -85,7 +85,7 @@ function SkeletonReport({ elapsed, tokenCount }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: '10px', animation: "fu 0.5s ease both" }}>
       {/* Generating indicator */}
-      <Box sx={{ background: 'background.default',  padding: "22px 26px" }}>
+      <Box sx={{ bgcolor: 'background.default',  padding: "22px 26px" }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '16px' }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: '8px' }}>
             <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: PALETTE.data.positivo, animation: "pulse 1.2s infinite" }} />
@@ -123,7 +123,7 @@ function SkeletonReport({ elapsed, tokenCount }) {
       {/* Practices grid skeleton */}
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: '10px' }}>
         {PRACTICE_COLORS.map((color, i) => (
-          <Box key={i} sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: "16px 18px", borderTop: `3px solid ${color}`, animation: `fu 0.4s ${i * 0.07}s ease both` }}>
+          <Box key={i} sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: "16px 18px", borderTop: `3px solid ${color}`, animation: `fu 0.4s ${i * 0.07}s ease both` }}>
             <SkeletonLine width="65%" height={13} sx={{ marginBottom: 10 }} />
             <SkeletonLine width="100%" height={9} sx={{ marginBottom: 5 }} />
             <SkeletonLine width="80%" height={9} sx={{ marginBottom: 14 }} />
@@ -135,7 +135,7 @@ function SkeletonReport({ elapsed, tokenCount }) {
       {/* Scores skeleton */}
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: '10px' }}>
         {[0, 1, 2].map(i => (
-          <Box key={i} sx={{ background: 'background.paper', border: 1, borderColor: 'divider',  padding: "16px 18px", animation: `fu 0.4s ${0.28 + i * 0.07}s ease both` }}>
+          <Box key={i} sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: "16px 18px", animation: `fu 0.4s ${0.28 + i * 0.07}s ease both` }}>
             <SkeletonLine width="55%" height={11} sx={{ marginBottom: 10 }} />
             <SkeletonLine width="100%" height={5} />
           </Box>
@@ -148,7 +148,7 @@ function SkeletonReport({ elapsed, tokenCount }) {
 function PartialDataPreview({ data }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: '10px', animation: "fu 0.5s ease both" }}>
-      <Box sx={{ background: 'background.default',  padding: "22px 26px" }}>
+      <Box sx={{ bgcolor: 'background.default',  padding: "22px 26px" }}>
         <Box sx={{ fontSize: 22, fontWeight: 900, color: 'text.primary', marginBottom: '4px' }}>
           {data.empresa}
         </Box>
@@ -244,7 +244,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
     <Box>
 
       {/* ── Status header ── */}
-      <Box sx={{ background: 'background.default',  padding: "28px 32px", marginBottom: '14px', position: "relative", overflow: "hidden", border: 1, borderColor: 'divider' }}>
+      <Box sx={{ bgcolor: 'background.default',  padding: "28px 32px", marginBottom: '14px', position: "relative", overflow: "hidden", border: 1, borderColor: 'divider' }}>
         <Box sx={{ position: "absolute", right: -40, top: -40, width: 200, height: 200, borderRadius: "50%", background: PALETTE.data.positivo, opacity: 0.04 }} />
 
         {/* Phase label + elapsed */}
