@@ -476,6 +476,9 @@ export const handler = async (event) => {
     nome:       nomeArquivo,
     descricao:  `Manual da marca — origem do smartbrand (lido em ${new Date().toLocaleDateString('pt-BR')})`,
     valor:      '',
+    // Pasta própria: entre 15 referências, o documento de origem não pode ser
+    // só mais um card. É por ele que se confere tudo o que a extração afirmou.
+    pasta:      'Manual da marca',
     file_path,
     mime_type:  'application/pdf',
     size_bytes: fileData.size || null,
