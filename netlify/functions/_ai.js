@@ -181,9 +181,18 @@ export async function callAI({
       }
 
       const data = await resp.json()
-      const text = data.content?.find(b => b.type === 'text')?.text || ''
+      // Concatena TODOS os blocos de texto. Era `.find(...)`, que pegava só o
+      // primeiro — invisível em resposta comum (bloco único), mas com busca web
+      // a resposta vem picada em dezenas de blocos entre as buscas, e o
+      // chamador recebia o primeiro fragmento como se fosse a resposta inteira.
+      const blocos = Array.isArray(data.content) ? data.content : []
+      const text = blocos.filter(b => b.type === 'text').map(b => b.text || '').join('')
       await logAiUsage(supabase, { model: body.model, usage: data.usage, tag })
-      return { text, usage: data.usage }
+      // `content` cru sai junto: quem usa busca web precisa dos blocos
+      // `web_search_tool_result` (URL e título vindos do índice) e das
+      // `citations` (trecho verbatim da página). Sem isso, só resta a prosa do
+      // modelo — e foi ler só a prosa que fez a escuta gravar link inventado.
+      return { text, content: blocos, stop_reason: data.stop_reason, usage: data.usage }
     } catch (e) {
       if (e.name === 'AbortError') throw new AIError(`Timeout após ${Math.round(timeoutMs / 1000)}s`, 408)
       if (e instanceof AIError) throw e
