@@ -16,9 +16,28 @@ const ANTHROPIC_VERSION = '2023-06-01'
 export const MODELS = {
   fast:   'claude-haiku-4-5-20251001',  // barato, sem web_search — dev / tarefas simples
   medium: 'claude-sonnet-4-5',          // sonnet rápido — dev, onde vale o teto de 30s do netlify-cli
-  smart:  'claude-sonnet-5',            // capacidade cheia + web_search — produção
+  smart:  'claude-sonnet-4-6',          // capacidade cheia + web_search — produção
   opus:   'claude-opus-5',              // máxima qualidade — extração de manuais, análises sensíveis
 }
+
+// Reserva: entra quando o principal FALHA, nunca em condição normal.
+//
+// A escolha do 4-6 como principal e do 5 como reserva foi medida, não achada
+// (A/B de 4 rodadas no diagnóstico da Pixel, 18/08): os dois acertam a empresa,
+// tempo empata, e o 5 custa 2,6× (US$ 1,20 contra US$ 0,48 por diagnóstico)
+// porque faz raciocínio adaptativo. O 5 é mais consistente entre rodadas — por
+// isso é a reserva boa, não uma reserva pior.
+export const MODELS_RESERVA = {
+  'claude-sonnet-4-6': 'claude-sonnet-5',
+  'claude-sonnet-4-5': 'claude-sonnet-5',
+  'claude-opus-5':     'claude-opus-4-7',
+  'claude-haiku-4-5-20251001': 'claude-sonnet-4-6',
+}
+
+// Falhas em que trocar de modelo pode ajudar: capacidade, indisponibilidade e
+// timeout. NÃO inclui 400 nem 401 — pedido malformado ou chave errada falham
+// igual no outro modelo, e repetir só queima tempo e dinheiro.
+export const valeTentarReserva = (status) => [429, 500, 502, 503, 504, 529, 408].includes(Number(status))
 
 export const TOOLS = {
   // max_uses limita o loop agêntico de busca — sem isso a chamada não-streaming
@@ -84,16 +103,18 @@ export function aiConfig(tier = 'standard') {
   // caractere de texto. O raciocínio fica — é ele que desambigua homônimo, que
   // é exatamente o problema desta marca — mas com espaço para escrever depois.
   if (tier === 'premium') return {
-    model:      MODELS.smart,
-    maxTokens:  32000,
+    model:         MODELS.smart,
+    modeloReserva: MODELS_RESERVA[MODELS.smart],
+    maxTokens:     32000,
     tools:      [TOOLS.webSearch],
     retries:    1,
     retryDelay: 5000,
   }
   // 'standard' — default
   return {
-    model:      dev ? MODELS.medium : MODELS.smart,
-    maxTokens:  dev ? 5000 : 6000,
+    model:         dev ? MODELS.medium : MODELS.smart,
+    modeloReserva: MODELS_RESERVA[dev ? MODELS.medium : MODELS.smart],
+    maxTokens:     dev ? 5000 : 6000,
     tools:      dev ? undefined : [TOOLS.webSearch],
     retries:    1,
     retryDelay: dev ? 2000 : 5000,
@@ -158,6 +179,7 @@ export async function callAI({
   messages,
   system,
   model,
+  modeloReserva,   // entra se o principal falhar por capacidade/indisponibilidade
   tools,
   maxTokens    = 1024,
   apiKey,
@@ -169,8 +191,10 @@ export async function callAI({
 }) {
   requireApiKey(apiKey)
 
+  let modeloAtual = model || MODELS.smart
+  let usouReserva = false
   const body = {
-    model:      model || MODELS.smart,
+    model:      modeloAtual,
     max_tokens: maxTokens,
     messages,
     ...(system        ? { system: cachedSystem(system) } : {}),
@@ -196,6 +220,17 @@ export async function callAI({
         const err = await resp.json().catch(() => ({}))
         const msg = err?.error?.message || `HTTP ${resp.status}`
         if (await alertIfBalanceError('anthropic', resp.status, msg)) throw new AIError(MSG_INSTABILIDADE, 503)
+        // Reserva: uma vez só, e só em falha que trocar de modelo resolve.
+        // Sobrecarga do modelo principal não pode derrubar o diagnóstico do
+        // cliente se existe outro capaz de atender.
+        if (modeloReserva && !usouReserva && valeTentarReserva(resp.status)) {
+          usouReserva = true
+          console.warn(`[ai] ${modeloAtual} falhou (${resp.status}) — indo para a reserva ${modeloReserva}`)
+          modeloAtual = modeloReserva
+          body.model  = modeloReserva
+          attempt = -1   // o laço incrementa: a reserva ganha o ciclo completo de tentativas
+          continue
+        }
         throw new AIError(msg, resp.status)
       }
 
@@ -207,6 +242,7 @@ export async function callAI({
       const blocos = Array.isArray(data.content) ? data.content : []
       const text = blocos.filter(b => b.type === 'text').map(b => b.text || '').join('')
       await logAiUsage(supabase, { model: body.model, usage: data.usage, tag })
+      if (usouReserva) console.warn(`[ai] respondido pela reserva ${modeloAtual}`)
       // `content` cru sai junto: quem usa busca web precisa dos blocos
       // `web_search_tool_result` (URL e título vindos do índice) e das
       // `citations` (trecho verbatim da página). Sem isso, só resta a prosa do
@@ -241,6 +277,7 @@ export async function streamAI({
   messages,
   system,
   model,
+  modeloReserva,   // entra se o principal falhar por capacidade/indisponibilidade
   tools,
   maxTokens = 4000,
   apiKey,
@@ -251,6 +288,9 @@ export async function streamAI({
 }) {
   requireApiKey(apiKey)
 
+  // O stream é de uma passada só — não dá para "continuar" no meio. A reserva
+  // aqui é uma REEXECUÇÃO limpa com o outro modelo, feita uma vez.
+  const tentar = async (modeloAlvo) => {
   const controller = idleMs ? new AbortController() : null
   let timer = null
   const resetIdle = () => {
@@ -267,7 +307,7 @@ export async function streamAI({
       method:  'POST',
       headers: anthropicHeaders(apiKey),
       body:    JSON.stringify({
-        model:      model || MODELS.smart,
+        model:      modeloAlvo,
         max_tokens: maxTokens,
         stream:     true,
         messages,
@@ -344,6 +384,16 @@ export async function streamAI({
     throw new AIError(`O modelo não devolveu texto (stop_reason: ${stopReason || 'desconhecido'})`, 502)
   }
   return fullText
+  }
+
+  const principal = model || MODELS.smart
+  try {
+    return await tentar(principal)
+  } catch (e) {
+    if (!modeloReserva || !valeTentarReserva(e.status)) throw e
+    console.warn(`[ai] stream de ${principal} falhou (${e.status}) — reexecutando na reserva ${modeloReserva}`)
+    return tentar(modeloReserva)
+  }
 }
 
 /**

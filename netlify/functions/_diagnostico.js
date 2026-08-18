@@ -15,7 +15,7 @@ const MAX_ATTEMPTS = 2
 // envenena o sinal competitivo do cérebro, que é permanente.
 export async function gerarDiagnostico(alvo, contexto) {
   const sujeito = typeof alvo === 'string' ? { nome: alvo } : (alvo || {})
-  const { model, tools, maxTokens } = aiConfig('premium')
+  const { model, modeloReserva, tools, maxTokens } = aiConfig('premium')
   const msg = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(sujeito)}".`
     + `${contexto ? `\nContexto: ${contexto}` : ''}`
     + instrucaoDeIdentidade(sujeito)
@@ -26,7 +26,7 @@ export async function gerarDiagnostico(alvo, contexto) {
       const text = await streamAI({
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msg }],
-        model, tools, maxTokens,
+        model, modeloReserva, tools, maxTokens,
         idleMs: 120000, // 2 min sem chunk = stream morto
       })
       const parsed = extractJSON(text)

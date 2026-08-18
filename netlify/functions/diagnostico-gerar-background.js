@@ -90,7 +90,7 @@ export const handler = async (event) => {
   // ao sair da Lambda em prod (funcionava no localhost por não ter teto). Streaming
   // mantém a conexão viva com eventos → não pendura. idleMs corta só um stream que
   // parou de responder (não um saudável que flui). 2 tentativas p/ drops transitórios.
-  const { model, tools, maxTokens } = aiConfig('premium')
+  const { model, modeloReserva, tools, maxTokens } = aiConfig('premium')
   const MAX_ATTEMPTS = 2
   let parsed = null
   let lastErr = ''
@@ -99,7 +99,7 @@ export const handler = async (event) => {
       const text = await streamAI({
         system:   SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msgText }],
-        model, tools, maxTokens,
+        model, modeloReserva, tools, maxTokens,
         idleMs:   120000,   // 2 min sem NENHUM chunk (pings inclusos) = stream morto
       })
       const p = extractJSON(text)

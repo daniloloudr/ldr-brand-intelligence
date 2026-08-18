@@ -137,3 +137,52 @@ describe('4 · varredura do núcleo — nenhuma função nova pode reintroduzir 
     expect(semGuarda).toEqual([])
   })
 })
+
+describe('5 · a reserva de modelo existe E está ligada', () => {
+  const ai = ler(`${FUNCOES}/_ai.js`)
+
+  it('o principal é o 4-6 e a reserva é o 5', async () => {
+    // Escolha medida, não achada: A/B de 4 rodadas no caso Pixel (18/08). Os
+    // dois acertam a empresa, o tempo empata, e o 5 custa 2,6× por fazer
+    // raciocínio adaptativo. Ele vira a reserva justamente por ser bom.
+    const { MODELS, MODELS_RESERVA } = await import('../netlify/functions/_ai.js')
+    expect(MODELS.smart).toBe('claude-sonnet-4-6')
+    expect(MODELS_RESERVA[MODELS.smart]).toBe('claude-sonnet-5')
+  })
+
+  it('só troca de modelo em falha que trocar resolve', async () => {
+    const { valeTentarReserva } = await import('../netlify/functions/_ai.js')
+    // Capacidade, indisponibilidade, timeout: vale.
+    for (const s of [429, 500, 502, 503, 504, 529, 408]) expect(valeTentarReserva(s)).toBe(true)
+    // Pedido malformado e chave errada falham igual no outro modelo — repetir
+    // só queima tempo e dinheiro, e mascara o erro real.
+    for (const s of [400, 401, 403, 404, 413, 422]) expect(valeTentarReserva(s)).toBe(false)
+  })
+
+  it('os dois caminhos de chamada aceitam reserva', () => {
+    const callAI   = ai.slice(ai.indexOf('export async function callAI'), ai.indexOf('export async function streamAI'))
+    const streamAI = ai.slice(ai.indexOf('export async function streamAI'))
+    expect(callAI).toMatch(/modeloReserva/)
+    expect(streamAI).toMatch(/modeloReserva/)
+  })
+
+  it('reserva não usada é reserva que não existe — os chamadores passam', () => {
+    // O defeito clássico de fallback: implementado e nunca ligado.
+    //
+    // A varredura de mutação reprovou a primeira versão deste teste: eu casava
+    // `model, modeloReserva, tools, maxTokens` no arquivo inteiro, e a linha da
+    // DESESTRUTURAÇÃO já satisfazia isso — apagar o argumento da CHAMADA passava
+    // despercebido. Agora o recorte é a chamada do streamAI, e só ela.
+    for (const f of ['_diagnostico.js', 'diagnostico-gerar-background.js']) {
+      const src = ler(`${FUNCOES}/${f}`)
+      const i = src.indexOf('streamAI({')
+      expect(i, `${f}: não achei a chamada do streamAI`).toBeGreaterThan(0)
+      const chamada = src.slice(i, src.indexOf('})', i))
+      expect(chamada, `${f}: a chamada do streamAI não recebe modeloReserva`).toMatch(/modeloReserva/)
+    }
+  })
+
+  it('a reserva entra UMA vez, não em laço infinito', () => {
+    expect(ai).toMatch(/!usouReserva/)
+  })
+})

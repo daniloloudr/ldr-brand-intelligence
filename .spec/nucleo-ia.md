@@ -69,6 +69,32 @@ Pedir o link ao modelo é pedir um link plausível. A URL sai do bloco
 `web_search_tool_result`; o trecho sai da `citation` verbatim. Quem classifica
 roda **sem ferramenta de busca** — não pode trazer o que a busca não trouxe.
 
+## Escolha de modelo — medida, não achada
+
+A/B de 4 rodadas no caso difícil (Pixel, nome ambíguo), 18/08/2026:
+
+| | identidade | tempo | pensou | US$/diagnóstico |
+|---|---|---|---|---|
+| sonnet-4-6 (×2) | ✅ ✅ | 254s / 299s | 0 | **0,454 / 0,501** |
+| sonnet-5 (×2) | ✅ ✅ | 267s / 337s | 9.429 / 12.427 | **1,287 / 1,142** |
+
+Os dois acertam a empresa — quem resolveu a Pixel foi a guarda de identidade,
+não o modelo. O 5 custa 2,6× por fazer raciocínio adaptativo, e é mais
+consistente entre rodadas (as duas convergiram no mesmo enquadramento; as do 4-6
+divergiram). Por isso: **4-6 principal, 5 como reserva** — a reserva é melhor,
+não pior, e só é cara quando é usada.
+
+Ressalva registrada: n=2 por modelo é indício, não prova.
+
+`MODELS_RESERVA` mapeia principal → reserva. `valeTentarReserva(status)` limita
+a troca a 429/500/502/503/504/529/408 — capacidade, indisponibilidade e timeout.
+400 e 401 ficam de fora: pedido malformado e chave errada falham igual no outro
+modelo, e repetir mascara o erro real.
+
+**Reserva não ligada é reserva que não existe.** Os chamadores precisam repassar
+`modeloReserva`; há teste e mutação para isso, porque a primeira versão do teste
+passou despercebida por casar com a linha da desestruturação em vez da chamada.
+
 ## Antes de qualquer deploy que toque o núcleo
 
 ```

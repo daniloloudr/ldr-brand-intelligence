@@ -50,6 +50,19 @@ const MUTACOES = [
     arq: 'netlify/functions/_identidade.js',
     de: "const n = (p.length >= 3 && SLD.has(p[p.length - 2])) ? 3 : 2", para: 'const n = 2' },
 
+  { nome: 'reserva de modelo implementada mas não ligada',
+    arq: 'netlify/functions/diagnostico-gerar-background.js',
+    de: 'model, modeloReserva, tools, maxTokens,', para: 'model, tools, maxTokens,' },
+
+  { nome: 'reserva dispara em erro que ela não resolve (400)',
+    arq: 'netlify/functions/_ai.js',
+    de: 'export const valeTentarReserva = (status) => [429, 500, 502, 503, 504, 529, 408].includes(Number(status))',
+    para: 'export const valeTentarReserva = () => true' },
+
+  { nome: 'volta ao sonnet-5 como principal (2,6x o custo)',
+    arq: 'netlify/functions/_ai.js',
+    de: "  smart:  'claude-sonnet-4-6',", para: "  smart:  'claude-sonnet-5'," },
+
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",
