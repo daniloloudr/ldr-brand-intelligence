@@ -59,6 +59,22 @@ const keyframes = {
   '@keyframes fadeUp':   { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'none' } },
   '@keyframes pulse':    { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
   '@keyframes blink':    { '0%,100%': { opacity: 1 }, '50%': { opacity: 0 } },
+  // Campo apontado por uma pendência: o amarelo de aviso do MUI em volta, com
+  // duas pulsadas e para. Fica destacado até a pessoa sair da tela — piscar
+  // para sempre vira ruído e ela para de ver.
+  '@keyframes focoCampo': {
+    '0%':   { boxShadow: '0 0 0 0 rgba(237,108,2,.45)' },
+    '70%':  { boxShadow: '0 0 0 10px rgba(237,108,2,0)' },
+    '100%': { boxShadow: '0 0 0 0 rgba(237,108,2,0)' },
+  },
+  '.campo-em-foco': {
+    outline: '2px solid',
+    outlineColor: amber[800],
+    outlineOffset: 6,
+    borderRadius: 8,
+    animation: 'focoCampo 1.5s ease 2',
+    scrollMarginTop: 96,
+  },
   '@keyframes checkPop': { '0%': { transform: 'scale(0)', opacity: 0 }, '65%': { transform: 'scale(1.25)' }, '100%': { transform: 'scale(1)', opacity: 1 } },
   '.a0': { animation: 'fu .38s ease both' },
   '.a1': { animation: 'fu .38s .06s ease both' },
@@ -94,10 +110,16 @@ function makeTheme(mode) {
         // Sobre verde, o que vai por cima é sempre PRETO (brand.md §03)
         contrastText: MARCA.preto,
       },
-      success: { main: PALETTE.data.positivo, light: PALETTE.data.positivoFraco },
-      warning: { main: PALETTE.data.atencao,  light: PALETTE.data.atencaoFraco },
-      error:   { main: PALETTE.data.critico,  light: PALETTE.data.criticoFraco },
-      info:    { main: PALETTE.data.info,     light: PALETTE.data.infoFraco },
+      // Só `main`. NÃO defina `light` aqui: o Alert padrão do MUI deriva o fundo
+      // e o texto dele (clareia 0.9 para o fundo, escurece 0.6 para o texto).
+      // Apontar `light` para os tons *Fraco* (amber[50], red[50]…), que já são
+      // quase brancos, produzia alerta branco com texto sem contraste — quase
+      // invisível. Os tons Fraco continuam disponíveis em PALETTE.data para uso
+      // deliberado como fundo; eles não são o `light` da paleta.
+      success: { main: PALETTE.data.positivo },
+      warning: { main: PALETTE.data.atencao  },
+      error:   { main: PALETTE.data.critico  },
+      info:    { main: PALETTE.data.info     },
       background: {
         default: claro ? MARCA.branco : MARCA.preto,
         paper:   claro ? MARCA.branco : '#0D0D0D',

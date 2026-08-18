@@ -16,6 +16,8 @@ import { supabase } from '../../lib/supabase'
 import { PLANOS } from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
 import { useBrandManualJobs } from '../../lib/useBrandManualJobs'
+import { usePendencias } from '../../lib/usePendencias'
+import { marcarFoco } from '../../lib/pendencias'
 import { AppLayout } from '../../components/shell/AppLayout'
 // Páginas carregadas sob demanda (code-splitting por rota) — cada uma vira um chunk
 // separado, fora do bundle principal. Named exports → mapeados p/ default no lazy.
@@ -112,6 +114,9 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   // resolveu ainda).
   const [brandId, setBrandId] = useState(null)
   const [brandResolved, setBrandResolved] = useState(false)
+  // O que falta na marca também é notificação — a pessoa olha o sininho, não a
+  // pasta de referências.
+  const pendentes = usePendencias(brandId)
   useEffect(() => {
     if (!workspace?.id) return
     setBrandResolved(false)
@@ -295,8 +300,8 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       onLogout={onLogout}
       userMenu={USER_MENU}
       topBanner={topBanner}
-      bellCount={processing}
-      bellContent={({ close }) => renderBellContent(jobs, close)}
+      bellCount={processing + pendentes.length}
+      bellContent={({ close }) => renderBellContent(jobs, pendentes, brandId, close)}
     >
       <ErrorBoundary key={route}>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}><CircularProgress /></Box>}>
@@ -307,20 +312,52 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   )
 }
 
-function renderBellContent(jobs, close) {
+function renderBellContent(jobs, pendentes, brandId, close) {
+  // Mesmas cores das severidades do Alert (error/warning/info): a lista do
+  // sininho e o alerta da tela de destino falam do mesmo item — cor diferente
+  // faria parecer coisa diferente.
+  const COR_SEV = { alta: 'error.main', media: 'warning.main', baixa: 'info.main' }
+  const total = jobs.length + pendentes.length
   return (
     <Box>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography sx={{ fontWeight: 900, fontSize: 14 }}>Notificações</Typography>
-        {jobs.length > 0 && (
-          <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 700 }}>{jobs.length}</Typography>
+        {total > 0 && (
+          <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 700 }}>{total}</Typography>
         )}
       </Box>
-      {jobs.length === 0 ? (
-        <Box sx={{ p: 4, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Sem notificações.</Typography>
+
+      {/* O que falta na marca. Fica ACIMA do andamento: andamento passa
+          sozinho, pendência só sai quando alguém age. */}
+      {pendentes.length > 0 && (
+        <Box sx={{ borderBottom: jobs.length ? 1 : 0, borderColor: 'divider' }}>
+          {pendentes.map(p => (
+            <Box key={p.id}
+              onClick={() => {
+                // A instrução viaja junto: quem chega precisa reencontrar o
+                // motivo de ter vindo.
+                marcarFoco(p)
+                if (p.destino.bibliotecaRoot) sessionStorage.setItem('biblioteca_root', p.destino.bibliotecaRoot)
+                close?.()
+                navigate(`/app/brands/${brandId}/${p.destino.secao}`)
+              }}
+              sx={{ px: 2, py: 1.5, display: 'flex', gap: 1.25, alignItems: 'flex-start',
+                cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: COR_SEV[p.severidade], mt: 0.9, flexShrink: 0 }} />
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{p.titulo}</Typography>
+                <Typography sx={{ fontSize: 11.5, color: 'text.secondary', lineHeight: 1.5, mt: 0.25 }}>{p.porque}</Typography>
+              </Box>
+            </Box>
+          ))}
         </Box>
-      ) : (
+      )}
+
+      {total === 0 ? (
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Nada pendente — a marca está completa.</Typography>
+        </Box>
+      ) : jobs.length === 0 ? null : (
         <Box sx={{ overflowY: 'auto', maxHeight: 420 }}>
           {jobs.map((j, i) => {
             const isProcessing = j.status === 'processing'

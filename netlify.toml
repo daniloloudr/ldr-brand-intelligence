@@ -34,6 +34,12 @@
 [functions."cron-watchdog"]
   schedule = "30 * * * *"
 
+# Setup de marca: avança o pipeline de onboarding sem depender da aba do admin.
+# De minuto em minuto porque o processo inteiro leva ~1h e a latência entre
+# etapas não importa — o que importa é que ande sozinho.
+[functions."onboard-cron"]
+  schedule = "* * * * *"
+
 [functions."diagnostico-gerar"]
   timeout = 120
 

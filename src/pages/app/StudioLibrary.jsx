@@ -24,8 +24,14 @@ import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBook
 import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
+import Alert from '@mui/material/Alert'
+import AlertTitle from '@mui/material/AlertTitle'
 import { supabase } from '../../lib/supabase'
+import { pendencias, resumoPendencias } from '../../lib/pendencias'
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { FocoPendencia } from '../../components/shell/FocoPendencia'
 import { PALETTE } from '../../lib/theme'
 
 const TEAL = PALETTE.data.positivo
@@ -36,6 +42,8 @@ const TIPOS_BIBLIOTECA = ['logo', 'foto', 'video', 'icone', 'padrao', 'documento
 const TIPOS_REFERENCIA = ['logo', 'icone', 'padrao', 'documento']
 
 const isUrl   = v => /^https?:\/\//i.test(v || '')
+// Baixável = tem URL pública OU mora num bucket privado (URL assinada na hora)
+const baixavel = a => isUrl(a.full || a.valor) || !!(a.metadata?.bucket && a.file_path)
 const isVideo = a => a.tipo === 'video' || (a.mime_type || '').startsWith('video/')
 // Referência = o cliente subiu como identidade OU marcou como referência
 const isReferencia = a => TIPOS_REFERENCIA.includes(a.tipo) || a.metadata?.reference === true
@@ -48,6 +56,51 @@ const ROOTS = [
   { id: 'referencias', label: 'Referências da marca', Icon: CollectionsBookmarkOutlinedIcon, desc: 'o que É a marca — logos, padrões e referências curadas' },
   { id: 'campanhas',   label: 'Campanhas',            Icon: CampaignOutlinedIcon,            desc: 'dossiês de campanha' },
 ]
+
+// O que falta, dito onde dá para resolver.
+//
+// Um Alert nativo por pendência, com a severidade fazendo o trabalho: ela já
+// traz o ícone e a paleta certos, e `action` põe o botão à direita — é o padrão
+// do MUI, não um painel desenhado à mão que imita alerta com bolinha colorida.
+//
+// Não é modal e não é toast: pendência não tem prazo e não bloqueia nada, então
+// aparecer quando a pessoa abre a pasta é lembrete; interromper o que ela veio
+// fazer seria cobrança. Dá para recolher, e o estado fica por marca.
+const SEVERIDADE = { alta: 'error', media: 'warning', baixa: 'info' }
+
+function PainelPendencias({ itens, brandId, onSubir }) {
+  const chave = `pendencias_abertas_${brandId}`
+  const [aberto, setAberto] = useState(() => localStorage.getItem(chave) !== 'nao')
+  const alternar = () => {
+    setAberto(v => { localStorage.setItem(chave, v ? 'nao' : 'sim'); return !v })
+  }
+  if (!itens.length) return null
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: 14, flex: 1 }}>
+          {resumoPendencias(itens)}
+        </Typography>
+        <Button size="small" onClick={alternar} sx={{ fontWeight: 700, fontSize: 11.5 }}>
+          {aberto ? 'recolher' : 'ver'}
+        </Button>
+      </Stack>
+
+      {aberto && (
+        <Stack spacing={1.5}>
+          {itens.map(p => (
+            <Alert key={p.id} severity={SEVERIDADE[p.severidade] || 'info'}
+              action={<Button color="inherit" size="small" onClick={onSubir} sx={{ fontWeight: 700 }}>{p.acao}</Button>}>
+              <AlertTitle>{p.titulo}</AlertTitle>
+              {p.porque}
+            </Alert>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  )
+}
 
 function AssetPreview({ a }) {
   if (isUrl(a.valor)) {
@@ -62,6 +115,38 @@ function AssetPreview({ a }) {
     <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2,
       '& svg': { maxWidth: '100%', maxHeight: '100%' } }} dangerouslySetInnerHTML={{ __html: a.valor.slice(a.valor.indexOf('<svg')) }} />
   )
+  // Arquivo em bucket privado (o manual): não tem URL para miniatura, mas tem
+  // identidade — mostra o que é e o peso, não um ícone anônimo.
+  if (a.metadata?.bucket && a.file_path) return (
+    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 0.75, p: 2, textAlign: 'center' }}>
+      <PictureAsPdfOutlinedIcon sx={{ fontSize: 34, color: 'error.main' }} />
+      <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+        {(a.mime_type || '').includes('pdf') ? 'PDF' : 'Arquivo'}
+      </Typography>
+      {a.size_bytes ? (
+        <Typography variant="caption" color="text.secondary">
+          {(a.size_bytes / 1048576).toFixed(1)} MB
+        </Typography>
+      ) : null}
+    </Box>
+  )
+
+  // Asset que a extração criou é DESCRIÇÃO, não arquivo: o manual descreve o
+  // logo, não entrega o arquivo dele. Mostrar a descrição diz mais que um
+  // ícone de arquivo quebrado — e deixa explícito que não há imagem aqui.
+  if (a.descricao || a.valor) return (
+    <Box sx={{ width: '100%', height: '100%', p: 1.5, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', overflow: 'hidden' }}>
+      <Typography variant="caption" color="text.secondary"
+        sx={{ lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 5,
+          WebkitBoxOrient: 'vertical', overflow: 'hidden', textAlign: 'center' }}>
+        {a.descricao || a.valor}
+        {a.metadata?.pagina ? ` (p. ${a.metadata.pagina})` : ''}
+      </Typography>
+    </Box>
+  )
+
   return <InsertDriveFileOutlinedIcon sx={{ fontSize: 34, color: 'text.disabled' }} />
 }
 
@@ -156,6 +241,15 @@ export function StudioLibrary({ brandId }) {
       campanhas:   campanhas || [],
     }
   }, [assets, gens, textos, campanhas])
+
+  // Só em Referências: é a pasta onde tudo isto se resolve.
+  // Cada tela mostra o que ELA resolve: aqui entram os arquivos; as lacunas de
+  // texto pertencem ao Brand Book, e listá-las numa pasta de arquivos só faria
+  // a lista crescer sem dar o que fazer. O sininho continua com tudo.
+  const itensPendentes = useMemo(() => pendencias({
+    assets,
+    temManual: assets.some(a => a.metadata?.origem === 'manual'),
+  }).filter(p => p.destino?.bibliotecaRoot), [assets])
 
   const escopo = root ? porRoot[root] : []
   const temPastas = root && root !== 'campanhas'
@@ -358,8 +452,24 @@ export function StudioLibrary({ brandId }) {
     }
   }
 
-  function baixar(a) {
-    const url = a.full || a.valor   // gerações: download sempre em full-res
+  // O PDF completo abre no visualizador nativo — busca, zoom e navegação de
+  // página de graça, sem carregar um renderizador no bundle.
+  async function abrirArquivo(a) {
+    if (!a.metadata?.bucket || !a.file_path) return
+    const { data } = await supabase.storage
+      .from(a.metadata.bucket).createSignedUrl(a.file_path, 300)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
+  async function baixar(a) {
+    // Arquivo em bucket privado (o manual da marca) não tem URL pública: o
+    // asset guarda o caminho e o bucket, e a URL é assinada na hora de abrir.
+    let url = a.full || a.valor   // gerações: download sempre em full-res
+    if (!isUrl(url) && a.metadata?.bucket && a.file_path) {
+      const { data } = await supabase.storage
+        .from(a.metadata.bucket).createSignedUrl(a.file_path, 60)
+      url = data?.signedUrl
+    }
     if (!isUrl(url)) return
     const link = document.createElement('a')
     link.href = url; link.download = a.nome || 'asset'; link.target = '_blank'; link.click()
@@ -477,6 +587,12 @@ export function StudioLibrary({ brandId }) {
 
         ) : (
           <>
+            {root === 'referencias' && !pasta && !busca.trim() && <FocoPendencia />}
+            {root === 'referencias' && !pasta && !busca.trim() && (
+              <PainelPendencias itens={itensPendentes} brandId={brandId}
+                onSubir={() => fileRef.current?.click()} />
+            )}
+
             {/* Subpastas (Drive: pastas primeiro) — some quando busca ativa ou dentro de pasta */}
             {temPastas && !pasta && !busca.trim() && subpastas.length > 0 && (
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25px', mb: 2.5 }}>
@@ -571,9 +687,12 @@ export function StudioLibrary({ brandId }) {
                       sx={{ position: 'absolute', top: 2, left: 2, zIndex: 1, p: 0.5, opacity: sel[selKey(a)] ? 1 : 0,
                         transition: 'opacity .15s', bgcolor: 'rgba(255,255,255,.85)', borderRadius: 1,
                         '&:hover': { bgcolor: 'rgba(255,255,255,.95)' }, '&.Mui-checked': { color: TEAL } }} />
-                    <Box onClick={() => isUrl(a.full || a.valor) && setLightbox({ url: a.full || a.valor, video: isVideo(a), nome: a.nome })}
+                    <Box onClick={() => {
+                      if (isUrl(a.full || a.valor)) setLightbox({ url: a.full || a.valor, video: isVideo(a), nome: a.nome })
+                      else if (a.metadata?.bucket && a.file_path) abrirArquivo(a)
+                    }}
                       sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: isUrl(a.full || a.valor) ? 'zoom-in' : 'default' }}>
+                        cursor: isUrl(a.full || a.valor) ? 'zoom-in' : (a.metadata?.bucket ? 'pointer' : 'default') }}>
                       <AssetPreview a={a} />
                     </Box>
                     <Box sx={{ px: 1.25, pt: 0.75 }}>
@@ -604,7 +723,10 @@ export function StudioLibrary({ brandId }) {
                         </Tooltip>
                       )}
                       <Box sx={{ flex: 1 }} />
-                      {isUrl(a.valor) && (
+                      {a.metadata?.bucket && a.file_path && (
+                        <Tooltip title="Abrir no visualizador"><IconButton size="small" onClick={() => abrirArquivo(a)}><OpenInNewOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                      )}
+                      {baixavel(a) && (
                         <Tooltip title="Baixar"><IconButton size="small" onClick={() => baixar(a)}><DownloadOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                       )}
                       <Tooltip title="Excluir"><IconButton size="small" onClick={() => excluir(a)}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>

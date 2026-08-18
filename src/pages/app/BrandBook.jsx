@@ -20,6 +20,7 @@ import { VerbalIdentitySection } from './VerbalIdentitySection'
 import { EssenciaSection, NegocioSection, ExperienciaSection, PersonalidadeSection } from './StrategySections'
 import { VisualIdentitySection } from './VisualIdentitySection'
 import { PageHeader }           from '../../components/shell/PageHeader'
+import { FocoPendencia }        from '../../components/shell/FocoPendencia'
 import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 import { PALETTE } from '../../lib/theme'
 
@@ -69,6 +70,7 @@ function HistorySection({ history }) {
 /* ─── main ─────────────────────────────────────────────────────── */
 
 export function BrandBook({ brandId }) {
+
   const { workspace, user } = useWorkspace()
   const [brand, setBrand]       = useState(null)
   const [book, setBook]         = useState(null)
@@ -262,8 +264,11 @@ export function BrandBook({ brandId }) {
         }
       />
 
-      <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
+      {/* Sem `mx: auto`: centralizar aqui indentava o conteúdo em relação ao
+          título da página, que não é centralizado. Documento e H1 alinham. */}
+      <Box sx={{ py: { xs: 2, md: 4 }, maxWidth: 900, width: '100%' }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <FocoPendencia />
 
         {activeSection === 'essencia' && (
           <EssenciaSection verbal={book?.verbal_identity} strategy={book?.strategy}

@@ -5,14 +5,10 @@
 // As etapas de mineração são jobs de ~15 min (fire-and-forget, padrão dos crons).
 import { createClient } from '@supabase/supabase-js'
 import { siteBase } from './_studio.js'
+import { avancarOnboarding } from './_onboard.js'
 
-const STEPS = ['brand', 'diagnostico', 'concorrentes', 'mineracao', 'sinteses', 'destilacao']
-
-// fallback por tempo: se a detecção por tabela falhar, não trava o pipeline pra sempre
-const FALLBACK_MIN = { brand: 6, diagnostico: 8, mineracao: 22, sinteses: 12, destilacao: 10 }
 
 const now = () => new Date().toISOString()
-const minsSince = (iso) => iso ? (Date.now() - new Date(iso).getTime()) / 60000 : 0
 
 export const handler = async (event) => {
   const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -27,34 +23,43 @@ export const handler = async (event) => {
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
   if (authErr || !user) return { statusCode: 401, headers }
   const { data: admin } = await supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle()
-  if (!admin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Apenas platform admin' }) }
 
   let body; try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers } }
   const { action, workspace_id } = body
   if (!workspace_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'workspace_id obrigatório' }) }
 
+  // Preparar e avançar ambiente é do admin. Avisar que o manual chegou é do
+  // CLIENTE também — é ele quem sobe o arquivo, pela tela da marca, e pode
+  // fazer isso dias depois. Membro do próprio workspace basta.
+  if (!admin) {
+    if (action !== 'manual') {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Apenas platform admin' }) }
+    }
+    const { data: membro } = await supabase.from('workspace_members')
+      .select('id').eq('user_id', user.id).eq('workspace_id', workspace_id).maybeSingle()
+    if (!membro) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso a este workspace' }) }
+  }
+
   const { data: ws } = await supabase.from('workspaces')
     .select('id, nome, slug, dominio, onboarding').eq('id', workspace_id).single()
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'workspace não encontrado' }) }
 
-  // despacho fire-and-forget de worker de background (não aguarda — job de 15 min)
-  const dispatch = (fn, payload) => {
-    fetch(`${siteBase()}/.netlify/functions/${fn}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: authHeader },
-      body: JSON.stringify(payload),
-    }).catch(() => {})
-  }
-  // "tem saída desde o started_at?" — defensivo: erro de schema → null (cai no fallback)
-  const hasSince = async (table, since, extra = {}) => {
+  // Despacho de worker de background. O `await` é sobre o ENVIO, não sobre o
+  // job (que leva ~15 min e responde 202 na hora). Sem ele o fetch morre no
+  // freeze da Lambda antes de sair — foi o bug que derrubou o cron de
+  // destilação em julho. Os crons já despacham assim; o onboard tinha ficado
+  // de fora. Devolve se o worker aceitou, para a etapa poder falhar na hora.
+  const dispatch = async (fn, payload) => {
     try {
-      let q = supabase.from(table).select('id', { count: 'exact', head: true })
-        .eq('workspace_id', workspace_id).gte('created_at', since)
-      for (const [k, v] of Object.entries(extra)) q = q.eq(k, v)
-      const { count, error } = await q
-      if (error) return null
-      return (count || 0) > 0
-    } catch { return null }
+      const r = await fetch(`${siteBase()}/.netlify/functions/${fn}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: authHeader },
+        body: JSON.stringify(payload),
+      })
+      return r.ok || r.status === 202
+    } catch {
+      return false
+    }
   }
 
   const save = async (onb) => {
@@ -78,125 +83,78 @@ export const handler = async (event) => {
       })
     }
 
-    // Com manual (PDF): cria o job de extração e dispara — a marca é preenchida pela IA.
-    // Sem manual: a marca fica só com a identidade básica (brand step já 'done').
-    let brandStep = 'done'
+    // Com manual (PDF): cria o job de extração e dispara.
+    // SEM manual: a trilha da marca fica AGUARDANDO — não é sucesso nem falha,
+    // é o combinado. Ela destrava sozinha quando o arquivo chegar, hoje ou
+    // daqui a uma semana, sem segurar a trilha da inteligência.
+    let brandStep = 'waiting'
+    const notas = {}
     if (manual_path) {
       const { data: job } = await supabase.from('brand_manual_jobs')
         .insert({ brand_id: brand.id, file_path: manual_path, status: 'processing' }).select('id').single()
-      if (job?.id) {
-        dispatch('brand-manual-extract-background', { brand_id: brand.id, file_path: manual_path, job_id: job.id })
-        brandStep = 'running'
+      if (!job?.id) {
+        brandStep = 'failed'; notas.brand = 'não foi possível criar o job de extração'
+      } else {
+        const ok = await dispatch('brand-manual-extract-background', { brand_id: brand.id, file_path: manual_path, job_id: job.id })
+        if (ok) brandStep = 'running'
+        else { brandStep = 'failed'; notas.brand = 'não foi possível despachar a extração do manual' }
       }
+    } else {
+      notas.brand = 'aguardando o manual da marca — a inteligência já está rodando'
     }
 
+    const agora = now()
     const onb = {
-      started_at: now(), brand_id: brand.id, phase_at: now(),
+      started_at: agora, brand_id: brand.id, phase_at: agora, rev: 0, notas,
+      fases: { inteligencia: agora, marca: agora },
       steps: { brand: brandStep, diagnostico: 'pending', concorrentes: 'pending', mineracao: 'pending', sinteses: 'pending', destilacao: 'pending' },
     }
     return await save(onb)
   }
 
-  // ── TICK (polling) ─────────────────────────────────────────────────
-  if (action === 'tick') {
+  // ── MANUAL ─────────────────────────────────────────────────────────
+  // O manual chegou — no mesmo dia ou dias depois. Reabre a trilha da marca
+  // sem tocar na inteligência, que a esta altura já rodou (ou está rodando).
+  if (action === 'manual') {
+    // `job_id` vem quando quem chamou JÁ criou o job e despachou a extração
+    // (é o caso da tela da marca). Sem ele, criamos aqui. Sem essa distinção
+    // a mesma extração rodaria duas vezes — e ela é paga.
+    const { manual_path, job_id } = body
+    if (!manual_path && !job_id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'manual_path ou job_id obrigatório' }) }
+
     const onb = ws.onboarding
-    if (!onb || !onb.steps) return { statusCode: 200, headers, body: JSON.stringify({ onboarding: null }) }
-    const started = onb.started_at
-    const step = STEPS.find(s => onb.steps[s] !== 'done')
-    if (!step) return { statusCode: 200, headers, body: JSON.stringify({ onboarding: onb, complete: true }) }
+    if (!onb?.steps) return { statusCode: 400, headers, body: JSON.stringify({ error: 'workspace ainda não tem ambiente preparado' }) }
 
-    const advance = (next = true) => { onb.steps[step] = 'done'; onb.phase_at = now(); if (!next) return }
-    const fellBack = (s) => minsSince(onb.phase_at) >= (FALLBACK_MIN[s] || 999)
+    const { data: brand } = await supabase.from('brands').select('id')
+      .eq('workspace_id', workspace_id).limit(1).maybeSingle()
+    const brandId = onb.brand_id || brand?.id
+    if (!brandId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'marca não encontrada' }) }
 
-    if (step === 'brand') {
-      // extração do manual (PDF) em andamento — done/error liberam (marca existe de qualquer forma)
-      let done = null
-      try {
-        const { count } = await supabase.from('brand_manual_jobs')
-          .select('id', { count: 'exact', head: true })
-          .eq('brand_id', onb.brand_id).in('status', ['done', 'error']).gte('created_at', started)
-        done = (count || 0) > 0
-      } catch { done = null }
-      if (done || fellBack('brand')) advance()
+    let ok = true
+    if (!job_id) {
+      const { data: job } = await supabase.from('brand_manual_jobs')
+        .insert({ brand_id: brandId, file_path: manual_path, status: 'processing' }).select('id').single()
+      if (!job?.id) return { statusCode: 500, headers, body: JSON.stringify({ error: 'não foi possível criar o job de extração' }) }
+      ok = await dispatch('brand-manual-extract-background', { brand_id: brandId, file_path: manual_path, job_id: job.id })
     }
-
-    else if (step === 'diagnostico') {
-      if (onb.steps.diagnostico === 'pending') {
-        dispatch('diagnostico-gerar-background', { workspace_id })
-        onb.steps.diagnostico = 'running'; onb.phase_at = now()
-      } else {
-        const done = await hasSince('diagnosticos', started, { status: 'done' })
-        if (done || fellBack('diagnostico')) advance()
-      }
-    }
-
-    else if (step === 'concorrentes') {
-      // lê os concorrentes sugeridos pelo diagnóstico e cadastra (dedup por nome)
-      const { data: diag } = await supabase.from('diagnosticos')
-        .select('data').eq('workspace_id', workspace_id).eq('status', 'done')
-        .gte('created_at', started).order('created_at', { ascending: false }).limit(1).maybeSingle()
-      const sugeridos = (diag?.data?.concorrentes || []).slice(0, 5)
-        .map(c => (typeof c === 'string' ? { nome: c } : c)).filter(c => c?.nome)
-      if (sugeridos.length) {
-        const { data: existentes } = await supabase.from('concorrentes').select('nome').eq('workspace_id', workspace_id)
-        const jaTem = new Set((existentes || []).map(c => (c.nome || '').toLowerCase()))
-        const novos = sugeridos.filter(c => !jaTem.has(c.nome.toLowerCase()))
-          .map(c => ({ workspace_id, nome: c.nome, dominio: c.dominio || null, ativo: true }))
-        if (novos.length) await supabase.from('concorrentes').insert(novos)
-      }
-      advance()  // etapa instantânea (mesmo sem concorrentes, segue)
-    }
-
-    else if (step === 'mineracao') {
-      if (onb.steps.mineracao === 'pending') {
-        dispatch('clipping-workspace-background', { workspace_id, jitter: false })
-        dispatch('diagnostico-concorrentes-workspace-background', { workspace_id, jitter: false })
-        dispatch('trends-workspace-background', { workspace_id, jitter: false })
-        dispatch('listening-coletar-background', { workspace_id })
-        onb.steps.mineracao = 'running'; onb.phase_at = now()
-      } else {
-        const [clip, trend, listen] = await Promise.all([
-          hasSince('concorrente_clipping', started),
-          hasSince('tendencias', started),
-          hasSince('listening_events', started),
-        ])
-        if ((clip && trend && listen) || fellBack('mineracao')) advance()
-      }
-    }
-
-    else if (step === 'sinteses') {
-      if (onb.steps.sinteses === 'pending') {
-        dispatch('market-sintese-background', { workspace_id })
-        dispatch('insights-gerar-background', { workspace_id })
-        onb.steps.sinteses = 'running'; onb.phase_at = now()
-      } else {
-        const [market, insights] = await Promise.all([
-          hasSince('market_sinteses', started),
-          hasSince('consumer_insights', started),
-        ])
-        if ((market && insights) || fellBack('sinteses')) advance()
-      }
-    }
-
-    else if (step === 'destilacao') {
-      if (onb.steps.destilacao === 'pending') {
-        dispatch('brand-distill-background', { brand_id: onb.brand_id })
-        onb.steps.destilacao = 'running'; onb.phase_at = now()
-      } else {
-        // brand_intelligence é por brand_id (não workspace) — checagem própria
-        let done = null
-        try {
-          const { count } = await supabase.from('brand_intelligence')
-            .select('id', { count: 'exact', head: true })
-            .eq('brand_id', onb.brand_id).gte('created_at', started)
-          done = (count || 0) > 0
-        } catch { done = null }
-        if (done || fellBack('destilacao')) advance()
-      }
-    }
-
+    const agora = now()
+    onb.brand_id = brandId
+    onb.steps.brand = ok ? 'running' : 'failed'
+    onb.notas = onb.notas || {}
+    onb.notas.brand = ok ? null : 'não foi possível despachar a extração do manual'
+    onb.fases = { ...(onb.fases || {}), marca: agora }
+    onb.phase_at = agora
     return await save(onb)
   }
 
-  return { statusCode: 400, headers, body: JSON.stringify({ error: 'action inválida (start|tick)' }) }
+  // ── TICK ───────────────────────────────────────────────────────────
+  // A máquina de estados vive em _onboard.js, porque o cron gira a mesma.
+  // Aqui é só o "avançar agora" do painel — útil para empurrar na frente do
+  // cliente; o pipeline anda sozinho mesmo com esta aba fechada.
+  if (action === 'tick') {
+    const r = await avancarOnboarding(supabase, { workspaceId: workspace_id, authHeader })
+    return { statusCode: 200, headers, body: JSON.stringify(r) }
+  }
+
+  return { statusCode: 400, headers, body: JSON.stringify({ error: 'action inválida (start|manual|tick)' }) }
 }

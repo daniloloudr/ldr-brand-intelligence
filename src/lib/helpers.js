@@ -184,6 +184,24 @@ export function calcularScoreLead(sol) {
   return Math.min(score, 100);
 }
 
+/* ─── Manual da marca: tamanho ────────────────────────────────────────
+   Teto do bucket `brand-manuals` (migration 013). Decisão de 17/08/2026:
+   manter em 50 MB e orientar a reduzir, em vez de subir o limite.
+
+   O conselho mudou junto com a extração. Antes o PDF ia em base64 dentro da
+   mensagem e comprimir ajudava a caber. Hoje ele sobe pela Files API e é LIDO
+   como documento visual — comprimir joga fora justamente a resolução de onde
+   saem logo, paleta e tipografia. Quem não couber, divide; não espreme. */
+export const MANUAL_MAX_MB = 50;
+
+export function checarTamanhoManual(file) {
+  const mb = (file?.size || 0) / 1024 / 1024;
+  if (mb <= MANUAL_MAX_MB) return null;
+  return `O PDF tem ${mb.toFixed(1)} MB e o limite é ${MANUAL_MAX_MB} MB. `
+    + `Divida o manual em partes e suba uma de cada vez — cada parte é lida por inteiro. `
+    + `Evite comprimir: é das páginas que a leitura tira logo, paleta e tipografia.`;
+}
+
 export function checkPlano(workspace, feature) {
   const plano = workspace?.plano || 'trial';
   const ordem = ['trial', 'starter', 'pro', 'enterprise'];

@@ -7,18 +7,26 @@ import UploadFileIcon  from '@mui/icons-material/UploadFile'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
+import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PALETTE } from '../../lib/theme'
+import { checarTamanhoManual, MANUAL_MAX_MB, navigate } from '../../lib/helpers'
 
+// Um passo por leitura real do documento — a barra acompanha o que acontece,
+// não uma animação inventada.
 const STEPS = [
-  'Fazendo upload do PDF...',
-  'Lendo o brand manual...',
-  'Extraindo identidade da marca...',
-  'Mapeando design system...',
-  'Identificando assets e tokens...',
-  'Salvando no brand book...',
+  'Enviando o PDF...',
+  'Lendo quem a marca diz que é...',
+  'Recolhendo as frases prontas...',
+  'Lendo as regras de forma...',
+  'Procurando sistema de design...',
+  'Catalogando ativos e tokens...',
+  'Olhando como a marca aparece aplicada...',
+  'Inventariando as peças...',
+  'Escrevendo o smartbrand...',
 ]
 
 export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
+  const { workspace } = useWorkspace()
   const [file, setFile]           = useState(null)
   const [step, setStep]           = useState(0)
   const [importing, setImporting] = useState(false)
@@ -31,13 +39,23 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
     const f = e.target.files?.[0]
     if (!f) return
     if (f.type !== 'application/pdf') { setError('Selecione um arquivo PDF.'); return }
-    if (f.size > 52_428_800) { setError('PDF muito grande (máx 50MB).'); return }
+    const grande = checarTamanhoManual(f)
+    if (grande) { setError(grande); return }
     setError('')
     setFile(f)
   }
 
   const fileSizeMB = file ? file.size / 1024 / 1024 : 0
-  const isLarge    = fileSizeMB > 10
+  // Medido: o manual da PES (44,7 MB, 313 páginas) levou ~9 min em sete
+  // leituras do mesmo documento. Faixas, não promessa — o que manda é o
+  // número de páginas, e o tamanho do arquivo é o proxy que temos na mão.
+  const estimativa = fileSizeMB > 30 ? 'Manuais deste tamanho levam de 8 a 15 minutos'
+                   : fileSizeMB > 10 ? 'Deve levar de 4 a 8 minutos'
+                   : 'Deve levar de 2 a 4 minutos'
+  // Só avisa perto do teto do bucket. Abaixo disso o tamanho não é problema:
+  // o PDF sobe pela Files API e páginas em alta resolução são o insumo da
+  // leitura visual, não um estorvo.
+  const isLarge    = fileSizeMB > MANUAL_MAX_MB * 0.8
 
   function advanceStep() {
     setStep(s => Math.min(s + 1, STEPS.length - 1))
@@ -78,18 +96,40 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
       })
       if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status} ao iniciar extração.`)
 
+      // Avisa o onboarding: a trilha da marca estava esperando este arquivo —
+      // possivelmente há dias. Mandamos o `job_id` porque a extração JÁ foi
+      // despachada acima; sem isso o servidor criaria um segundo job e a
+      // extração (que é paga) rodaria duas vezes.
+      // Best-effort: se o workspace não tem ambiente preparado, não há trilha
+      // para destravar e a importação segue normalmente.
+      if (workspace?.id) {
+        fetch('/.netlify/functions/workspace-onboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'manual', workspace_id: workspace.id, manual_path: filePath, job_id: job.id }),
+        }).catch(() => { /* a extração não depende disso */ })
+      }
+
       // Animate steps while polling
       setStep(2)
       const stepTimer = setInterval(advanceStep, 12000)
       intervalRef.current = stepTimer
 
-      // Poll for job completion
-      const MAX_WAIT = 240_000
+      // Poll for job completion.
+      // Eram 4 min — menos que o trabalho do servidor. A extração da PES leva
+      // ~9 min, e a tela desistia no meio de uma rodada que estava indo bem,
+      // dizendo "tente novamente": o cliente dispararia uma segunda extração
+      // paga por cima da primeira. O teto agora acompanha o do servidor (15 min
+      // de background function) com margem.
+      const MAX_WAIT = 18 * 60_000
       const start = Date.now()
       await new Promise((resolve, reject) => {
         const check = async () => {
           if (Date.now() - start > MAX_WAIT) {
-            reject(new Error('A extração demorou mais que o esperado. Tente novamente.'))
+            // Não é erro: o job segue no servidor e grava sozinho quando
+            // terminar. Pedir "tente novamente" aqui custaria uma extração.
+            reject(new Error('A leitura continua rodando no servidor — pode fechar esta janela. '
+              + 'O resultado aparece no Brand Book quando terminar.'))
             return
           }
           const { data: jobData } = await supabase
@@ -136,12 +176,24 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
           <Box sx={{ py: 3, textAlign: 'center' }}>
             <CheckCircleIcon sx={{ fontSize: 48, color: PALETTE.data.positivo, mb: 2 }} />
             <Typography variant="h6" mb={1}>
-              Brand manual importado!
+              Manual lido
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Identidade, posicionamento, design system, assets e tokens foram preenchidos automaticamente.
-              Revise cada seção e ajuste se necessário.
+            <Typography variant="body2" color="text.secondary" mb={2.5}>
+              Identidade, voz, regras de forma, ativos e tokens foram preenchidos a partir do
+              que o manual afirma. O que ele não disser ficou em branco — e aparece como lacuna
+              no smartbrand.
             </Typography>
+            <Alert severity="info" icon={false} sx={{ textAlign: 'left' }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.5 }}>
+                Falta subir os arquivos da marca
+              </Typography>
+              <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.6 }}>
+                O manual <b>descreve</b> o logo, mas não entrega o arquivo dele. Para o Estúdio
+                gerar peça de verdade, suba os originais: logo em PNG ou SVG, fotos, padrões e
+                exemplos de aplicação. Enquanto não subir, cada referência mostra a página do
+                manual onde ela aparece.
+              </Typography>
+            </Alert>
           </Box>
         ) : importing ? (
           <Box sx={{ py: 3 }}>
@@ -155,7 +207,7 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
               sx={{ borderRadius: 1, mb: 1 }}
             />
             <Typography variant="caption" color="text.disabled">
-              Este processo pode levar até 3 minutos para manuais extensos.
+              {estimativa} · a leitura roda no servidor, você pode fechar esta janela.
             </Typography>
           </Box>
         ) : (
@@ -197,16 +249,12 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
             {isLarge && !error && (
               <Alert severity="warning" sx={{ mt: 2 }} icon={false}>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
-                  Arquivo grande ({fileSizeMB.toFixed(1)} MB) — recomendamos comprimir antes de importar
+                  Arquivo grande ({fileSizeMB.toFixed(1)} MB de {MANUAL_MAX_MB} MB) — a leitura vai demorar mais
                 </Typography>
                 <Typography sx={{ fontSize: 11, color: 'text.secondary', lineHeight: 1.6 }}>
-                  PDFs menores são processados mais rapidamente e com maior precisão.
-                  Comprima gratuitamente em{' '}
-                  <Typography component="a" href="https://smallpdf.com/compress-pdf" target="_blank" rel="noopener noreferrer"
-                    sx={{ fontSize: 11, color: 'warning.main', fontWeight: 700 }}>
-                    smallpdf.com
-                  </Typography>
-                  {' '}ou no Mac: Arquivo → Exportar como PDF → Qualidade Reduzida.
+                  Pode importar assim mesmo. Se passar do limite, divida o manual em partes
+                  e suba uma de cada vez — <b>não comprima</b>: a extração lê as páginas,
+                  e é delas que saem logo, paleta e tipografia.
                 </Typography>
               </Alert>
             )}
@@ -217,9 +265,17 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
         {done ? (
-          <Button variant="contained" onClick={handleClose} sx={{ fontWeight: 800 }}>
-            Ver brand book
-          </Button>
+          <>
+            <Button onClick={handleClose}>Ver brand book</Button>
+            <Button variant="contained" sx={{ fontWeight: 800 }}
+              onClick={() => {
+                sessionStorage.setItem('biblioteca_root', 'referencias')
+                handleClose()
+                navigate(`/app/brands/${brandId}/studio/biblioteca`)
+              }}>
+              Subir arquivos da marca
+            </Button>
+          </>
         ) : (
           <>
             <Button onClick={handleClose} disabled={importing} sx={{ fontWeight: 700, color: 'text.secondary' }}>

@@ -12,7 +12,7 @@ import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
 import { NovoDiagnosticoDialog } from "./NovoManual";
@@ -958,16 +958,44 @@ const WS_SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fas
 const WS_PORTES  = ["Startup","PME","Médio","Grande"];
 const PLANO_COR  = { enterprise: PALETTE.data.positivo, pro: PALETTE.data.neutro, starter: PALETTE.data.atencao, trial: null };
 
-// Etapas do "Preparar ambiente" (onboarding completo) — ordem = pipeline do backend
-const ONB_STEPS = [
-  ['brand',        'Marca · extração do manual (PDF)'],
-  ['diagnostico',  'Diagnóstico inicial'],
-  ['concorrentes', 'Concorrentes'],
-  ['mineracao',    'Mineração · clipping, concorrentes, tendências, escuta'],
-  ['sinteses',     'Sínteses · mercado + insights'],
-  ['destilacao',   'Destilação · cérebro'],
+// Duas trilhas com relógios diferentes (ver _onboard.js): a inteligência roda
+// só com o domínio, em minutos; a marca depende do manual, que pode chegar dias
+// depois. Uma não espera a outra.
+const ONB_TRILHAS = [
+  ['inteligencia', 'Inteligência', 'dispara sozinha com o domínio', [
+    ['diagnostico',  'Diagnóstico inicial'],
+    ['concorrentes', 'Concorrentes'],
+    ['mineracao',    'Mineração · clipping, rivais, tendências, escuta'],
+    ['sinteses',     'Sínteses · mercado + insights'],
+    ['destilacao',   'Destilação · cérebro'],
+  ]],
+  ['marca', 'Marca', 'começa quando o manual chegar', [
+    ['brand', 'Extração do manual (PDF)'],
+  ]],
 ];
-const onbComplete = (o) => o?.steps && ONB_STEPS.every(([k]) => o.steps[k] === 'done');
+const ONB_STEPS = ONB_TRILHAS.flatMap(([, , , etapas]) => etapas);
+// Estados terminais de uma etapa. `expired` e `failed` também encerram — a
+// diferença é que NÃO são sucesso. Antes só existia 'done' e o teto de tempo
+// empurrava tudo para lá, então o painel carimbava "Ambiente pronto" sobre um
+// ambiente vazio.
+const ONB_TERMINAL = ['done', 'expired', 'failed'];
+// `waiting` não é problema — é o combinado: a marca espera o manual.
+const onbTrilhaCompleta = (o, etapas) => o?.steps && etapas.every(([k]) => ONB_TERMINAL.includes(o.steps[k]));
+const onbAguardando     = (o) => o?.steps?.brand === 'waiting';
+const onbComplete = (o) => o?.steps && ONB_STEPS.every(([k]) => ONB_TERMINAL.includes(o.steps[k]));
+const onbOk       = (o) => o?.steps && ONB_STEPS.every(([k]) => o.steps[k] === 'done');
+const onbProblemas = (o) => !o?.steps ? [] : ONB_STEPS
+  .filter(([k]) => o.steps[k] === 'expired' || o.steps[k] === 'failed')
+  .map(([k, label]) => ({ k, label, estado: o.steps[k], motivo: o.notas?.[k] }));
+
+const ONB_VISUAL = {
+  done:    { ic: '✅', cor: 'success.main'   },
+  running: { ic: '⏳', cor: 'warning.main'   },
+  expired: { ic: '⚠️', cor: 'warning.main'   },
+  failed:  { ic: '⛔', cor: 'error.main'     },
+  waiting: { ic: '📄', cor: 'info.main'      },
+  pending: { ic: '◻️', cor: 'text.disabled' },
+};
 
 // R$ (string do input) ↔ centavos (int no banco). Aceita "1.500,50", "1500,50" e "1500.50".
 function reaisToCents(v) {
@@ -1015,18 +1043,36 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     if (createSignal > 0) { setShowCreate(true); setError(''); }
   }, [createSignal]);
 
-  // Polling do onboarding: enquanto o painel está aberto e não terminou, chama tick
+  // O painel LÊ o estado; quem avança o pipeline é o onboard-cron, de minuto
+  // em minuto. Fechar esta aba não para mais nada — antes o `tick` daqui era
+  // o único motor, e a preparação congelava com a página fechada.
   useEffect(() => {
     if (!onbId || !onb || onbComplete(onb)) return;
     const t = setInterval(async () => {
       try {
-        const j = await onboardCall(onbId, 'tick');
-        setOnb(j.onboarding || null);
-        if (j.onboarding) setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: j.onboarding } : w));
-      } catch { /* silencioso — tenta de novo no próximo tick */ }
+        const { data } = await supabase.from('workspaces').select('onboarding').eq('id', onbId).single();
+        if (data?.onboarding) {
+          setOnb(data.onboarding);
+          setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: data.onboarding } : w));
+        }
+      } catch { /* silencioso — lê de novo no próximo ciclo */ }
     }, 6000);
     return () => clearInterval(t);
   }, [onbId, onb]);
+
+  // "Avançar agora": empurra uma transição na frente do cron. Útil na frente
+  // do cliente; o pipeline não depende disso.
+  async function avancarAgora() {
+    setOnbBusy(true);
+    try {
+      const j = await onboardCall(onbId, 'tick');
+      if (j.onboarding) {
+        setOnb(j.onboarding);
+        setWorkspaces(list => list.map(w => w.id === onbId ? { ...w, onboarding: j.onboarding } : w));
+      }
+    } catch (e) { setError(e.message); }
+    finally { setOnbBusy(false); }
+  }
 
   async function fetchWorkspaces() {
     setLoading(true);
@@ -1063,7 +1109,8 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== 'application/pdf') { setError('Selecione um PDF.'); return; }
-    if (file.size > 52_428_800) { setError('PDF muito grande (máx 50MB).'); return; }
+    const grande = checarTamanhoManual(file);
+    if (grande) { setError(grande); return; }
     setOnbUploading(true); setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1294,10 +1341,12 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
               {/* Ações */}
               <Box sx={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button size="small" variant="outlined" onClick={() => openConfig(ws)}>⚙ Configurar</Button>
-                <Button size="small" variant="outlined" color={onbComplete(ws.onboarding) ? "success" : ws.onboarding ? "warning" : "primary"}
+                <Button size="small" variant="outlined" color={onbOk(ws.onboarding) ? "success" : onbComplete(ws.onboarding) ? "error" : ws.onboarding ? "warning" : "primary"}
                   onClick={() => openOnb(ws)}
                 >
-                  {onbComplete(ws.onboarding) ? '✅ Ambiente pronto' : ws.onboarding ? '⏳ Preparação' : '🚀 Preparar ambiente'}
+                  {onbOk(ws.onboarding) ? '✅ Ambiente pronto'
+                    : onbComplete(ws.onboarding) ? '⚠️ Terminou com falhas'
+                    : ws.onboarding ? '⏳ Preparação' : '🚀 Preparar ambiente'}
                 </Button>
                 <Button size="small" variant="outlined" onClick={() => toggleExpanded(ws.id)}>
                   {expanded ? '▲' : '▼'} Membros {expanded && members.length ? `(${members.length})` : ''}
@@ -1340,24 +1389,72 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                     </Button>
                   </Box>
                 ) : (() => {
-                  const state = onb || ws.onboarding;
-                  const done  = onbComplete(state);
+                  const state     = onb || ws.onboarding;
+                  const terminou  = onbComplete(state);
+                  const ok        = onbOk(state);
+                  const problemas = onbProblemas(state);
                   return (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {ONB_STEPS.map(([k, label]) => {
-                        const st  = state?.steps?.[k] || 'pending';
-                        const ic  = st === 'done' ? '✅' : st === 'running' ? '⏳' : '◻️';
-                        const cor = st === 'done' ? PALETTE.data.positivo : st === 'running' ? PALETTE.data.atencao : 'text.disabled';
+                      {ONB_TRILHAS.map(([tk, tNome, tSub, etapas]) => {
+                        const feita = onbTrilhaCompleta(state, etapas);
                         return (
-                          <Box key={k} sx={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 12.5, color: 'text.primary' }}>
-                            <Typography component="span">{ic}</Typography><Typography component="span" sx={{ flex: 1 }}>{label}</Typography>
-                            <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, color: cor, textTransform: 'uppercase' }}>{st}</Typography>
+                          <Box key={tk} sx={{ mb: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '8px', mb: '4px' }}>
+                              <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: feita ? 'success.main' : 'text.secondary' }}>
+                                {tNome}
+                              </Typography>
+                              <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>{tSub}</Typography>
+                            </Box>
+                            {etapas.map(([k, label]) => {
+                              const st = state?.steps?.[k] || 'pending';
+                              const v  = ONB_VISUAL[st] || ONB_VISUAL.pending;
+                              const motivo = state?.notas?.[k];
+                              return (
+                                <Box key={k} sx={{ fontSize: 12.5, color: 'text.primary' }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Typography component="span">{v.ic}</Typography>
+                                    <Typography component="span" sx={{ flex: 1 }}>{label}</Typography>
+                                    <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, color: v.cor, textTransform: 'uppercase' }}>{st}</Typography>
+                                  </Box>
+                                  {motivo && st !== 'running' && st !== 'done' && (
+                                    <Typography sx={{ fontSize: 11, color: 'text.secondary', pl: '26px' }}>{motivo}</Typography>
+                                  )}
+                                </Box>
+                              );
+                            })}
                           </Box>
                         );
                       })}
-                      <Box sx={{ marginTop: '8px', fontSize: 12, color: done ? PALETTE.data.positivo : 'text.disabled', fontWeight: done ? 700 : 400 }}>
-                        {done ? '✅ Ambiente pronto — pode liberar o acesso ao cliente.' : '⏳ Rodando… atualiza sozinho. A mineração leva ~15-30 min.'}
-                      </Box>
+
+                      {!terminou && (
+                        <Box sx={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <Typography sx={{ fontSize: 12, color: 'text.disabled', flex: 1, minWidth: 220 }}>
+                            ⏳ Rodando sozinho — o servidor avança de minuto em minuto. Pode fechar esta aba.
+                            A mineração leva ~15-30 min.
+                          </Typography>
+                          <Button size="small" variant="outlined" onClick={avancarAgora} disabled={onbBusy}>
+                            {onbBusy ? 'Avançando…' : 'Avançar agora'}
+                          </Button>
+                        </Box>
+                      )}
+                      {terminou && ok && !onbAguardando(state) && (
+                        <Alert severity="success" sx={{ mt: 1 }}>
+                          Ambiente pronto — todas as etapas produziram saída. Pode liberar o acesso.
+                        </Alert>
+                      )}
+                      {ok && onbAguardando(state) && onbTrilhaCompleta(state, ONB_TRILHAS[0][3]) && (
+                        <Alert severity="info" sx={{ mt: 1 }}>
+                          Inteligência pronta — pode liberar o acesso. A marca segue aguardando o manual;
+                          quando ele chegar, o cérebro destila de novo com a identidade declarada.
+                        </Alert>
+                      )}
+                      {terminou && !ok && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                          Terminou, mas {problemas.length === 1 ? 'uma etapa não entregou' : `${problemas.length} etapas não entregaram`}:{' '}
+                          {problemas.map(p => p.label.split(' · ')[0]).join(', ')}. Revise antes de liberar o acesso —
+                          o ambiente pode estar sem conteúdo.
+                        </Alert>
+                      )}
                     </Box>
                   );
                 })()}
