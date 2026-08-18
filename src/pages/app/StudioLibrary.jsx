@@ -40,7 +40,6 @@ const TIPOS_REFERENCIA = ['logo', 'icone', 'padrao', 'documento']
 const isUrl   = v => /^https?:\/\//i.test(v || '')
 // Baixável = tem URL pública OU mora num bucket privado (URL assinada na hora)
 const baixavel = a => isUrl(a.full || a.valor) || !!(a.metadata?.bucket && a.file_path)
-  || a.metadata?.origem === 'smartbrand'
 const isVideo = a => a.tipo === 'video' || (a.mime_type || '').startsWith('video/')
 // Referência = o cliente subiu como identidade OU marcou como referência
 const isReferencia = a => TIPOS_REFERENCIA.includes(a.tipo) || a.metadata?.reference === true
@@ -67,15 +66,6 @@ function AssetPreview({ a }) {
     <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2,
       '& svg': { maxWidth: '100%', maxHeight: '100%' } }} dangerouslySetInnerHTML={{ __html: a.valor.slice(a.valor.indexOf('<svg')) }} />
   )
-  if (a.metadata?.origem === 'smartbrand') return (
-    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 0.75, p: 2, textAlign: 'center' }}>
-      <ArticleOutlinedIcon sx={{ fontSize: 34, color: 'primary.main' }} />
-      <Typography variant="caption" sx={{ fontWeight: 700 }}>markdown</Typography>
-      <Typography variant="caption" color="text.secondary">o manual em texto</Typography>
-    </Box>
-  )
-
   // Arquivo em bucket privado (o manual): não tem URL para miniatura, mas tem
   // identidade — mostra o que é e o peso, não um ícone anônimo.
   if (a.metadata?.bucket && a.file_path) return (
@@ -413,20 +403,7 @@ export function StudioLibrary({ brandId }) {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
   }
 
-  // O smartbrand não é arquivo guardado: é a coluna do brand book. Monta na
-  // hora, então o que se baixa é sempre a versão atual — nunca uma cópia velha.
-  async function baixarSmartbrand(a) {
-    const { data } = await supabase.from('brand_books')
-      .select('smartbrand').eq('brand_id', brandId).limit(1).maybeSingle()
-    if (!data?.smartbrand) return
-    const url = URL.createObjectURL(new Blob([data.smartbrand], { type: 'text/markdown' }))
-    const link = document.createElement('a')
-    link.href = url; link.download = a.nome || 'smartbrand.md'; link.click()
-    URL.revokeObjectURL(url)
-  }
-
   async function baixar(a) {
-    if (a.metadata?.origem === 'smartbrand') return baixarSmartbrand(a)
     // Arquivo em bucket privado (o manual da marca) não tem URL pública: o
     // asset guarda o caminho e o bucket, e a URL é assinada na hora de abrir.
     let url = a.full || a.valor   // gerações: download sempre em full-res
