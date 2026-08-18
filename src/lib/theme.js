@@ -110,10 +110,16 @@ function makeTheme(mode) {
         // Sobre verde, o que vai por cima é sempre PRETO (brand.md §03)
         contrastText: MARCA.preto,
       },
-      success: { main: PALETTE.data.positivo, light: PALETTE.data.positivoFraco },
-      warning: { main: PALETTE.data.atencao,  light: PALETTE.data.atencaoFraco },
-      error:   { main: PALETTE.data.critico,  light: PALETTE.data.criticoFraco },
-      info:    { main: PALETTE.data.info,     light: PALETTE.data.infoFraco },
+      // Só `main`. NÃO defina `light` aqui: o Alert padrão do MUI deriva o fundo
+      // e o texto dele (clareia 0.9 para o fundo, escurece 0.6 para o texto).
+      // Apontar `light` para os tons *Fraco* (amber[50], red[50]…), que já são
+      // quase brancos, produzia alerta branco com texto sem contraste — quase
+      // invisível. Os tons Fraco continuam disponíveis em PALETTE.data para uso
+      // deliberado como fundo; eles não são o `light` da paleta.
+      success: { main: PALETTE.data.positivo },
+      warning: { main: PALETTE.data.atencao  },
+      error:   { main: PALETTE.data.critico  },
+      info:    { main: PALETTE.data.info     },
       background: {
         default: claro ? MARCA.branco : MARCA.preto,
         paper:   claro ? MARCA.branco : '#0D0D0D',
