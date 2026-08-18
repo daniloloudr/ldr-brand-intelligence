@@ -25,7 +25,6 @@ import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import { supabase } from '../../lib/supabase'
-import { renderPagina } from '../../lib/pdfPagina'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -41,6 +40,7 @@ const TIPOS_REFERENCIA = ['logo', 'icone', 'padrao', 'documento']
 const isUrl   = v => /^https?:\/\//i.test(v || '')
 // Baixável = tem URL pública OU mora num bucket privado (URL assinada na hora)
 const baixavel = a => isUrl(a.full || a.valor) || !!(a.metadata?.bucket && a.file_path)
+  || a.metadata?.origem === 'smartbrand'
 const isVideo = a => a.tipo === 'video' || (a.mime_type || '').startsWith('video/')
 // Referência = o cliente subiu como identidade OU marcou como referência
 const isReferencia = a => TIPOS_REFERENCIA.includes(a.tipo) || a.metadata?.reference === true
@@ -54,37 +54,7 @@ const ROOTS = [
   { id: 'campanhas',   label: 'Campanhas',            Icon: CampaignOutlinedIcon,            desc: 'dossiês de campanha' },
 ]
 
-// A página do manual onde a referência aparece — a prova visual do que a
-// descrição afirma. Rasterizada aqui, na hora: não há imagem guardada, e não
-// precisa haver (ver src/lib/pdfPagina.js).
-function PaginaDoManual({ pagina, manual }) {
-  const [src, setSrc] = useState(null)
-  const [erro, setErro] = useState(false)
-
-  useEffect(() => {
-    let vivo = true
-    if (!manual?.url) return
-    renderPagina(manual.url, Number(pagina), { chave: manual.id })
-      .then(d => { if (vivo) { d ? setSrc(d) : setErro(true) } })
-      .catch(() => vivo && setErro(true))
-    return () => { vivo = false }
-  }, [pagina, manual?.url, manual?.id])
-
-  if (erro) return null
-  if (!src) return <CircularProgress size={16} sx={{ color: 'text.disabled' }} />
-  return (
-    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-      <Box component="img" src={src} alt={`Página ${pagina} do manual`} loading="lazy"
-        sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', bgcolor: '#fff' }} />
-      <Typography variant="caption" sx={{ position: 'absolute', bottom: 4, right: 6,
-        px: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,.62)', color: '#fff', fontSize: 10 }}>
-        p. {pagina}
-      </Typography>
-    </Box>
-  )
-}
-
-function AssetPreview({ a, manual }) {
+function AssetPreview({ a }) {
   if (isUrl(a.valor)) {
     // preload="none" + poster: o grid não baixa nenhum byte de vídeo até o hover
     if (isVideo(a)) return <Box component="video" src={a.valor} muted loop playsInline preload="none" poster={a.poster || undefined}
@@ -97,6 +67,15 @@ function AssetPreview({ a, manual }) {
     <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2,
       '& svg': { maxWidth: '100%', maxHeight: '100%' } }} dangerouslySetInnerHTML={{ __html: a.valor.slice(a.valor.indexOf('<svg')) }} />
   )
+  if (a.metadata?.origem === 'smartbrand') return (
+    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 0.75, p: 2, textAlign: 'center' }}>
+      <ArticleOutlinedIcon sx={{ fontSize: 34, color: 'primary.main' }} />
+      <Typography variant="caption" sx={{ fontWeight: 700 }}>markdown</Typography>
+      <Typography variant="caption" color="text.secondary">o manual em texto</Typography>
+    </Box>
+  )
+
   // Arquivo em bucket privado (o manual): não tem URL para miniatura, mas tem
   // identidade — mostra o que é e o peso, não um ícone anônimo.
   if (a.metadata?.bucket && a.file_path) return (
@@ -114,11 +93,6 @@ function AssetPreview({ a, manual }) {
     </Box>
   )
 
-  // Extraído do manual e com página citada: mostra a página. É o mais perto de
-  // "ver a referência" que dá para chegar sem o arquivo original — que agora é
-  // responsabilidade do cliente subir.
-  if (a.metadata?.pagina && manual?.url) return <PaginaDoManual pagina={a.metadata.pagina} manual={manual} />
-
   // Asset que a extração criou é DESCRIÇÃO, não arquivo: o manual descreve o
   // logo, não entrega o arquivo dele. Mostrar a descrição diz mais que um
   // ícone de arquivo quebrado — e deixa explícito que não há imagem aqui.
@@ -129,6 +103,7 @@ function AssetPreview({ a, manual }) {
         sx={{ lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 5,
           WebkitBoxOrient: 'vertical', overflow: 'hidden', textAlign: 'center' }}>
         {a.descricao || a.valor}
+        {a.metadata?.pagina ? ` (p. ${a.metadata.pagina})` : ''}
       </Typography>
     </Box>
   )
@@ -178,9 +153,6 @@ export function StudioLibrary({ brandId }) {
   useEffect(() => { if (brandId) load() }, [brandId])
 
   const [gens, setGens] = useState([])
-  // O manual da marca, assinado uma vez: é dele que saem as páginas das
-  // referências. Uma assinatura por sessão em vez de uma por card.
-  const [manual, setManual] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -199,12 +171,6 @@ export function StudioLibrary({ brandId }) {
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
     ])
     setAssets(data || [])
-    const pdf = (data || []).find(a => a.metadata?.origem === 'manual' && a.file_path && a.metadata?.bucket)
-    if (pdf) {
-      const { data: assinada } = await supabase.storage
-        .from(pdf.metadata.bucket).createSignedUrl(pdf.file_path, 3600)
-      setManual(assinada?.signedUrl ? { url: assinada.signedUrl, id: pdf.id } : null)
-    } else setManual(null)
     setGens(geradas || [])
     setTextos(pecas || [])
     setCampanhas(camps || [])
@@ -447,7 +413,20 @@ export function StudioLibrary({ brandId }) {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
   }
 
+  // O smartbrand não é arquivo guardado: é a coluna do brand book. Monta na
+  // hora, então o que se baixa é sempre a versão atual — nunca uma cópia velha.
+  async function baixarSmartbrand(a) {
+    const { data } = await supabase.from('brand_books')
+      .select('smartbrand').eq('brand_id', brandId).limit(1).maybeSingle()
+    if (!data?.smartbrand) return
+    const url = URL.createObjectURL(new Blob([data.smartbrand], { type: 'text/markdown' }))
+    const link = document.createElement('a')
+    link.href = url; link.download = a.nome || 'smartbrand.md'; link.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function baixar(a) {
+    if (a.metadata?.origem === 'smartbrand') return baixarSmartbrand(a)
     // Arquivo em bucket privado (o manual da marca) não tem URL pública: o
     // asset guarda o caminho e o bucket, e a URL é assinada na hora de abrir.
     let url = a.full || a.valor   // gerações: download sempre em full-res
@@ -673,7 +652,7 @@ export function StudioLibrary({ brandId }) {
                     }}
                       sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: isUrl(a.full || a.valor) ? 'zoom-in' : (a.metadata?.bucket ? 'pointer' : 'default') }}>
-                      <AssetPreview a={a} manual={manual} />
+                      <AssetPreview a={a} />
                     </Box>
                     <Box sx={{ px: 1.25, pt: 0.75 }}>
                       <Typography variant="caption" noWrap>{a.nome}</Typography>

@@ -468,6 +468,27 @@ export const handler = async (event) => {
     )
   }
 
+  // O smartbrand.md aparece na biblioteca como documento, mas NÃO vira arquivo
+  // no storage: ele já é a coluna `brand_books.smartbrand`. Guardar uma cópia
+  // criaria duas versões para divergir na primeira reimportação — e o bucket de
+  // assets nem aceita markdown. O card é um ponteiro; o download a biblioteca
+  // monta na hora, a partir da coluna. Uma fonte só.
+  const docSmart = {
+    brand_id, tipo: 'documento', nome: 'smartbrand.md',
+    descricao: `O manual em texto, para IA — ${smart.preenchidos} de ${smart.total} campos preenchidos, ${smart.lacunas.length} lacuna(s)`,
+    valor: '', mime_type: 'text/markdown',
+    size_bytes: smart.markdown.length,
+    pasta: 'Manual da marca',
+    metadata: { origem: 'smartbrand', reference: true },
+  }
+  const { data: jaTemSmart } = await supabase.from('brand_assets')
+    .select('id').eq('brand_id', brand_id).eq('metadata->>origem', 'smartbrand').limit(1)
+  const { error: errSmart } = jaTemSmart?.length
+    ? await supabase.from('brand_assets').update(docSmart).eq('id', jaTemSmart[0].id)
+    : await supabase.from('brand_assets').insert(docSmart)
+  if (errSmart) console.error('[brand-manual] card do smartbrand falhou:', errSmart.message)
+  else          console.log('[brand-manual] smartbrand.md na biblioteca')
+
   // O PDF fica na biblioteca como referência da marca.
   // Não é cópia: aponta para o arquivo que já está no bucket `brand-manuals`
   // (privado — daí o `bucket` no metadata, que a biblioteca usa para assinar a
