@@ -15,7 +15,7 @@
 // ali e só ali; sair fecha. O vazio aparece como "— em branco —", igual ao
 // smartbrand, para a lacuna ser visível sem precisar de indicador inventado.
 import { useState } from 'react'
-import { Box, Typography, TextField, IconButton, Paper, Stack, Chip, Divider } from '@mui/material'
+import { Box, Typography, TextField, IconButton, Paper, Stack, Chip } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
@@ -24,10 +24,14 @@ import { ArquetipoSelector } from './BrandSection'
 
 const LEITURA = 74   // ch — largura de prosa confortável
 
+// O nome do campo é o H2 do documento. Antes era uma etiqueta minúscula em
+// versalete cinza, e o resultado tinha DOIS níveis de título competindo: o do
+// grupo ("Brand Essence") e o da seção. Um documento tem uma hierarquia só —
+// H1 é a seção (Essência), H2 é cada campo (Visão, Missão, Valores).
 const Rotulo = ({ children }) => (
-  <Typography component="h4" sx={{
-    fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase',
-    color: 'text.disabled', mb: .75,
+  <Typography component="h2" sx={{
+    fontSize: 19, fontWeight: 600, letterSpacing: '-.012em', lineHeight: 1.3,
+    color: 'text.primary', mb: 1,
   }}>{children}</Typography>
 )
 
@@ -165,15 +169,15 @@ function Campo({ def, valor, onChange, aberto, abrir, fechar }) {
     <Box data-campo={`${def.col}.${def.k}`}
       onClick={aberto ? undefined : abrir}
       sx={{
-        py: 1.5, cursor: aberto ? 'default' : 'pointer', borderRadius: 1,
-        transition: 'background-color .12s',
+        mb: 4, mx: -1.5, px: 1.5, py: 1, borderRadius: 1.5,
+        cursor: aberto ? 'default' : 'pointer', transition: 'background-color .12s',
         ...(aberto ? {} : { '&:hover': { bgcolor: 'action.hover' }, '&:hover .lapis': { opacity: 1 } }),
       }}>
-      <Stack direction="row" alignItems="center" spacing={.75} sx={{ mb: .25 }}>
+      <Stack direction="row" alignItems="baseline" spacing={.75}>
         <Rotulo>{def.label}</Rotulo>
         {!aberto && (
           <EditOutlinedIcon className="lapis"
-            sx={{ fontSize: 13, color: 'text.disabled', opacity: 0, transition: 'opacity .12s', mb: .75 }} />
+            sx={{ fontSize: 15, color: 'text.disabled', opacity: 0, transition: 'opacity .12s' }} />
         )}
       </Stack>
 
@@ -211,28 +215,20 @@ export function CamposDaMarca({ mapa, dados, onChange, extras = {} }) {
 
   return (
     <Box sx={{ maxWidth: 860 }}>
+      {/* Os grupos continuam existindo no mapa (ordenam os campos e ancoram os
+          avisos), mas não viram título: o documento tem H1 na seção e H2 no
+          campo, e um terceiro nível no meio só competia com os dois. */}
       {blocos.map((b, i) => (
-        <Box key={i} sx={{ mb: 6 }}>
-          {b.grupo && (
-            <>
-              <Typography component="h3" sx={{
-                fontSize: 20, fontWeight: 700, letterSpacing: '-.015em', mb: .5,
-              }}>{b.grupo}</Typography>
-              <Divider sx={{ mb: 2.5 }} />
-            </>
-          )}
-          {extras[b.grupo] && <Box sx={{ mb: 2.5 }}>{extras[b.grupo]}</Box>}
-
-          <Stack divider={<Divider light />}>
-            {b.campos.map(def => (
-              <Campo key={def.k} def={def}
-                valor={dados[def.col]?.[def.k]}
-                onChange={val => onChange(def.col, def.k, val)}
-                aberto={editando === `${def.col}.${def.k}`}
-                abrir={() => setEditando(`${def.col}.${def.k}`)}
-                fechar={() => setEditando(null)} />
-            ))}
-          </Stack>
+        <Box key={i}>
+          {extras[b.grupo] && <Box sx={{ mb: 3 }}>{extras[b.grupo]}</Box>}
+          {b.campos.map(def => (
+            <Campo key={def.k} def={def}
+              valor={dados[def.col]?.[def.k]}
+              onChange={val => onChange(def.col, def.k, val)}
+              aberto={editando === `${def.col}.${def.k}`}
+              abrir={() => setEditando(`${def.col}.${def.k}`)}
+              fechar={() => setEditando(null)} />
+          ))}
         </Box>
       ))}
     </Box>

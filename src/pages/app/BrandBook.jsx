@@ -264,7 +264,9 @@ export function BrandBook({ brandId }) {
         }
       />
 
-      <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
+      {/* Sem `mx: auto`: centralizar aqui indentava o conteúdo em relação ao
+          título da página, que não é centralizado. Documento e H1 alinham. */}
+      <Box sx={{ py: { xs: 2, md: 4 }, maxWidth: 900, width: '100%' }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <FocoPendencia />
 
