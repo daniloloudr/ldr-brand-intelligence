@@ -14,13 +14,19 @@ import { PALETTE } from '../../lib/theme'
 
 const tf = { '& .MuiInputBase-input': { fontSize: 14 } }
 
+// O onChange já sabe qual campo edita; só não contava. Etiquetando a função na
+// fábrica, todo campo ganha âncora (`data-campo`) sem tocar em nenhuma das
+// dezenas de chamadas — é por essa âncora que uma pendência do sininho aterrissa
+// no campo exato em vez de no topo da página.
+const marcar = (coluna, k, fn) => Object.assign(fn, { campo: `${coluna}.${k}` })
+
 function Grid2({ children }) {
   return <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>{children}</Box>
 }
 
 function Area({ label, value, onChange, placeholder, rows = 3 }) {
   return (
-    <Box>
+    <Box data-campo={onChange?.campo}>
       <FieldLabel>{label}</FieldLabel>
       <TextField value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         fullWidth multiline rows={rows} sx={tf} />
@@ -34,7 +40,7 @@ function ItemList({ label, items, onChange, fields, addLabel = 'Adicionar', empt
   const update = (idx, key, val) => onChange((items || []).map((it, i) => i === idx ? { ...it, [key]: val } : it))
   const remove = idx => onChange((items || []).filter((_, i) => i !== idx))
   return (
-    <Box>
+    <Box data-campo={onChange?.campo}>
       <FieldLabel>{label}</FieldLabel>
       <Stack spacing={1.5}>
         {(items || []).length === 0 && emptyMsg && <Typography variant="caption" color="text.disabled">{emptyMsg}</Typography>}
@@ -63,8 +69,8 @@ function ItemList({ label, items, onChange, fields, addLabel = 'Adicionar', empt
 
 // ── Culture → Brand Essence ──────────────────────────────────────────
 export function EssenciaSection({ verbal = {}, strategy = {}, onVerbal, onStrategy }) {
-  const v = k => val => onVerbal({ ...verbal, [k]: val })
-  const s = k => val => onStrategy({ ...strategy, [k]: val })
+  const v = k => marcar('verbal_identity', k, val => onVerbal({ ...verbal, [k]: val }))
+  const s = k => marcar('strategy', k, val => onStrategy({ ...strategy, [k]: val }))
   return (
     <Stack spacing={4}>
       <SectionDivider>Brand Essence</SectionDivider>
@@ -87,8 +93,8 @@ export function EssenciaSection({ verbal = {}, strategy = {}, onVerbal, onStrate
 
 // ── Business → Função ────────────────────────────────────────────────
 export function NegocioSection({ verbal = {}, strategy = {}, onVerbal, onStrategy }) {
-  const v = k => val => onVerbal({ ...verbal, [k]: val })
-  const s = k => val => onStrategy({ ...strategy, [k]: val })
+  const v = k => marcar('verbal_identity', k, val => onVerbal({ ...verbal, [k]: val }))
+  const s = k => marcar('strategy', k, val => onStrategy({ ...strategy, [k]: val }))
   return (
     <Stack spacing={4}>
       <SectionDivider>Função do negócio</SectionDivider>
@@ -128,7 +134,7 @@ export function NegocioSection({ verbal = {}, strategy = {}, onVerbal, onStrateg
 
 // ── Business → Experience (UX · UI · Journey · Design.md gerado) ─────
 export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visual, tokens, assets }) {
-  const s = k => val => onStrategy({ ...strategy, [k]: val })
+  const s = k => marcar('strategy', k, val => onStrategy({ ...strategy, [k]: val }))
   const [copied, setCopied] = useState(false)
   const md = buildDesignMd({ brandNome, visual, strategy, tokens, assets })
 
@@ -186,8 +192,8 @@ export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visua
 
 // ── Communication → Personality ──────────────────────────────────────
 export function PersonalidadeSection({ verbal = {}, strategy = {}, onVerbal, onStrategy, brandId }) {
-  const v = k => val => onVerbal({ ...verbal, [k]: val })
-  const s = k => val => onStrategy({ ...strategy, [k]: val })
+  const v = k => marcar('verbal_identity', k, val => onVerbal({ ...verbal, [k]: val }))
+  const s = k => marcar('strategy', k, val => onStrategy({ ...strategy, [k]: val }))
   const [territorioIA, setTerritorioIA] = useState(null)
 
   // Território APRENDIDO (faceta do cérebro) — vitrine do declarado + destilado

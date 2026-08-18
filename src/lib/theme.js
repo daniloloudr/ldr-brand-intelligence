@@ -59,6 +59,22 @@ const keyframes = {
   '@keyframes fadeUp':   { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'none' } },
   '@keyframes pulse':    { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
   '@keyframes blink':    { '0%,100%': { opacity: 1 }, '50%': { opacity: 0 } },
+  // Campo apontado por uma pendência: o amarelo de aviso do MUI em volta, com
+  // duas pulsadas e para. Fica destacado até a pessoa sair da tela — piscar
+  // para sempre vira ruído e ela para de ver.
+  '@keyframes focoCampo': {
+    '0%':   { boxShadow: '0 0 0 0 rgba(237,108,2,.45)' },
+    '70%':  { boxShadow: '0 0 0 10px rgba(237,108,2,0)' },
+    '100%': { boxShadow: '0 0 0 0 rgba(237,108,2,0)' },
+  },
+  '.campo-em-foco': {
+    outline: '2px solid',
+    outlineColor: amber[800],
+    outlineOffset: 6,
+    borderRadius: 8,
+    animation: 'focoCampo 1.5s ease 2',
+    scrollMarginTop: 96,
+  },
   '@keyframes checkPop': { '0%': { transform: 'scale(0)', opacity: 0 }, '65%': { transform: 'scale(1.25)' }, '100%': { transform: 'scale(1)', opacity: 1 } },
   '.a0': { animation: 'fu .38s ease both' },
   '.a1': { animation: 'fu .38s .06s ease both' },

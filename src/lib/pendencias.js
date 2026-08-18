@@ -134,6 +134,7 @@ export function pendencias({ assets = [], lacunas = [], temManual = false } = {}
       acao: 'Preencher',
       severidade: 'baixa',
       destino: { secao: SECAO_PARA_ABA[l.secao] || 'essencia' },
+      campo: l.campo || null,
       instrucao: `Preencha "${l.rotulo}" nesta página. Se a marca não tiver isso definido, `
         + 'deixe em branco mesmo — em branco é honesto; inventado, não.',
     })
@@ -158,7 +159,7 @@ export function resumoPendencias(lista) {
 const CHAVE_FOCO = 'pendencia_foco'
 
 export function marcarFoco(p) {
-  try { sessionStorage.setItem(CHAVE_FOCO, JSON.stringify({ id: p.id, instrucao: p.instrucao, titulo: p.titulo })) }
+  try { sessionStorage.setItem(CHAVE_FOCO, JSON.stringify({ id: p.id, instrucao: p.instrucao, titulo: p.titulo, campo: p.campo || null })) }
   catch { /* sem sessionStorage, a navegação ainda funciona */ }
 }
 

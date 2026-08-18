@@ -137,3 +137,18 @@ describe('resumo de uma linha', () => {
     expect(resumoPendencias(so_media)).toMatch(/para a marca ficar completa/)
   })
 })
+
+describe('o campo viaja com o clique', () => {
+  it('a lacuna carrega o campo para a tela ancorar nele', () => {
+    const p = pendencias({
+      temManual: true,
+      lacunas: [{ rotulo: 'Proposta de valor', secao: 'Posicionamento', campo: 'verbal_identity.proposta_valor' }],
+    })
+    expect(p.find(x => x.id.startsWith('lacuna:')).campo).toBe('verbal_identity.proposta_valor')
+  })
+
+  it('lacuna sem campo não quebra — a faixa do topo dá conta', () => {
+    const p = pendencias({ temManual: true, lacunas: [{ rotulo: 'Visão', secao: 'Essência' }] })
+    expect(p.find(x => x.id.startsWith('lacuna:')).campo).toBeNull()
+  })
+})
