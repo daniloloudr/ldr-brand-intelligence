@@ -109,6 +109,23 @@ O código está à frente do comercial — as próximas jogadas não são featur
 
 ## H1 — PROVAR (agora → ~3 meses) · *marca no mercado, ~10 clientes com case*
 
+> ### 🔴 ESTA SEMANA (18–24/ago/2026) — SETUP DE TRÊS CLIENTES
+> **Worten** (Portugal · reunião 19/08 + setup) · **Hering** (piloto Rafael Passos) · **Pixel Retail** (retail media).
+>
+> É a primeira vez que a plataforma recebe clientes reais em sequência, e a primeira com marca **fora do Brasil**.
+> O dia 18/08 foi gasto endurecendo o núcleo por causa disso (changelog v8.2 em `produto.md`).
+>
+> **Checklist por setup:** ① país correto no cadastro (Worten = PT — define mercado, praças de reputação e idioma)
+> · ② domínio preenchido, porque a guarda de identidade depende dele e sem ele o diagnóstico passa "não verificado"
+> · ③ conferir o diagnóstico ANTES de mostrar ao cliente (`_identidade` grava `ok`/`verificado` em `diagnosticos.data`)
+> · ④ concorrentes cadastrados com domínio, e os errados **desativados** (desativar já basta: a leitura passou a respeitar)
+> · ⑤ rodar clipping na mão depois de cadastrar concorrente — o cron só roda segunda
+> · ⑥ olhar `/admin` → **Saúde** depois de cada setup.
+>
+> **Pendências que afetam os três:** o `cron-monitor` está morrendo desde 10/08 (regenera diagnóstico de todas as
+> marcas toda segunda — investigar antes que os três estejam dentro) e o header de Diagnósticos segue quebrado.
+
+
 | Item | O quê | Tamanho / gatilho |
 |---|---|---|
 | ~~**⭐ Duelo de Modelos**~~ ✅ 14/jul | **ENTREGUE (imagem):** modo ⚔️ na página Imagem — 2–3 modelos, mesma peça, arena lado a lado, voto único → sinal `model_duel` (peso 2, vencedor+perdedores) + `image_vote` na vencedora; destilador entende preferência pareada como a evidência mais forte do win_rate. Validado ponta a ponta. **Falta (fase 2):** duelo de TEXTO (gatilho: conector OpenRouter) e usar a arena no pilotinho Hering | ✅ · texto: pós-OpenRouter |
@@ -314,6 +331,8 @@ Nurturing emails (D+2…D+15) · F07b Search Listening (busca orgânica) · atua
 ---
 
 ## ✅ Entregue (resumo — história completa no changelog v6.0 do specs.md)
+
+**18/ago/2026, "o dia da integridade":** guarda de identidade nos 4 caminhos de diagnóstico (o modelo não define mais quem é o cliente — origem: relatório da "Pixel Agência Digital" entregue à Pixel Retail) · **`npm run guarda`** com varredura de mutação 21/21 e hook de pre-commit sobre os 11 arquivos do núcleo · avaliação ao vivo contra a API · **mercado por país** (`_mercado.js` + migration 051; Worten validada de verdade) · **custo por workspace** (migration 050; `streamAI` nunca registrara nada) · escuta sem depender do Google (`_busca.js`, adaptadores, cron semanal) · sonnet-4-6 principal com sonnet-5 de reserva, medido em A/B · **migration 049** fecha leitura anônima de 111 diagnósticos · e-mail do operador sai da Gestão de time · concorrente desativado para de alimentar a inteligência de mercado · aba **Saúde** no admin · limpezas com backup (diagnóstico errado, 6 sinais e 3 sínteses contaminadas, 131 eventos de escuta sem URL). 9 deploys. Doutrina do núcleo em [`nucleo-ia.md`](nucleo-ia.md).
 
 **06–08/jul/2026, "a era do cérebro":** `_brain.js` (cérebro como módulo único) · flywheel completo (todas as superfícies leem+escrevem) · `brand_dataset` (exemplos julgados p/ fine-tune) · modelo vivo enriquecido (taxonomia por código, facetas territorio/conteudo, métricas por versão) · sinais `content_used`/`image_regen`/`writing_edit` · Writing Room (frameworks + blocos editáveis + compilador peça→workflow) · Biblioteca de assets · painel admin Cérebros + IA LOUDR como prova viva (narrativa + **rede neural viva**) · cron autônomo consertado · dogfooding Pupila · migrations 025–034 via CLI · docs v6.0. Concorrentes mapeados: Pupila (direto, DNA estático) e Tess (indireto, valida a tese borda-commodity).
 
