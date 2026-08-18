@@ -40,7 +40,11 @@ export function FocoPendencia() {
         setAchou(true)
         alvo.classList.add('campo-em-foco')
         alvo.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        alvo.querySelector('input, textarea')?.focus({ preventScroll: true })
+        // A tela nasce em modo leitura: o campo não tem input até ser aberto.
+        // Quem chegou por uma pendência veio para preencher, então abre.
+        const jaAberto = alvo.querySelector('input, textarea')
+        if (jaAberto) jaAberto.focus({ preventScroll: true })
+        else alvo.click()
       }
     }, 150)
 
