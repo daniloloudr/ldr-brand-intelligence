@@ -41,6 +41,12 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
   }
 
   const fileSizeMB = file ? file.size / 1024 / 1024 : 0
+  // Medido: o manual da PES (44,7 MB, 313 páginas) levou ~9 min em sete
+  // leituras do mesmo documento. Faixas, não promessa — o que manda é o
+  // número de páginas, e o tamanho do arquivo é o proxy que temos na mão.
+  const estimativa = fileSizeMB > 30 ? 'Manuais deste tamanho levam de 8 a 15 minutos'
+                   : fileSizeMB > 10 ? 'Deve levar de 4 a 8 minutos'
+                   : 'Deve levar de 2 a 4 minutos'
   // Só avisa perto do teto do bucket. Abaixo disso o tamanho não é problema:
   // o PDF sobe pela Files API e páginas em alta resolução são o insumo da
   // leitura visual, não um estorvo.
@@ -104,13 +110,21 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
       const stepTimer = setInterval(advanceStep, 12000)
       intervalRef.current = stepTimer
 
-      // Poll for job completion
-      const MAX_WAIT = 240_000
+      // Poll for job completion.
+      // Eram 4 min — menos que o trabalho do servidor. A extração da PES leva
+      // ~9 min, e a tela desistia no meio de uma rodada que estava indo bem,
+      // dizendo "tente novamente": o cliente dispararia uma segunda extração
+      // paga por cima da primeira. O teto agora acompanha o do servidor (15 min
+      // de background function) com margem.
+      const MAX_WAIT = 18 * 60_000
       const start = Date.now()
       await new Promise((resolve, reject) => {
         const check = async () => {
           if (Date.now() - start > MAX_WAIT) {
-            reject(new Error('A extração demorou mais que o esperado. Tente novamente.'))
+            // Não é erro: o job segue no servidor e grava sozinho quando
+            // terminar. Pedir "tente novamente" aqui custaria uma extração.
+            reject(new Error('A leitura continua rodando no servidor — pode fechar esta janela. '
+              + 'O resultado aparece no Brand Book quando terminar.'))
             return
           }
           const { data: jobData } = await supabase
@@ -176,7 +190,7 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
               sx={{ borderRadius: 1, mb: 1 }}
             />
             <Typography variant="caption" color="text.disabled">
-              Este processo pode levar até 3 minutos para manuais extensos.
+              {estimativa} · a leitura roda no servidor, você pode fechar esta janela.
             </Typography>
           </Box>
         ) : (

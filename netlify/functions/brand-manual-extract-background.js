@@ -80,17 +80,26 @@ Personas: só as que o manual descrever, com dor e motivação se houver.`,
     chave: 'textos_referencia', dentro: 'verbal_identity', tag: 'textos', max: 16000,
     prompt: `${REGRAS}
 
-Capture TODOS os exemplos de TEXTO LONGO que o manual mostrar: e-mails completos,
-posts de blog e de LinkedIn, anúncios, releases, newsletters, roteiros.
+Capture TODO texto PRONTO da marca — palavras que ela já usa, não regras sobre elas.
 
-Cole o texto INTEGRAL, sem resumir. É deste material que o RAG tira a voz da marca —
-um resumo aqui vira uma imitação pobre lá na frente.
+Isto inclui as duas formas, e a segunda é a mais comum em manual de marca:
+1. Peças longas e completas: e-mails, posts, anúncios, releases, newsletters, roteiros.
+2. Mensagens curtas prontas: mensagens-chave institucionais, frases por público
+   (famílias, escolas, alunos, equipe, comercial), frases por produto ou evento,
+   assinaturas, chamadas, e pares "usar vs. evitar".
+
+Cole o texto LITERAL, sem resumir e sem reescrever. É deste material que o RAG tira a
+voz da marca — parafrasear aqui vira imitação pobre lá na frente. Uma entrada por
+frase ou peça; não junte várias numa só.
 
 { "textos_referencia": [
-  { "tipo": "e-mail|blog|linkedin|newsletter|anuncio|press_release|pitch|outro",
+  { "tipo": "mensagem_chave|frase_publico|frase_produto|usar_evitar|e-mail|post|anuncio|release|roteiro|outro",
     "titulo": "", "publico": "", "texto": "", "notas": "" } ] }
 
-Se o manual não trouxer texto longo nenhum, devolva a lista vazia.`,
+- "publico": a quem aquela frase se dirige, quando o manual separar por público.
+- "notas": em par "usar vs. evitar", registre aqui o lado a EVITAR e o porquê.
+
+Só devolva lista vazia se o manual realmente não trouxer nenhuma frase pronta.`,
   },
   {
     chave: 'visual_identity', tag: 'visual-declarado', max: 12000,
@@ -160,45 +169,57 @@ Liste os ATIVOS e TOKENS que o manual nomeia, para virarem registro consultável
   },
 ]
 
-const PROMPT_VISUAL = `Você está OLHANDO as páginas deste brand manual. Sua tarefa não é ler as regras escritas — é DESCREVER o que se vê.
+/* A leitura do APLICADO em dois blocos, pela mesma razão dos outros: no manual
+   da PES ela truncou em 8.000 tokens tentando descrever a síntese e cada peça
+   na mesma resposta. A síntese responde "com o que a marca se parece"; a lista
+   de peças é o inventário que sustenta a síntese. */
+const OLHAR = `Você está OLHANDO as páginas deste brand manual. Não é para ler as regras escritas — é para DESCREVER o que se vê.
+
+Isso é observação, não invenção: você relata o que a página mostra. Mas nunca extrapole para o que ela não mostra — se o manual não traz peça aplicada nenhuma, diga isso em vez de imaginar uma.
+
+Responda APENAS com o JSON pedido, sem markdown e sem texto em volta.`
+
+const BLOCOS_VISUAIS = [
+  {
+    chave: 'visual_reading', tag: 'visual-aplicado', max: 10000,
+    prompt: `${OLHAR}
 
 A pergunta que tudo aqui responde: **com o que esta marca se parece?** Alguém que nunca viu o manual precisa conseguir, só com a sua descrição, produzir uma peça que pareça desta marca e não de outra.
 
-Descreva o que está VISÍVEL nas páginas. Isso é observação, não invenção: você está relatando o que a página mostra. Mas nunca extrapole para o que ela não mostra — se o manual não traz nenhuma peça aplicada, diga isso em vez de imaginar uma.
-
-Sempre que possível, cite o número da página que sustenta a descrição.
-
-Retorne APENAS JSON válido sem markdown, no formato:
 {
-  "assinatura_visual": "",
-  "uso_do_logo": "",
-  "uso_da_cor": "",
-  "uso_da_tipografia": "",
-  "tratamento_fotografico": "",
-  "ilustracao_e_grafismos": "",
-  "composicao_e_layout": "",
-  "densidade_e_respiro": "",
-  "aplicacoes_observadas": [
-    { "pagina": "", "peca": "", "descricao": "", "cores_dominantes": [], "tipografia_aparente": "", "composicao": "" }
-  ],
-  "recorrencias": [],
-  "contrastes_com_a_regra": []
+  "assinatura_visual": "", "uso_do_logo": "", "uso_da_cor": "", "uso_da_tipografia": "",
+  "tratamento_fotografico": "", "ilustracao_e_grafismos": "",
+  "composicao_e_layout": "", "densidade_e_respiro": "",
+  "recorrencias": [], "contrastes_com_a_regra": []
 }
 
-O que cada campo quer:
-- "assinatura_visual": o parágrafo que resume o jeito desta marca. O que faz uma peça ser reconhecida como dela — a combinação de cor, forma, tipo, ritmo e clima. Escreva denso e concreto, não genérico: "fundo preto quase integral, tipografia condensada em caixa alta ocupando dois terços da largura, um único verde ácido em um elemento pequeno" vale; "moderna e elegante" não vale nada.
-- "uso_do_logo": como o logo APARECE aplicado — onde é posto na composição, em que tamanho relativo, sobre que fundos, qual versão em cada situação.
-- "uso_da_cor": as proporções reais. Qual cor domina a área, qual é apoio, como o acento entra (em quê, em que quantidade), o que nunca aparece colorido.
-- "uso_da_tipografia": o que se vê nos títulos e no texto — peso, largura, caixa, alinhamento, quebras de linha, relação de tamanho entre título e corpo.
-- "tratamento_fotografico": enquadramento, luz, cor, pós-produção, o que as fotos retratam, como a foto convive com texto por cima.
-- "ilustracao_e_grafismos": formas, texturas, padrões, elementos gráficos recorrentes, molduras, linhas.
-- "composicao_e_layout": onde as coisas se sentam, alinhamentos, margens, se é centrado ou ancorado, como o grid se manifesta.
-- "densidade_e_respiro": quanta área fica vazia, o quanto a peça é cheia ou arejada.
-- "aplicacoes_observadas": UMA entrada para CADA peça aplicada que o manual mostrar (cartaz, post, embalagem, papelaria, fachada, camiseta, site, anúncio, mockup). Descreva a peça como ela é, não a regra.
+- "assinatura_visual": o parágrafo que resume o jeito desta marca — a combinação de cor, forma, tipo, ritmo e clima que faz uma peça ser reconhecida como dela. Denso e concreto: "fundo preto quase integral, tipografia condensada em caixa alta ocupando dois terços da largura, um único verde ácido num elemento pequeno" vale; "moderna e elegante" não vale nada.
+- "uso_do_logo": como o logo APARECE aplicado — onde na composição, em que tamanho relativo, sobre que fundos, qual versão em cada situação.
+- "uso_da_cor": as proporções reais. Qual cor domina a área, qual é apoio, como o acento entra e em que quantidade, o que nunca aparece colorido.
+- "uso_da_tipografia": o que se vê nos títulos e no corpo — peso, largura, caixa, alinhamento, relação de tamanho.
+- "tratamento_fotografico": enquadramento, luz, cor, pós-produção, o que as fotos retratam, como convivem com texto por cima.
+- "ilustracao_e_grafismos": formas, texturas, padrões, molduras, linhas recorrentes.
+- "composicao_e_layout": onde as coisas se sentam, alinhamentos, margens, como o grid se manifesta.
+- "densidade_e_respiro": quanta área fica vazia; se a peça é cheia ou arejada.
 - "recorrencias": o que se repete em várias páginas — os padrões que fazem o sistema.
-- "contrastes_com_a_regra": onde o que está mostrado diverge do que está escrito. Só preencha se realmente observar divergência.
+- "contrastes_com_a_regra": onde o mostrado diverge do escrito. Só preencha se realmente observar divergência.`,
+  },
+  {
+    chave: 'aplicacoes_observadas', dentro: 'visual_reading', tag: 'pecas', max: 14000,
+    prompt: `${OLHAR}
 
-Campo sem base visual: string vazia ou array vazio. NUNCA invente.`
+Faça o INVENTÁRIO das peças aplicadas que o manual mostra: cartaz, post, embalagem, papelaria, fachada, uniforme, camiseta, site, anúncio, mockup, sinalização.
+
+Descreva cada peça como ela É — não a regra que ela ilustra. Cite a página.
+
+{ "aplicacoes_observadas": [
+  { "pagina": "", "peca": "", "descricao": "",
+    "cores_dominantes": [], "tipografia_aparente": "", "composicao": "" } ] }
+
+Se o manual mostrar muitas, priorize as **25 mais representativas** — as que ensinam algo distinto sobre o sistema. Repetições do mesmo layout contam como uma.
+Se não houver peça aplicada nenhuma, devolva a lista vazia.`,
+  },
+]
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
@@ -346,9 +367,12 @@ export const handler = async (event) => {
       else if (b.chave === '_catalogo') Object.assign(extracted, json)
       else                          extracted[b.chave] = json[b.chave] || json
     }
-    const visual = await ler(PROMPT_VISUAL, 8000, 'visual-aplicado')
-    if (visual) extracted.visual_reading = visual
-    else falharam.push('visual-aplicado')
+    for (const b of BLOCOS_VISUAIS) {
+      const json = await ler(b.prompt, b.max, b.tag)
+      if (!json) { falharam.push(b.tag); continue }
+      if (b.dentro) Object.assign(extracted[b.dentro] ||= {}, json)
+      else          extracted[b.chave] = json[b.chave] || json
+    }
   } catch (e) {
     await apagarArquivo()
     await markError(humanizar(e.message))
@@ -359,7 +383,7 @@ export const handler = async (event) => {
   // Um bloco que falha vira lacuna, não naufrágio: o smartbrand já trata
   // ausência como informação. Só o vazio total é erro.
   if (falharam.length) console.warn(`[brand-manual] blocos sem retorno: ${falharam.join(', ')}`)
-  if (falharam.length === BLOCOS.length + 1) {
+  if (falharam.length === BLOCOS.length + BLOCOS_VISUAIS.length) {
     await markError('Não foi possível extrair dados estruturados do manual')
     return { statusCode: 200 }
   }
