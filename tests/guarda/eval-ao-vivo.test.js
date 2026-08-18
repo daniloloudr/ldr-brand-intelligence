@@ -14,7 +14,10 @@ import { conferirIdentidade, dominioRaiz } from '../../netlify/functions/_identi
 
 const AO_VIVO = process.env.EVAL_AO_VIVO === '1' && !!process.env.ANTHROPIC_KEY
 const talvez  = AO_VIVO ? it : it.skip
-const LIMITE  = 180_000
+// Teto por caso. Medido: 3 min NÃO bastam — o diagnóstico completo faz até 6
+// buscas, escreve JSON longo e pode repetir a tentativa. O teto real de produção
+// é o da background function (15 min), então a avaliação usa a mesma folga.
+const LIMITE  = 720_000
 
 // Casos com VERDADE CONHECIDA. O critério não é "a resposta é boa" — é
 // verificável: a empresa certa, a URL existindo no índice. Julgar qualidade
