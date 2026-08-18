@@ -8,16 +8,13 @@
 // O que sobra aqui é o que NÃO é campo de formulário: o design.md gerado, o
 // território que a IA aprendeu, e a mesclagem das personas legadas.
 import { useState, useEffect } from 'react'
-import { Box, Typography, TextField, Paper, Stack, Chip, Alert, Button } from '@mui/material'
+import { Box, Typography, Paper, Stack, Chip, Alert, Button } from '@mui/material'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
-import { FieldLabel, SectionDivider } from './BrandSection'
 import { CamposDaMarca } from './CamposDaMarca'
-import { ESSENCIA, FUNCAO, PERSONALIDADE } from './campos'
+import { ESSENCIA, FUNCAO, EXPERIENCIA, PERSONALIDADE } from './campos'
 import { buildDesignMd } from '../../lib/designMd'
 import { supabase } from '../../lib/supabase'
 import { PALETTE } from '../../lib/theme'
-
-const tf = { '& .MuiInputBase-input': { fontSize: 14 } }
 
 // Cada seção recebe as duas colunas e devolve o patch da que mudou. Manter uma
 // só assinatura evita o vaivém de props que existia antes.
@@ -64,8 +61,11 @@ export function NegocioSection({ verbal = {}, strategy = {}, onVerbal, onStrateg
 }
 
 // ── Business → Experiência (UX · UI · Journey · design.md) ───────────
+// Os campos vêm do mapa como em toda seção; o que é próprio daqui é o design.md
+// — artefato GERADO do que a marca já tem, então não é campo: é saída, e vai
+// depois do documento.
 export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visual, tokens, assets }) {
-  const s = k => val => onStrategy({ ...strategy, [k]: val })
+  const ed = useEditor({}, strategy, () => {}, onStrategy)
   const [copied, setCopied] = useState(false)
   const md = buildDesignMd({ brandNome, visual, strategy, tokens, assets })
 
@@ -80,50 +80,31 @@ export function ExperienciaSection({ strategy = {}, onStrategy, brandNome, visua
     a.click(); URL.revokeObjectURL(a.href)
   }
 
-  const Area = ({ k, label, ph, rows = 3 }) => (
-    <Box data-campo={`strategy.${k}`}>
-      <FieldLabel>{label}</FieldLabel>
-      <TextField value={strategy[k] || ''} onChange={e => s(k)(e.target.value)}
-        placeholder={ph} fullWidth multiline rows={rows} sx={tf} />
-    </Box>
-  )
-
   return (
-    <Stack spacing={4}>
-      <SectionDivider>Experiência</SectionDivider>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-        <Area k="ux" label="UX — princípios de experiência" ph="Como deve ser a experiência de usar/consumir a marca" />
-        <Area k="ui" label="UI — princípios de interface" ph="Diretrizes de interface e interação" />
-      </Box>
-      <Area k="customer_journey" label="Jornada do cliente" rows={5}
-        ph="Do primeiro contato ao pós-venda, com os momentos-chave da marca" />
+    <Box>
+      <CamposDaMarca mapa={EXPERIENCIA} {...ed} />
 
-      <SectionDivider>Design System — design.md</SectionDivider>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
-        Gerado do que a marca já tem (paleta, tipografia, tokens, logos, princípios) — nada para preencher
-        duas vezes. É o artefato que times de produto e agentes de IA consomem.
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-        <Box data-campo="strategy.storybook_url">
-          <FieldLabel>Storybook (opcional)</FieldLabel>
-          <TextField value={strategy.storybook_url || ''} onChange={e => s('storybook_url')(e.target.value)}
-            placeholder="https://storybook.suamarca.com" fullWidth sx={tf} />
-        </Box>
-        <Area k="design_notes" label="Notas de design (entram no design.md)" rows={2}
-          ph="Regras extras que o time quer registrar" />
+      <Box sx={{ maxWidth: 860, mt: 2 }}>
+        <Typography component="h2" sx={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.012em', mb: 1 }}>
+          design.md
+        </Typography>
+        <Typography sx={{ fontSize: 15, lineHeight: 1.75, color: 'text.secondary', mb: 2, maxWidth: '74ch' }}>
+          Gerado do que a marca já tem — paleta, tipografia, tokens, logos, princípios. Nada para
+          preencher duas vezes. É o artefato que times de produto e agentes de IA consomem.
+        </Typography>
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="caption" sx={{ flex: 1 }}>design.md</Typography>
+            <Chip label={copied ? 'Copiado!' : 'Copiar'} size="small" onClick={copiar} sx={{ fontWeight: 700, mr: 1 }} />
+            <Chip label="Baixar .md" size="small" onClick={baixar} variant="outlined" sx={{ fontWeight: 700 }} />
+          </Stack>
+          <Box component="pre" sx={{ m: 0, p: 2, fontSize: 12, lineHeight: 1.6, fontFamily: 'ui-monospace, Menlo, monospace',
+            whiteSpace: 'pre-wrap', maxHeight: 420, overflowY: 'auto', bgcolor: 'background.default' }}>
+            {md}
+          </Box>
+        </Paper>
       </Box>
-      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-        <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="caption" sx={{ flex: 1 }}>design.md</Typography>
-          <Chip label={copied ? 'Copiado!' : 'Copiar'} size="small" onClick={copiar} sx={{ fontWeight: 700, mr: 1 }} />
-          <Chip label="Baixar .md" size="small" onClick={baixar} variant="outlined" sx={{ fontWeight: 700 }} />
-        </Stack>
-        <Box component="pre" sx={{ m: 0, p: 2, fontSize: 12, lineHeight: 1.6, fontFamily: 'ui-monospace, Menlo, monospace',
-          whiteSpace: 'pre-wrap', maxHeight: 420, overflowY: 'auto', bgcolor: 'background.default' }}>
-          {md}
-        </Box>
-      </Paper>
-    </Stack>
+    </Box>
   )
 }
 

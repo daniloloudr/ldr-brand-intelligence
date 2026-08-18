@@ -99,6 +99,22 @@ export const FUNCAO = [
     ] },
 ]
 
+export const EXPERIENCIA = [
+  { grupo: 'Experiência' },
+  { col: COL.strategy, k: 'ux', label: 'UX — princípios de experiência', tipo: 'area', meia: true,
+    ph: 'Como deve ser a experiência de usar ou consumir a marca' },
+  { col: COL.strategy, k: 'ui', label: 'UI — princípios de interface', tipo: 'area', meia: true,
+    ph: 'Diretrizes de interface e interação' },
+  { col: COL.strategy, k: 'customer_journey', label: 'Jornada do cliente', tipo: 'area', rows: 5,
+    ph: 'Do primeiro contato ao pós-venda, com os momentos-chave da marca' },
+
+  { grupo: 'Design System' },
+  { col: COL.strategy, k: 'storybook_url', label: 'Storybook', tipo: 'texto',
+    ph: 'https://storybook.suamarca.com' },
+  { col: COL.strategy, k: 'design_notes', label: 'Notas de design', tipo: 'area', rows: 2,
+    ph: 'Regras extras que o time quer registrar — entram no design.md' },
+]
+
 export const PERSONALIDADE = [
   { grupo: 'Quem a marca é quando fala' },
   { col: COL.verbal, k: 'personalidade', label: 'Traços de personalidade', tipo: 'chips',
@@ -186,5 +202,5 @@ export const EXPRESSAO_VERBAL = [
 ]
 
 /** Todos os campos declarados, para conferir que ninguém aparece duas vezes. */
-export const TODOS = [...ESSENCIA, ...FUNCAO, ...PERSONALIDADE, ...EXPRESSAO_VERBAL]
+export const TODOS = [...ESSENCIA, ...FUNCAO, ...EXPERIENCIA, ...PERSONALIDADE, ...EXPRESSAO_VERBAL]
   .filter(c => c.k)
