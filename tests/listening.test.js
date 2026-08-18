@@ -93,3 +93,24 @@ describe('coletor sem busca web não coleta', () => {
     expect(fonte).not.toContain("aiConfig('standard')")
   })
 })
+
+describe('busca aberta por canal', () => {
+  it('nenhum canal usa filtro por domínio', () => {
+    // `site:twitter.com` devolvia vazio SEMPRE — as redes bloqueiam crawler ou
+    // exigem login, então o índice não tem o conteúdo. Medido: com o filtro,
+    // 3 buscas e nada; sem ele, o Instagram devolveu 7 menções com permalink.
+    const bloco = fonte.slice(fonte.indexOf('const FONTES'), fonte.indexOf('function buildPrompt'))
+    expect(bloco).not.toMatch(/site:/)
+    expect(bloco).toMatch(/alvo:/)
+  })
+
+  it('o prompt proíbe o modelo de restringir por domínio', () => {
+    expect(fonte).toMatch(/NÃO restrinja a busca a um domínio/)
+  })
+
+  it('a pergunta é sobre PERCEPÇÃO, não sobre menção genérica', () => {
+    // A escuta existe para avaliar como a marca é percebida (decisão do Danilo).
+    expect(fonte).toMatch(/é percebida em/)
+    expect(fonte).toMatch(/Post da\n?\s*própria marca só entra se a reação/)
+  })
+})
