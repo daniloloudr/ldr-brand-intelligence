@@ -77,17 +77,44 @@ export function alvoDoDiagnostico({ nome, dominio } = {}) {
   return h || n || ''
 }
 
-/** A instrução que amarra o modelo ao sujeito certo. */
+/**
+ * A instrução que amarra o modelo ao sujeito certo.
+ *
+ * Os DOIS entram como contexto, com hierarquia explícita (decisão do Danilo,
+ * 18/08): o domínio decide, o nome ajuda a procurar. Eles divergem com
+ * frequência — nome fantasia ≠ razão social ≠ domínio, e o domínio às vezes é
+ * uma abreviação que ninguém escreve. Mandar só um dos dois perde informação;
+ * mandar os dois sem hierarquia devolve a ambiguidade ao modelo, que foi o que
+ * produziu o diagnóstico da empresa errada.
+ */
 export function instrucaoDeIdentidade({ nome, dominio } = {}) {
   const h = host(dominio)
-  if (!h) return ''
+  const n = String(nome || '').trim()
+  if (!h && !n) return ''
+
+  if (!h) {
+    return `\n\nIDENTIDADE DO SUJEITO:
+O diagnóstico é da empresa "${n}". Não temos o site oficial para desempatar, então:
+se houver mais de uma empresa com este nome, NÃO escolha uma por ter mais material —
+devolva {"erro_identificacao":"mais de uma empresa atende por ${n}"} e liste no campo
+"candidatos" os domínios que você encontrou.`
+  }
+
   return `\n\nIDENTIDADE DO SUJEITO — regra absoluta:
-O diagnóstico é da empresa cujo site oficial é ${h}. Este domínio é o identificador
-definitivo. Se você encontrar outras empresas com nome parecido ou igual, ELAS NÃO SÃO
-o sujeito — ignore-as por completo, mesmo que tenham mais material disponível.
+O diagnóstico é da empresa cujo site oficial é ${h}.${n ? ` Ela se apresenta como "${n}".` : ''}
+
+O DOMÍNIO decide, o nome só ajuda a procurar. Os dois podem divergir — nome fantasia,
+razão social e domínio raramente coincidem — e nesse caso o domínio prevalece SEMPRE.
+Se o material que você achar pelo nome pertencer a outro domínio, ele NÃO é do sujeito:
+descarte, por mais abundante ou convincente que seja.
+
+Comece a pesquisa pelo próprio ${h} para fixar quem é a empresa; só depois use o nome
+para achar percepção externa, e confira que cada achado se refere a ESTA empresa.
 No JSON, o campo "dominio" deve conter exatamente ${h}.
-Se não conseguir encontrar material suficiente sobre ${h}, devolva
-{"erro_identificacao":"não encontrei material sobre ${h}"} em vez de diagnosticar outra empresa.`
+
+Se não encontrar material suficiente sobre ${h}, devolva
+{"erro_identificacao":"não encontrei material sobre ${h}"} em vez de diagnosticar outra
+empresa. Devolver isso é resposta correta; diagnosticar o homônimo não é.`
 }
 
 /**
