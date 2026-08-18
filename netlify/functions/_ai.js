@@ -74,7 +74,7 @@ const TOKEN_PRICE = {
   'claude-sonnet-5':            { in: 3,    out: 15 },
   'claude-opus-5':              { in: 5,    out: 25 },
 }
-export async function logAiUsage(supabase, { model, usage, tag = null }) {
+export async function logAiUsage(supabase, { model, usage, tag = null, workspace_id = null, operacao = null }) {
   try {
     if (!supabase || !usage) return
     const p = TOKEN_PRICE[model] || { in: 3, out: 15 }
@@ -83,7 +83,7 @@ export async function logAiUsage(supabase, { model, usage, tag = null }) {
     await supabase.from('ai_usage').insert({
       provider: 'anthropic', model,
       input_tokens: Math.round(inTok), output_tokens: usage.output_tokens || 0,
-      custo_usd: custo, tag,
+      custo_usd: custo, tag, workspace_id, operacao,
     })
   } catch { /* rastreio nunca derruba a operação */ }
 }
@@ -198,6 +198,8 @@ export async function callAI({
   timeoutMs,
   supabase     = null,   // opcional: habilita o rastreio de custo (ai_usage)
   tag          = null,   // quem chamou (distill, diagnostico, sintese…)
+  workspace_id = null,   // DE QUEM é a operação — sem isto não há custo por marca
+  operacao     = null,   // sub-identificação dentro da tag
 }) {
   requireApiKey(apiKey)
 
@@ -251,7 +253,7 @@ export async function callAI({
       // chamador recebia o primeiro fragmento como se fosse a resposta inteira.
       const blocos = Array.isArray(data.content) ? data.content : []
       const text = blocos.filter(b => b.type === 'text').map(b => b.text || '').join('')
-      await logAiUsage(supabase, { model: body.model, usage: data.usage, tag })
+      await logAiUsage(supabase, { model: body.model, usage: data.usage, tag, workspace_id, operacao })
       if (usouReserva) console.warn(`[ai] respondido pela reserva ${modeloAtual}`)
       // `content` cru sai junto: quem usa busca web precisa dos blocos
       // `web_search_tool_result` (URL e título vindos do índice) e das
@@ -292,6 +294,10 @@ export async function streamAI({
   maxTokens = 4000,
   apiKey,
   onText,
+  supabase     = null,   // habilita o rastreio de custo — ver logAiUsage
+  tag          = null,
+  workspace_id = null,
+  operacao     = null,
   thinking,        // {type:'disabled'} corta o raciocínio; omitido = padrão do modelo
   idleMs,          // aborta se ficar SEM receber dados por N ms (ideal p/ streaming:
                    // não corta um stream saudável que flui, só um pendurado)
@@ -345,6 +351,10 @@ export async function streamAI({
   const decoder = new TextDecoder()
   let buf = '', fullText = ''
   let stopReason = null, thinkingTokens = 0
+  // O uso vem partido em dois eventos: os tokens de ENTRADA chegam no
+  // `message_start`, os de SAÍDA no `message_delta`. Quem olhar só um dos dois
+  // registra metade da conta.
+  let usage = {}
 
   try {
     while (true) {
@@ -366,9 +376,13 @@ export async function streamAI({
         // O desfecho vem no message_delta. Sem olhar isto, um estouro de teto
         // chegava ao chamador como texto vazio, que ele traduzia em "JSON não
         // extraído" — mensagem que aponta para o lugar errado e custou horas.
+        if (evt.type === 'message_start' && evt.message?.usage) {
+          usage = { ...usage, ...evt.message.usage }
+        }
         if (evt.type === 'message_delta') {
           stopReason     = evt.delta?.stop_reason || stopReason
           thinkingTokens = evt.usage?.output_tokens_details?.thinking_tokens || thinkingTokens
+          if (evt.usage) usage = { ...usage, ...evt.usage }
         }
       }
     }
@@ -378,6 +392,13 @@ export async function streamAI({
   } finally {
     clearIdle()
   }
+
+  // O gasto entra no rastreio ANTES das validações abaixo. Uma chamada que
+  // estourou o teto sem escrever nada custou dinheiro do mesmo jeito — foi
+  // exatamente o caso da Pixel, 169 mil tokens de entrada e 14 mil de saída
+  // para devolver zero caractere. Registrar só o sucesso esconde o desperdício,
+  // que é justamente o que a gente precisa enxergar.
+  await logAiUsage(supabase, { model: modeloAlvo, usage, tag, workspace_id, operacao })
 
   // Texto vazio com teto estourado não é "resposta ruim": é resposta que nunca
   // começou. Sonnet 5 pensa por padrão (thinking adaptativo) e, num diagnóstico

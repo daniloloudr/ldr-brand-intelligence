@@ -113,7 +113,7 @@ Não encontrou nada? Diga isso. Lista vazia é resposta correta.`
  *
  * @returns {Promise<{resultados: Array, falhas: Array, provedor: string}>}
  */
-export async function buscarNaWeb(queries, { dias = 7 } = {}) {
+export async function buscarNaWeb(queries, { dias = 7, supabase = null, workspace_id = null, marca = null } = {}) {
   const provedor = provedorDeBusca()
 
   if (provedor === 'google') {
@@ -131,6 +131,9 @@ export async function buscarNaWeb(queries, { dias = 7 } = {}) {
       maxTokens: 4000,      // a prosa é descartada; o que importa são os blocos
       tools:     [{ ...cfg.tools[0], max_uses: Math.min(queries.length + 1, 12) }],
       messages:  [{ role: 'user', content: promptDeBusca(queries, dias) }],
+      // A busca é chamada de LLM e custa — precisa aparecer no custo da marca
+      // tanto quanto a classificação que vem depois.
+      supabase, tag: 'escuta', workspace_id, operacao: `escuta:buscar:${marca || '?'}`,
     })
     const resultados = colherDosBlocos(content)
     // Zero resultado sem erro é resposta legítima — marca pequena, semana quieta.

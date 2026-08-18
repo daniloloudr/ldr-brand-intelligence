@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "guarda": "vitest run && node tests/guarda/mutacao.mjs",
-    "guarda:ao-vivo": "EVAL_AO_VIVO=1 vitest run tests/guarda/eval-ao-vivo.test.js"
+    "guarda:ao-vivo": "EVAL_AO_VIVO=1 vitest run tests/guarda/eval-ao-vivo.test.js",
+    "guarda:instalar": "node tests/guarda/nucleo.mjs --instalar",
+    "nucleo": "node tests/guarda/nucleo.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

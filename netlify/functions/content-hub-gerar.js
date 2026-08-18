@@ -129,6 +129,7 @@ export const handler = async (event) => {
         model:     MODELS.fast,
         maxTokens: 2000,
         messages:  [{ role: 'user', content: promptDev(dominio, marca, diagCtx) }],
+        supabase, tag: 'conteudo', workspace_id: workspace_id,
         retries:   1,
         retryDelay: 2000,
       })
@@ -143,6 +144,7 @@ export const handler = async (event) => {
         ...opts,
         maxTokens: 5000,
         messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6) }],
+        supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       clusters = extractJSON(resC.text)?.clusters
       if (!clusters?.length) throw new Error('Análise inválida retornada pela IA')
@@ -151,6 +153,7 @@ export const handler = async (event) => {
         ...opts,
         maxTokens: 2000,
         messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6) }],
+        supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       ideias = extractJSON(resI.text)?.ideias
     }

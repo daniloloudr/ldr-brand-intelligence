@@ -115,6 +115,7 @@ export const handler = async (event) => {
       const { text } = await callAI({
         ...aiConfig('fast'),
         messages: [{ role: 'user', content: promptDev(dominio, marca, diagCtx, brandCtx) }],
+        supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       const parsed = extractJSON(text)
       clusters = parsed?.clusters
@@ -126,6 +127,7 @@ export const handler = async (event) => {
         ...cfg,
         maxTokens: 5000,
         messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6, brandCtx) }],
+        supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       clusters = extractJSON(resC.text)?.clusters
       if (!clusters?.length) throw new Error('Análise inválida retornada pela IA')
@@ -134,6 +136,7 @@ export const handler = async (event) => {
         ...cfg,
         maxTokens: 2000,
         messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6, brandCtx) }],
+        supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       ideias = extractJSON(resI.text)?.ideias
     }

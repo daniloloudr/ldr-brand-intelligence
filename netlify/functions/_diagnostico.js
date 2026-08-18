@@ -13,7 +13,7 @@ const MAX_ATTEMPTS = 2
 // Aceita string por compatibilidade com chamadas antigas.
 // Lança em falha, inclusive em falha de IDENTIFICAÇÃO: concorrente trocado
 // envenena o sinal competitivo do cérebro, que é permanente.
-export async function gerarDiagnostico(alvo, contexto) {
+export async function gerarDiagnostico(alvo, contexto, rastreio = {}) {
   const sujeito = typeof alvo === 'string' ? { nome: alvo } : (alvo || {})
   const { model, modeloReserva, tools, maxTokens } = aiConfig('premium')
   const msg = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(sujeito)}".`
@@ -27,6 +27,9 @@ export async function gerarDiagnostico(alvo, contexto) {
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msg }],
         model, modeloReserva, tools, maxTokens,
+        // `rastreio` carrega supabase/workspace_id de quem chamou. Diagnóstico
+        // de concorrente é custo DO CLIENTE que pediu a comparação.
+        ...rastreio,
         idleMs: 120000, // 2 min sem chunk = stream morto
       })
       const parsed = extractJSON(text)
@@ -97,7 +100,10 @@ async function emitCompetitiveSignal(supabase, concorrente, parsed) {
 
 // Gera + grava um concorrente. Usa dominio se houver, senão o nome.
 export async function diagnosticarConcorrente(supabase, concorrente) {
-  const parsed = await gerarDiagnostico({ nome: concorrente.nome, dominio: concorrente.dominio }, null)
+  const parsed = await gerarDiagnostico({ nome: concorrente.nome, dominio: concorrente.dominio }, null, {
+    supabase, tag: 'concorrente', workspace_id: concorrente.workspace_id,
+    operacao: `concorrente:${concorrente.nome}`,
+  })
   const { error } = await salvarConcorrenteDiag(supabase, concorrente, parsed)
   if (error) throw new Error(error.message)
   await emitCompetitiveSignal(supabase, concorrente, parsed)   // feed do cérebro (C)
