@@ -36,15 +36,36 @@ export const handler = async (event) => {
   const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 200 })
   const userMap = Object.fromEntries((users || []).map(u => [u.id, u]))
 
-  const result = members.map(m => ({
-    id:         m.id,
-    user_id:    m.user_id,
-    role:       m.role,
-    created_at: m.created_at,
-    email:      userMap[m.user_id]?.email || null,
-    nome:       userMap[m.user_id]?.user_metadata?.full_name || null,
-    is_self:    m.user_id === user.id,
-  }))
+  // ── O time do cliente não inclui quem opera a plataforma ─────────────
+  // Todo workspace ganha o admin da plataforma como membro para que o suporte
+  // funcione. Só que ele aparecia na "Gestão de time" do cliente, com e-mail e
+  // tudo: a Pixel via "danilo@loudr.com.br · Administrador" na lista dela.
+  //
+  // Filtrar na tela não resolveria — o e-mail já teria saído do servidor e
+  // estaria no payload, visível em qualquer devtools. O corte é aqui.
+  //
+  // Quem opera a plataforma continua vendo (marcado como operador), porque
+  // esconder dele o próprio acesso atrapalha o suporte e quebra o workspace da
+  // própria LOUDR, onde os admins SÃO o time.
+  const { data: adminsPlataforma } = await supabase.from('platform_admins').select('user_id')
+  const ehOperador = new Set((adminsPlataforma || []).map(a => a.user_id))
+  const vendoComoOperador = !!platformAdmin
+
+  const result = members
+    .filter(m => vendoComoOperador || !ehOperador.has(m.user_id))
+    .map(m => ({
+      id:         m.id,
+      user_id:    m.user_id,
+      role:       m.role,
+      created_at: m.created_at,
+      email:      userMap[m.user_id]?.email || null,
+      nome:       userMap[m.user_id]?.user_metadata?.full_name || null,
+      is_self:    m.user_id === user.id,
+      // Marca o operador para a tela não contá-lo como membro do cliente.
+      // Só existe na resposta de quem já é operador — para o cliente essas
+      // linhas nem chegam.
+      plataforma: ehOperador.has(m.user_id) || undefined,
+    }))
 
   return { statusCode: 200, headers, body: JSON.stringify({ members: result }) }
 }

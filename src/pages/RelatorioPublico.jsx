@@ -39,10 +39,28 @@ export function RelatorioPublico() {
 
   useEffect(() => {
     if (!id) { setError('Link inválido.'); setLoading(false); return }
-    supabase.from('diagnosticos').select('*').eq('id', id).single()
+    // Colunas explícitas, nunca `*`. O relatório público é lido SEM login, e o
+    // `*` trazia `user_email` junto: quem abrisse o devtools em qualquer link
+    // compartilhado via `danilo@loudr.com.br`. Também fica de fora `user_name`,
+    // que assinava o relatório do cliente com o nome de quem o gerou aqui.
+    //
+    // Isto tira o dado do payload, que é o vazamento do dia a dia. NÃO fecha a
+    // porta: a RLS ainda deixa o anônimo pedir a coluna numa query própria.
+    // O fechamento de verdade é uma migration (view pública ou grant por
+    // coluna) — pendente de OK do Danilo, registrada no backlog.
+    supabase.from('diagnosticos')
+      .select('id, workspace_id, empresa, dominio, setor, porte, created_at, publico, status, tipo, '
+            + 'score_singularidade, score_consistencia, score_posicionamento, frase_diagnostico, data')
+      .eq('id', id).single()
       .then(({ data, error: e }) => {
         setLoading(false)
-        if (e || !data) { setError('Relatório não encontrado ou acesso negado.'); return }
+        // Desde a migration 049 não há leitura anônima: relatório é do
+        // workspace. "Não encontrado" mandaria a pessoa procurar um link
+        // quebrado quando o que falta é entrar na conta.
+        if (e || !data) {
+          setError('Este relatório é privado. Entre com a conta que tem acesso ao workspace para vê-lo.')
+          return
+        }
         setDiag(data)
       })
   }, [id])

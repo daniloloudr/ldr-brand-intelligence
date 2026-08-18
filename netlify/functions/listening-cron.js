@@ -13,15 +13,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
-import { googleConfigurado } from './_google.js'
+import { provedorDeBusca } from './_busca.js'
 
 const run = async () => {
-  // Sem chave não adianta despachar: cada worker acordaria só para descobrir
-  // que não pode buscar e disparar o mesmo alerta, um por marca.
-  if (!googleConfigurado()) {
-    console.error('[listening-cron] sem GOOGLE_SEARCH_KEY/CX — nada despachado')
-    return { statusCode: 503, body: JSON.stringify({ erro: 'busca do Google não configurada' }) }
-  }
+  // Não há mais porta de configuração para travar: a busca padrão usa a mesma
+  // chave da Anthropic que todo o resto já exige. O provedor entra no log para
+  // que uma troca futura apareça no histórico do cron.
+  console.log(`[listening-cron] provedor de busca: ${provedorDeBusca()}`)
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 

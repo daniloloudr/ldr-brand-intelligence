@@ -42,9 +42,13 @@ const MUTACOES = [
     arq: 'netlify/functions/listening-coletar-background.js',
     de: 'tools: undefined,', para: '' },
 
-  { nome: 'deixa a escuta rodar sem chave (modo degradado)',
+  { nome: 'busca que falhou vira snapshot zerado',
     arq: 'netlify/functions/listening-coletar-background.js',
-    de: 'if (!googleConfigurado()) {', para: 'if (false) {' },
+    de: 'if (falhas.length && !resultados.length) {', para: 'if (false) {' },
+
+  { nome: 'volta a ler a prosa em vez dos blocos da busca',
+    arq: 'netlify/functions/_busca.js',
+    de: "b.type === 'web_search_tool_result'", para: "b.type === 'nunca'" },
 
   { nome: 'guarda ingênua: .com.br com dois rótulos',
     arq: 'netlify/functions/_identidade.js',
@@ -62,6 +66,23 @@ const MUTACOES = [
   { nome: 'volta ao sonnet-5 como principal (2,6x o custo)',
     arq: 'netlify/functions/_ai.js',
     de: "  smart:  'claude-sonnet-4-6',", para: "  smart:  'claude-sonnet-5'," },
+
+  { nome: 'e-mail do operador volta a vazar para o cliente',
+    arq: 'netlify/functions/workspace-members.js',
+    de: '.filter(m => vendoComoOperador || !ehOperador.has(m.user_id))', para: '.filter(() => true)' },
+
+  { nome: 'relatório público volta a pedir tudo (select *)',
+    arq: 'src/pages/RelatorioPublico.jsx',
+    de: `    supabase.from('diagnosticos')
+      .select('id, workspace_id, empresa, dominio, setor, porte, created_at, publico, status, tipo, '
+            + 'score_singularidade, score_consistencia, score_posicionamento, frase_diagnostico, data')
+      .eq('id', id).single()`,
+    para: "    supabase.from('diagnosticos').select('*').eq('id', id).single()" },
+
+  { nome: 'reabre a leitura anônima de diagnósticos',
+    arq: 'supabase/migrations/049_diagnosticos_sem_leitura_anonima.sql',
+    de: 'drop policy if exists "leitura publica diagnosticos" on diagnosticos;',
+    para: '-- removido' },
 
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',

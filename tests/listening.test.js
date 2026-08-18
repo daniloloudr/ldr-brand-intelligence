@@ -22,18 +22,28 @@ describe('quem coleta é o Google, quem classifica é o modelo', () => {
     expect(bloco).toMatch(/tools:\s*undefined/)
   })
 
-  it('sem chave do Google a escuta PARA — não degrada', () => {
-    // Foi o modo degradado silencioso que gravou 122 eventos inventados:
-    // `standard` desligava a busca em dev e o modelo, sem como pesquisar,
-    // preenchia o vazio. Coletor sem acesso ao índice não coleta.
-    expect(fonte).toMatch(/if \(!googleConfigurado\(\)\)/)
-    expect(fonte).toMatch(/statusCode: 503/)
+  it('a busca vem da camada, não de um provedor fixo', () => {
+    // Decisão do Danilo: "o google será gargalo, vamos controlar via websearch".
+    // O padrão passa a ser a busca da própria Anthropic — mesma chave que todo
+    // o resto já exige, sem cota nova. O Google continua como adaptador.
+    expect(fonte).toContain("import { buscarNaWeb, provedorDeBusca } from './_busca.js'")
+    expect(fonte).not.toMatch(/googleConfigurado/)
+  })
+
+  it('a URL continua vindo do índice, nunca do modelo', () => {
+    // A propriedade que importa não depende do provedor: ela vem de LER os
+    // blocos estruturados em vez da prosa. Foi ler só a prosa que fez a escuta
+    // gravar link inventado.
+    const busca = readFileSync('netlify/functions/_busca.js', 'utf8')
+    expect(busca).toMatch(/b\.type === 'web_search_tool_result'/)
+    expect(busca).toMatch(/cited_text/)
   })
 })
 
 describe('a janela é de 7 dias, e é filtro de verdade', () => {
-  it('a busca manda dateRestrict ao Google', () => {
-    // Antes, "última semana" só dava para PEDIR no prompt — e pedido não filtra.
+  it('o adaptador Google, quando usado, manda dateRestrict', () => {
+    // Ele deixou de ser o padrão, mas segue disponível — e a janela por índice
+    // é a única coisa que ele faz e a Anthropic não faz.
     expect(google).toMatch(/params\.set\('dateRestrict', `d\$\{dias\}`\)/)
   })
 
@@ -109,10 +119,10 @@ describe('falha de busca não pode virar silêncio de mercado', () => {
     expect(fonte).toMatch(/sendAlert\('listening', `cota:/)
   })
 
-  it('todas as consultas falhando devolve erro, não snapshot zerado', () => {
+  it('busca falhando devolve erro, não snapshot zerado', () => {
     // Snapshot com 0 menções é uma AFIRMAÇÃO sobre a semana da marca. Só pode
     // ser gravado quando a busca de fato aconteceu e não achou nada.
-    const i = fonte.indexOf('falhas.length === queries.length')
+    const i = fonte.indexOf('falhas.length && !resultados.length')
     const j = fonte.indexOf('sentiment_snapshots')
     expect(i).toBeGreaterThan(0)
     expect(i).toBeLessThan(j)
@@ -138,15 +148,34 @@ describe('o cron semanal', () => {
     expect(fonte).toMatch(/token !== process\.env\.SUPABASE_SERVICE_KEY/)
   })
 
-  it('não despacha sem chave do Google', () => {
-    // 30 workers acordando só para disparar o mesmo alerta é 30 alertas.
+  it('registra qual provedor de busca usou', () => {
+    // Não há mais porta de configuração para travar — a busca padrão usa a
+    // chave da Anthropic que todo o resto já exige. Mas o provedor precisa
+    // aparecer no histórico do cron, para que uma troca futura seja rastreável.
     const antesDoFetch = cron.slice(0, cron.indexOf('Promise.allSettled'))
-    expect(antesDoFetch).toMatch(/if \(!googleConfigurado\(\)\)/)
+    expect(antesDoFetch).toMatch(/provedorDeBusca\(\)/)
+    expect(cron).not.toMatch(/googleConfigurado/)
   })
 
   it('o watchdog sabe que ele existe', () => {
     // Cron que não roda é invisível: sem entrada no watchdog, a escuta pode
     // parar por semanas sem ninguém notar.
     expect(readFileSync('netlify/functions/cron-watchdog.js', 'utf8')).toMatch(/'listening-cron'/)
+  })
+})
+
+describe('a menção guarda a evidência', () => {
+  it('o provedor gravado é o que de fato buscou', () => {
+    // Estava literal `origem: 'google'` mesmo quando quem buscou foi a
+    // Anthropic — o dado mentia sobre a própria procedência.
+    expect(fonte).toMatch(/origem: provedor/)
+    expect(fonte).not.toMatch(/origem: 'google'/)
+  })
+
+  it('as passagens literais viajam junto com a menção', () => {
+    // A classificação parafraseia. O trecho verbatim é a fala de quem escreveu,
+    // e é o que permite conferir a menção depois sem reabrir a página.
+    const classificar = fonte.slice(fonte.indexOf('async function classificar'), fonte.indexOf('export const handler'))
+    expect(classificar).toMatch(/trechos:\s+r\.trechos \|\| \[\]/)
   })
 })

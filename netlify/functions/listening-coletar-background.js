@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig, extractJSON } from './_ai.js'
-import { buscarVarias, googleConfigurado, GoogleSearchError } from './_google.js'
+import { buscarNaWeb, provedorDeBusca } from './_busca.js'
 import { sendAlert } from './_watchdog.js'
 
 // ── A INVERSÃO (2026-08-18) ─────────────────────────────────────────────
@@ -76,8 +76,13 @@ export function montarQueries(marca, termos = []) {
 const TETO_CLASSIFICAR = 40
 
 function promptClassificar(marca, itens) {
+  // O trecho é VERBATIM quando a busca devolveu citação — a frase que a pessoa
+  // escreveu, não um resumo. É o que separa "reclamam da entrega" de "fiz uma
+  // compra dia 12 e não recebi".
   const lista = itens.map((r, i) =>
-    `[${i}] ${r.canal} · ${r.host}\nTítulo: ${r.titulo}\nTrecho: ${r.snippet}`
+    `[${i}] ${r.canal} · ${r.host}\nTítulo: ${r.titulo}\n`
+    + (r.trechos?.length ? `Passagens literais da página:\n${r.trechos.map(t => `  "${t}"`).join('\n')}`
+                         : `Trecho: ${r.snippet}`)
   ).join('\n\n')
 
   return `Estes são resultados reais do índice do Google dos últimos ${JANELA_DIAS} dias.
@@ -127,6 +132,11 @@ async function classificar(marca, itens) {
       url:           r.url,
       publicado_em:  r.data,
       query:         r.query,
+      // As passagens literais viajam junto com a menção. Elas são a EVIDÊNCIA:
+      // permitem conferir depois que a menção existe mesmo, sem reabrir a
+      // página — e é o que separa "reclamam da entrega" de "fiz uma compra dia
+      // 12 e não recebi". A classificação parafraseia; isto é a fala.
+      trechos:       r.trechos || [],
     }
   }).filter(Boolean)
 }
@@ -161,16 +171,6 @@ export const handler = async (event) => {
     .from('workspaces').select('id, nome, dominio').eq('id', workspace_id).single()
   if (!ws) return { statusCode: 404 }
 
-  // Coletor sem acesso ao índice não coleta: alucina. Essa foi a lição que
-  // custou 122 eventos inventados. Sem chave, para — e avisa. Nada de modo
-  // degradado silencioso, que é exatamente o que gravou menção falsa antes.
-  if (!googleConfigurado()) {
-    const motivo = 'escuta parada: faltam GOOGLE_SEARCH_KEY e/ou GOOGLE_SEARCH_CX no ambiente'
-    console.error(`[listening-bg] ${motivo}`)
-    try { await sendAlert('listening', `sem-google:${workspace_id}`, `[${ws.nome}] ${motivo}`) } catch { /* alerta é best-effort */ }
-    return { statusCode: 503, body: JSON.stringify({ erro: motivo }) }
-  }
-
   const { data: termsData } = await supabase
     .from('listening_terms').select('termo').eq('workspace_id', workspace_id)
   const termos = (termsData || []).map(t => t.termo).filter(Boolean)
@@ -184,14 +184,18 @@ export const handler = async (event) => {
   if (host && host !== marca) termos.push(host)
 
   const queries = montarQueries(marca, termos)
-  const { resultados, falhas } = await buscarVarias(queries, { dias: JANELA_DIAS, num: 10 })
-  if (falhas.length) console.error(`[listening-bg] ${falhas.length}/${queries.length} consultas falharam:`, falhas[0]?.erro)
+  // A busca vem da camada, não de um provedor fixo. Padrão é a própria
+  // Anthropic — a mesma chave que já pagamos, sem cota nova para vigiar. O
+  // Google fica disponível como adaptador se algum dia a janela de data por
+  // índice (`dateRestrict`) valer a cota; hoje não vale.
+  const { resultados, falhas, provedor } = await buscarNaWeb(queries, { dias: JANELA_DIAS })
+  if (falhas.length) console.error(`[listening-bg] ${falhas.length} falha(s) na busca (${provedor}):`, falhas[0]?.erro)
 
   // Cota estourada não pode virar "a marca não teve barulho esta semana".
   if (falhas.some(f => f.motivo === 'cota')) {
-    try { await sendAlert('listening', `cota:${workspace_id}`, `[${ws.nome}] cota diária do Google esgotada — a coleta desta rodada está incompleta`) } catch { /* best-effort */ }
+    try { await sendAlert('listening', `cota:${workspace_id}`, `[${ws.nome}] cota de busca esgotada — a coleta desta rodada está incompleta`) } catch { /* best-effort */ }
   }
-  if (falhas.length === queries.length) {
+  if (falhas.length && !resultados.length) {
     console.error('[listening-bg] todas as consultas falharam — nada a classificar')
     return { statusCode: 502, body: JSON.stringify({ erro: falhas[0]?.erro || 'busca falhou' }) }
   }
@@ -238,7 +242,7 @@ export const handler = async (event) => {
         score_impacto: e.score_impacto,
         score:         e.score_impacto,
         url:           e.url,
-        dados:         { ...e, origem: 'google', janela_dias: JANELA_DIAS },
+        dados:         { ...e, origem: provedor, janela_dias: JANELA_DIAS },
       }))
     )
   }
