@@ -38,126 +38,127 @@ const humanizar = (bruto) => {
    documento do cache (o bloco do PDF é idêntico nas duas), então o custo dela
    é ~10% do que seria reenviar as páginas. */
 
-const PROMPT_TEXTO = `Analise este brand manual e extraia EXAUSTIVAMENTE todas as informações de marca.
+/* Cabeçalho comum a todas as leituras do texto. Repetido em cada bloco de
+   propósito: cada chamada é uma conversa independente, e a regra de não
+   inventar precisa valer em todas. */
+const REGRAS = `Você está lendo o brand manual desta marca.
 
-Quanto mais campos preenchidos, melhor. NÃO invente informação — se algo não estiver no manual, deixe vazio.
+NÃO invente. Campo sem lastro no manual: string vazia ou array vazio. Um brand book
+meio inventado é pior que um incompleto — a destilação aprende a invenção.
 
-Retorne APENAS JSON válido sem markdown, no formato:
+Responda APENAS com o JSON pedido, sem markdown e sem texto em volta.`
+
+/* Um bloco por leitura. O documento está no cache: o que muda entre as
+   chamadas é a pergunta, e cada resposta cabe folgada no seu teto. */
+const BLOCOS = [
+  {
+    chave: 'verbal_identity', tag: 'verbal', max: 12000,
+    prompt: `${REGRAS}
+
+Extraia a IDENTIDADE VERBAL — quem a marca diz que é e como ela fala.
+
 {
-  "verbal_identity": {
-    "tagline": "",
-    "proposito": "",
-    "manifesto": "",
-    "missao": "",
-    "visao": "",
-    "valores": [],
-    "arquetipo": "",
-    "personalidade": [],
-    "tom_voz": "",
-    "tom_atributos": [],
-    "tom_evitar": "",
-    "narrativa_origem": "",
-    "boilerplate": "",
-    "marcos": [{ "ano": "", "titulo": "", "descricao": "" }],
-    "posicionamento": "",
-    "proposta_valor": "",
-    "mensagem_central": "",
-    "publico_alvo": "",
-    "personas": [{ "nome": "", "demografia": "", "dor": "", "motivacao": "", "objecoes": "" }],
-    "vocabulario_aprovado": [],
-    "termos_proprios": [],
-    "vocabulario_proibido": [],
-    "exemplos_headlines": [{ "titulo": "", "contexto": "" }],
-    "exemplos_posts": [{ "canal": "", "objetivo": "", "texto": "" }],
-    "exemplos_ctas": [{ "cta": "", "contexto": "" }],
-    "situacoes": [{ "situacao": "", "como_falar": "", "evitar": "" }],
-    "textos_referencia": [
-      { "tipo": "e-mail|blog|linkedin|newsletter|anuncio|press_release|pitch|outro",
-        "titulo": "", "publico": "", "texto": "", "notas": "" }
-    ]
-  },
-  "visual_identity": {
-    "logos": [{ "versao": "", "descricao": "", "url": "", "regras_uso": "" }],
-    "area_protecao": "",
-    "tamanho_minimo": "",
-    "usos_proibidos": [],
-    "paleta": [{ "nome": "", "hex": "#RRGGBB", "tipo": "primária|secundária|neutra|acento", "uso": "" }],
-    "tipo_principal_nome": "",
-    "tipo_principal_pesos": "",
-    "tipo_principal_link": "",
-    "tipo_principal_uso": "",
-    "tipo_secundario_nome": "",
-    "tipo_secundario_pesos": "",
-    "tipo_secundario_link": "",
-    "tipo_secundario_uso": "",
-    "tipo_display": "",
-    "tipo_hierarquia": [{ "nivel": "", "tamanho": "", "peso": "", "uso": "" }],
-    "icone_estilo": "",
-    "icone_grid": "",
-    "icone_biblioteca": "",
-    "icone_exemplos": [],
-    "ilustracao_estilo": "",
-    "ilustracao_paleta": "",
-    "ilustracao_exemplos": [],
-    "foto_mood": "",
-    "foto_luz_edicao": "",
-    "foto_enquadramento": "",
-    "foto_do": [],
-    "foto_dont": [],
-    "foto_exemplos": [],
-    "video_estilo": "",
-    "video_timing": "",
-    "video_abertura": "",
-    "video_fechamento": "",
-    "padroes": [{ "nome": "", "descricao": "", "url": "" }],
-    "grid_descricao": "",
-    "grid_regras": "",
-    "aplicacoes": [{ "tipo": "", "descricao": "", "url": "" }]
-  },
-  "design_system": {
-    "colors": {
-      "primary": "", "secondary": "",
-      "success": "", "warning": "", "error": "", "info": "",
-      "background": "", "surface": ""
-    },
-    "neutral_colors": {
-      "gray_50": "", "gray_100": "", "gray_300": "", "gray_500": "",
-      "gray_700": "", "gray_900": "", "white": "", "black": ""
-    },
-    "spacing":    { "xs": "", "sm": "", "md": "", "lg": "", "xl": "", "2xl": "" },
-    "font_sizes": { "caption": "", "body": "", "h6": "", "h5": "", "h4": "", "h3": "", "h2": "", "h1": "" },
-    "border_radius": { "none": "", "sm": "", "md": "", "lg": "", "full": "" },
-    "shadows":  { "none": "", "sm": "", "md": "", "lg": "" },
-    "breakpoints": { "xs": "", "sm": "", "md": "", "lg": "", "xl": "" },
-    "components": [
-      { "nome": "", "variantes": "", "tamanhos": "", "estados": "", "regras_uso": "" }
-    ],
-    "state_hover": "", "state_focus": "", "state_disabled": "", "state_error": "",
-    "motion": { "durations": "", "easings": "", "padroes": "" },
-    "accessibility": { "contraste": "", "foco": "", "aria": "", "regras_extras": [] },
-    "density": { "mobile": "", "desktop": "" },
-    "grid": { "colunas": "", "gutter": "", "container": "", "regras": "" },
-    "ux_patterns": [{ "nome": "", "descricao": "" }]
-  },
-  "assets": [
-    { "tipo": "logo|cor|tipografia|icone|padrao|outro", "nome": "", "descricao": "", "valor": "" }
-  ],
-  "tokens": [
-    { "nome": "color-primary", "valor": "#RRGGBB", "categoria": "color|typography|spacing|border-radius|shadow|outro", "descricao": "" }
-  ]
+  "tagline": "", "proposito": "", "manifesto": "", "missao": "", "visao": "",
+  "valores": [], "arquetipo": "", "personalidade": [],
+  "tom_voz": "", "tom_atributos": [], "tom_evitar": "",
+  "narrativa_origem": "", "boilerplate": "",
+  "marcos": [{ "ano": "", "titulo": "", "descricao": "" }],
+  "posicionamento": "", "proposta_valor": "", "mensagem_central": "",
+  "publico_alvo": "",
+  "personas": [{ "nome": "", "demografia": "", "dor": "", "motivacao": "", "objecoes": "" }],
+  "vocabulario_aprovado": [], "termos_proprios": [], "vocabulario_proibido": [],
+  "situacoes": [{ "situacao": "", "como_falar": "", "evitar": "" }],
+  "exemplos_headlines": [{ "titulo": "", "contexto": "" }],
+  "exemplos_ctas": [{ "cta": "", "contexto": "" }]
 }
 
-Regras:
-- Informação ausente: string vazia ou array vazio. NUNCA invente.
-- Cores sempre em #RRGGBB hexadecimal.
-- Extraia TODAS as variantes de logo mencionadas (principal, símbolo, horizontal, monocromática, negativa…).
-- Extraia TODA a paleta de cores (não só primária/secundária — neutros, acentos, semânticas).
-- Extraia tipografia COMPLETA: pesos disponíveis, hierarquia, quando usar cada uma.
-- Para storytelling, capture missão/visão/valores LITERAIS quando houver redação clara.
-- Para tom de voz, capture descrição + atributos como chips (corajosa, calorosa, etc).
-- Personas: extraia perfis com dor + motivação se mencionados.
-- Para acessibilidade e padrões UX: só preencha se o manual mencionar.
-- IMPORTANTE: Em "textos_referencia", capture TODOS os exemplos de TEXTO LONGO que o manual mostrar — e-mails completos, posts de blog, posts de LinkedIn, anúncios, releases, newsletters. Cole o texto INTEGRAL. Isso é crítico pro RAG conseguir replicar a voz.`
+Capture missão, visão e valores LITERAIS quando houver redação clara.
+Tom de voz: descrição mais os atributos como itens curtos.
+Personas: só as que o manual descrever, com dor e motivação se houver.`,
+  },
+  {
+    chave: 'textos_referencia', dentro: 'verbal_identity', tag: 'textos', max: 16000,
+    prompt: `${REGRAS}
+
+Capture TODOS os exemplos de TEXTO LONGO que o manual mostrar: e-mails completos,
+posts de blog e de LinkedIn, anúncios, releases, newsletters, roteiros.
+
+Cole o texto INTEGRAL, sem resumir. É deste material que o RAG tira a voz da marca —
+um resumo aqui vira uma imitação pobre lá na frente.
+
+{ "textos_referencia": [
+  { "tipo": "e-mail|blog|linkedin|newsletter|anuncio|press_release|pitch|outro",
+    "titulo": "", "publico": "", "texto": "", "notas": "" } ] }
+
+Se o manual não trouxer texto longo nenhum, devolva a lista vazia.`,
+  },
+  {
+    chave: 'visual_identity', tag: 'visual-declarado', max: 12000,
+    prompt: `${REGRAS}
+
+Extraia a IDENTIDADE VISUAL — as REGRAS que o manual escreve sobre a forma.
+(O que as páginas mostram aplicado é outra leitura; aqui é o que está declarado.)
+
+{
+  "logos": [{ "versao": "", "descricao": "", "url": "", "regras_uso": "" }],
+  "area_protecao": "", "tamanho_minimo": "", "usos_proibidos": [],
+  "paleta": [{ "nome": "", "hex": "#RRGGBB", "tipo": "primária|secundária|neutra|acento", "uso": "" }],
+  "tipo_principal_nome": "", "tipo_principal_pesos": "", "tipo_principal_link": "", "tipo_principal_uso": "",
+  "tipo_secundario_nome": "", "tipo_secundario_pesos": "", "tipo_secundario_link": "", "tipo_secundario_uso": "",
+  "tipo_display": "",
+  "tipo_hierarquia": [{ "nivel": "", "tamanho": "", "peso": "", "uso": "" }],
+  "icone_estilo": "", "icone_grid": "", "icone_biblioteca": "", "icone_exemplos": [],
+  "ilustracao_estilo": "", "ilustracao_paleta": "", "ilustracao_exemplos": [],
+  "foto_mood": "", "foto_luz_edicao": "", "foto_enquadramento": "", "foto_do": [], "foto_dont": [], "foto_exemplos": [],
+  "video_estilo": "", "video_timing": "", "video_abertura": "", "video_fechamento": "",
+  "padroes": [{ "nome": "", "descricao": "", "url": "" }],
+  "grid_descricao": "", "grid_regras": "",
+  "aplicacoes": [{ "tipo": "", "descricao": "", "url": "" }]
+}
+
+Cores sempre em #RRGGBB. Extraia TODAS as variantes de logo (principal, símbolo,
+horizontal, monocromática, negativa…) e TODA a paleta — neutros e semânticas inclusive.
+Tipografia completa: pesos disponíveis, hierarquia, quando usar cada uma.`,
+  },
+  {
+    chave: 'design_system', tag: 'design', max: 10000,
+    prompt: `${REGRAS}
+
+Extraia o SISTEMA DE DESIGN — só o que o manual especificar. Muitos manuais de
+marca não têm esta parte; nesse caso devolva os campos vazios, sem preencher por
+analogia com o que "costuma ser".
+
+{
+  "colors": { "primary": "", "secondary": "", "success": "", "warning": "", "error": "", "info": "", "background": "", "surface": "" },
+  "neutral_colors": { "gray_50": "", "gray_100": "", "gray_300": "", "gray_500": "", "gray_700": "", "gray_900": "", "white": "", "black": "" },
+  "spacing": { "xs": "", "sm": "", "md": "", "lg": "", "xl": "", "2xl": "" },
+  "font_sizes": { "caption": "", "body": "", "h6": "", "h5": "", "h4": "", "h3": "", "h2": "", "h1": "" },
+  "border_radius": { "none": "", "sm": "", "md": "", "lg": "", "full": "" },
+  "shadows": { "none": "", "sm": "", "md": "", "lg": "" },
+  "breakpoints": { "xs": "", "sm": "", "md": "", "lg": "", "xl": "" },
+  "components": [{ "nome": "", "variantes": "", "tamanhos": "", "estados": "", "regras_uso": "" }],
+  "state_hover": "", "state_focus": "", "state_disabled": "", "state_error": "",
+  "motion": { "durations": "", "easings": "", "padroes": "" },
+  "accessibility": { "contraste": "", "foco": "", "aria": "", "regras_extras": [] },
+  "density": { "mobile": "", "desktop": "" },
+  "grid": { "colunas": "", "gutter": "", "container": "", "regras": "" },
+  "ux_patterns": [{ "nome": "", "descricao": "" }]
+}`,
+  },
+  {
+    chave: '_catalogo', tag: 'catalogo', max: 8000,
+    prompt: `${REGRAS}
+
+Liste os ATIVOS e TOKENS que o manual nomeia, para virarem registro consultável.
+
+{
+  "assets": [{ "tipo": "logo|cor|tipografia|icone|padrao|outro", "nome": "", "descricao": "", "valor": "" }],
+  "tokens": [{ "nome": "color-primary", "valor": "#RRGGBB", "categoria": "color|typography|spacing|border-radius|shadow|outro", "descricao": "" }]
+}
+
+"valor": hex para cor, nome da família para tipografia, descrição curta para o resto.`,
+  },
+]
 
 const PROMPT_VISUAL = `Você está OLHANDO as páginas deste brand manual. Sua tarefa não é ler as regras escritas — é DESCREVER o que se vê.
 
@@ -311,20 +312,43 @@ export const handler = async (event) => {
 
     const data = await resp.json()
     await logAiUsage(supabase, { model, usage: data.usage, tag })
-    console.log(`[brand-manual] ${tag} usage:`, JSON.stringify(data.usage || {}))
+    console.log(`[brand-manual] ${tag}: ${JSON.stringify(data.usage || {})}`)
+
+    // Truncamento tem nome próprio. Antes ele chegava aqui disfarçado de
+    // "extractJSON falhou", que manda procurar no lugar errado: o JSON estava
+    // impecável — só parou no meio porque a resposta bateu no teto.
+    if (data.stop_reason === 'max_tokens') {
+      console.error(`[brand-manual] ${tag}: resposta truncada no teto de ${maxTokens} tokens`)
+      return null
+    }
 
     const texto = data.content?.find(b => b.type === 'text')?.text || ''
     const json = extractJSON(texto)
-    if (!json) console.log(`[brand-manual] ${tag}: extractJSON falhou. Texto:`, texto.slice(0, 2000))
+    if (!json) console.log(`[brand-manual] ${tag}: extractJSON falhou. Texto:`, texto.slice(0, 1500))
     return json
   }
 
-  // Sequencial de propósito: em paralelo nenhuma das duas leria o cache que a
-  // outra ainda está escrevendo, e o PDF seria cobrado inteiro duas vezes.
-  let extracted, visual
+  // ── As leituras ────────────────────────────────────────────────────
+  // Sequencial, e é o cache que torna isso barato: a primeira chamada escreve
+  // o documento, todas as outras leem a 10%. Em paralelo, nenhuma leria o
+  // cache que as outras ainda estão escrevendo — o PDF sairia caro N vezes.
+  //
+  // Vários blocos em vez de um: no manual da PES, uma leitura só bateu os
+  // 16 mil tokens de saída ainda dentro da identidade verbal. O documento não
+  // mudou de tamanho; o que mudou foi o tamanho de cada pergunta.
+  const extracted = {}
+  const falharam = []
   try {
-    extracted = await ler(PROMPT_TEXTO, 16000, 'brand-manual')
-    if (extracted) visual = await ler(PROMPT_VISUAL, 8000, 'brand-manual-visual')
+    for (const b of BLOCOS) {
+      const json = await ler(b.prompt, b.max, b.tag)
+      if (!json) { falharam.push(b.tag); continue }
+      if (b.dentro)                 Object.assign(extracted[b.dentro] ||= {}, json)
+      else if (b.chave === '_catalogo') Object.assign(extracted, json)
+      else                          extracted[b.chave] = json[b.chave] || json
+    }
+    const visual = await ler(PROMPT_VISUAL, 8000, 'visual-aplicado')
+    if (visual) extracted.visual_reading = visual
+    else falharam.push('visual-aplicado')
   } catch (e) {
     await apagarArquivo()
     await markError(humanizar(e.message))
@@ -332,16 +356,13 @@ export const handler = async (event) => {
   }
   await apagarArquivo()
 
-  if (!extracted) {
+  // Um bloco que falha vira lacuna, não naufrágio: o smartbrand já trata
+  // ausência como informação. Só o vazio total é erro.
+  if (falharam.length) console.warn(`[brand-manual] blocos sem retorno: ${falharam.join(', ')}`)
+  if (falharam.length === BLOCOS.length + 1) {
     await markError('Não foi possível extrair dados estruturados do manual')
     return { statusCode: 200 }
   }
-
-  // A leitura visual enriquece, não bloqueia: se ela falhar, o manual já
-  // rendeu o texto e o smartbrand nasce com essa parte em branco — que é
-  // exatamente como o documento trata qualquer lacuna.
-  if (visual) extracted.visual_reading = visual
-  else console.warn('[brand-manual] leitura visual falhou — smartbrand sai sem a descrição do aplicado')
 
   console.log(`[brand-manual] Chaves no JSON:`, Object.keys(extracted))
   console.log(`[brand-manual] verbal_identity tem ${Object.keys(extracted.verbal_identity || {}).length} chaves`)
