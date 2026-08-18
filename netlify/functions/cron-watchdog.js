@@ -21,6 +21,7 @@ const ESPERADOS = {
   'cron-monitor':                  { cadencia: 'segunda 8h',    maxSilencioMin: 8.5 * 24 * 60 },
   'concorrente-clipping-cron':     { cadencia: 'segunda 9h',    maxSilencioMin: 8.5 * 24 * 60 },
   'trends-cron':                   { cadencia: 'segunda 10h',   maxSilencioMin: 8.5 * 24 * 60 },
+  'listening-cron':                { cadencia: 'segunda 5h',    maxSilencioMin: 8.5 * 24 * 60 },
 }
 const MORTO_MIN     = 20  // scheduled tem teto síncrono de SEGUNDOS; 20 min sem finished = morreu
 const RETENCAO_DIAS = 60

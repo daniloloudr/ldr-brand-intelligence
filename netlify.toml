@@ -28,6 +28,14 @@
 [functions."trends-cron"]
   schedule = "0 10 * * 1"
 
+# Escuta social: varre o índice do Google (dateRestrict=d7) por marca.
+# Semanal por construção — a janela de 7 dias da busca casa exatamente com a
+# cadência, então cada rodada lê o intervalo desde a anterior, sem buraco nem
+# releitura. Segunda 05:00 UTC = 02:00 BRT: antes dos outros crons de segunda,
+# para que clipping e tendências já encontrem a percepção da semana no banco.
+[functions."listening-cron"]
+  schedule = "0 5 * * 1"
+
 [functions."diagnostico-reaper"]
   schedule = "*/15 * * * *"
 
