@@ -17,6 +17,8 @@ const DISCLAIMER = [
   /sem (menç|resultado|registro|publicaç)/i,
   /não (foram|foi) encontrad/i,
   /não há (menç|registro|resultado)/i,
+  /não retorn/i,
+  /presença digital limitada/i,
 ]
 const ehMencao = (t) => !DISCLAIMER.some(p => p.test(t))
 const hostDe = (d) => (d || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '')
@@ -56,5 +58,38 @@ describe('o que conta como menção', () => {
     expect(ehMencao('Mãe reclama do atendimento e não recomenda')).toBe(true)
     // A palavra "sem" no meio de uma menção real não pode derrubá-la
     expect(ehMencao('Ensino sem complicação, dizem os professores')).toBe(true)
+  })
+})
+
+describe('menção precisa ser verificável', () => {
+  const temFonte = (url) => /^https?:\/\/\S+$/i.test(String(url || '').trim())
+
+  it('sem URL não é menção — é afirmação que ninguém confere', () => {
+    // A PES tinha 10 eventos e ZERO URLs: reclamações de cancelamento que
+    // ninguém escreveu, geradas porque o modelo não tinha como pesquisar.
+    expect(temFonte(null)).toBe(false)
+    expect(temFonte('')).toBe(false)
+    expect(temFonte('   ')).toBe(false)
+    expect(temFonte('Reclame Aqui')).toBe(false)
+    expect(temFonte('https://www.reclameaqui.com.br/empresa/pes/')).toBe(true)
+  })
+
+  it('o esquema do prompt não oferece mais url nula', () => {
+    // Era `"url":"https://...ou null"` — o modelo aceitava o convite. Confere a
+    // LINHA do esquema, não o arquivo: o comentário que explica o bug cita a
+    // string antiga e faria o teste passar por engano ao contrário.
+    const linhaEsquema = fonte.split('\n').find(l => l.includes('"url":"https'))
+    expect(linhaEsquema).toBeTruthy()
+    expect(linhaEsquema).not.toMatch(/ou null/)
+    expect(fonte).toContain('Sem link verificável, NÃO inclua')
+  })
+})
+
+describe('coletor sem busca web não coleta', () => {
+  it('a escuta usa o tier que tem busca em TODO ambiente', () => {
+    // 'standard' desliga a busca em dev: o modelo inventava menções plausíveis
+    // para o ramo em vez de procurar as reais.
+    expect(fonte).toContain("aiConfig('premium')")
+    expect(fonte).not.toContain("aiConfig('standard')")
   })
 })

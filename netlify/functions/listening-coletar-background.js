@@ -18,7 +18,12 @@ function buildPrompt(marca, fonte, termos) {
     : ''
   return `Pesquise menções recentes de "${marca}" em ${fonte.nome} (${fonte.hint}).${termosStr}
 Retorne APENAS JSON, sem markdown:
-{"events":[{"titulo":"<80chars>","conteudo":"<300chars>","fonte":"${fonte.nome}","sentiment":"positivo|neutro|negativo","score_impacto":<1-10>,"url":"https://...ou null"}]}`
+{"events":[{"titulo":"<80chars>","conteudo":"<300chars>","fonte":"${fonte.nome}","sentiment":"positivo|neutro|negativo","score_impacto":<1-10>,"url":"https://..."}]}
+
+Regras:
+- Toda menção precisa da URL de onde ela foi encontrada. Sem link verificável, NÃO inclua.
+- Não descreva o que uma marca deste ramo "costuma" receber. Só o que você encontrou sobre ESTA marca.
+- Não achou nada? Devolva {"events":[]}. Lista vazia é resposta correta e esperada.`
 }
 
 const DISCLAIMER = [
@@ -34,6 +39,8 @@ const DISCLAIMER = [
   /sem (menç|resultado|registro|publicaç)/i,
   /não (foram|foi) encontrad/i,
   /não há (menç|registro|resultado)/i,
+  /não retorn/i,
+  /presença digital limitada/i,
 ]
 
 function parseEvents(txt, fonteNome) {
@@ -49,12 +56,25 @@ function parseEvents(txt, fonteNome) {
   return (events || [])
     .map(e => ({ ...e, fonte: e.fonte || fonteNome }))
     .filter(e => !DISCLAIMER.some(p => p.test(`${e.titulo || ''} ${e.conteudo || ''}`)))
+    // Sem link, não é menção: é afirmação sobre a marca que ninguém consegue
+    // conferir. A PES tinha 10 eventos e ZERO URLs — todos inventados. O
+    // esquema antigo oferecia `"url": "...ou null"` e o modelo aceitava o
+    // convite. Verificável ou fora.
+    .filter(e => /^https?:\/\/\S+$/i.test(String(e.url || '').trim()))
 }
 
 async function coletarFonte(marca, fonte, termos) {
   try {
+    // 'premium' porque é o único tier com busca web em TODO ambiente. Com
+    // 'standard', em dev o modelo recebia "pesquise menções da marca" sem ter
+    // como pesquisar — e fazia o que modelo faz: inventava reclamações
+    // plausíveis para o ramo. A PES ganhou 9 queixas de cancelamento que
+    // ninguém escreveu, gravadas como inteligência de marca.
+    //
+    // Coletor sem acesso ao mundo não coleta: alucina. Não existe modo
+    // degradado aceitável aqui.
     const { text } = await callAI({
-      ...aiConfig('standard'),
+      ...aiConfig('premium'),
       maxTokens: 1024,
       messages:  [{ role: 'user', content: buildPrompt(marca, fonte, termos) }],
     })
