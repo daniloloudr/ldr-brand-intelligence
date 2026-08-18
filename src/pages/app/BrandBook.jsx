@@ -20,6 +20,7 @@ import { VerbalIdentitySection } from './VerbalIdentitySection'
 import { EssenciaSection, NegocioSection, ExperienciaSection, PersonalidadeSection } from './StrategySections'
 import { VisualIdentitySection } from './VisualIdentitySection'
 import { PageHeader }           from '../../components/shell/PageHeader'
+import { FocoPendencia }        from '../../components/shell/FocoPendencia'
 import { useBrandManualJobs }   from '../../lib/useBrandManualJobs'
 import { PALETTE } from '../../lib/theme'
 
@@ -243,6 +244,7 @@ export function BrandBook({ brandId }) {
 
   return (
     <Box>
+      <FocoPendencia />
       <PageHeader
         title={sectionLabel}
         subtitle={`Brand Book · ${brand.nome}`}

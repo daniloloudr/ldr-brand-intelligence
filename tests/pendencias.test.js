@@ -47,15 +47,25 @@ describe('o que falta — a regra', () => {
     expect(p.find(x => x.id === 'referencias').porque).toMatch(/3 de 8/)
   })
 
-  it('lacunas do manual aparecem nomeadas', () => {
+  it('cada lacuna vira UMA notificação — não uma lista fechada', () => {
+    // "19 campos não declarados" não é acionável: ninguém ataca uma lista
+    // fechada por partes. Dezenove mensagens, sim.
     const p = pendencias({
       temManual: true, assets: [arquivo()],
-      lacunas: [{ rotulo: 'Visão' }, { rotulo: 'Hierarquia tipográfica' }, { rotulo: 'Movimento' }, { rotulo: 'Componentes' }],
+      lacunas: [
+        { rotulo: 'Visão', secao: 'Essência', campo: 'verbal_identity.visao' },
+        { rotulo: 'Movimento', secao: 'Sistema de design', campo: 'design_system.motion' },
+      ],
     })
-    const l = p.find(x => x.id === 'lacunas')
-    expect(l.titulo).toBe('4 campos não declarados')
-    expect(l.porque).toContain('Visão')
-    expect(l.porque).toContain('e outros')
+    const so_lacunas = p.filter(x => x.id.startsWith('lacuna:'))
+    expect(so_lacunas).toHaveLength(2)
+    expect(so_lacunas[0].titulo).toBe('Visão não está declarado')
+    expect(so_lacunas[0].id).toBe('lacuna:verbal_identity.visao')
+  })
+
+  it('lacuna sem rótulo é ignorada em vez de virar notificação vazia', () => {
+    const p = pendencias({ temManual: true, assets: [arquivo()], lacunas: [{}, { rotulo: '' }] })
+    expect(p.filter(x => x.id.startsWith('lacuna:'))).toHaveLength(0)
   })
 })
 
@@ -72,6 +82,46 @@ describe('o que cada pendência diz', () => {
     const sev = pendencias({}).map(p => p.severidade)
     expect(sev.every(s => ['alta', 'media', 'baixa'].includes(s))).toBe(true)
     expect(sev).not.toContain('bloqueia')
+  })
+})
+
+describe('cada pendência sabe para onde levar e o que dizer lá', () => {
+  it('todas têm destino e instrução', () => {
+    const todas = pendencias({ lacunas: [{ rotulo: 'Visão', secao: 'Essência' }] })
+    for (const p of todas) {
+      expect(p.destino?.secao, p.id).toBeTruthy()
+      expect(p.instrucao?.length, p.id).toBeGreaterThan(30)
+    }
+  })
+
+  it('o que é arquivo vai para a biblioteca; o que é texto, para a aba certa', () => {
+    const p = pendencias({
+      temManual: true,
+      lacunas: [
+        { rotulo: 'Visão', secao: 'Essência' },
+        { rotulo: 'Tom de voz', secao: 'Voz' },
+        { rotulo: 'Paleta', secao: 'Identidade visual' },
+        { rotulo: 'Movimento', secao: 'Sistema de design' },
+      ],
+    })
+    const dest = id => p.find(x => x.id === id).destino
+    expect(dest('logo')).toEqual({ secao: 'studio/biblioteca', bibliotecaRoot: 'referencias' })
+    expect(p.find(x => x.titulo.startsWith('Visão')).destino.secao).toBe('essencia')
+    expect(p.find(x => x.titulo.startsWith('Tom de voz')).destino.secao).toBe('personalidade')
+    expect(p.find(x => x.titulo.startsWith('Paleta')).destino.secao).toBe('expression')
+    expect(p.find(x => x.titulo.startsWith('Movimento')).destino.secao).toBe('experiencia')
+  })
+
+  it('seção desconhecida cai em Essência em vez de quebrar a navegação', () => {
+    const p = pendencias({ temManual: true, lacunas: [{ rotulo: 'X', secao: 'Seção Nova' }] })
+    expect(p.find(x => x.id.startsWith('lacuna:')).destino.secao).toBe('essencia')
+  })
+
+  it('a instrução da lacuna autoriza deixar em branco', () => {
+    // Sem isto a notificação empurra o cliente a inventar para calar o alerta —
+    // exatamente o que o smartbrand existe para impedir.
+    const p = pendencias({ temManual: true, lacunas: [{ rotulo: 'Visão', secao: 'Essência' }] })
+    expect(p.find(x => x.id.startsWith('lacuna:')).instrucao).toMatch(/em branco é honesto/)
   })
 })
 

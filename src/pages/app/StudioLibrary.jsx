@@ -29,6 +29,7 @@ import { pendencias, resumoPendencias } from '../../lib/pendencias'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { FocoPendencia } from '../../components/shell/FocoPendencia'
 import { PALETTE } from '../../lib/theme'
 
 const TEAL = PALETTE.data.positivo
@@ -98,11 +99,9 @@ function PainelPendencias({ itens, brandId, onSubir }) {
                   {p.porque}
                 </Typography>
               </Box>
-              {p.id !== 'lacunas' && p.id !== 'manual' && (
-                <Button size="small" onClick={onSubir} sx={{ fontWeight: 700, fontSize: 11.5, flexShrink: 0 }}>
-                  {p.acao}
-                </Button>
-              )}
+              <Button size="small" onClick={onSubir} sx={{ fontWeight: 700, fontSize: 11.5, flexShrink: 0 }}>
+                {p.acao}
+              </Button>
             </Box>
           ))}
         </Box>
@@ -257,11 +256,14 @@ export function StudioLibrary({ brandId }) {
   }, [assets, gens, textos, campanhas])
 
   // Só em Referências: é a pasta onde tudo isto se resolve.
+  // Cada tela mostra o que ELA resolve: aqui entram os arquivos; as lacunas de
+  // texto pertencem ao Brand Book, e listá-las numa pasta de arquivos só faria
+  // a lista crescer sem dar o que fazer. O sininho continua com tudo.
   const itensPendentes = useMemo(() => pendencias({
     assets,
     lacunas,
     temManual: assets.some(a => a.metadata?.origem === 'manual'),
-  }), [assets, lacunas])
+  }).filter(p => p.destino?.bibliotecaRoot), [assets, lacunas])
 
   const escopo = root ? porRoot[root] : []
   const temPastas = root && root !== 'campanhas'
@@ -599,6 +601,7 @@ export function StudioLibrary({ brandId }) {
 
         ) : (
           <>
+            {root === 'referencias' && !pasta && !busca.trim() && <FocoPendencia />}
             {root === 'referencias' && !pasta && !busca.trim() && (
               <PainelPendencias itens={itensPendentes} brandId={brandId}
                 onSubir={() => fileRef.current?.click()} />

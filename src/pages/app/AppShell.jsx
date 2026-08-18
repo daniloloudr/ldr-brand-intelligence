@@ -17,6 +17,7 @@ import { PLANOS } from '../../lib/constants'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
 import { useBrandManualJobs } from '../../lib/useBrandManualJobs'
 import { usePendencias } from '../../lib/usePendencias'
+import { marcarFoco } from '../../lib/pendencias'
 import { AppLayout } from '../../components/shell/AppLayout'
 // Páginas carregadas sob demanda (code-splitting por rota) — cada uma vira um chunk
 // separado, fora do bundle principal. Named exports → mapeados p/ default no lazy.
@@ -330,9 +331,12 @@ function renderBellContent(jobs, pendentes, brandId, close) {
           {pendentes.map(p => (
             <Box key={p.id}
               onClick={() => {
-                sessionStorage.setItem('biblioteca_root', 'referencias')
+                // A instrução viaja junto: quem chega precisa reencontrar o
+                // motivo de ter vindo.
+                marcarFoco(p)
+                if (p.destino.bibliotecaRoot) sessionStorage.setItem('biblioteca_root', p.destino.bibliotecaRoot)
                 close?.()
-                navigate(`/app/brands/${brandId}/studio/biblioteca`)
+                navigate(`/app/brands/${brandId}/${p.destino.secao}`)
               }}
               sx={{ px: 2, py: 1.5, display: 'flex', gap: 1.25, alignItems: 'flex-start',
                 cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>

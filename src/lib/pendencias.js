@@ -2,17 +2,27 @@
 //
 // A plataforma já SABE o que falta: a extração devolve as lacunas, e a
 // biblioteca sabe quais arquivos existem. O que faltava era contar para quem
-// pode resolver. Este arquivo é a regra; a tela só mostra.
+// pode resolver — e levar até lá.
 //
-// Duas decisões de escrita, e elas são o ponto:
+// Três decisões de escrita, e elas são o ponto:
 //
 // • Cada pendência diz o QUE QUEBRA sem ela, não o que "seria bom ter".
 //   "Suba a fonte" não move ninguém; "sem o arquivo da fonte, o Estúdio
 //   escreve com uma fonte parecida" move. É a diferença entre cobrar e
 //   explicar.
 //
-// • Nada aqui bloqueia. Marca sem manual funciona — só funciona com menos.
-//   A severidade diz o tamanho da perda, não uma permissão.
+// • Cada pendência tem ENDEREÇO e INSTRUÇÃO. Notificação que não leva a lugar
+//   nenhum é só ansiedade: ela avisa que há um problema e deixa a pessoa
+//   procurando onde resolver. Aqui o clique leva à tela certa e a tela repete
+//   o que fazer, porque no meio do caminho a pessoa esquece por que veio.
+//
+// • Uma pendência por item. "19 campos não declarados" não é acionável: é uma
+//   lista fechada que a pessoa não consegue atacar por partes. Dezenove
+//   mensagens, cada uma com seu campo e seu lugar, são dezenove coisas que dá
+//   para resolver numa tarde.
+//
+// Nada aqui bloqueia. Marca sem manual funciona — só funciona com menos. A
+// severidade diz o tamanho da perda, não uma permissão.
 
 const ehImagem = (a) => (a.mime_type || '').startsWith('image/')
   || /\.(png|jpe?g|webp|gif|svg)$/i.test(a.nome || '')
@@ -24,12 +34,27 @@ const temArquivo = (a) => !!a.file_path || /^https?:\/\//i.test(a.valor || '')
 // Abaixo disso ele generaliza de exemplo demais e erra bonito.
 const MINIMO_REFERENCIAS = 8
 
+// Onde cada seção do smartbrand vive no Brand Book. A lacuna precisa apontar
+// para a aba onde o campo é editado — mandar para "o Brand Book" e deixar a
+// pessoa procurar entre seis abas é quase não mandar para lugar nenhum.
+const SECAO_PARA_ABA = {
+  'Essência':            'essencia',
+  'Posicionamento':      'essencia',
+  'Voz':                 'personalidade',
+  'Textos de referência':'personalidade',
+  'Identidade visual':   'expression',
+  'Leitura visual':      'expression',
+  'Sistema de design':   'experiencia',
+}
+
+const NA_BIBLIOTECA = { secao: 'studio/biblioteca', bibliotecaRoot: 'referencias' }
+
 /**
  * @param {object} estado
  * @param {Array}  estado.assets   linhas de brand_assets da marca
  * @param {Array}  estado.lacunas  smartbrand_gaps do brand book
  * @param {boolean} estado.temManual
- * @returns {Array<{id,titulo,porque,acao,severidade}>}
+ * @returns {Array<{id,titulo,porque,acao,severidade,destino,instrucao}>}
  */
 export function pendencias({ assets = [], lacunas = [], temManual = false } = {}) {
   const lista = []
@@ -43,6 +68,8 @@ export function pendencias({ assets = [], lacunas = [], temManual = false } = {}
         + 'Nada do que ela declara sobre si mesma — propósito, tom, regras de uso — entra no cérebro.',
       acao: 'Importar manual',
       severidade: 'alta',
+      destino: { secao: 'essencia' },
+      instrucao: 'Use "Importar Manual", no topo desta página, para subir o PDF da marca.',
     })
   }
 
@@ -53,24 +80,29 @@ export function pendencias({ assets = [], lacunas = [], temManual = false } = {}
   if (!logosComArquivo) {
     lista.push({
       id: 'logo',
-      titulo: 'O arquivo do logo',
+      titulo: 'Falta o arquivo do logo',
       porque: logosDescritos
         ? `O manual descreve ${logosDescritos} ${logosDescritos > 1 ? 'versões' : 'versão'} do logo, mas descrição não é arquivo. `
           + 'O Estúdio não consegue aplicar o logo numa peça enquanto ele não existir em SVG ou PNG.'
         : 'O Estúdio não consegue aplicar o logo numa peça sem o arquivo, em SVG ou PNG.',
       acao: 'Subir logo',
       severidade: 'alta',
+      destino: NA_BIBLIOTECA,
+      instrucao: 'Suba aqui o arquivo do logo, em SVG ou PNG — e as variações, se houver '
+        + '(símbolo, horizontal, negativa, monocromática).',
     })
   }
 
   if (!arquivos.some(ehFonte)) {
     lista.push({
       id: 'fontes',
-      titulo: 'Os arquivos de fonte',
+      titulo: 'Faltam os arquivos de fonte',
       porque: 'Sem eles o Estúdio escreve com uma fonte parecida — e "parecida" é '
         + 'exatamente o que faz uma peça não parecer da marca.',
       acao: 'Subir fontes',
       severidade: 'media',
+      destino: NA_BIBLIOTECA,
+      instrucao: 'Suba aqui os arquivos de fonte da marca (.otf, .ttf ou .woff), em todos os pesos que ela usa.',
     })
   }
 
@@ -79,27 +111,31 @@ export function pendencias({ assets = [], lacunas = [], temManual = false } = {}
   if (referencias < MINIMO_REFERENCIAS) {
     lista.push({
       id: 'referencias',
-      titulo: 'Imagens de referência',
+      titulo: 'Faltam imagens de referência',
       porque: `São elas que ensinam o que é "a cara da marca". Com ${referencias} de ${MINIMO_REFERENCIAS}, `
         + 'o julgamento generaliza de exemplo demais e erra com confiança.',
       acao: 'Subir imagens',
       severidade: 'media',
+      destino: NA_BIBLIOTECA,
+      instrucao: `Suba aqui pelo menos ${MINIMO_REFERENCIAS} imagens que sejam "a cara da marca" — `
+        + 'peças reais, fotos, aplicações. Valem também as recusadas: o que foi reprovado ensina rápido.',
     })
   }
 
-  // Lacunas do manual: o documento existe, mas não cobriu certos campos.
-  // Não é falha de ninguém — é informação que ainda não foi declarada.
-  if (lacunas.length) {
-    const nomes = lacunas.slice(0, 3).map(l => l.rotulo).filter(Boolean)
+  // Uma lacuna, uma notificação. O agregado "19 campos não declarados" não é
+  // acionável — a pessoa não consegue atacar uma lista fechada por partes.
+  for (const l of lacunas) {
+    if (!l?.rotulo) continue
     lista.push({
-      id: 'lacunas',
-      titulo: `${lacunas.length} ${lacunas.length > 1 ? 'campos não declarados' : 'campo não declarado'}`,
-      porque: nomes.length
-        ? `O manual não cobriu ${nomes.join(', ')}${lacunas.length > nomes.length ? ' e outros' : ''}. `
-          + 'Onde não há declaração, o cérebro deduz — e dedução vira invenção quando ninguém confere.'
-        : 'Onde o manual não declara, o cérebro deduz — e dedução vira invenção quando ninguém confere.',
-      acao: 'Ver lacunas',
+      id: `lacuna:${l.campo || l.rotulo}`,
+      titulo: `${l.rotulo} não está declarado`,
+      porque: `O manual não diz nada sobre ${l.rotulo.toLowerCase()}. Onde não há declaração, `
+        + 'o cérebro deduz — e dedução vira invenção quando ninguém confere.',
+      acao: 'Preencher',
       severidade: 'baixa',
+      destino: { secao: SECAO_PARA_ABA[l.secao] || 'essencia' },
+      instrucao: `Preencha "${l.rotulo}" nesta página. Se a marca não tiver isso definido, `
+        + 'deixe em branco mesmo — em branco é honesto; inventado, não.',
     })
   }
 
@@ -113,4 +149,25 @@ export function resumoPendencias(lista) {
   return altas
     ? `${lista.length} ${lista.length > 1 ? 'pendências' : 'pendência'} — ${altas} ${altas > 1 ? 'travam' : 'trava'} o Estúdio`
     : `${lista.length} ${lista.length > 1 ? 'pendências' : 'pendência'} para a marca ficar completa`
+}
+
+// ── Passagem entre telas ─────────────────────────────────────────────
+// A instrução viaja com o clique: quem chega na tela precisa reencontrar o
+// motivo de ter vindo. Sem isto, a pessoa aterrissa numa biblioteca genérica e
+// esquece que veio subir um logo.
+const CHAVE_FOCO = 'pendencia_foco'
+
+export function marcarFoco(p) {
+  try { sessionStorage.setItem(CHAVE_FOCO, JSON.stringify({ id: p.id, instrucao: p.instrucao, titulo: p.titulo })) }
+  catch { /* sem sessionStorage, a navegação ainda funciona */ }
+}
+
+/** Lê e LIMPA — a instrução é para esta chegada, não para as próximas. */
+export function consumirFoco() {
+  try {
+    const bruto = sessionStorage.getItem(CHAVE_FOCO)
+    if (!bruto) return null
+    sessionStorage.removeItem(CHAVE_FOCO)
+    return JSON.parse(bruto)
+  } catch { return null }
 }
