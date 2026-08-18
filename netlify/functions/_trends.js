@@ -5,9 +5,12 @@
 // o prompt recebe o brand context + inteligência aprendida (resolveBrandIntelligence).
 import { callAI, aiConfig } from './_ai.js'
 import { emitSignal, resolveBrandIntelligence } from './_brain.js'
+import { mercado, idiomaDe } from './_mercado.js'
 
-function buildPrompt({ setor, nomeMarca, brandCtx }) {
-  return `Pesquise as TENDÊNCIAS mais relevantes AGORA no setor de "${setor}" no Brasil (com olho no global): comportamento do consumidor, tecnologia, estética/linguagem, movimentos de mercado e formatos de conteúdo em ascensão.
+function buildPrompt({ setor, nomeMarca, brandCtx, pais }) {
+  const m = mercado(pais)
+  return `Pesquise as TENDÊNCIAS mais relevantes AGORA no setor de "${setor}" em ${m.nome} (com olho no global): comportamento do consumidor, tecnologia, estética/linguagem, movimentos de mercado e formatos de conteúdo em ascensão.
+Escreva em ${idiomaDe(pais)}.
 
 A marca que vai usar esse radar:
 ${brandCtx}
@@ -43,7 +46,7 @@ function parseTrends(txt) {
 // Coleta o radar de um workspace. Precisa de setor definido (é o alvo da busca).
 export async function coletarTendenciasWorkspace(supabase, { workspace_id }) {
   const [{ data: ws }, { data: brand }] = await Promise.all([
-    supabase.from('workspaces').select('id, nome, setor').eq('id', workspace_id).single(),
+    supabase.from('workspaces').select('id, nome, setor, pais').eq('id', workspace_id).single(),
     supabase.from('brands').select('id, nome').eq('workspace_id', workspace_id)
       .order('created_at', { ascending: true }).limit(1).maybeSingle(),
   ])
@@ -55,7 +58,7 @@ export async function coletarTendenciasWorkspace(supabase, { workspace_id }) {
   let trends = []
   try {
     const { text } = await callAI({ ...aiConfig('standard'), maxTokens: 6000,
-      messages: [{ role: 'user', content: buildPrompt({ setor: ws.setor, nomeMarca: brand.nome, brandCtx }) }],
+      messages: [{ role: 'user', content: buildPrompt({ setor: ws.setor, nomeMarca: brand.nome, brandCtx, pais: ws.pais }) }],
       supabase, tag: 'tendencias' })
     trends = parseTrends(text)
   } catch (e) {

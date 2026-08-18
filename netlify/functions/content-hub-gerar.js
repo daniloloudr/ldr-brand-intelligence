@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
 import { creditsForOp, debitCredits, refundCredits } from './_credits.js'
+import { idiomaDe } from './_mercado.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -21,7 +22,7 @@ function buildDiagContext(diag) {
 }
 
 // Prod — Call 1: keywords próprias + oportunidades de expansão
-function promptTerritorios(dominio, marca, diagCtx, nTerr) {
+function promptTerritorios(dominio, marca, diagCtx, nTerr, pais) {
   return `Você é especialista em SEO.
 
 Pesquise o site "${dominio}" (marca: "${marca}") e leia suas páginas principais.
@@ -34,18 +35,18 @@ Identifique dois tipos de keywords para este site:
 Agrupe em ${nTerr} clusters temáticos. Cada cluster deve ter EXATAMENTE 5 keywords próprias e 5 oportunidades (total 10 por cluster).
 
 Para cada cluster: id (kebab-case), nome descritivo, keywords.
-Cada keyword: termo (português brasileiro), tipo ("proprio"|"oportunidade"), intencao (informacional|transacional|navegacional), volume (alto|medio|baixo), oportunidade (alta|media|baixa).
+Cada keyword: termo em ${idiomaDe(pais)}, tipo ("proprio"|"oportunidade"), intencao (informacional|transacional|navegacional), volume (alto|medio|baixo), oportunidade (alta|media|baixa).
 
 Retorne APENAS JSON válido, sem markdown:
 {"clusters":[{"id":"...","nome":"...","keywords":[{"termo":"...","tipo":"proprio","intencao":"informacional","volume":"alto","oportunidade":"alta"}]}]}`
 }
 
 // Prod — Call 2: ideias baseadas nos grupos reais do site
-function promptIdeias(dominio, diagCtx, clusters, nIdeas) {
+function promptIdeias(dominio, diagCtx, clusters, nIdeas, pais) {
   const lista = clusters.map(c => `- "${c.id}": ${c.nome}`).join('\n')
   return `Você é estrategista de conteúdo.
 
-Para o site "${dominio}", gere ${nIdeas} ideias de conteúdo em português brasileiro.
+Para o site "${dominio}", gere ${nIdeas} ideias de conteúdo em ${idiomaDe(pais)}.
 ${diagCtx ? `\nContexto:\n${diagCtx}\n` : ''}
 Grupos de keywords do site:
 ${lista}
@@ -59,7 +60,7 @@ Retorne APENAS JSON válido, sem markdown:
 }
 
 // Dev — 1 chamada combinada (Haiku: ~5s, cabe folgado no timeout de 30s)
-function promptDev(dominio, marca, diagCtx) {
+function promptDev(dominio, marca, diagCtx, pais) {
   return `SEO expert. Business: "${marca}" (${dominio}).
 ${diagCtx ? `Context:\n${diagCtx}\n` : ''}
 Return JSON with 3 keyword clusters and 2 content ideas for this business.
@@ -96,7 +97,7 @@ export const handler = async (event) => {
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
   const { data: ws } = await supabase
-    .from('workspaces').select('id, nome, dominio').eq('id', workspace_id).single()
+    .from('workspaces').select('id, nome, dominio, pais').eq('id', workspace_id).single()
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Workspace não encontrado' }) }
 
   if (!ws.dominio) {
@@ -128,7 +129,7 @@ export const handler = async (event) => {
       const { text } = await callAI({
         model:     MODELS.fast,
         maxTokens: 2000,
-        messages:  [{ role: 'user', content: promptDev(dominio, marca, diagCtx) }],
+        messages:  [{ role: 'user', content: promptDev(dominio, marca, diagCtx, ws.pais) }],
         supabase, tag: 'conteudo', workspace_id: workspace_id,
         retries:   1,
         retryDelay: 2000,
@@ -143,7 +144,7 @@ export const handler = async (event) => {
       const resC = await callAI({
         ...opts,
         maxTokens: 5000,
-        messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6) }],
+        messages:  [{ role: 'user', content: promptTerritorios(dominio, marca, diagCtx, 6, ws.pais) }],
         supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       clusters = extractJSON(resC.text)?.clusters
@@ -152,7 +153,7 @@ export const handler = async (event) => {
       const resI = await callAI({
         ...opts,
         maxTokens: 2000,
-        messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6) }],
+        messages:  [{ role: 'user', content: promptIdeias(dominio, diagCtx, clusters, 6, ws.pais) }],
         supabase, tag: 'conteudo', workspace_id: workspace_id,
       })
       ideias = extractJSON(resI.text)?.ideias

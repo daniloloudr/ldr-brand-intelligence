@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { MERCADOS, PADRAO } from './_mercado.js'
 
 // slug do subdomínio (nomedamarca.br4ndcode.com) — mesma lógica da migration 044
 function slugify(nome) {
@@ -68,7 +69,7 @@ export const handler = async (event) => {
   const adminUser = await isPlatformAdmin(supabase, token)
   if (!adminUser) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acesso negado' }) }
 
-  const { nome, dominio, setor, porte, creditos_mes, valor_mensal_centavos, slug: slugInput } = JSON.parse(event.body || '{}')
+  const { nome, dominio, setor, porte, pais, creditos_mes, valor_mensal_centavos, slug: slugInput } = JSON.parse(event.body || '{}')
   if (!nome) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nome obrigatório' }) }
 
   // slug do subdomínio: usa o informado (slugificado) ou deriva do nome; garante único
@@ -84,6 +85,10 @@ export const handler = async (event) => {
     .from('workspaces')
     .insert({
       nome, dominio, setor, porte, slug,
+      // País de origem define o mercado analisado, as praças de reputação e a
+      // variante do idioma (ver _mercado.js). Sem informar, cai no Brasil —
+      // que é onde estão todas as marcas de hoje.
+      pais: MERCADOS[String(pais || '').toUpperCase()] ? String(pais).toUpperCase() : PADRAO,
       plano: 'enterprise', plano_status: 'active',
       creditos_mes: pool || null,
       valor_mensal_centavos: Number.isFinite(valor_mensal_centavos) ? valor_mensal_centavos : null,

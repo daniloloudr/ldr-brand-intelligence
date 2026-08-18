@@ -16,7 +16,7 @@ TOM DE VOZ: Seja direto, perspicaz e construtivo. Aponte oportunidades reais com
 PESQUISA: Realize exatamente 5 buscas web, nesta ordem:
 1. Site oficial + proposta de valor
 2. LinkedIn (cultura, vagas, posicionamento)
-3. Reputação pública (Google Reviews, Reclame Aqui ou Glassdoor)
+3. Reputação pública (nas praças do mercado indicado abaixo)
 4. Redes sociais + tom de voz
 5. Concorrentes diretos + diferenciação
 
@@ -24,7 +24,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, sem markdown:
 
 {
   "empresa": "Nome",
-  "dominio": "dominio.com.br",
+  "dominio": "dominio-oficial.tld",
   "setor": "Setor",
   "porte": "Startup/PME/Médio/Grande",
   "momento_atual": "1-2 frases sobre o momento estratégico da empresa",

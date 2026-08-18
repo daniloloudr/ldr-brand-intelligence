@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { streamAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
 import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar } from './_identidade.js'
+import { contextoDeMercado } from './_mercado.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -37,7 +38,7 @@ export const handler = async (event) => {
 
   const { data: ws } = await supabase
     .from('workspaces')
-    .select('id, nome, dominio, diagnosticos_mes')
+    .select('id, nome, dominio, pais, diagnosticos_mes')
     .eq('id', workspace_id)
     .single()
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Workspace não encontrado' }) }
@@ -47,6 +48,7 @@ export const handler = async (event) => {
   const msgText  = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(alvo)}".`
     + `${contexto ? `\nContexto: ${contexto}` : ''}`
     + instrucaoDeIdentidade(alvo)
+    + contextoDeMercado(ws.pais)
     + `\nGere o JSON completo.`
 
   let fullText

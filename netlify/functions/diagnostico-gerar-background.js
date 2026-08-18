@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar } from './_identidade.js'
+import { contextoDeMercado } from './_mercado.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
@@ -35,7 +36,7 @@ export const handler = async (event) => {
     if (!member && !platformAdmin) return { statusCode: 403 }
 
     const { data: ws } = await supabase
-      .from('workspaces').select('id, nome, dominio, diagnosticos_mes').eq('id', workspace_id).single()
+      .from('workspaces').select('id, nome, dominio, pais, diagnosticos_mes').eq('id', workspace_id).single()
     if (!ws) return { statusCode: 404 }
 
     wsData      = ws
@@ -60,6 +61,7 @@ export const handler = async (event) => {
   const msgText = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(alvo)}".`
     + `${contexto ? `\nContexto: ${contexto}` : ''}`
     + instrucaoDeIdentidade(alvo)
+    + contextoDeMercado(wsData?.pais)
     + `\nGere o JSON completo.`
   const userName = user.user_metadata?.full_name || user.email.split('@')[0]
 

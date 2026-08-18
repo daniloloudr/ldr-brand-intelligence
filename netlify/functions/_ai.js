@@ -3,7 +3,7 @@
 // Future: add connectors for other providers (OpenAI, Grok, Meta AI).
 // All functions should import from here instead of calling the API directly.
 
-import { alertIfBalanceError, MSG_INSTABILIDADE } from './_watchdog.js'
+import { alertIfBalanceError, alertIfProviderDown, MSG_INSTABILIDADE } from './_watchdog.js'
 
 const ANTHROPIC_BASE    = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
@@ -236,6 +236,7 @@ export async function callAI({
         // Sobrecarga do modelo principal não pode derrubar o diagnóstico do
         // cliente se existe outro capaz de atender.
         if (modeloReserva && !usouReserva && valeTentarReserva(resp.status)) {
+          await alertIfProviderDown('anthropic', resp.status, msg, { sobreviveu: true })
           usouReserva = true
           console.warn(`[ai] ${modeloAtual} falhou (${resp.status}) — indo para a reserva ${modeloReserva}`)
           modeloAtual = modeloReserva
@@ -243,6 +244,7 @@ export async function callAI({
           attempt = -1   // o laço incrementa: a reserva ganha o ciclo completo de tentativas
           continue
         }
+        await alertIfProviderDown('anthropic', resp.status, msg)
         throw new AIError(msg, resp.status)
       }
 
@@ -421,7 +423,11 @@ export async function streamAI({
   try {
     return await tentar(principal)
   } catch (e) {
-    if (!modeloReserva || !valeTentarReserva(e.status)) throw e
+    if (!modeloReserva || !valeTentarReserva(e.status)) {
+      await alertIfProviderDown('anthropic', e.status, e.message)
+      throw e
+    }
+    await alertIfProviderDown('anthropic', e.status, e.message, { sobreviveu: true })
     console.warn(`[ai] stream de ${principal} falhou (${e.status}) — reexecutando na reserva ${modeloReserva}`)
     return tentar(modeloReserva)
   }

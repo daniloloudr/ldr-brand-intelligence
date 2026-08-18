@@ -47,6 +47,29 @@ const SALDO_RE = /exhausted balance|user is locked|insufficient credit|credit ba
 export const MSG_INSTABILIDADE =
   'Estamos com uma instabilidade no sistema de geração. A equipe já foi alertada — tente novamente em alguns minutos.'
 
+/**
+ * Avisa quando o PROVEDOR está fora do ar. Existia alerta para saldo e nenhum
+ * para indisponibilidade — 5xx e 529 passavam mudos, e a queda era descoberta
+ * pelo cliente ligando.
+ *
+ * Dedup de 24h por tipo (no sendAlert) evita que uma instabilidade de 10 min
+ * vire 200 alertas: o primeiro conta a história, os outros são ruído.
+ * `sobreviveu` distingue a falha que a reserva absorveu da que chegou ao
+ * usuário — as duas interessam, com urgências diferentes.
+ */
+export async function alertIfProviderDown(provider, status, detail, { sobreviveu = false } = {}) {
+  if (![429, 500, 502, 503, 504, 529].includes(Number(status))) return false
+  const grave = !sobreviveu
+  console.error(`[${provider}] indisponível (HTTP ${status})${sobreviveu ? ' — absorvido pela reserva' : ''}`)
+  try {
+    await sendAlert(provider, sobreviveu ? 'instavel' : 'fora-do-ar',
+      `${grave ? 'FORA DO AR' : 'instável'}: ${provider} respondeu HTTP ${status}. `
+      + (sobreviveu ? 'A reserva atendeu — operação não foi perdida.' : 'A operação FALHOU para o usuário.')
+      + ` ${String(detail || '').slice(0, 200)}`)
+  } catch (e) { console.error('[watchdog] alerta de indisponibilidade falhou:', e.message) }
+  return true
+}
+
 export async function alertIfBalanceError(provider, status, detail) {
   const txt = String(detail || '')
   if (status !== 402 && status !== 403 && !SALDO_RE.test(txt)) return false

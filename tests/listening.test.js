@@ -179,3 +179,33 @@ describe('a menção guarda a evidência', () => {
     expect(classificar).toMatch(/trechos:\s+r\.trechos \|\| \[\]/)
   })
 })
+
+describe('o alerta de indisponibilidade do provedor', () => {
+  const ai = readFileSync('netlify/functions/_ai.js', 'utf8')
+  const wd = readFileSync('netlify/functions/_watchdog.js', 'utf8')
+
+  it('existe e distingue "a reserva salvou" de "o usuário perdeu"', () => {
+    // Havia alerta para SALDO e nenhum para indisponibilidade: 5xx e 529
+    // passavam mudos e a queda era descoberta pelo cliente ligando.
+    expect(wd).toMatch(/export async function alertIfProviderDown/)
+    expect(wd).toMatch(/sobreviveu/)
+  })
+
+  it('dispara nos dois caminhos de chamada', () => {
+    expect(ai.slice(ai.indexOf('export async function callAI'), ai.indexOf('export async function streamAI')))
+      .toMatch(/alertIfProviderDown/)
+    expect(ai.slice(ai.indexOf('export async function streamAI'))).toMatch(/alertIfProviderDown/)
+  })
+
+  it('só alerta em falha de disponibilidade, não em erro de pedido', () => {
+    // 400/401 é culpa nossa, não queda do provedor. Alertar neles vira ruído
+    // e esconde a queda de verdade no meio.
+    // Ancorar nas DECLARAÇÕES: `indexOf('alertIfBalanceError')` pegava uma
+    // ocorrência anterior no arquivo e a fatia vinha vazia — teste que compara
+    // string vazia com regex falha por acidente, não por mérito.
+    const ini = wd.indexOf('export async function alertIfProviderDown')
+    const fim = wd.indexOf('export async function alertIfBalanceError')
+    const bloco = wd.slice(ini, fim > ini ? fim : undefined)
+    expect(bloco).toMatch(/\[429, 500, 502, 503, 504, 529\]/)
+  })
+})
