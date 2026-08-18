@@ -24,6 +24,8 @@ import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBook
 import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
+import Alert from '@mui/material/Alert'
+import AlertTitle from '@mui/material/AlertTitle'
 import { supabase } from '../../lib/supabase'
 import { pendencias, resumoPendencias } from '../../lib/pendencias'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
@@ -57,10 +59,15 @@ const ROOTS = [
 
 // O que falta, dito onde dá para resolver.
 //
-// Não é modal e não é toast: é um painel que fica. A pendência não tem prazo e
-// não bloqueia nada — aparecer toda vez que a pessoa abre a pasta é lembrete;
-// interromper o que ela veio fazer seria cobrança. Dá para recolher, e o estado
-// fica guardado por marca: quem já entendeu não relê todo dia.
+// Um Alert nativo por pendência, com a severidade fazendo o trabalho: ela já
+// traz o ícone e a paleta certos, e `action` põe o botão à direita — é o padrão
+// do MUI, não um painel desenhado à mão que imita alerta com bolinha colorida.
+//
+// Não é modal e não é toast: pendência não tem prazo e não bloqueia nada, então
+// aparecer quando a pessoa abre a pasta é lembrete; interromper o que ela veio
+// fazer seria cobrança. Dá para recolher, e o estado fica por marca.
+const SEVERIDADE = { alta: 'error', media: 'warning', baixa: 'info' }
+
 function PainelPendencias({ itens, brandId, onSubir }) {
   const chave = `pendencias_abertas_${brandId}`
   const [aberto, setAberto] = useState(() => localStorage.getItem(chave) !== 'nao')
@@ -69,44 +76,29 @@ function PainelPendencias({ itens, brandId, onSubir }) {
   }
   if (!itens.length) return null
 
-  const COR = { alta: 'error.main', media: 'warning.main', baixa: 'text.disabled' }
-
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, mb: 2.5, overflow: 'hidden' }}>
-      <Box onClick={alternar}
-        sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.25, cursor: 'pointer',
-          borderBottom: aberto ? '1px solid' : 0, borderColor: 'divider' }}>
+    <Box sx={{ mb: 3 }}>
+      <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
         <Typography sx={{ fontWeight: 700, fontSize: 14, flex: 1 }}>
           {resumoPendencias(itens)}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Button size="small" onClick={alternar} sx={{ fontWeight: 700, fontSize: 11.5 }}>
           {aberto ? 'recolher' : 'ver'}
-        </Typography>
-      </Box>
+        </Button>
+      </Stack>
 
       {aberto && (
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.75 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            Nada aqui impede o uso da plataforma. Cada item abaixo diz o que a marca
-            deixa de conseguir fazer enquanto ele não existe.
-          </Typography>
+        <Stack spacing={1.5}>
           {itens.map(p => (
-            <Box key={p.id} sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: COR[p.severidade], mt: 1 }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{p.titulo}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6, display: 'block' }}>
-                  {p.porque}
-                </Typography>
-              </Box>
-              <Button size="small" onClick={onSubir} sx={{ fontWeight: 700, fontSize: 11.5, flexShrink: 0 }}>
-                {p.acao}
-              </Button>
-            </Box>
+            <Alert key={p.id} severity={SEVERIDADE[p.severidade] || 'info'}
+              action={<Button color="inherit" size="small" onClick={onSubir} sx={{ fontWeight: 700 }}>{p.acao}</Button>}>
+              <AlertTitle>{p.titulo}</AlertTitle>
+              {p.porque}
+            </Alert>
           ))}
-        </Box>
+        </Stack>
       )}
-    </Paper>
+    </Box>
   )
 }
 

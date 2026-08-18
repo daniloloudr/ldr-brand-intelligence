@@ -244,7 +244,6 @@ export function BrandBook({ brandId }) {
 
   return (
     <Box>
-      <FocoPendencia />
       <PageHeader
         title={sectionLabel}
         subtitle={`Brand Book · ${brand.nome}`}
@@ -267,6 +266,7 @@ export function BrandBook({ brandId }) {
 
       <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1100, width: '100%', mx: 'auto' }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <FocoPendencia />
 
         {activeSection === 'essencia' && (
           <EssenciaSection verbal={book?.verbal_identity} strategy={book?.strategy}

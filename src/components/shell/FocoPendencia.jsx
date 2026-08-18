@@ -8,10 +8,13 @@ import { consumirFoco } from '../../lib/pendencias'
 // Sem ela, clicar em "falta o arquivo do logo" deposita a pessoa numa
 // biblioteca genérica com dezenas de cards — e ela esquece por que veio.
 //
-// Quando a pendência aponta um CAMPO, o alerta não fica só no topo: a página
-// rola até o campo e ele ganha o amarelo de aviso em volta. Levar para a
-// página certa e deixar a pessoa procurando entre trinta campos é quase não
-// levar a lugar nenhum.
+// Quando a pendência aponta um CAMPO, o alerta não fica só aqui: a página rola
+// até o campo e ele ganha o contorno de aviso. Levar para a página certa e
+// deixar a pessoa procurando entre trinta campos é quase não levar a lugar
+// nenhum.
+//
+// Alert e AlertTitle do MUI, sem sobrescrever tipografia nem cor: a severidade
+// já carrega o ícone e a paleta certos, e `onClose` já rende o X nativo.
 //
 // Consome ao ler: é para esta chegada, não para as próximas. Quem voltar à
 // mesma tela por conta própria não é interrompido de novo.
@@ -50,12 +53,10 @@ export function FocoPendencia() {
   if (!foco) return null
 
   return (
-    <Alert severity="warning" onClose={() => setFoco(null)} sx={{ mb: 2.5 }}>
-      <AlertTitle sx={{ fontWeight: 700, fontSize: 14 }}>{foco.titulo}</AlertTitle>
+    <Alert severity="warning" onClose={() => setFoco(null)} sx={{ mb: 3 }}>
+      <AlertTitle>{foco.titulo}</AlertTitle>
       {foco.instrucao}
-      {foco.campo && !achou && (
-        <> Se não encontrar o campo nesta aba, ele pode estar em outra seção do Brand Book.</>
-      )}
+      {foco.campo && !achou && ' Se não encontrar o campo nesta aba, ele pode estar em outra seção do Brand Book.'}
     </Alert>
   )
 }

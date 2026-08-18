@@ -313,7 +313,10 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
 }
 
 function renderBellContent(jobs, pendentes, brandId, close) {
-  const COR_SEV = { alta: PALETTE.data.critico, media: PALETTE.data.atencao, baixa: PALETTE.neutral[400] }
+  // Mesmas cores das severidades do Alert (error/warning/info): a lista do
+  // sininho e o alerta da tela de destino falam do mesmo item — cor diferente
+  // faria parecer coisa diferente.
+  const COR_SEV = { alta: 'error.main', media: 'warning.main', baixa: 'info.main' }
   const total = jobs.length + pendentes.length
   return (
     <Box>
