@@ -201,6 +201,16 @@ export const EXPRESSAO_VERBAL = [
     ] },
 ]
 
-/** Todos os campos declarados, para conferir que ninguém aparece duas vezes. */
-export const TODOS = [...ESSENCIA, ...FUNCAO, ...EXPERIENCIA, ...PERSONALIDADE, ...EXPRESSAO_VERBAL]
-  .filter(c => c.k)
+// A rota de cada seção e o nome que aparece para quem lê. É por aqui que uma
+// pendência sabe para onde levar: o campo vazio conhece a própria tela.
+export const SECOES_DA_MARCA = [
+  { rota: 'essencia',      label: 'Essência',      mapa: ESSENCIA },
+  { rota: 'negocio',       label: 'Função',        mapa: FUNCAO },
+  { rota: 'experiencia',   label: 'Experiência',   mapa: EXPERIENCIA },
+  { rota: 'personalidade', label: 'Personalidade', mapa: PERSONALIDADE },
+  { rota: 'expression',    label: 'Expressão',     mapa: EXPRESSAO_VERBAL },
+]
+
+/** Todo campo declarado, já sabendo em que seção vive. */
+export const TODOS = SECOES_DA_MARCA.flatMap(s =>
+  s.mapa.filter(c => c.k).map(c => ({ ...c, secao: s.rota, secaoLabel: s.label })))

@@ -19,12 +19,12 @@ export function usePendencias(brandId) {
         supabase.from('brand_assets')
           .select('tipo, nome, valor, file_path, mime_type, metadata').eq('brand_id', brandId),
         supabase.from('brand_books')
-          .select('smartbrand_gaps').eq('brand_id', brandId).limit(1).maybeSingle(),
+          .select('verbal_identity, strategy').eq('brand_id', brandId).limit(1).maybeSingle(),
       ])
       if (!vivo) return
       setItens(pendencias({
         assets: assets || [],
-        lacunas: bb?.smartbrand_gaps || [],
+        dados: { verbal_identity: bb?.verbal_identity || {}, strategy: bb?.strategy || {} },
         temManual: (assets || []).some(a => a.metadata?.origem === 'manual'),
       }))
     })()

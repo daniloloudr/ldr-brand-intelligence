@@ -24,39 +24,38 @@
 // Nada aqui bloqueia. Marca sem manual funciona — só funciona com menos. A
 // severidade diz o tamanho da perda, não uma permissão.
 
+import { TODOS } from '../pages/app/campos'
+
 const ehImagem = (a) => (a.mime_type || '').startsWith('image/')
   || /\.(png|jpe?g|webp|gif|svg)$/i.test(a.nome || '')
 const ehFonte = (a) => (a.mime_type || '').startsWith('font/')
   || /\.(otf|ttf|woff2?)$/i.test(a.nome || '')
 const temArquivo = (a) => !!a.file_path || /^https?:\/\//i.test(a.valor || '')
 
+// Mesma noção de vazio da tela (CamposDaMarca): lista só de itens em branco —
+// o esqueleto que o modelo às vezes devolve — continua sendo vazio.
+export const estaVazio = (v) => {
+  if (v === null || v === undefined) return true
+  if (typeof v === 'string') return v.trim() === ''
+  if (Array.isArray(v)) return v.every(estaVazio)
+  if (typeof v === 'object') return Object.values(v).every(estaVazio)
+  return false
+}
+
 // Quantas imagens de referência bastam para o juiz ter de onde tirar padrão.
 // Abaixo disso ele generaliza de exemplo demais e erra bonito.
 const MINIMO_REFERENCIAS = 8
-
-// Onde cada seção do smartbrand vive no Brand Book. A lacuna precisa apontar
-// para a aba onde o campo é editado — mandar para "o Brand Book" e deixar a
-// pessoa procurar entre seis abas é quase não mandar para lugar nenhum.
-const SECAO_PARA_ABA = {
-  'Essência':            'essencia',
-  'Posicionamento':      'essencia',
-  'Voz':                 'personalidade',
-  'Textos de referência':'personalidade',
-  'Identidade visual':   'expression',
-  'Leitura visual':      'expression',
-  'Sistema de design':   'experiencia',
-}
 
 const NA_BIBLIOTECA = { secao: 'studio/biblioteca', bibliotecaRoot: 'referencias' }
 
 /**
  * @param {object} estado
  * @param {Array}  estado.assets   linhas de brand_assets da marca
- * @param {Array}  estado.lacunas  smartbrand_gaps do brand book
+ * @param {object} estado.dados    { verbal_identity, strategy } do brand book
  * @param {boolean} estado.temManual
  * @returns {Array<{id,titulo,porque,acao,severidade,destino,instrucao}>}
  */
-export function pendencias({ assets = [], lacunas = [], temManual = false } = {}) {
+export function pendencias({ assets = [], dados = {}, temManual = false } = {}) {
   const lista = []
   const arquivos = assets.filter(temArquivo)
 
@@ -122,20 +121,31 @@ export function pendencias({ assets = [], lacunas = [], temManual = false } = {}
     })
   }
 
-  // Uma lacuna, uma notificação. O agregado "19 campos não declarados" não é
-  // acionável — a pessoa não consegue atacar uma lista fechada por partes.
-  for (const l of lacunas) {
-    if (!l?.rotulo) continue
+  // Campo vazio, uma notificação cada.
+  //
+  // A fonte é o MAPA da interface (campos.js), não as lacunas que a extração
+  // reportou. São coisas diferentes: `smartbrand_gaps` diz o que o MANUAL não
+  // declarou, e só cobre os campos que o smartbrand acompanha — jornada do
+  // cliente, UX, portfólio e tudo que vive na coluna `strategy` nunca
+  // apareceriam. Além disso a extração pode ter falhado, ou a marca pode nem
+  // ter manual, e os campos continuam vazios do mesmo jeito.
+  //
+  // Lendo do mapa, a regra passa a ser simples e sempre verdadeira: se existe
+  // um campo na interface e ele está vazio, existe uma pendência — com o
+  // endereço exato e a tela onde se resolve.
+  for (const c of TODOS) {
+    const valor = dados?.[c.col]?.[c.k]
+    if (!estaVazio(valor)) continue
     lista.push({
-      id: `lacuna:${l.campo || l.rotulo}`,
-      titulo: `${l.rotulo} não está declarado`,
-      porque: `O manual não diz nada sobre ${l.rotulo.toLowerCase()}. Onde não há declaração, `
-        + 'o cérebro deduz — e dedução vira invenção quando ninguém confere.',
+      id: `campo:${c.col}.${c.k}`,
+      titulo: `${c.label} está em branco`,
+      porque: `${c.secaoLabel} · onde não há declaração, o cérebro deduz — e dedução vira `
+        + 'invenção quando ninguém confere.',
       acao: 'Preencher',
       severidade: 'baixa',
-      destino: { secao: SECAO_PARA_ABA[l.secao] || 'essencia' },
-      campo: l.campo || null,
-      instrucao: `Preencha "${l.rotulo}" nesta página. Se a marca não tiver isso definido, `
+      destino: { secao: c.secao },
+      campo: `${c.col}.${c.k}`,
+      instrucao: `Preencha "${c.label}" nesta página. Se a marca não tiver isso definido, `
         + 'deixe em branco mesmo — em branco é honesto; inventado, não.',
     })
   }

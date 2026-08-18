@@ -21,6 +21,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import CheckIcon from '@mui/icons-material/Check'
 import { ArquetipoSelector } from './BrandSection'
+import { estaVazio } from '../../lib/pendencias'
 
 const LEITURA = 74   // ch — largura de prosa confortável
 
@@ -47,8 +48,9 @@ const Prosa = ({ children }) => (
   </Typography>
 )
 
-const vazio = (v) => v === null || v === undefined || v === ''
-  || (Array.isArray(v) && v.filter(x => x && (typeof x !== 'object' || Object.values(x).some(Boolean))).length === 0)
+// Importada, não redefinida: se a tela e a notificação discordarem do que é
+// "vazio", o sininho cobra um campo que a tela mostra preenchido.
+const vazio = estaVazio
 
 // ── Leitura de cada tipo ─────────────────────────────────────────────
 function Lido({ def, valor }) {

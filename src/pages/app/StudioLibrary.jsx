@@ -192,7 +192,6 @@ export function StudioLibrary({ brandId }) {
   useEffect(() => { if (brandId) load() }, [brandId])
 
   const [gens, setGens] = useState([])
-  const [lacunas, setLacunas] = useState([])
 
   async function load() {
     setLoading(true)
@@ -211,10 +210,6 @@ export function StudioLibrary({ brandId }) {
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
     ])
     setAssets(data || [])
-    // As lacunas vêm do brand book: são os campos que o manual não declarou.
-    const { data: bb } = await supabase.from('brand_books')
-      .select('smartbrand_gaps').eq('brand_id', brandId).limit(1).maybeSingle()
-    setLacunas(bb?.smartbrand_gaps || [])
     setGens(geradas || [])
     setTextos(pecas || [])
     setCampanhas(camps || [])
@@ -253,9 +248,8 @@ export function StudioLibrary({ brandId }) {
   // a lista crescer sem dar o que fazer. O sininho continua com tudo.
   const itensPendentes = useMemo(() => pendencias({
     assets,
-    lacunas,
     temManual: assets.some(a => a.metadata?.origem === 'manual'),
-  }).filter(p => p.destino?.bibliotecaRoot), [assets, lacunas])
+  }).filter(p => p.destino?.bibliotecaRoot), [assets])
 
   const escopo = root ? porRoot[root] : []
   const temPastas = root && root !== 'campanhas'

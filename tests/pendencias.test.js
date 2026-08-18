@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pendencias, resumoPendencias } from '../src/lib/pendencias'
+import { TODOS } from '../src/pages/app/campos'
 
 const idsDe = (estado) => pendencias(estado).map(p => p.id)
 const arquivo = (over = {}) => ({ file_path: 'x/y.png', mime_type: 'image/png', tipo: 'logo', ...over })
@@ -47,25 +48,36 @@ describe('o que falta — a regra', () => {
     expect(p.find(x => x.id === 'referencias').porque).toMatch(/3 de 8/)
   })
 
-  it('cada lacuna vira UMA notificação — não uma lista fechada', () => {
-    // "19 campos não declarados" não é acionável: ninguém ataca uma lista
-    // fechada por partes. Dezenove mensagens, sim.
-    const p = pendencias({
-      temManual: true, assets: [arquivo()],
-      lacunas: [
-        { rotulo: 'Visão', secao: 'Essência', campo: 'verbal_identity.visao' },
-        { rotulo: 'Movimento', secao: 'Sistema de design', campo: 'design_system.motion' },
-      ],
-    })
-    const so_lacunas = p.filter(x => x.id.startsWith('lacuna:'))
-    expect(so_lacunas).toHaveLength(2)
-    expect(so_lacunas[0].titulo).toBe('Visão não está declarado')
-    expect(so_lacunas[0].id).toBe('lacuna:verbal_identity.visao')
+  it('cada campo vazio vira UMA notificação — não uma lista fechada', () => {
+    // "19 campos não declarados" não era acionável: ninguém ataca uma lista
+    // fechada por partes. Uma mensagem por campo, sim.
+    const p = pendencias({ temManual: true, assets: [arquivo()], dados: {} })
+    const campos = p.filter(x => x.id.startsWith('campo:'))
+    expect(campos.length).toBe(TODOS.length)
+    expect(campos.every(c => c.campo && c.destino?.secao)).toBe(true)
   })
 
-  it('lacuna sem rótulo é ignorada em vez de virar notificação vazia', () => {
-    const p = pendencias({ temManual: true, assets: [arquivo()], lacunas: [{}, { rotulo: '' }] })
-    expect(p.filter(x => x.id.startsWith('lacuna:'))).toHaveLength(0)
+  it('campo preenchido não vira pendência', () => {
+    const p = pendencias({ temManual: true, dados: { verbal_identity: { visao: 'Ser a maior' } } })
+    expect(p.some(x => x.id === 'campo:verbal_identity.visao')).toBe(false)
+  })
+
+  it('o vazio segue a mesma regra da tela — esqueleto não conta como preenchido', () => {
+    const p = pendencias({ temManual: true, dados: {
+      verbal_identity: { marcos: [{ ano: '', titulo: '', descricao: '' }], valores: ['  '] },
+    } })
+    expect(p.some(x => x.id === 'campo:verbal_identity.marcos')).toBe(true)
+    expect(p.some(x => x.id === 'campo:verbal_identity.valores')).toBe(true)
+  })
+
+  it('campo da coluna strategy também é cobrado — era o furo', () => {
+    // A jornada do cliente vive em `strategy` e não existe no smartbrand, então
+    // nunca aparecia quando a fonte eram as lacunas da extração.
+    const p = pendencias({ temManual: true, dados: {} })
+    const jornada = p.find(x => x.id === 'campo:strategy.customer_journey')
+    expect(jornada).toBeTruthy()
+    expect(jornada.destino.secao).toBe('experiencia')
+    expect(jornada.titulo).toBe('Jornada do cliente está em branco')
   })
 })
 
@@ -87,41 +99,30 @@ describe('o que cada pendência diz', () => {
 
 describe('cada pendência sabe para onde levar e o que dizer lá', () => {
   it('todas têm destino e instrução', () => {
-    const todas = pendencias({ lacunas: [{ rotulo: 'Visão', secao: 'Essência' }] })
+    const todas = pendencias({ dados: {} })
     for (const p of todas) {
       expect(p.destino?.secao, p.id).toBeTruthy()
       expect(p.instrucao?.length, p.id).toBeGreaterThan(30)
     }
   })
 
-  it('o que é arquivo vai para a biblioteca; o que é texto, para a aba certa', () => {
-    const p = pendencias({
-      temManual: true,
-      lacunas: [
-        { rotulo: 'Visão', secao: 'Essência' },
-        { rotulo: 'Tom de voz', secao: 'Voz' },
-        { rotulo: 'Paleta', secao: 'Identidade visual' },
-        { rotulo: 'Movimento', secao: 'Sistema de design' },
-      ],
-    })
-    const dest = id => p.find(x => x.id === id).destino
-    expect(dest('logo')).toEqual({ secao: 'studio/biblioteca', bibliotecaRoot: 'referencias' })
-    expect(p.find(x => x.titulo.startsWith('Visão')).destino.secao).toBe('essencia')
-    expect(p.find(x => x.titulo.startsWith('Tom de voz')).destino.secao).toBe('personalidade')
-    expect(p.find(x => x.titulo.startsWith('Paleta')).destino.secao).toBe('expression')
-    expect(p.find(x => x.titulo.startsWith('Movimento')).destino.secao).toBe('experiencia')
+  it('o que é arquivo vai para a biblioteca; o que é campo, para a aba dele', () => {
+    const p = pendencias({ temManual: true, dados: {} })
+    const dest = id => p.find(x => x.id === id).destino.secao
+    expect(p.find(x => x.id === 'logo').destino)
+      .toEqual({ secao: 'studio/biblioteca', bibliotecaRoot: 'referencias' })
+    expect(dest('campo:verbal_identity.visao')).toBe('essencia')
+    expect(dest('campo:verbal_identity.tom_voz')).toBe('personalidade')
+    expect(dest('campo:strategy.ux')).toBe('experiencia')
+    expect(dest('campo:verbal_identity.tagline')).toBe('expression')
+    expect(dest('campo:strategy.portfolio')).toBe('negocio')
   })
 
-  it('seção desconhecida cai em Essência em vez de quebrar a navegação', () => {
-    const p = pendencias({ temManual: true, lacunas: [{ rotulo: 'X', secao: 'Seção Nova' }] })
-    expect(p.find(x => x.id.startsWith('lacuna:')).destino.secao).toBe('essencia')
-  })
-
-  it('a instrução da lacuna autoriza deixar em branco', () => {
+  it('a instrução do campo autoriza deixar em branco', () => {
     // Sem isto a notificação empurra o cliente a inventar para calar o alerta —
     // exatamente o que o smartbrand existe para impedir.
-    const p = pendencias({ temManual: true, lacunas: [{ rotulo: 'Visão', secao: 'Essência' }] })
-    expect(p.find(x => x.id.startsWith('lacuna:')).instrucao).toMatch(/em branco é honesto/)
+    const p = pendencias({ temManual: true, dados: {} })
+    expect(p.find(x => x.id.startsWith('campo:')).instrucao).toMatch(/em branco é honesto/)
   })
 })
 
@@ -139,16 +140,9 @@ describe('resumo de uma linha', () => {
 })
 
 describe('o campo viaja com o clique', () => {
-  it('a lacuna carrega o campo para a tela ancorar nele', () => {
-    const p = pendencias({
-      temManual: true,
-      lacunas: [{ rotulo: 'Proposta de valor', secao: 'Posicionamento', campo: 'verbal_identity.proposta_valor' }],
-    })
-    expect(p.find(x => x.id.startsWith('lacuna:')).campo).toBe('verbal_identity.proposta_valor')
-  })
-
-  it('lacuna sem campo não quebra — a faixa do topo dá conta', () => {
-    const p = pendencias({ temManual: true, lacunas: [{ rotulo: 'Visão', secao: 'Essência' }] })
-    expect(p.find(x => x.id.startsWith('lacuna:')).campo).toBeNull()
+  it('a pendência carrega o endereço para a tela ancorar nele', () => {
+    const p = pendencias({ temManual: true, dados: {} })
+    expect(p.find(x => x.id === 'campo:verbal_identity.proposta_valor').campo)
+      .toBe('verbal_identity.proposta_valor')
   })
 })
