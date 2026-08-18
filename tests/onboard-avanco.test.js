@@ -270,3 +270,29 @@ describe('alerta — falha de setup deixa de ser invisível', () => {
     expect(alertas).toHaveLength(0)
   })
 })
+
+describe('a semeadura não pode adiantar o relógio da marca', () => {
+  // O bug que a revisão do setup encontrou: a criação do workspace carimbava
+  // `fases.marca`, e a guarda que faz o relógio começar na extração
+  // (`!onb.fases.marca`) nunca disparava. Um manual chegando dias depois
+  // nascia com o teto de 20 min já estourado.
+  const semeadoNaCriacao = { inteligencia: '2026-08-01T10:00:00Z' }
+
+  it('workspace novo sem manual não tem relógio de marca', () => {
+    expect(semeadoNaCriacao.marca).toBeUndefined()
+  })
+
+  it('e por isso a extração que começa depois é que carimba', async () => {
+    stubFetch()
+    const r = await rodar({
+      ws: { id: 'w1', nome: 'Vhita', onboarding: estado({
+        steps: { ...estado().steps, brand: 'waiting' },
+        fases: semeadoNaCriacao,                       // como a criação deixa
+        phase_at: new Date(Date.now() - 72 * 3600_000).toISOString(),  // 3 dias
+      }) },
+      jobs: [{ status: 'processing' }],
+    })
+    expect(r.onboarding.steps.brand).toBe('waiting')   // não expirou
+    expect(r.onboarding.fases.marca).toBeTruthy()      // relógio começou agora
+  })
+})

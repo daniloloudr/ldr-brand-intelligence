@@ -134,7 +134,12 @@ export const handler = async (event) => {
     const agora = new Date().toISOString()
     onboarding = {
       started_at: agora, brand_id: brand.id, phase_at: agora, rev: 0,
-      fases: { inteligencia: agora, marca: agora },
+      // Só a inteligência tem relógio agora: ela começa neste instante. A
+      // marca está ESPERANDO o manual, e esperar não conta tempo — o relógio
+      // dela é carimbado em _onboard.js quando a extração de fato começa.
+      // Carimbar aqui fazia um manual que chega dias depois nascer com o teto
+      // já estourado, expirado antes da primeira leitura.
+      fases: { inteligencia: agora },
       notas: { brand: 'aguardando o manual da marca — a inteligência já está rodando' },
       steps: { brand: 'waiting', diagnostico: 'pending', concorrentes: 'pending',
                mineracao: 'pending', sinteses: 'pending', destilacao: 'pending' },
