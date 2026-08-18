@@ -347,7 +347,10 @@ export const handler = async (event) => {
       return null
     }
 
-    const texto = data.content?.find(b => b.type === 'text')?.text || ''
+    // Todos os blocos, não o primeiro. A extração hoje volta em bloco único
+    // (não usa busca web), mas `.find` é a forma que já truncou resposta em
+    // produção no callAI — não fica um segundo exemplar dela no código.
+    const texto = (data.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('')
     const json = extractJSON(texto)
     if (!json) console.log(`[brand-manual] ${tag}: extractJSON falhou. Texto:`, texto.slice(0, 1500))
     return json

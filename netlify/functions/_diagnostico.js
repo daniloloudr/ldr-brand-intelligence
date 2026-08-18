@@ -4,13 +4,22 @@
 import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { emitSignal } from './_brain.js'
+import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade } from './_identidade.js'
 
 const MAX_ATTEMPTS = 2
 
-// Gera o JSON do diagnóstico para uma empresa (nome ou domínio). Lança em falha.
-export async function gerarDiagnostico(empresa, contexto) {
+// Gera o JSON do diagnóstico. `alvo` é {nome, dominio} — o domínio é o
+// identificador definitivo e vai ao modelo junto com a instrução de identidade.
+// Aceita string por compatibilidade com chamadas antigas.
+// Lança em falha, inclusive em falha de IDENTIFICAÇÃO: concorrente trocado
+// envenena o sinal competitivo do cérebro, que é permanente.
+export async function gerarDiagnostico(alvo, contexto) {
+  const sujeito = typeof alvo === 'string' ? { nome: alvo } : (alvo || {})
   const { model, tools, maxTokens } = aiConfig('premium')
-  const msg = `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`
+  const msg = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(sujeito)}".`
+    + `${contexto ? `\nContexto: ${contexto}` : ''}`
+    + instrucaoDeIdentidade(sujeito)
+    + `\nGere o JSON completo.`
   let lastErr = ''
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
@@ -21,7 +30,19 @@ export async function gerarDiagnostico(empresa, contexto) {
         idleMs: 120000, // 2 min sem chunk = stream morto
       })
       const parsed = extractJSON(text)
-      if (parsed) return parsed
+      if (parsed) {
+        // Mesma guarda do diagnóstico da própria marca. Aqui ela pesa ainda
+        // mais: concorrente trocado vira `emitSignal` de tipo competitive, e
+        // sinal do cérebro é permanente — o erro deixa de ser um relatório
+        // ruim e passa a ser aprendizado errado sobre o mercado do cliente.
+        const conf = conferirIdentidade(sujeito, parsed)
+        if (!conf.ok) {
+          lastErr = `identidade recusada — ${conf.motivo} (esperado ${conf.esperado || '?'}, recebido ${conf.recebido || '?'})`
+          console.error(`[diagnostico] ${lastErr}`)
+          continue   // nova tentativa; se insistir no erro, lança no fim
+        }
+        return parsed
+      }
       lastErr = 'JSON não extraído do texto gerado.'
     } catch (e) {
       lastErr = e.message || 'Falha na geração.'
@@ -76,8 +97,7 @@ async function emitCompetitiveSignal(supabase, concorrente, parsed) {
 
 // Gera + grava um concorrente. Usa dominio se houver, senão o nome.
 export async function diagnosticarConcorrente(supabase, concorrente) {
-  const empresa = concorrente.dominio || concorrente.nome
-  const parsed = await gerarDiagnostico(empresa, null)
+  const parsed = await gerarDiagnostico({ nome: concorrente.nome, dominio: concorrente.dominio }, null)
   const { error } = await salvarConcorrenteDiag(supabase, concorrente, parsed)
   if (error) throw new Error(error.message)
   await emitCompetitiveSignal(supabase, concorrente, parsed)   // feed do cérebro (C)
