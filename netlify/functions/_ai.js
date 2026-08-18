@@ -44,11 +44,21 @@ export const TOOLS = {
   // pode enrolar por minutos e estourar o teto de 15 min da background function em prod.
   // O prompt do diagnóstico pede 5 buscas; 6 dá 1 de folga sem esticar o tempo.
   //
-  // web_search_20260209 substitui a 20250305. Sondei o schema da nova contra a
-  // nossa chave: aceita max_uses, allowed_domains, blocked_domains e
-  // user_location. NÃO existe filtro de data em nenhuma das duas — a janela de
-  // 7 dias da escuta não sai daqui, sai da deduplicação contra o banco.
-  webSearch: { type: 'web_search_20260209', name: 'web_search', max_uses: 6 },
+  // FICAMOS NA 20250305, e a escolha é medida (18/08). A 20260209 é mais nova,
+  // mas para o nosso uso ela é PIOR em duas frentes:
+  //
+  //  · Perde as citações. Mesma pergunta, mesmo modelo: a 20250305 devolveu 33
+  //    blocos de texto com 16 citações verbatim; a 20260209, 41 blocos e ZERO.
+  //    O `cited_text` é a frase literal da página — o material mais forte que a
+  //    escuta tem, porque é a fala e não a paráfrase.
+  //  · Roteia as buscas por execução de código (`code_execution_tool_result`),
+  //    o que engorda o consumo de tokens. Foi um dos ingredientes do estouro de
+  //    teto no diagnóstico da Pixel.
+  //
+  // Nenhuma das duas tem filtro de data — sondei o schema da nova contra a
+  // nossa chave: só max_uses, allowed_domains, blocked_domains e user_location.
+  // A janela semanal da escuta vem da deduplicação contra o banco.
+  webSearch: { type: 'web_search_20250305', name: 'web_search', max_uses: 6 },
 }
 
 export const isDev = () => !!process.env.NETLIFY_DEV

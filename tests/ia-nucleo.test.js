@@ -91,11 +91,13 @@ describe('2 · a resposta do modelo é lida inteira', () => {
 describe('3 · coletor sem acesso ao mundo não coleta', () => {
   const escuta = ler(`${FUNCOES}/listening-coletar-background.js`)
 
-  it('a escuta para e alerta em vez de degradar em silêncio', () => {
+  it('busca que falhou não vira coleta', () => {
     // O modo degradado silencioso gravou 122 eventos inventados. Modelo sem
     // como pesquisar não recusa: descreve o que o ramo "costuma" receber.
-    expect(escuta).toMatch(/if \(!googleConfigurado\(\)\)/)
-    expect(escuta).toMatch(/statusCode: 503/)
+    // Hoje a busca sempre existe (é a chave da Anthropic), então a guarda mudou
+    // de lugar: falhou e não trouxe nada, devolve erro e não grava.
+    expect(escuta).toMatch(/if \(falhas\.length && !resultados\.length\)/)
+    expect(escuta).toMatch(/statusCode: 502/)
   })
 
   it('quem classifica não tem ferramenta de busca', () => {
@@ -104,8 +106,9 @@ describe('3 · coletor sem acesso ao mundo não coleta', () => {
   })
 
   it('falha total não vira snapshot zerado', () => {
-    // Snapshot com 0 menções é uma AFIRMAÇÃO sobre a semana da marca.
-    const i = escuta.indexOf('falhas.length === queries.length')
+    // Snapshot com 0 menções é uma AFIRMAÇÃO sobre a semana da marca. Só pode
+    // ser gravado quando a busca aconteceu e não achou nada.
+    const i = escuta.indexOf('falhas.length && !resultados.length')
     expect(i).toBeGreaterThan(0)
     expect(i).toBeLessThan(escuta.indexOf('sentiment_snapshots'))
   })

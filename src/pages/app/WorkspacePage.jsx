@@ -137,10 +137,22 @@ function TabEquipe({ workspace }) {
   const plano  = PLANOS[workspace.plano] || PLANOS.trial
   const limite = plano.membros === Infinity ? '∞' : plano.membros
 
+  // Quem opera a plataforma não conta como membro do time do cliente — nem na
+  // contagem, nem no limite do plano. A lista da Pixel dizia "2 membros" sendo
+  // que um era o suporte da LOUDR. Para o cliente essas linhas nem chegam do
+  // servidor; este recorte é para a visão de quem opera.
+  const doCliente = membros.filter(m => !m.plataforma)
+  const operadores = membros.filter(m => m.plataforma)
+
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {membros.length}/{limite} membros no plano {plano.nome}
+        {doCliente.length}/{limite} membros no plano {plano.nome}
+        {operadores.length > 0 && (
+          <Typography component="span" sx={{ ml: 1, fontSize: 12, color: 'text.disabled' }}>
+            · +{operadores.length} operador{operadores.length > 1 ? 'es' : ''} da plataforma (invisível para o cliente)
+          </Typography>
+        )}
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
@@ -172,14 +184,14 @@ function TabEquipe({ workspace }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {membros.length === 0 ? (
+              {doCliente.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4, color: 'text.disabled', fontSize: 13 }}>
                     Nenhum membro ainda.
                   </TableCell>
                 </TableRow>
               ) : (
-                membros.map(m => (
+                doCliente.map(m => (
                   <TableRow key={m.id} hover>
                     <TableCell sx={{ fontSize: 13, fontWeight: 700 }}>
                       {m.nome || <Typography component="span" sx={{ color: PALETTE.neutral[400] }}>—</Typography>}
