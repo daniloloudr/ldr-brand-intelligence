@@ -132,6 +132,11 @@ export const PERSONALIDADE = [
     ph: 'A frase que resume o que a marca quer que fique na cabeça' },
 
   { grupo: 'Territórios' },
+  // O território declarado da marca. Separado das notas do time de propósito:
+  // nota é direcionamento ("evitar isto"), território é a declaração em si — e
+  // é ela que a IA propõe e o time aceita ou descarta.
+  { col: COL.strategy, k: 'territorio', label: 'Território', tipo: 'area', rows: 4,
+    ph: 'O terreno que a marca reivindica — o que ela é dona de falar' },
   { col: COL.strategy, k: 'territorio_notas', label: 'Territórios — notas do time', tipo: 'area',
     ph: 'Direcionamento humano: o que reivindicar, o que evitar' },
 

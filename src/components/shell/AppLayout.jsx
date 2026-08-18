@@ -65,23 +65,27 @@ export function AppLayout({
 
   // Qual seção o painel está mostrando. Segue a rota ativa, mas o usuário
   // pode navegar pelo rail sem sair da página atual.
-  const idxAtivo = nav.findIndex(e => e.active || e.children?.some(c => c.active));
-  const [railIdx, setRailIdx] = useState(idxAtivo >= 0 ? idxAtivo : 0);
+  // Só seção COM filhos governa o painel. Início e Copiloto são destinos, não
+  // seções: acompanhar a rota deles jogaria no painel uma única linha repetindo
+  // o nome do item que a pessoa acabou de clicar.
+  const temFilhos = (e) => !!e?.children?.length;
+  const idxAtivo = nav.findIndex(e => temFilhos(e) && (e.active || e.children.some(c => c.active)));
+  const idxInicialComFilhos = nav.findIndex(temFilhos);
+  const [railIdx, setRailIdx] = useState(idxAtivo >= 0 ? idxAtivo : Math.max(idxInicialComFilhos, 0));
   useEffect(() => { if (idxAtivo >= 0) setRailIdx(idxAtivo); }, [idxAtivo]);
 
   const initial = (userName || "?").charAt(0).toUpperCase();
   const secao = nav[railIdx];
-  // Seção com filhos preenche o painel; item solto (Início, Copiloto) vira
-  // uma linha única, para o painel nunca ficar vazio sem explicação.
-  const itensDoPainel = secao?.children?.length
-    ? secao.children
-    : secao ? [{ label: secao.label, hash: secao.hash, active: secao.active }] : [];
+  const itensDoPainel = secao?.children || [];
   const go = (hash) => { onNavigate ? onNavigate(hash) : navigate(hash); };
   // Clique no rail: troca o painel; item sem filhos navega direto.
   const abrirSecao = (i, entry) => {
+    // Item sem segundo nível é só um destino: navega e pronto. Abrir o painel
+    // aqui mostrava uma linha só, repetindo o que a pessoa acabou de clicar —
+    // e ainda tirava da vista a seção onde ela estava.
+    if (!temFilhos(entry)) { if (entry.hash) go(entry.hash); return; }
     setRailIdx(i);
     if (!navAberto) setNavAberto(true);
-    if (!entry.children?.length && entry.hash) go(entry.hash);
   };
   const hasLockup = !!(brandLockup?.logoSvg || brandLockup?.logoUrl || brandLockup?.nome);
 

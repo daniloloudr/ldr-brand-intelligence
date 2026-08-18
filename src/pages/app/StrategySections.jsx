@@ -123,7 +123,23 @@ export function PersonalidadeSection({ verbal = {}, strategy = {}, onVerbal, onS
     return () => { on = false }
   }, [brandId])
 
-  const aprendido = territorioIA ? (
+  // O que a IA aprendeu é PROPOSTA, não fato consumado. Antes isso ficava numa
+  // caixa bonita que ninguém podia aceitar nem recusar — a marca via o cérebro
+  // afirmando algo sobre ela e não tinha o que fazer a respeito.
+  //
+  // Aceitar grava como território declarado. Descartar registra a recusa
+  // daquela VERSÃO: o cérebro continua aprendendo e pode propor de novo quando
+  // evoluir, mas não insiste com o que já foi recusado.
+  const versaoRecusada = strategy?.territorio_recusado
+  const jaDecidido = territorioIA && (
+    versaoRecusada === territorioIA.v || strategy?.territorio === territorioIA.valor
+  )
+  const aceitar = () => onStrategy({
+    ...(strategy || {}), territorio: territorioIA.valor, territorio_versao: territorioIA.v,
+  })
+  const descartar = () => onStrategy({ ...(strategy || {}), territorio_recusado: territorioIA.v })
+
+  const aprendido = territorioIA && !jaDecidido ? (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(127,119,221,0.06)', borderColor: 'rgba(127,119,221,0.35)' }}>
       <Stack direction="row" spacing={1.25} alignItems="flex-start">
         <PsychologyOutlinedIcon sx={{ color: PALETTE.data.neutro, fontSize: 20, mt: 0.25 }} />
@@ -132,6 +148,14 @@ export function PersonalidadeSection({ verbal = {}, strategy = {}, onVerbal, onS
             Território aprendido pela IA (v{territorioIA.v})
           </Typography>
           <Typography variant="body2" sx={{ lineHeight: 1.6 }}>{territorioIA.valor}</Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 1.75 }}>
+            <Button size="small" variant="contained" onClick={aceitar} sx={{ fontWeight: 700 }}>
+              Adicionar ao território
+            </Button>
+            <Button size="small" color="inherit" onClick={descartar} sx={{ fontWeight: 700, color: 'text.secondary' }}>
+              Descartar
+            </Button>
+          </Stack>
         </Box>
       </Stack>
     </Paper>

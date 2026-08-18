@@ -67,3 +67,21 @@ describe('o que a extração escreve tem onde ser editado', () => {
     expect(TODOS.filter(c => c.k === 'personas')).toHaveLength(1)
   })
 })
+
+describe('território — proposta da IA, decisão do time', () => {
+  it('território é campo próprio, separado das notas do time', () => {
+    // Nota é direcionamento ("evitar isto"); território é a declaração em si.
+    // Misturar os dois faria a IA propor por cima do direcionamento humano.
+    const t = TODOS.find(c => c.k === 'territorio')
+    const n = TODOS.find(c => c.k === 'territorio_notas')
+    expect(t).toBeTruthy()
+    expect(n).toBeTruthy()
+    expect(t.col).toBe('strategy')
+    expect(t.secao).toBe('personalidade')
+  })
+
+  it('o território aceito entra no smartbrand como qualquer campo declarado', () => {
+    const noDocumento = SECOES.flatMap(s => s.campos.map(([col, k]) => `${col}.${k}`))
+    expect(noDocumento).toContain('strategy.territorio')
+  })
+})
