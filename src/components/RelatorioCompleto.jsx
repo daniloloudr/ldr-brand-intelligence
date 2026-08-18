@@ -152,12 +152,12 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
     <Box>
       {meta && (
         <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25px' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.25 }}>
             {onBack
               ? <Button variant="text" onClick={onBack} sx={{ color: 'text.disabled', p: 0, fontWeight: 400, fontSize: 13, textTransform: 'none', minWidth: 0 }}>{backLabel}</Button>
               : <Box />
             }
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.25px', flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 {meta.created_at && fmtDate(meta.created_at)}{meta.user_name && ` · por ${meta.user_name}`}
               </Typography>
@@ -220,7 +220,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
             if (!pr) return null
             return (
               <Box key={p.key} sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderTop: `3px solid ${p.color}`, p: '18px 20px' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: '1.5px', mb: 1.25 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 1.25 }}>
                   <Box>
                     <Typography sx={{ fontSize: 13, fontWeight: 800, color: 'text.primary' }}>{p.label}</Typography>
                     <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>{p.sub}</Typography>
@@ -341,7 +341,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
           <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Contexto competitivo</Typography>
           {data.concorrentes.map((c, i) => (
             <Box key={i}>
-              <Box sx={{ display: 'flex', gap: '1.5px', py: 1, alignItems: 'flex-start' }}>
+              <Box sx={{ display: 'flex', gap: 1.5, py: 1, alignItems: 'flex-start' }}>
                 <Box sx={{ width: 170, minWidth: 170, flexShrink: 0 }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary' }}>{c.nome}</Typography>
                 </Box>
@@ -391,7 +391,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
         <Box sx={{ bgcolor: 'rgba(13,158,122,0.08)', borderLeft: '4px solid', borderLeftColor: 'primary.main', p: '16px 20px', mb: '14px' }}>
           <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Quick wins</Typography>
           {data.quick_wins.map((qw, i) => (
-            <Box key={i} sx={{ display: 'flex', gap: '1.25px', mb: 1 }}>
+            <Box key={i} sx={{ display: 'flex', gap: 1.25, mb: 1 }}>
               <Typography sx={{ color: 'primary.main', fontWeight: 900, lineHeight: 1.5 }}>→</Typography>
               <Typography sx={{ fontSize: 13, color: 'primary.main', fontWeight: 600, lineHeight: 1.5 }}>{qw}</Typography>
             </Box>
@@ -410,7 +410,7 @@ export function RelatorioCompleto({ data, onBack, backLabel = '← Voltar', meta
       )}
 
       {/* Próximo passo CTA */}
-      <Box sx={{ bgcolor: 'background.default', p: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2.5px', flexWrap: 'wrap', mb: '14px', border: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ bgcolor: 'background.default', p: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2.5, flexWrap: 'wrap', mb: '14px', border: '1px solid', borderColor: 'divider' }}>
         <Box>
           <Typography variant="overline" component="div" sx={{ mb: 1.25 }}>Próximo passo</Typography>
           <Typography sx={{ fontSize: 16, fontWeight: 900, color: 'text.primary', mb: 0.75 }}>

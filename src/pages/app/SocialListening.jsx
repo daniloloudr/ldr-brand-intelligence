@@ -72,7 +72,7 @@ function CustomTooltip({ active, payload, label }) {
 function SentimentScore({ label, value, color, Icon }) {
   return (
     <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
-      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: '1.5px' }}>
+      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Icon sx={{ color, fontSize: 28, flexShrink: 0 }} />
         <Box>
           <Typography variant="caption" color="text.secondary" fontWeight={700}
@@ -127,7 +127,7 @@ function EventRow({ ev }) {
             {ev.conteudo.length > 200 ? ev.conteudo.slice(0, 200) + '…' : ev.conteudo}
           </Typography>
         )}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="caption" color="text.disabled">{fmtDate(ev.created_at)}</Typography>
           {ev.score_impacto != null && (
             <Typography variant="caption" sx={{ color: cfg.color, fontWeight: 700 }}>
@@ -142,7 +142,7 @@ function EventRow({ ev }) {
               rel="noopener noreferrer"
               variant="caption"
               sx={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.3px',
+                display: 'inline-flex', alignItems: 'center', gap: 0.3,
                 color: 'text.disabled', textDecoration: 'none', ml: 'auto',
                 '&:hover': { color: 'primary.main' },
               }}

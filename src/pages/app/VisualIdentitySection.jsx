@@ -32,7 +32,7 @@ function ItemList({ label, items, onChange, fields, addLabel = 'Adicionar', empt
         )}
         {(items || []).map((it, idx) => (
           <Paper key={idx} variant="outlined" sx={{ p: 2, position: 'relative', borderRadius: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: columns === 2 ? { xs: '1fr', md: '1fr 1fr' } : '1fr', gap: '1.25px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: columns === 2 ? { xs: '1fr', md: '1fr 1fr' } : '1fr', gap: 1.25 }}>
               {fields.map(f => (
                 <TextField
                   key={f.key}
@@ -69,7 +69,7 @@ function ColorSwatchRow({ item, onChange, onRemove }) {
   const isValidHex = /^#[0-9A-Fa-f]{6}$/i.test(hex)
   return (
     <Paper variant="outlined" sx={{ p: 2, position: 'relative', borderRadius: 2 }}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '90px 1fr 1fr 130px' }, gap: '1.25px', alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '90px 1fr 1fr 130px' }, gap: 1.25, alignItems: 'start' }}>
         <Box>
           <Box
             onClick={() => document.getElementById(`swatch-${item._key}`)?.click()}

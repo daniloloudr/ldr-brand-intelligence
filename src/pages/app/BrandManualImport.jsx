@@ -197,7 +197,7 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
           </Box>
         ) : importing ? (
           <Box sx={{ py: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
               <CircularProgress size={18} color="primary" />
               <Typography variant="subtitle1">{STEPS[step]}</Typography>
             </Box>

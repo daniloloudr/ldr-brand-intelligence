@@ -171,7 +171,7 @@ export function StudioCampaigns({ brandId }) {
                   </Typography>
                 </Paper>
               ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5px' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
                   {gens.map(g => (
                     <Paper key={g.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                       <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default' }}>

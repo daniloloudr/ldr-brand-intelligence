@@ -17,7 +17,7 @@ function isDark(hex) {
 
 function SectionLabel({ label, color, count }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', pb: 1.5, mb: 2,
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, mb: 2,
       borderBottom: '1px solid', borderColor: 'divider' }}>
       <Box sx={{ width: 3, height: 18, bgcolor: color, }} />
       <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase',
@@ -91,7 +91,7 @@ function ColorTokenGrid({ tokens, onDelete }) {
                   </Typography>
 
                   {/* Actions */}
-                  <Box className="row-actions" sx={{ display: 'flex', gap: '0.25px',
+                  <Box className="row-actions" sx={{ display: 'flex', gap: 0.25,
                     opacity: 0, transition: 'opacity 0.15s', pr: 1 }}>
                     <Tooltip title={copiedId === t.id ? 'Copiado!' : 'Copiar'}>
                       <IconButton size="small" onClick={() => copy(t.id, t.valor)}

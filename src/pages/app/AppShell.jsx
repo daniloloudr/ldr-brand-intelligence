@@ -381,7 +381,7 @@ function renderBellContent(jobs, pendentes, brandId, close) {
                   p: 2, borderBottom: i < jobs.length - 1 ? 1 : 0, borderColor: 'divider',
                   cursor: isDone ? 'pointer' : 'default',
                   '&:hover': isDone ? { bgcolor: 'action.hover' } : {},
-                  display: 'flex', alignItems: 'flex-start', gap: '1.5px',
+                  display: 'flex', alignItems: 'flex-start', gap: 1.5,
                 }}>
                 {isProcessing ? (
                   <CircularProgress size={18} thickness={5} sx={{ color, mt: 0.25 }} />

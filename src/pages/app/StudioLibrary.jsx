@@ -595,7 +595,7 @@ export function StudioLibrary({ brandId }) {
 
             {/* Subpastas (Drive: pastas primeiro) — some quando busca ativa ou dentro de pasta */}
             {temPastas && !pasta && !busca.trim() && subpastas.length > 0 && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25px', mb: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.25, mb: 2.5 }}>
                 {subpastas.map(p => {
                   const n = escopo.filter(i => i.pasta === p).length
                   return (
@@ -676,7 +676,7 @@ export function StudioLibrary({ brandId }) {
 
             ) : (
               /* Grid de mídia (Imagens/Vídeos/Referências) — tela cheia, render paginado */
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '1.5px' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 1.5 }}>
                 {visiveis.slice(0, renderLimit).map(a => (
                   <Paper key={a.id} variant="outlined" draggable onDragStart={e => onDragItem(e, a)}
                     sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative',

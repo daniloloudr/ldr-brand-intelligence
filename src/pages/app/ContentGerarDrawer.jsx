@@ -278,7 +278,7 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
             {titulo}
           </Typography>
 
-          <Box sx={{ display: 'flex', gap: '0.75px', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
             {badges.map(b => (
               <Chip key={b} label={b} size="small"
                 sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700,
@@ -292,7 +292,7 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
           {error ? (
             <Typography color="error" variant="body2">{error}</Typography>
           ) : streaming && !text ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', py: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 4 }}>
               <CircularProgress size={16} color="primary" />
               <Typography variant="body2" color="text.secondary">Gerando briefing…</Typography>
             </Box>
@@ -310,7 +310,7 @@ export function ContentGerarDrawer({ item, workspace, open, onClose }) {
         {!streaming && text && (
           <>
             <Divider />
-            <Box sx={{ p: 2.5, display: 'flex', gap: '1.5px' }}>
+            <Box sx={{ p: 2.5, display: 'flex', gap: 1.5 }}>
               <Button
                 variant="outlined" size="small" fullWidth
                 startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}

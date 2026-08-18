@@ -143,7 +143,7 @@ export function MarketIntelligence() {
       ) : (
         <Stack spacing={3}>
           {/* pulso da semana */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '1.5px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
             <PulsoCard label="Movimentos · 7 dias" valor={daSemana.length} sub="itens novos no radar" />
             <PulsoCard label="Alto impacto" valor={altoImpacto.length} sub="impacto 8+ na semana" cor={altoImpacto.length ? CORAL : undefined} />
             <PulsoCard label="Mais ativo" valor={maisAtivo ? (d.concs[maisAtivo[0]] || '—') : '—'} sub={maisAtivo ? `${maisAtivo[1]} movimentos na semana` : 'semana quieta'} />
@@ -236,7 +236,7 @@ export function MarketIntelligence() {
                   </Stack>
                   <Typography variant="subtitle1">{it.titulo}</Typography>
                   {it.conteudo && <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55, mt: 0.25 }}>{it.conteudo}</Typography>}
-                  {it.url && <Link href={it.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5px', mt: 0.75 }}>
+                  {it.url && <Link href={it.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
                     fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
                 </Paper>
               ))}
@@ -790,7 +790,7 @@ export function TrendsPage() {
               )}
               <Stack direction="row" spacing={1.5} mt={0.75}>
                 {t.fonte && <Typography variant="caption" color="text.disabled">{t.fonte}</Typography>}
-                {t.url && <Link href={t.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5px' }}>
+                {t.url && <Link href={t.url} target="_blank" rel="noopener" sx={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                   fonte <OpenInNewIcon sx={{ fontSize: 13 }} /></Link>}
               </Stack>
             </Paper>

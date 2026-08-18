@@ -51,7 +51,7 @@ function OporRow({ kw, cor, clusterNome, onGerar }) {
       <Typography sx={{ fontSize: 11, fontWeight: 700, color: cor, opacity: 0.85 }}>
         {clusterNome}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <LocalFireDepartmentIcon sx={{ fontSize: 13, color: OPOR_COR[kw.oportunidade] }} />
         <Typography sx={{ fontSize: 12, fontWeight: 700, color: OPOR_COR[kw.oportunidade] }}>
           {oporLabel(kw.oportunidade)}
@@ -60,7 +60,7 @@ function OporRow({ kw, cor, clusterNome, onGerar }) {
       <Typography sx={{ fontSize: 12, fontWeight: 700, color: VOL_COR[kw.volume] || PALETTE.neutral[400] }}>
         {VOL_LABEL[kw.volume] || kw.volume}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <InfoOutlinedIcon sx={{ fontSize: 13, color: INTENT_COR[kw.intencao] || PALETTE.neutral[400] }} />
         <Typography sx={{ fontSize: 12, fontWeight: 600, color: INTENT_COR[kw.intencao] || PALETTE.neutral[400] }}>
           {INTENT_LABEL[kw.intencao] || kw.intencao}
@@ -98,7 +98,7 @@ export function ContentOportunidades({ clusters }) {
   return (
     <Box>
       {/* Cluster filter */}
-      <Box sx={{ display: 'flex', gap: '1.5px', mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant="overline" color="text.disabled" sx={{ fontSize: '0.6rem', flexShrink: 0 }}>
           Filtrar por território:
         </Typography>
@@ -129,7 +129,7 @@ export function ContentOportunidades({ clusters }) {
         ].map(({ label, count, cor, desc }) => (
           <Box key={label} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2,
             p: 2.5, borderTop: `3px solid ${cor}` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75px', mb: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
               <LocalFireDepartmentIcon sx={{ fontSize: 15, color: cor }} />
               <Typography sx={{ fontSize: 11, fontWeight: 700, color: cor, textTransform: 'uppercase',
                 letterSpacing: '0.08em' }}>{label}</Typography>
@@ -141,7 +141,7 @@ export function ContentOportunidades({ clusters }) {
       </Box>
 
       {/* Tabela */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
         <TrendingUpIcon sx={{ fontSize: 18, color: PALETTE.data.atencao }} />
         <Box>
           <Typography sx={{ fontSize: 15, fontWeight: 900, lineHeight: 1.2 }}>

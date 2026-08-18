@@ -192,7 +192,7 @@ function ColorPalette({ items, onDelete }) {
               <Box sx={{ height: 100, bgcolor: hex || 'divider', position: 'relative' }}>
                 <Box className="swatch-actions" sx={{
                   position: 'absolute', top: 6, right: 6,
-                  display: 'flex', gap: '0.5px', opacity: 0, transition: 'opacity 0.15s',
+                  display: 'flex', gap: 0.5, opacity: 0, transition: 'opacity 0.15s',
                 }}>
                   <Tooltip title={copiedId === asset.id ? 'Copiado!' : 'Copiar hex'}>
                     <IconButton size="small" onClick={() => copy(asset.id, hex || asset.valor)}
@@ -466,10 +466,10 @@ function UploadPanel({ brandId, onUploaded }) {
       </Box>
 
       {files.length > 0 && (
-        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {files.map((f, idx) => (
             <Box key={idx} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px 1fr 30px' }, gap: '1.5px', alignItems: 'center' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px 1fr 30px' }, gap: 1.5, alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {f.file.name}
@@ -518,7 +518,7 @@ function UploadPanel({ brandId, onUploaded }) {
 
 function SectionLabel({ label, color, count }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', pb: 1.5,
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5,
       borderBottom: '1px solid', borderColor: 'divider' }}>
       <Box sx={{ width: 3, height: 18, bgcolor: color, }} />
       <Typography sx={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase',

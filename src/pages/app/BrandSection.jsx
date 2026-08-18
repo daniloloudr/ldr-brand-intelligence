@@ -37,7 +37,7 @@ export function ArquetipoSelector({ value, onChange }) {
   return (
     <Box>
       <FieldLabel>Arquétipo</FieldLabel>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
         {ARQUETIPOS.map(a => (
           <Chip key={a} label={a} size="small"
             onClick={() => onChange(value === a ? '' : a)}
@@ -62,7 +62,7 @@ export function ChipInput({ label, values, onChange, placeholder, color = 'prima
   return (
     <Box>
       <FieldLabel>{label}</FieldLabel>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px', mb: 1, minHeight: 28 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1, minHeight: 28 }}>
         {(values || []).map(v => (
           <Chip key={v} label={v} size="small"
             onDelete={() => onChange(values.filter(x => x !== v))}

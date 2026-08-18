@@ -93,7 +93,7 @@ export function StudioApprovals({ brandId }) {
             {pecas.length > 0 && (
               <Box>
                 <Typography variant="subtitle2" mb={1.5}>Peças sem julgamento ({pecas.length})</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5px' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
                   {pecas.map(p => (
                     <Paper key={p.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                       <Box sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default' }}>

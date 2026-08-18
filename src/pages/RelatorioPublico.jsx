@@ -126,7 +126,7 @@ export function RelatorioPublico() {
                     <Typography sx={{ fontSize: 10, fontWeight: 700, color: PALETTE.neutral[600], textTransform: 'uppercase', letterSpacing: '0.14em', mb: 0.75, fontFamily: "'Cairo', sans-serif" }}>
                       {s.label}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '0.5px', mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.5 }}>
                       <Typography sx={{ fontSize: 'clamp(36px, 3vw, 48px)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em', color: hex, fontFamily: "'Cairo', sans-serif" }}>
                         {val ?? '—'}
                       </Typography>

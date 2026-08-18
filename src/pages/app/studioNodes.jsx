@@ -51,7 +51,7 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
       <NodeResizer color={color} isVisible={selected} minWidth={160} minHeight={100} onResizeEnd={() => onResize?.()} />
       {(onDelete || onDuplicate || onRun || onRegen) && (
         <NodeToolbar position={Position.Top} offset={6}>
-          <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: '0.25px', p: 0.25, borderRadius: 1.5 }}>
+          <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
             {onRun && <Tooltip title="Rodar este + jusante"><IconButton size="small" onClick={() => onRun(id)}><PlayArrowIcon sx={{ fontSize: 16, color: TEAL }} /></IconButton></Tooltip>}
             {onRegen && <Tooltip title="Regerar só este (usa o que já veio antes)"><IconButton size="small" onClick={e => regenMenu ? setRegenAnchor(e.currentTarget) : onRegen(id)}><ReplayIcon sx={{ fontSize: 15, color: TEAL }} /></IconButton></Tooltip>}
             {regenMenu && (
@@ -202,7 +202,7 @@ const PreviewNode = memo(({ id, data, selected }) => (
         </Stack>
       </>
     ) : (
-      <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: '0.75px', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'background.default', borderRadius: 1, display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'center', justifyContent: 'center' }}>
         {data.loading
           ? <><CircularProgress size={20} sx={{ color: CORAL }} /><Typography sx={{ fontSize: 10, color: CORAL, fontWeight: 700 }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></>
           : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>aguardando geração</Typography>}
@@ -288,7 +288,7 @@ const ImageInputNode = memo(({ id, data, selected }) => {
         )}
 
         {/* Demais imagens (até 4) + upload */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5px', flexShrink: 0 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0.5, flexShrink: 0 }}>
           {urls.slice(1).map(u => (
             <Box key={u} onClick={() => data.onOpen?.(u, urls)}
               sx={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover .rmBtn': { opacity: 1 } }}>
@@ -333,7 +333,7 @@ const GroupNode = memo(({ id, data, selected }) => (
   <Box sx={{ width: '100%', height: '100%' }}>
     <NodeResizer color={PURPLE} isVisible={selected} minWidth={180} minHeight={140} onResizeEnd={() => data.onResize?.()} />
     <NodeToolbar position={Position.Top} offset={6}>
-      <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: '0.25px', p: 0.25, borderRadius: 1.5 }}>
+      <Paper elevation={3} className="nodrag" sx={{ display: 'flex', gap: 0.25, p: 0.25, borderRadius: 1.5 }}>
         <Tooltip title="Desagrupar"><IconButton size="small" onClick={() => data.onUngroup(id)}><WorkspacesOutlinedIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
         <Tooltip title="Excluir grupo e nós"><IconButton size="small" onClick={() => data.onDelete(id)}><DeleteOutlineIcon sx={{ fontSize: 15, color: CORAL }} /></IconButton></Tooltip>
       </Paper>

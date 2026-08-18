@@ -44,7 +44,7 @@ function TabEmpresa({ workspace, reload }) {
   }
 
   return (
-    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
+    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
       {msg && <Alert severity="success" sx={{ borderRadius: 2 }}>{msg}</Alert>}
       <TextField fullWidth label="Nome da empresa *" value={form.nome} onChange={setF('nome')} required />
       <TextField fullWidth label="Domínio" value={form.dominio} onChange={setF('dominio')} placeholder="www.empresa.com.br" />
@@ -146,7 +146,7 @@ function TabEquipe({ workspace }) {
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {convMsg && <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setConvMsg('')}>{convMsg}</Alert>}
 
-      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: '1.5px', mb: 3, maxWidth: 560 }}>
+      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: 1.5, mb: 3, maxWidth: 560 }}>
         <TextField
           fullWidth size="small" label="E-mail do convidado"
           value={email} onChange={e => setEmail(e.target.value)} type="email"
@@ -320,7 +320,7 @@ function TabPlano({ workspace }) {
         <Typography variant="body2" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing="0.08em" mb={1}>
           Créditos do contrato
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '1.5px', flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
           <Typography variant="h4" sx={{ color: 'primary.main' }}>
             {cMes.toLocaleString('pt-BR')} créditos/mês
           </Typography>
@@ -328,7 +328,7 @@ function TabPlano({ workspace }) {
             créditos cobrem o custo de geração (1 crédito ≈ R$0,33 de insumo de IA, repassado sem margem)
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: '0.75px', flexWrap: 'wrap', mt: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
           {planoAtual.studio && <Chip label="Studio" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
           <Chip label="Brand Intelligence · fair-use" size="small" variant="outlined" sx={{ fontWeight: 700 }} />
           {planoAtual.social_listening && <Chip label="Social Listening" size="small" variant="outlined" sx={{ fontWeight: 700 }} />}
@@ -481,7 +481,7 @@ function TabAlertas({ workspace }) {
   }
 
   return (
-    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
+    <Box component="form" onSubmit={save} sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
       {msg && <Alert severity="success" sx={{ borderRadius: 2 }}>{msg}</Alert>}
       <TextField fullWidth select label="Frequência de alertas" value={config.frequencia}
         onChange={e => setConfig(c => ({ ...c, frequencia: e.target.value }))}>

@@ -188,7 +188,7 @@ export function CampaignNew({ brandId }) {
         }
       />
       <Box sx={{ p: 4, maxWidth: 720, mx: 'auto' }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2.5px' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         <TextField
           label="Título da campanha *"
           value={title}
@@ -202,7 +202,7 @@ export function CampaignNew({ brandId }) {
             textTransform="uppercase" letterSpacing="0.08em" display="block" mb={1}>
             Canal
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
             {CANAIS.map(c => (
               <Chip
                 key={c}
@@ -243,7 +243,7 @@ export function CampaignNew({ brandId }) {
 
         {loading && (
           <Paper sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5px', mb: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 20 }} />
               <Typography variant="subtitle1">{progress}</Typography>
             </Box>
@@ -251,7 +251,7 @@ export function CampaignNew({ brandId }) {
           </Paper>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5px' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
           <Button variant="outlined" onClick={goBack} sx={{ borderColor: 'divider', color: 'text.secondary' }}>
             Cancelar
           </Button>

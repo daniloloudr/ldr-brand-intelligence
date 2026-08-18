@@ -199,7 +199,7 @@ export function CampaignDetail({ brandId, campaignId }) {
                   <Typography variant="overline" color="text.disabled" display="block" mb={1.5}>
                     Termos problemáticos
                   </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.75px' }}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                     {verdict.palavras_problematicas.map(p => (
                       <Chip key={p} label={p} size="small"
                         sx={{ bgcolor: 'rgba(232,24,90,0.08)', color: PALETTE.data.critico, fontWeight: 700, fontSize: '0.65rem' }} />

@@ -380,7 +380,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
           sx={{ mb: 2, fontWeight: 700, bgcolor: 'rgba(127,119,221,0.12)', color: PURPLE }} />
       )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, gap: '2.5px', alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, gap: 2.5, alignItems: 'start' }}>
         {/* Coluna esquerda: frameworks + campos */}
         <Stack spacing={1.25}>
           {WRITING_FRAMEWORKS.map(f => {
