@@ -1,29 +1,44 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig, extractJSON } from './_ai.js'
 
+// Cada canal descreve O QUE PROCURAR, não onde. O `site:` que existia aqui
+// matava a busca por construção: Twitter, Instagram e TikTok bloqueiam crawler
+// ou exigem login, então o índice não tem o conteúdo deles e a consulta voltava
+// vazia SEMPRE — para qualquer marca. Medido: `site:twitter.com` + PES fez 3
+// buscas e achou nada; a mesma pergunta sem o filtro achou a página de
+// reputação da empresa e uma reclamação real com citação.
+//
+// O canal continua sendo a unidade — é assim que se lê percepção por praça —
+// mas agora ele é o ASSUNTO da pergunta, não um operador de busca.
 const FONTES = [
-  { nome: 'Twitter/X',      hint: 'site:twitter.com OR site:x.com' },
-  { nome: 'Instagram',      hint: 'site:instagram.com' },
-  { nome: 'Facebook',       hint: 'site:facebook.com' },
-  { nome: 'TikTok',         hint: 'site:tiktok.com' },
-  { nome: 'LinkedIn',       hint: 'site:linkedin.com' },
-  { nome: 'Reclame Aqui',   hint: 'site:reclameaqui.com.br' },
-  { nome: 'Google Reviews', hint: 'avaliações google reviews' },
-  { nome: 'News',           hint: 'notícias artigos recentes' },
+  { nome: 'Twitter/X',      alvo: 'posts, threads e respostas no Twitter/X' },
+  { nome: 'Instagram',      alvo: 'publicações, comentários e marcações no Instagram' },
+  { nome: 'Facebook',       alvo: 'publicações, grupos e comentários no Facebook' },
+  { nome: 'TikTok',         alvo: 'vídeos e comentários no TikTok' },
+  { nome: 'LinkedIn',       alvo: 'publicações e comentários no LinkedIn, incluindo de funcionários' },
+  { nome: 'Reclame Aqui',   alvo: 'reclamações, respostas da empresa e índice de reputação no Reclame Aqui' },
+  { nome: 'Google Reviews', alvo: 'avaliações e notas em Google Reviews e Google Maps' },
+  { nome: 'News',           alvo: 'notícias, matérias e citações na imprensa' },
 ]
 
 function buildPrompt(marca, fonte, termos) {
   const termosStr = termos.length
     ? `\nAlém da marca, monitore também: ${termos.map(t => `"${t}"`).join(', ')}.`
     : ''
-  return `Pesquise menções recentes de "${marca}" em ${fonte.nome} (${fonte.hint}).${termosStr}
+  return `Como a marca "${marca}" é percebida em ${fonte.nome}? Procure ${fonte.alvo}.${termosStr}
+
+Busque livremente, com os termos que uma pessoa real usaria. NÃO restrinja a busca a um domínio
+(nada de "site:") — o conteúdo dessas plataformas costuma aparecer indexado fora delas, em
+agregadores, notícias e citações, e a restrição por domínio devolve vazio mesmo quando há material.
 Retorne APENAS JSON, sem markdown:
 {"events":[{"titulo":"<80chars>","conteudo":"<300chars>","fonte":"${fonte.nome}","sentiment":"positivo|neutro|negativo","score_impacto":<1-10>,"url":"https://..."}]}
 
 Regras:
 - Toda menção precisa da URL de onde ela foi encontrada. Sem link verificável, NÃO inclua.
 - Não descreva o que uma marca deste ramo "costuma" receber. Só o que você encontrou sobre ESTA marca.
-- Não achou nada? Devolva {"events":[]}. Lista vazia é resposta correta e esperada.`
+- Não achou nada? Devolva {"events":[]}. Lista vazia é resposta correta e esperada.
+- O que interessa é PERCEPÇÃO: o que dizem, elogiam, reclamam ou noticiam sobre a marca. Post da
+  própria marca só entra se a reação a ele for o achado.`
 }
 
 const DISCLAIMER = [
