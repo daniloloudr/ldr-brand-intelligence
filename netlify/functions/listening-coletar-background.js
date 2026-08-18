@@ -27,6 +27,13 @@ const DISCLAIMER = [
   /base de conhecimento/i,
   /não (consigo|posso) (acessar|pesquisar|buscar)/i,
   /acesso (em tempo real|direto)/i,
+  // "Procurei e não achei" é RESULTADO, não menção. Sem estas linhas, cada
+  // rodada gravava um evento por canal dizendo que não havia eventos — a PES
+  // tinha 19 "menções" e todas eram "nenhuma menção encontrada".
+  /nenhuma? (menç|resultado|registro|publicaç)/i,
+  /sem (menç|resultado|registro|publicaç)/i,
+  /não (foram|foi) encontrad/i,
+  /não há (menç|registro|resultado)/i,
 ]
 
 function parseEvents(txt, fonteNome) {
@@ -90,7 +97,20 @@ export const handler = async (event) => {
     .from('listening_terms').select('termo').eq('workspace_id', workspace_id)
   const termos = (termsData || []).map(t => t.termo).filter(Boolean)
 
-  const marca = ws.dominio || ws.nome
+  // Busca pelo NOME da marca, não pelo domínio.
+  //
+  // Era `ws.dominio || ws.nome`, e o domínio ganhava: a PES foi procurada como
+  // "https://www.pesenglish.com.br/" no Instagram e no TikTok. Ninguém escreve
+  // a URL num post — escreve "PES", "PES English". Marca com barulho real
+  // voltava com zero menções, e o silêncio parecia do mercado quando era da
+  // pergunta.
+  //
+  // O domínio continua útil como termo SECUNDÁRIO: pega quem compartilha link,
+  // e é o que identifica a empresa no Reclame Aqui. Vai como host, sem
+  // protocolo nem barra — é assim que ele aparece escrito.
+  const marca = ws.nome || ws.dominio
+  const host = (ws.dominio || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '')
+  if (host && host !== marca) termos.push(host)
 
   // Parallel with 300ms stagger to avoid burst rate limit
   const resultados = await Promise.allSettled(
