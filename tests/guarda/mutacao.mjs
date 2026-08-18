@@ -97,6 +97,11 @@ const MUTACOES = [
     arq: 'src/pages/AppInterno.jsx',
     de: "bgcolor: 'background.paper', border: 1", para: "background: 'background.paper', border: 1" },
 
+  { nome: 'componente JSX usado sem import (tela branca)',
+    arq: 'src/pages/AppInterno.jsx',
+    de: 'TableCell, TableContainer, Paper } from "@mui/material";',
+    para: 'TableCell } from "@mui/material";' },
+
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ThemeProvider, CssBaseline, Popover, Box, Stack, Typography, Button, Divider, Alert,
          TextField, MenuItem, Card, CardContent, Chip, CircularProgress,
-         Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
+         Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper } from "@mui/material";
 import { AppLayout } from "../components/shell/AppLayout";
 import { PageHeader } from "../components/shell/PageHeader";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
