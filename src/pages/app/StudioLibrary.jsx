@@ -25,6 +25,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import { supabase } from '../../lib/supabase'
+import { pendencias, resumoPendencias } from '../../lib/pendencias'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -52,6 +53,63 @@ const ROOTS = [
   { id: 'referencias', label: 'Referências da marca', Icon: CollectionsBookmarkOutlinedIcon, desc: 'o que É a marca — logos, padrões e referências curadas' },
   { id: 'campanhas',   label: 'Campanhas',            Icon: CampaignOutlinedIcon,            desc: 'dossiês de campanha' },
 ]
+
+// O que falta, dito onde dá para resolver.
+//
+// Não é modal e não é toast: é um painel que fica. A pendência não tem prazo e
+// não bloqueia nada — aparecer toda vez que a pessoa abre a pasta é lembrete;
+// interromper o que ela veio fazer seria cobrança. Dá para recolher, e o estado
+// fica guardado por marca: quem já entendeu não relê todo dia.
+function PainelPendencias({ itens, brandId, onSubir }) {
+  const chave = `pendencias_abertas_${brandId}`
+  const [aberto, setAberto] = useState(() => localStorage.getItem(chave) !== 'nao')
+  const alternar = () => {
+    setAberto(v => { localStorage.setItem(chave, v ? 'nao' : 'sim'); return !v })
+  }
+  if (!itens.length) return null
+
+  const COR = { alta: 'error.main', media: 'warning.main', baixa: 'text.disabled' }
+
+  return (
+    <Paper variant="outlined" sx={{ borderRadius: 2, mb: 2.5, overflow: 'hidden' }}>
+      <Box onClick={alternar}
+        sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.25, cursor: 'pointer',
+          borderBottom: aberto ? '1px solid' : 0, borderColor: 'divider' }}>
+        <Typography sx={{ fontWeight: 700, fontSize: 14, flex: 1 }}>
+          {resumoPendencias(itens)}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {aberto ? 'recolher' : 'ver'}
+        </Typography>
+      </Box>
+
+      {aberto && (
+        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.75 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            Nada aqui impede o uso da plataforma. Cada item abaixo diz o que a marca
+            deixa de conseguir fazer enquanto ele não existe.
+          </Typography>
+          {itens.map(p => (
+            <Box key={p.id} sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: COR[p.severidade], mt: 1 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{p.titulo}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6, display: 'block' }}>
+                  {p.porque}
+                </Typography>
+              </Box>
+              {p.id !== 'lacunas' && p.id !== 'manual' && (
+                <Button size="small" onClick={onSubir} sx={{ fontWeight: 700, fontSize: 11.5, flexShrink: 0 }}>
+                  {p.acao}
+                </Button>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Paper>
+  )
+}
 
 function AssetPreview({ a }) {
   if (isUrl(a.valor)) {
@@ -143,6 +201,7 @@ export function StudioLibrary({ brandId }) {
   useEffect(() => { if (brandId) load() }, [brandId])
 
   const [gens, setGens] = useState([])
+  const [lacunas, setLacunas] = useState([])
 
   async function load() {
     setLoading(true)
@@ -161,6 +220,10 @@ export function StudioLibrary({ brandId }) {
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
     ])
     setAssets(data || [])
+    // As lacunas vêm do brand book: são os campos que o manual não declarou.
+    const { data: bb } = await supabase.from('brand_books')
+      .select('smartbrand_gaps').eq('brand_id', brandId).limit(1).maybeSingle()
+    setLacunas(bb?.smartbrand_gaps || [])
     setGens(geradas || [])
     setTextos(pecas || [])
     setCampanhas(camps || [])
@@ -192,6 +255,13 @@ export function StudioLibrary({ brandId }) {
       campanhas:   campanhas || [],
     }
   }, [assets, gens, textos, campanhas])
+
+  // Só em Referências: é a pasta onde tudo isto se resolve.
+  const itensPendentes = useMemo(() => pendencias({
+    assets,
+    lacunas,
+    temManual: assets.some(a => a.metadata?.origem === 'manual'),
+  }), [assets, lacunas])
 
   const escopo = root ? porRoot[root] : []
   const temPastas = root && root !== 'campanhas'
@@ -529,6 +599,11 @@ export function StudioLibrary({ brandId }) {
 
         ) : (
           <>
+            {root === 'referencias' && !pasta && !busca.trim() && (
+              <PainelPendencias itens={itensPendentes} brandId={brandId}
+                onSubir={() => fileRef.current?.click()} />
+            )}
+
             {/* Subpastas (Drive: pastas primeiro) — some quando busca ativa ou dentro de pasta */}
             {temPastas && !pasta && !busca.trim() && subpastas.length > 0 && (
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25px', mb: 2.5 }}>
