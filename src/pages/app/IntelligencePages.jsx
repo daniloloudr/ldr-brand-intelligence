@@ -50,13 +50,21 @@ export function MarketIntelligence() {
   const [pagina, setPagina] = useState(0)        // paginação do feed (10/pág)
 
   const load = useCallback(async () => {
-    const [{ data: cs }, { data: clips }, { data: sint }] = await Promise.all([
-      supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspace.id),
-      supabase.from('concorrente_clipping').select('*').eq('workspace_id', workspace.id)
-        .order('created_at', { ascending: false }).limit(200),
+    // SÓ concorrentes ativos. Concorrente desativado é concorrente que o cliente
+    // disse não ser concorrente — o histórico dele fica no banco, mas não pode
+    // continuar contando movimento nem entrando no "quem mais se moveu".
+    // Na Pixel Retail, os 25 movimentos da tela eram TODOS de três agências
+    // digitais herdadas de um diagnóstico da empresa errada, já desativadas.
+    const [{ data: cs }, { data: sint }] = await Promise.all([
+      supabase.from('concorrentes').select('id, nome').eq('workspace_id', workspace.id).eq('ativo', true),
       supabase.from('market_sinteses').select('*').eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false }).limit(1),
     ])
+    const ativos = (cs || []).map(c => c.id)
+    const { data: clips } = ativos.length
+      ? await supabase.from('concorrente_clipping').select('*').eq('workspace_id', workspace.id)
+          .in('concorrente_id', ativos).order('created_at', { ascending: false }).limit(200)
+      : { data: [] }
     const next = {
       concs: Object.fromEntries((cs || []).map(c => [c.id, c.nome])),
       items: clips || [], sintese: sint?.[0] || null,
