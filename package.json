@@ -19,6 +19,7 @@
     "@supabase/supabase-js": "^2.105.1",
     "@xyflow/react": "^12.11.1",
     "jspdf": "^4.2.1",
+    "pdfjs-dist": "^6.2.108",
     "pptxgenjs": "^4.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

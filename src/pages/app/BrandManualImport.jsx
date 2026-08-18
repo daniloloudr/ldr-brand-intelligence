@@ -9,15 +9,20 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { PALETTE } from '../../lib/theme'
-import { checarTamanhoManual, MANUAL_MAX_MB } from '../../lib/helpers'
+import { checarTamanhoManual, MANUAL_MAX_MB, navigate } from '../../lib/helpers'
 
+// Um passo por leitura real do documento — a barra acompanha o que acontece,
+// não uma animação inventada.
 const STEPS = [
-  'Fazendo upload do PDF...',
-  'Lendo o brand manual...',
-  'Extraindo identidade da marca...',
-  'Mapeando design system...',
-  'Identificando assets e tokens...',
-  'Salvando no brand book...',
+  'Enviando o PDF...',
+  'Lendo quem a marca diz que é...',
+  'Recolhendo as frases prontas...',
+  'Lendo as regras de forma...',
+  'Procurando sistema de design...',
+  'Catalogando ativos e tokens...',
+  'Olhando como a marca aparece aplicada...',
+  'Inventariando as peças...',
+  'Escrevendo o smartbrand...',
 ]
 
 export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
@@ -171,12 +176,24 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
           <Box sx={{ py: 3, textAlign: 'center' }}>
             <CheckCircleIcon sx={{ fontSize: 48, color: PALETTE.data.positivo, mb: 2 }} />
             <Typography variant="h6" mb={1}>
-              Brand manual importado!
+              Manual lido
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Identidade, posicionamento, design system, assets e tokens foram preenchidos automaticamente.
-              Revise cada seção e ajuste se necessário.
+            <Typography variant="body2" color="text.secondary" mb={2.5}>
+              Identidade, voz, regras de forma, ativos e tokens foram preenchidos a partir do
+              que o manual afirma. O que ele não disser ficou em branco — e aparece como lacuna
+              no smartbrand.
             </Typography>
+            <Alert severity="info" icon={false} sx={{ textAlign: 'left' }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.5 }}>
+                Falta subir os arquivos da marca
+              </Typography>
+              <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.6 }}>
+                O manual <b>descreve</b> o logo, mas não entrega o arquivo dele. Para o Estúdio
+                gerar peça de verdade, suba os originais: logo em PNG ou SVG, fotos, padrões e
+                exemplos de aplicação. Enquanto não subir, cada referência mostra a página do
+                manual onde ela aparece.
+              </Typography>
+            </Alert>
           </Box>
         ) : importing ? (
           <Box sx={{ py: 3 }}>
@@ -248,9 +265,17 @@ export function BrandManualImport({ brandId, open, onClose, onSuccess }) {
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
         {done ? (
-          <Button variant="contained" onClick={handleClose} sx={{ fontWeight: 800 }}>
-            Ver brand book
-          </Button>
+          <>
+            <Button onClick={handleClose}>Ver brand book</Button>
+            <Button variant="contained" sx={{ fontWeight: 800 }}
+              onClick={() => {
+                sessionStorage.setItem('biblioteca_root', 'referencias')
+                handleClose()
+                navigate(`/app/brands/${brandId}/studio/biblioteca`)
+              }}>
+              Subir arquivos da marca
+            </Button>
+          </>
         ) : (
           <>
             <Button onClick={handleClose} disabled={importing} sx={{ fontWeight: 700, color: 'text.secondary' }}>

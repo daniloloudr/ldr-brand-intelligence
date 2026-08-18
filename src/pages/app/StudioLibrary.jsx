@@ -25,6 +25,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import { supabase } from '../../lib/supabase'
+import { renderPagina } from '../../lib/pdfPagina'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -53,7 +54,37 @@ const ROOTS = [
   { id: 'campanhas',   label: 'Campanhas',            Icon: CampaignOutlinedIcon,            desc: 'dossiês de campanha' },
 ]
 
-function AssetPreview({ a }) {
+// A página do manual onde a referência aparece — a prova visual do que a
+// descrição afirma. Rasterizada aqui, na hora: não há imagem guardada, e não
+// precisa haver (ver src/lib/pdfPagina.js).
+function PaginaDoManual({ pagina, manual }) {
+  const [src, setSrc] = useState(null)
+  const [erro, setErro] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    if (!manual?.url) return
+    renderPagina(manual.url, Number(pagina), { chave: manual.id })
+      .then(d => { if (vivo) { d ? setSrc(d) : setErro(true) } })
+      .catch(() => vivo && setErro(true))
+    return () => { vivo = false }
+  }, [pagina, manual?.url, manual?.id])
+
+  if (erro) return null
+  if (!src) return <CircularProgress size={16} sx={{ color: 'text.disabled' }} />
+  return (
+    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+      <Box component="img" src={src} alt={`Página ${pagina} do manual`} loading="lazy"
+        sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', bgcolor: '#fff' }} />
+      <Typography variant="caption" sx={{ position: 'absolute', bottom: 4, right: 6,
+        px: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,.62)', color: '#fff', fontSize: 10 }}>
+        p. {pagina}
+      </Typography>
+    </Box>
+  )
+}
+
+function AssetPreview({ a, manual }) {
   if (isUrl(a.valor)) {
     // preload="none" + poster: o grid não baixa nenhum byte de vídeo até o hover
     if (isVideo(a)) return <Box component="video" src={a.valor} muted loop playsInline preload="none" poster={a.poster || undefined}
@@ -82,6 +113,11 @@ function AssetPreview({ a }) {
       ) : null}
     </Box>
   )
+
+  // Extraído do manual e com página citada: mostra a página. É o mais perto de
+  // "ver a referência" que dá para chegar sem o arquivo original — que agora é
+  // responsabilidade do cliente subir.
+  if (a.metadata?.pagina && manual?.url) return <PaginaDoManual pagina={a.metadata.pagina} manual={manual} />
 
   // Asset que a extração criou é DESCRIÇÃO, não arquivo: o manual descreve o
   // logo, não entrega o arquivo dele. Mostrar a descrição diz mais que um
@@ -142,6 +178,9 @@ export function StudioLibrary({ brandId }) {
   useEffect(() => { if (brandId) load() }, [brandId])
 
   const [gens, setGens] = useState([])
+  // O manual da marca, assinado uma vez: é dele que saem as páginas das
+  // referências. Uma assinatura por sessão em vez de uma por card.
+  const [manual, setManual] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -160,6 +199,12 @@ export function StudioLibrary({ brandId }) {
         .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(50),
     ])
     setAssets(data || [])
+    const pdf = (data || []).find(a => a.metadata?.origem === 'manual' && a.file_path && a.metadata?.bucket)
+    if (pdf) {
+      const { data: assinada } = await supabase.storage
+        .from(pdf.metadata.bucket).createSignedUrl(pdf.file_path, 3600)
+      setManual(assinada?.signedUrl ? { url: assinada.signedUrl, id: pdf.id } : null)
+    } else setManual(null)
     setGens(geradas || [])
     setTextos(pecas || [])
     setCampanhas(camps || [])
@@ -628,7 +673,7 @@ export function StudioLibrary({ brandId }) {
                     }}
                       sx={{ aspectRatio: '1 / 1', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: isUrl(a.full || a.valor) ? 'zoom-in' : (a.metadata?.bucket ? 'pointer' : 'default') }}>
-                      <AssetPreview a={a} />
+                      <AssetPreview a={a} manual={manual} />
                     </Box>
                     <Box sx={{ px: 1.25, pt: 0.75 }}>
                       <Typography variant="caption" noWrap>{a.nome}</Typography>

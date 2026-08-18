@@ -161,11 +161,15 @@ analogia com o que "costuma ser".
 Liste os ATIVOS e TOKENS que o manual nomeia, para virarem registro consultável.
 
 {
-  "assets": [{ "tipo": "logo|cor|tipografia|icone|padrao|outro", "nome": "", "descricao": "", "valor": "" }],
+  "assets": [{ "tipo": "logo|cor|tipografia|icone|padrao|outro", "nome": "", "descricao": "", "valor": "", "pagina": "" }],
   "tokens": [{ "nome": "color-primary", "valor": "#RRGGBB", "categoria": "color|typography|spacing|border-radius|shadow|outro", "descricao": "" }]
 }
 
-"valor": hex para cor, nome da família para tipografia, descrição curta para o resto.`,
+"valor": hex para cor, nome da família para tipografia, descrição curta para o resto.
+"pagina": o número da página onde o ativo APARECE. É por ele que a biblioteca
+mostra a página do manual ao lado da descrição — a prova visual do que ela
+afirma. Se o ativo aparecer em várias, use a mais representativa. Sem certeza,
+deixe vazio: página errada é pior que página nenhuma.`,
   },
 ]
 
@@ -459,7 +463,7 @@ export const handler = async (event) => {
           nome:      a.nome,
           descricao: a.descricao || '',
           valor:     a.valor     || '',
-          metadata:  { origem: 'extracao' },
+          metadata:  { origem: 'extracao', ...(a.pagina ? { pagina: String(a.pagina) } : {}) },
         }))
     )
   }
