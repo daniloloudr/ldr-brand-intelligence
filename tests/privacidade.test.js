@@ -108,7 +108,10 @@ describe('token de tema não vai para propriedade CSS crua', () => {
     // relançamento (d7852fb) que também produziu o espaçamento sub-pixel.
     //
     // `bgcolor`, `borderColor` e `color` SÃO props do sistema e resolvem token.
-    const rx = /\bbackground: *'(background|primary|secondary|error|warning|info|success|text|action|divider|grey)\./
+    // O regex olha a EXPRESSÃO inteira, não só o começo: a primeira versão
+    // exigia o token colado no `background: '` e deixou passar três casos
+    // dentro de ternário — inclusive o zebrado da lista de diagnósticos.
+    const rx = /\bbackground: [^,;\n]*'(background|primary|secondary|error|warning|info|success|text|action|divider|grey)\./
     const arquivos = []
     const anda = (dir) => {
       for (const f of readdirSync(dir, { withFileTypes: true })) {
@@ -118,5 +121,41 @@ describe('token de tema não vai para propriedade CSS crua', () => {
     }
     anda('src')
     expect(arquivos).toEqual([])
+  })
+})
+
+describe('select com opção vazia mostra o rótulo', () => {
+  it('todo TextField select que usa <MenuItem value=""> declara displayEmpty', () => {
+    // O MUI não renderiza o rótulo da opção vazia por padrão. O comentário no
+    // fonte deles é explícito: "No need to display any value if the field is
+    // empty" — `isFilled('')` é falso, então o <MenuItem value="">Todos os
+    // setores</MenuItem> nunca aparece e o filtro fica um retângulo em branco.
+    //
+    // Aconteceu em 6 selects: os filtros de Diagnósticos e os campos Setor/Porte
+    // do cadastro de workspace.
+    const arqs = []
+    const anda = (d) => {
+      for (const f of readdirSync(d, { withFileTypes: true })) {
+        if (f.isDirectory()) anda(`${d}/${f.name}`)
+        else if (/\.jsx$/.test(f.name)) arqs.push(`${d}/${f.name}`)
+      }
+    }
+    anda('src')
+    const faltando = []
+    for (const a of arqs) {
+      const s = readFileSync(a, 'utf8')
+      // Olha o BLOCO inteiro, não a tag de abertura separada: separar exige
+      // achar o `>` que fecha a tag, e o `>` da arrow function em
+      // `onChange={e => ...}` vem antes. Foi assim que a primeira versão deste
+      // teste acusou dois selects que já estavam corrigidos.
+      for (const m of s.matchAll(/<TextField[\s\S]{0,700}?<\/TextField>/g)) {
+        const bloco = m[0]
+        if (!/\bselect\b/.test(bloco)) continue
+        if (!/<MenuItem value=""/.test(bloco)) continue
+        if (/displayEmpty/.test(bloco)) continue
+        faltando.push(`${a}:${s.slice(0, m.index).split('\n').length}`)
+      }
+    }
+    expect(faltando).toEqual([])
   })
 })
