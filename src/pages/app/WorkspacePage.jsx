@@ -48,11 +48,11 @@ function TabEmpresa({ workspace, reload }) {
       {msg && <Alert severity="success" sx={{ borderRadius: 2 }}>{msg}</Alert>}
       <TextField fullWidth label="Nome da empresa *" value={form.nome} onChange={setF('nome')} required />
       <TextField fullWidth label="Domínio" value={form.dominio} onChange={setF('dominio')} placeholder="www.empresa.com.br" />
-      <TextField fullWidth select label="Setor" value={form.setor} onChange={setF('setor')}>
+      <TextField fullWidth select label="Setor" value={form.setor} onChange={setF('setor')} SelectProps={{ displayEmpty: true }}>
         <MenuItem value="">Selecione...</MenuItem>
         {SETORES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
       </TextField>
-      <TextField fullWidth select label="Porte" value={form.porte} onChange={setF('porte')}>
+      <TextField fullWidth select label="Porte" value={form.porte} onChange={setF('porte')} SelectProps={{ displayEmpty: true }}>
         <MenuItem value="">Selecione...</MenuItem>
         {PORTES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
       </TextField>

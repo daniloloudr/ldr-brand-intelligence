@@ -102,6 +102,15 @@ const MUTACOES = [
     de: 'TableCell, TableContainer, Paper } from "@mui/material";',
     para: 'TableCell } from "@mui/material";' },
 
+  { nome: 'filtro de select volta a ficar em branco',
+    arq: 'src/pages/AppInterno.jsx',
+    de: "sx={{ minWidth: 180 }} SelectProps={{ displayEmpty: true }}>", para: "sx={{ minWidth: 180 }}>" },
+
+  { nome: 'token de tema dentro de ternário em background',
+    arq: 'src/pages/AppInterno.jsx',
+    de: "bgcolor: i % 2 === 0 ? 'background.default' : 'action.hover'",
+    para: "background: i % 2 === 0 ? 'background.default' : 'action.hover'" },
+
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",

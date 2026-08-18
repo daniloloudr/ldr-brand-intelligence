@@ -346,7 +346,7 @@ export function StreamingView({ searchSteps, partialData, rateLimitCountdown, ra
                   width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: '1px',
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 10, fontWeight: 800,
-                  background: done ? PALETTE.data.positivo : active ? "transparent" : 'action.selected',
+                  bgcolor: done ? PALETTE.data.positivo : active ? "transparent" : 'action.selected',
                   border: active ? `2px solid ${PALETTE.data.positivo}` : done ? "none" : `1px solid divider`,
                   color: done ? "#fff" : active ? PALETTE.data.positivo : 'text.disabled',
                   animation: done   ? "checkPop 0.4s ease both"

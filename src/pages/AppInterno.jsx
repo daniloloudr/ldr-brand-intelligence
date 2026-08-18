@@ -67,11 +67,11 @@ function TodosPage({ historico, loadingHist, onOpen, onRetry, retrying, initialS
       <Box sx={{ display: "flex", gap: '10px', marginBottom: '20px', flexWrap: "wrap", alignItems: "center" }}>
         <TextField size="small" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar empresa..."
           sx={{ flex: 1, minWidth: 180 }} />
-        <TextField select size="small" value={setor} onChange={e => setSetor(e.target.value)} sx={{ minWidth: 180 }}>
+        <TextField select size="small" value={setor} onChange={e => setSetor(e.target.value)} sx={{ minWidth: 180 }} SelectProps={{ displayEmpty: true }}>
           <MenuItem value="">Todos os setores</MenuItem>
           {MACRO_SETORES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
         </TextField>
-        <TextField select size="small" value={porte} onChange={e => setPorte(e.target.value)} sx={{ minWidth: 160 }}>
+        <TextField select size="small" value={porte} onChange={e => setPorte(e.target.value)} sx={{ minWidth: 160 }} SelectProps={{ displayEmpty: true }}>
           <MenuItem value="">Todos os portes</MenuItem>
           {PORTES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
         </TextField>
@@ -108,7 +108,7 @@ function TodosPage({ historico, loadingHist, onOpen, onRetry, retrying, initialS
                 sx={{
                   display: "flex", alignItems: "center", gap: "14px", padding: "11px 14px",
                   cursor: (isRunning || isError) ? "default" : "pointer",
-                  background: i % 2 === 0 ? 'background.default' : 'action.hover',
+                  bgcolor: i % 2 === 0 ? 'background.default' : 'action.hover',
                   transition: "opacity 0.15s", border: 1, borderColor: 'divider',
                   opacity: isRunning ? 0.85 : 1,
                 }}
@@ -522,7 +522,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
                     { val: solicitacoes.filter(s => s.status === "rejeitado").length, lbl: "rejeitados" },
                   ].map((s, i) => (
                     <Box key={i} sx={{
-                      background: s.highlight ? PALETTE.data.atencaoFraco : 'background.paper',
+                      bgcolor: s.highlight ? PALETTE.data.atencaoFraco : 'background.paper',
                       border: s.highlight ? `1px solid ${PALETTE.data.atencao}44` : `1px solid divider`,
                        padding: "14px 18px",
                       boxShadow: `0 1px 4px transparent`,
@@ -1636,11 +1636,11 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
             <Box component="form" onSubmit={handleCreate} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
               <TextField size="small"  placeholder="Nome da empresa *" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required />
               <TextField size="small"  placeholder="Domínio (ex: empresa.com.br)" value={form.dominio} onChange={e => setForm(f => ({ ...f, dominio: e.target.value }))} />
-              <TextField select size="small"  value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
+              <TextField select size="small" value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))} SelectProps={{ displayEmpty: true }}>
                 <MenuItem value="">Setor</MenuItem>
                 {WS_SETORES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
               </TextField>
-              <TextField select size="small"  value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))}>
+              <TextField select size="small" value={form.porte} onChange={e => setForm(f => ({ ...f, porte: e.target.value }))} SelectProps={{ displayEmpty: true }}>
                 <MenuItem value="">Porte</MenuItem>
                 {WS_PORTES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
               </TextField>
