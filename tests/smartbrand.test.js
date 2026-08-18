@@ -81,10 +81,14 @@ describe('renderSmartbrand — só o que o manual disse', () => {
   })
 
   it('manual completo não deixa lacuna', () => {
+    // As seções agora declaram [coluna, chave, rótulo] — a coluna é por CAMPO,
+    // não por seção, porque uma seção da tela mistura verbal_identity e strategy.
     const cheio = {}
     for (const s of SECOES) {
-      cheio[s.de] = cheio[s.de] || {}
-      for (const [chave] of s.campos) cheio[s.de][chave] = 'conteúdo real'
+      for (const [col, chave] of s.campos) {
+        cheio[col] = cheio[col] || {}
+        cheio[col][chave] = 'conteúdo real'
+      }
     }
     cheio.verbal_identity.textos_referencia = [{ tipo: 'blog', titulo: 'T', texto: 'corpo' }]
 

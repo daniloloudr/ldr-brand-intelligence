@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ESSENCIA, FUNCAO, PERSONALIDADE, EXPRESSAO_VERBAL, TODOS } from '../src/pages/app/campos'
+import { ESSENCIA, FUNCAO, PERSONALIDADE, EXPRESSAO_VERBAL, TODOS } from '../src/lib/campos'
 import { SECOES } from '../netlify/functions/_smartbrand.js'
 
 const endereco = c => `${c.col}.${c.k}`
@@ -44,12 +44,19 @@ describe('o que a extração escreve tem onde ser editado', () => {
   // pendência aponta para uma tela onde ele não existe.
   const editaveis = new Set(TODOS.map(endereco))
 
-  it('todo campo verbal do smartbrand tem tela', () => {
-    const doManual = SECOES
-      .filter(s => s.de === 'verbal_identity')
-      .flatMap(s => s.campos.map(([k]) => `verbal_identity.${k}`))
-    const semTela = doManual.filter(e => !editaveis.has(e))
-    expect(semTela).toEqual([])
+  it('todo campo verbal ou de estratégia do smartbrand tem tela', () => {
+    const doDocumento = SECOES.flatMap(s => s.campos
+      .filter(([col]) => col === 'verbal_identity' || col === 'strategy')
+      .map(([col, k]) => `${col}.${k}`))
+    expect(doDocumento.filter(e => !editaveis.has(e))).toEqual([])
+  })
+
+  it('e o inverso: todo campo da tela está no documento', () => {
+    // É o que faz a tese fechar — o smartbrand contém tudo o que o produto
+    // sinaliza como parte da marca. Se um campo existe na tela e não no
+    // documento, o cliente edita algo que a IA nunca vai ler.
+    const noDocumento = new Set(SECOES.flatMap(s => s.campos.map(([col, k]) => `${col}.${k}`)))
+    expect([...editaveis].filter(e => !noDocumento.has(e))).toEqual([])
   })
 
   it('as personas do manual caem na coluna que a tela edita', () => {

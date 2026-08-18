@@ -24,7 +24,7 @@
 // Nada aqui bloqueia. Marca sem manual funciona — só funciona com menos. A
 // severidade diz o tamanho da perda, não uma permissão.
 
-import { TODOS } from '../pages/app/campos'
+import { TODOS } from './campos'
 
 const ehImagem = (a) => (a.mime_type || '').startsWith('image/')
   || /\.(png|jpe?g|webp|gif|svg)$/i.test(a.nome || '')
@@ -139,8 +139,11 @@ export function pendencias({ assets = [], dados = {}, temManual = false } = {}) 
     lista.push({
       id: `campo:${c.col}.${c.k}`,
       titulo: `${c.label} está em branco`,
-      porque: `${c.secaoLabel} · onde não há declaração, o cérebro deduz — e dedução vira `
-        + 'invenção quando ninguém confere.',
+      // O cérebro NÃO deduz. Escrever "onde não há declaração ele deduz" era o
+      // oposto do princípio do produto: sem a declaração, o ponto fica fora do
+      // que ele sabe, e ponto. Quem constrói é o Copiloto, quando pedirem.
+      porque: `${c.secaoLabel} · sem isso declarado, o cérebro não tem esse ponto da marca — `
+        + 'ele não preenche por conta própria. O Copiloto ajuda a construir, se você pedir.',
       acao: 'Preencher',
       severidade: 'baixa',
       destino: { secao: c.secao },

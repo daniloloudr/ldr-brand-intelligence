@@ -7,6 +7,8 @@
 //
 // Quem preenche lacuna é o Copiloto, a pedido do cliente. Até lá, branco.
 
+import { SECOES_DA_MARCA } from '../../src/lib/campos.js'
+
 /* ─── O que é "vazio" ────────────────────────────────────────────────
    O prompt de extração mostra esqueletos de array ([{ ano: "", ... }]) e o
    modelo às vezes devolve o esqueleto de volta com tudo em branco. Um
@@ -23,106 +25,82 @@ export const vazio = (v) => {
 }
 
 /* ─── Estrutura do documento ─────────────────────────────────────────
-   Fonte única: o markdown e a lista de lacunas saem daqui, então nunca
-   divergem. `de` é a chave do JSON extraído; cada campo é [chave, rótulo]. */
+   As seções de texto vêm do MESMO mapa que desenha as telas
+   (src/lib/campos.js). É o que faz a tese fechar: o smartbrand contém tudo o
+   que o produto sinaliza como parte da marca — nem um campo a mais, nem um a
+   menos. Antes eram duas listas escritas à mão que já divergiam: jornada do
+   cliente, UX, portfólio e modelo de negócio existiam na tela e não no
+   documento, e o sistema de design existia no documento sem ter onde ser
+   editado.
+
+   O que o mapa NÃO cobre são as seções cuja edição ainda vive em telas
+   próprias (identidade visual, sistema de design) e a leitura visual, que não
+   é campo: é observação da extração. Essas ficam declaradas abaixo, no mesmo
+   formato. */
+// Alguns campos pedem leitura própria. O mapa diz QUE campo existe; aqui se
+// diz COMO ele se lê no documento — textos integrais não cabem em bullet.
+const RENDER_ESPECIAL = { 'verbal_identity.textos_referencia': (v) => renderTextos(v) }
+
+const daTela = SECOES_DA_MARCA.map(s => ({
+  titulo: s.label,
+  campos: s.mapa.filter(c => c.k)
+    .map(c => [c.col, c.k, c.label, RENDER_ESPECIAL[`${c.col}.${c.k}`]]),
+}))
+
 export const SECOES = [
+  ...daTela,
   {
-    titulo: 'Essência', de: 'verbal_identity', campos: [
-      ['proposito',        'Propósito'],
-      ['missao',           'Missão'],
-      ['visao',            'Visão'],
-      ['valores',          'Valores'],
-      ['manifesto',        'Manifesto'],
-      ['tagline',          'Tagline'],
-      ['narrativa_origem', 'Narrativa de origem'],
-      ['marcos',           'Marcos'],
+    titulo: 'Identidade visual',
+    campos: [
+      ['visual_identity', 'logos',                'Logos'],
+      ['visual_identity', 'area_protecao',        'Área de proteção'],
+      ['visual_identity', 'tamanho_minimo',       'Tamanho mínimo'],
+      ['visual_identity', 'usos_proibidos',       'Usos proibidos'],
+      ['visual_identity', 'paleta',               'Paleta'],
+      ['visual_identity', 'tipo_principal_nome',  'Tipografia principal'],
+      ['visual_identity', 'tipo_principal_uso',   'Uso da tipografia principal'],
+      ['visual_identity', 'tipo_secundario_nome', 'Tipografia secundária'],
+      ['visual_identity', 'tipo_hierarquia',      'Hierarquia tipográfica'],
+      ['visual_identity', 'icone_estilo',         'Estilo de ícones'],
+      ['visual_identity', 'ilustracao_estilo',    'Estilo de ilustração'],
+      ['visual_identity', 'foto_mood',            'Mood fotográfico'],
+      ['visual_identity', 'foto_do',              'Fotografia — fazer'],
+      ['visual_identity', 'foto_dont',            'Fotografia — não fazer'],
+      ['visual_identity', 'grid_descricao',       'Grid'],
+      ['visual_identity', 'aplicacoes',           'Aplicações'],
     ],
   },
   {
-    titulo: 'Posicionamento', de: 'verbal_identity', campos: [
-      ['posicionamento',   'Posicionamento'],
-      ['proposta_valor',   'Proposta de valor'],
-      ['mensagem_central', 'Mensagem central'],
-      ['publico_alvo',     'Público-alvo'],
-      ['personas',         'Personas'],
-      ['arquetipo',        'Arquétipo'],
-    ],
-  },
-  {
-    titulo: 'Voz', de: 'verbal_identity', campos: [
-      ['tom_voz',                'Tom de voz'],
-      ['tom_atributos',          'Atributos do tom'],
-      ['tom_evitar',             'O que evitar'],
-      ['personalidade',          'Personalidade'],
-      ['vocabulario_aprovado',   'Vocabulário aprovado'],
-      ['termos_proprios',        'Termos próprios'],
-      ['vocabulario_proibido',   'Vocabulário proibido'],
-      ['situacoes',              'Como falar em cada situação'],
-      ['exemplos_headlines',     'Headlines de referência'],
-      ['exemplos_ctas',          'CTAs de referência'],
-      ['boilerplate',            'Boilerplate'],
-    ],
-  },
-  {
-    titulo: 'Identidade visual', de: 'visual_identity', campos: [
-      ['logos',                'Logos'],
-      ['area_protecao',        'Área de proteção'],
-      ['tamanho_minimo',       'Tamanho mínimo'],
-      ['usos_proibidos',       'Usos proibidos'],
-      ['paleta',               'Paleta'],
-      ['tipo_principal_nome',  'Tipografia principal'],
-      ['tipo_principal_uso',   'Uso da tipografia principal'],
-      ['tipo_secundario_nome', 'Tipografia secundária'],
-      ['tipo_hierarquia',      'Hierarquia tipográfica'],
-      ['icone_estilo',         'Estilo de ícones'],
-      ['ilustracao_estilo',    'Estilo de ilustração'],
-      ['foto_mood',            'Mood fotográfico'],
-      ['foto_do',              'Fotografia — fazer'],
-      ['foto_dont',            'Fotografia — não fazer'],
-      ['grid_descricao',       'Grid'],
-      ['aplicacoes',           'Aplicações'],
-    ],
-  },
-  /* O manual diz duas coisas: o que está escrito e o que está mostrado. Esta
-     seção é a segunda — a descrição do que se vê aplicado nas páginas. É o
-     que responde "com o que esta marca se parece", que é o que o Studio e o
-     Copiloto precisam para gerar peça on-brand. Continua sendo informação
-     real (sai da página), mas é LEITURA, não citação — e o cabeçalho da seção
-     diz isso, para ninguém confundir descrição com regra escrita. */
-  {
-    titulo: 'Leitura visual', de: 'visual_reading',
+    titulo: 'Leitura visual',
     nota: 'Descrição do que as páginas do manual **mostram** aplicado — observação, não texto citado.',
     campos: [
-      ['assinatura_visual',        'Assinatura visual'],
-      ['uso_do_logo',              'O logo, aplicado'],
-      ['uso_da_cor',               'A cor, em proporção'],
-      ['uso_da_tipografia',        'A tipografia, em uso'],
-      ['tratamento_fotografico',   'Tratamento fotográfico'],
-      ['ilustracao_e_grafismos',   'Ilustração e grafismos'],
-      ['composicao_e_layout',      'Composição e layout'],
-      ['densidade_e_respiro',      'Densidade e respiro'],
-      ['aplicacoes_observadas',    'Peças aplicadas', renderAplicacoes],
-      ['recorrencias',             'O que se repete'],
-      ['contrastes_com_a_regra',   'Onde o mostrado diverge do escrito'],
+      ['visual_reading', 'assinatura_visual',      'Assinatura visual'],
+      ['visual_reading', 'uso_do_logo',            'O logo, aplicado'],
+      ['visual_reading', 'uso_da_cor',             'A cor, em proporção'],
+      ['visual_reading', 'uso_da_tipografia',      'A tipografia, em uso'],
+      ['visual_reading', 'tratamento_fotografico', 'Tratamento fotográfico'],
+      ['visual_reading', 'ilustracao_e_grafismos', 'Ilustração e grafismos'],
+      ['visual_reading', 'composicao_e_layout',    'Composição e layout'],
+      ['visual_reading', 'densidade_e_respiro',    'Densidade e respiro'],
+      ['visual_reading', 'aplicacoes_observadas',  'Peças aplicadas', renderAplicacoes],
+      ['visual_reading', 'recorrencias',           'O que se repete'],
+      ['visual_reading', 'contrastes_com_a_regra', 'Onde o mostrado diverge do escrito'],
     ],
   },
   {
-    titulo: 'Sistema de design', de: 'design_system', campos: [
-      ['colors',         'Cores'],
-      ['neutral_colors', 'Neutros'],
-      ['font_sizes',     'Escala tipográfica'],
-      ['spacing',        'Espaçamento'],
-      ['border_radius',  'Cantos'],
-      ['components',     'Componentes'],
-      ['accessibility',  'Acessibilidade'],
-      ['motion',         'Movimento'],
+    titulo: 'Sistema de design',
+    campos: [
+      ['design_system', 'colors',         'Cores'],
+      ['design_system', 'neutral_colors', 'Neutros'],
+      ['design_system', 'font_sizes',     'Escala tipográfica'],
+      ['design_system', 'spacing',        'Espaçamento'],
+      ['design_system', 'border_radius',  'Cantos'],
+      ['design_system', 'components',     'Componentes'],
+      ['design_system', 'accessibility',  'Acessibilidade'],
+      ['design_system', 'motion',         'Movimento'],
     ],
   },
 ]
-
-/* Textos longos merecem página própria — são o que o RAG usa pra imitar a
-   voz, e enfiá-los numa lista de bullets destrói a leitura. */
-const TEXTOS = { de: 'verbal_identity', campo: 'textos_referencia', titulo: 'Textos de referência' }
 
 /* ─── Renderização de valor ──────────────────────────────────────────
    Genérica de propósito: 60 formatadores à mão envelheceriam mal e o
@@ -196,13 +174,15 @@ export function renderSmartbrand(extraido, { marca = 'Marca', fonte = 'manual da
   let total = 0
 
   for (const secao of SECOES) {
-    const bloco = dados[secao.de] || {}
     const linhas = []
-    for (const [chave, rotulo, custom] of secao.campos) {
+    for (const [col, chave, rotulo, custom] of secao.campos) {
       total++
-      const valor = bloco[chave]
+      const valor = dados[col]?.[chave]
       if (vazio(valor)) {
-        lacunas.push({ secao: secao.titulo, campo: `${secao.de}.${chave}`, rotulo })
+        // O endereço da lacuna é o mesmo que a tela usa como âncora
+        // (`data-campo`) e que a pendência usa para navegar. Três lugares, um
+        // identificador.
+        lacunas.push({ secao: secao.titulo, campo: `${col}.${chave}`, rotulo })
         linhas.push(`### ${rotulo}\n\n_— em branco —_`)
       } else {
         preenchidos++
@@ -211,16 +191,6 @@ export function renderSmartbrand(extraido, { marca = 'Marca', fonte = 'manual da
     }
     const cabecalho = secao.nota ? `## ${secao.titulo}\n\n_${secao.nota}_` : `## ${secao.titulo}`
     partes.push(`${cabecalho}\n\n${linhas.join('\n\n')}`)
-  }
-
-  total++
-  const textos = dados[TEXTOS.de]?.[TEXTOS.campo]
-  if (vazio(textos)) {
-    lacunas.push({ secao: TEXTOS.titulo, campo: `${TEXTOS.de}.${TEXTOS.campo}`, rotulo: TEXTOS.titulo })
-    partes.push(`## ${TEXTOS.titulo}\n\n_— em branco —_`)
-  } else {
-    preenchidos++
-    partes.push(`## ${TEXTOS.titulo}\n\n${renderTextos(textos)}`)
   }
 
   partes.push(

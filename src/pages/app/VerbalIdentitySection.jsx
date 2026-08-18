@@ -12,7 +12,7 @@
 // direto; o resto é o que a marca É, e mora nas abas anteriores.
 import { Box } from '@mui/material'
 import { CamposDaMarca } from './CamposDaMarca'
-import { EXPRESSAO_VERBAL } from './campos'
+import { EXPRESSAO_VERBAL } from '../../lib/campos'
 
 export function VerbalIdentitySection({ data, onChange }) {
   const d = data || {}

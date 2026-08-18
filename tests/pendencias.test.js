@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pendencias, resumoPendencias } from '../src/lib/pendencias'
-import { TODOS } from '../src/pages/app/campos'
+import { TODOS } from '../src/lib/campos'
 
 const idsDe = (estado) => pendencias(estado).map(p => p.id)
 const arquivo = (over = {}) => ({ file_path: 'x/y.png', mime_type: 'image/png', tipo: 'logo', ...over })
