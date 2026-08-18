@@ -51,9 +51,24 @@ function Lido({ def, valor }) {
   if (vazio(valor)) return <Vazio />
 
   if (def.tipo === 'chips') {
+    const itens = (valor || []).filter(Boolean).map(String)
+    // Chip pressupõe termo curto. Manual de marca costuma escrever valor como
+    // frase inteira ("Acreditamos que a fluência deve ser descomplicada…") — e
+    // aí o chip trunca e vira ilegível. Quem decide a forma é o dado.
+    const frases = itens.some(t => t.length > 60)
+    if (frases) return (
+      <Stack spacing={1} sx={{ maxWidth: `${LEITURA}ch` }}>
+        {itens.map((t, i) => (
+          <Typography key={i} sx={{ fontSize: 15, lineHeight: 1.7, display: 'flex', gap: 1.25 }}>
+            <Box component="span" sx={{ color: 'text.disabled', flexShrink: 0 }}>·</Box>
+            <Box component="span">{t}</Box>
+          </Typography>
+        ))}
+      </Stack>
+    )
     return (
       <Stack direction="row" flexWrap="wrap" gap={.75} sx={{ maxWidth: `${LEITURA}ch` }}>
-        {(valor || []).filter(Boolean).map((t, i) => (
+        {itens.map((t, i) => (
           <Chip key={i} label={t} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
         ))}
       </Stack>
