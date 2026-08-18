@@ -132,7 +132,7 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
             <Chip label={label} size="small"
               sx={{ bgcolor: color + '18', color, fontWeight: 700, fontSize: '0.6rem', height: 18 }} />
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '0.5px', mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 1 }}>
             <Typography variant="h4" sx={{ color, lineHeight: 1 }}>{score}</Typography>
             <Typography variant="body2" color="text.disabled">/10</Typography>
           </Box>
@@ -158,7 +158,7 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
           <Box sx={{ flex: 1 }}>
             <Typography variant="overline" color="text.disabled">Identity Gap Score</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '0.75px', mt: 0.25 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, mt: 0.25 }}>
               <Typography variant="h4" sx={{ color, lineHeight: 1 }}>{score}</Typography>
               <Typography variant="h6" color="text.disabled">/10</Typography>
             </Box>
@@ -193,7 +193,7 @@ export function IdentityGapCard({ workspaceId, compact = false }) {
             <Typography variant="overline" color="text.disabled" display="block" mb={1.5}>
               Gap por dimensão
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5px', mb: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
               {dimensoes.map(d => {
                 const dimColor = gapColor(d.gap)
                 const IconDir  = d.direcao === 'mercado_supera' ? TrendingUpIcon

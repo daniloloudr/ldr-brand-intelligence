@@ -1,0 +1,123 @@
+{
+  "id": "61a699d9-3322-4528-9db2-5ee9a790112c",
+  "created_at": "2026-08-18T13:55:49.106954+00:00",
+  "user_id": "cbcf304c-d0e8-427d-9268-9432e29611af",
+  "user_email": "danilo@loudr.com.br",
+  "user_name": "danilo",
+  "empresa": "Pixel Agência Digital",
+  "dominio": "agenciapx.com / agenciapixel.digital",
+  "setor": "Marketing Digital / Agência de Comunicação e Performance",
+  "porte": "PME",
+  "score_singularidade": 3,
+  "score_consistencia": 4,
+  "score_posicionamento": 3,
+  "frase_diagnostico": "Uma marca com nome genérico, serviços amplos e presença fragmentada — a Pixel existe em muitos lugares, mas habita de verdade em nenhum.",
+  "data": {
+    "porte": "PME",
+    "setor": "Marketing Digital / Agência de Comunicação e Performance",
+    "dominio": "agenciapx.com / agenciapixel.digital",
+    "empresa": "Pixel Agência Digital",
+    "quick_wins": [
+      "Responder publicamente às reclamações abertas no Reclame Aqui com solução documentada — sinal imediato de maturidade e responsabilidade que muda a percepção de qualquer prospect que pesquisa a marca antes de contratar",
+      "Criar uma única página de cases (mesmo que com 2 ou 3 exemplos anonimizados, com dados reais de resultado) e linká-la ativamente nos anúncios e no LinkedIn — transformar capacidade invisível em prova pública de entrega"
+    ],
+    "zona_ruido": [
+      "Nome genérico compartilhado por 6+ agências no Brasil — o maior sabotador de brand equity da empresa",
+      "Gestão de reputação inexistente: 0% de resposta às reclamações no Reclame Aqui, incluindo casos graves como site fora do ar por falta de renovação de domínio",
+      "Tom de voz incoerente entre canais — exclamações informais no site vs. linguagem técnica de performance nas FAQs vs. posicionamento de consultoria estratégica nas vagas"
+    ],
+    "concorrentes": [
+      {
+        "nome": "Orgânica Digital",
+        "sinal": "Reconhecida entre as melhores agências do Brasil em 2026 por múltiplos rankings independentes, com forte autoridade em SEO e inbound para médio porte",
+        "ameaca": "media",
+        "diferencial": "Metodologia proprietária Content+Performance com cases públicos de ROI expressivo (ex: +1783% em vendas para Famiglia Valduga) e parceria Diamond RD Station"
+      },
+      {
+        "nome": "Go Biz",
+        "sinal": "Presente em rankings de melhores agências 2025-2026 com proposta de crescimento contínuo para pequenas e médias empresas",
+        "ameaca": "alta",
+        "diferencial": "Agência 100% remota com método próprio (Go Max) focado em PMEs, integrando automações N8N, RD Station e Framer — concorre diretamente no mesmo público-alvo da Pixel"
+      },
+      {
+        "nome": "Agência Mestre",
+        "sinal": "Opera em escala nacional com forte presença de conteúdo e autoridade de marca, sendo referência recorrente em buscas do setor",
+        "ameaca": "media",
+        "diferencial": "Eleita melhor agência digital do Brasil por quatro anos consecutivos, com resultados como +184% em leads e +43% em faturamento para clientes — autoridade consolidada em SEO e performance"
+      }
+    ],
+    "momento_atual": "A Pixel opera em um mercado saturado de agências digitais, buscando se posicionar como parceira estratégica full-service — de tráfego pago e branding a automações com IA —, mas sem clareza sobre qual território de mercado realmente defende. O nome 'Pixel' é compartilhado por múltiplas agências no Brasil, criando ruído de marca estrutural que compromete recall e autoridade.",
+    "evolucao_marca": "A trajetória identificada é reativa: a Pixel cresceu por adição de serviços (de sites para tráfego, de tráfego para CRM, de CRM para IA) sem revisitar o posicionamento central. Não há movimento estratégico claro de rebranding, reposicionamento ou consolidação de identidade. A multiplicidade de domínios e variações de nome ('Pixel', 'Agência Pixel', 'Píxel') sugere crescimento orgânico não planejado, sem arquitetura de marca deliberada.",
+    "gap_identidade": "A Pixel declara entregar estratégia, branding e escala, mas o mercado percebe uma agência de execução tática com baixo monitoramento de reputação e sem voz reconhecível. O principal gap não é de capacidade — é de evidência pública: não há cases visíveis, não há gestão ativa de reputação e não há narrativa que consolide o que a empresa sabe fazer de melhor. O nome compartilhado por múltiplos players agrava o problema, pois qualquer insatisfação com qualquer 'Pixel' contamina a percepção do todo.",
+    "praticas_loudr": {
+      "futuro_escala": {
+        "score": 3,
+        "evidencias": "Nenhum blog ativo, newsletter ou conteúdo evergreen indexável identificado. Reclame Aqui com 0% de resposta às reclamações indica ausência de protocolo de reputação. Múltiplos domínios concorrentes com o mesmo nome diluem qualquer esforço de SEO. LinkedIn com 52 seguidores é abaixo do mínimo para qualquer estratégia de inbound B2B.",
+        "diagnostico": "Não há evidências públicas de estratégia de SEO orgânico, conteúdo de autoridade, CRM próprio ou dados de performance agregados. O modelo de crescimento parece reativo — baseado em indicação e tráfego pago — sem flywheel de geração de demanda previsível. A fragmentação de marca entre múltiplos domínios impede qualquer estratégia coesa de autoridade digital.",
+        "oportunidade": "Construir um ativo de conteúdo proprietário (metodologia documentada, cases em formato de estudo, ponto de vista sobre IA aplicada a PMEs) poderia ser o ponto de partida para uma estratégia de autoridade que gere demanda inbound — algo que nenhuma das 'Pixels' concorrentes parece ter feito."
+      },
+      "experiencia_expressao": {
+        "score": 4,
+        "evidencias": "Copy do site usa exclamações excessivas e linguagem coloquial sem critério ('fica lindo de qualquer lugar', 'Nós cuidamos de tudo'). Não há seção de cases, clientes ou resultados comprovados publicamente. O posicionamento verbal varia entre os diferentes domínios associados à marca.",
+        "diagnostico": "O site agenciapx.com apresenta identidade visual funcional e razoável hierarquia de informação, mas o tom de voz é informal ao extremo ('Completamente!!! ... SIM!!!'), alternando entre linguagem técnica de performance e copy de panfleto. Não há storytelling de marca, manifesto ou portfólio público de cases. A ausência de consistência verbal é o principal sintoma de falta de design system editorial.",
+        "oportunidade": "Construir uma voz de marca que equilibre proximidade com autoridade — o que a Pixel parece tentar, mas sem calibração. Casos reais com dados (mesmo que anonimizados) e um manifesto de posicionamento poderiam transformar o site em ferramenta de vendas ativa em vez de catálogo de serviços."
+      },
+      "plataformas_ecossistemas": {
+        "score": 5,
+        "evidencias": "Agenciapx.com oferece 'Comunicação por IA' com personagens virtuais e vídeos sem estúdio (evidência de capacidade técnica relevante). Modelo de 'site por assinatura' é uma oferta de produto estruturada. Porém, o próprio site da agência não utiliza IA, não tem chat inteligente, não exibe dashboard ou prova social interativa.",
+        "diagnostico": "A Pixel demonstra capacidade técnica relevante — sites por assinatura, automações de CRM, integração de IA para vídeos e chatbots —, mas a entrega dessas soluções não está refletida na própria plataforma digital da agência. O site é funcional mas não demonstra o nível de sofisticação que a empresa diz entregar para clientes.",
+        "oportunidade": "Usar a própria plataforma como vitrine real das capacidades que vende: um site que demonstra IA conversacional, automação de captura de leads e personalização de experiência seria o argumento mais poderoso para novos clientes. O produto precisa ser a prova do serviço."
+      },
+      "inteligencia_singularidade": {
+        "score": 3,
+        "evidencias": "Ao menos 6 marcas distintas operam sob o nome 'Pixel Agência' no Brasil, com domínios, segmentos e públicos diferentes. LinkedIn com 52 seguidores indica ausência de estratégia de autoridade institucional. Não há metodologia proprietária declarada ou ponto de vista de mercado distinto.",
+        "diagnostico": "A Pixel não detém um território de posicionamento próprio e defensável. A proposta de valor oscila entre 'branding', 'criação de sites', 'tráfego pago' e 'escala de negócios', sem hierarquia clara. O nome genérico, compartilhado por múltiplas agências no Brasil, é o principal obstáculo à construção de singularidade — qualquer esforço de brand awareness atual beneficia concorrentes homônimos.",
+        "oportunidade": "Explorar a construção de um território singular — seja pelo nicho (ex: PMEs em expansão, segmento jurídico como já ensaiado em eusoupixel.com), pelo método (ex: a única agência que une IA criativa com performance mensurável) ou pelo tom (ex: parceiro de negócios, não fornecedor). A definição de um nome ou sub-marca diferenciador poderia ser o primeiro passo para sair do ruído."
+      }
+    },
+    "sinais_cultura": "As vagas identificadas no Glassdoor e Indeed para perfis associados à 'Pixel Agência Digital' pedem analistas de Meta Ads, gestores de performance e gerentes de marketing com foco em mídia omnichannel e Brand Lift — sinalizando uma organização em transição do modelo tático para o estratégico. O regime 100% home office em algumas vagas aponta para estrutura enxuta e distribuída. A busca por profissionais com 'economia comportamental aplicada à mídia' como diferencial sugere ambição de sofisticação analítica ainda não visível externamente.",
+    "gap_ads_vs_site": "Os anúncios e páginas de serviço da Pixel prometem resultado, escala e sofisticação técnica (LTV, CAC, IA, automação), mas o site institucional entrega linguagem informal, ausência de cases e copy genérico de panfleto. O cliente que chega por um anúncio de 'escala com IA' encontra um site que parece voltado para o MEI que quer um site básico — o gap de expectativa gerada vs. experiência entregue é alto e provavelmente prejudica a taxa de conversão de leads de maior ticket.",
+    "resumo_executivo": "A Pixel tem portfólio técnico consistente — de sites e tráfego pago a automações com IA —, mas carece de uma narrativa de marca que a diferencie das dezenas de agências com o mesmo nome e proposta. A identidade declarada (especialista em branding, criação de sites e resultados) não se sustenta em experiência percebida: há reclamações sem resposta no Reclame Aqui e presença no LinkedIn com menos de 55 seguidores, sinais que revelam baixo investimento em autoridade de marca. O maior potencial da Pixel está na combinação entre entrega técnica e capacidade de escala — mas esse valor permanece invisível pela ausência de uma voz singular e de evidências públicas de resultado.",
+    "frase_diagnostico": "Uma marca com nome genérico, serviços amplos e presença fragmentada — a Pixel existe em muitos lugares, mas habita de verdade em nenhum.",
+    "score_consistencia": 4,
+    "diferenciais_ativos": [
+      "Capacidade técnica real em IA aplicada à comunicação (personagens virtuais, vídeos sem estúdio) — diferencial genuíno pouco explorado na narrativa",
+      "Modelo de 'site por assinatura' com suporte incluso — proposta de produto recorrente que democratiza acesso para PMEs",
+      "Portfólio de serviços integrado (da identidade visual ao CRM e automação) — potencial de ser parceiro único para clientes que não querem múltiplos fornecedores"
+    ],
+    "porta_entrada_loudr": "O ponto de partida mais honesto seria uma conversa sobre nome e território: antes de qualquer execução, vale investigar se 'Pixel' ainda é o nome certo para onde a empresa quer chegar — ou se há uma identidade mais singular esperando para emergir. Esse diagnóstico de posicionamento poderia revelar não apenas um novo nome, mas a narrativa que torna toda a capacidade técnica da agência visível e memorável para o mercado certo.",
+    "score_singularidade": 3,
+    "sinais_investimento": "A energia da empresa parece concentrada em três frentes: (1) ampliação do portfólio de serviços técnicos, especialmente IA aplicada à comunicação e automação de CRM; (2) modelo de receita recorrente via 'site por assinatura'; (3) atendimento a PMEs com proposta full-service. O movimento em direção à IA criativa (personagens virtuais, vídeos sem estúdio) é o sinal mais diferenciador detectado — mas ainda subexplorado como narrativa de marca.",
+    "identidade_declarada": "Segundo o site agenciapx.com, a Pixel se apresenta como 'especialista em branding, criação de sites e resultados', com portfólio que inclui comunicação por IA, desenvolvimento de sites responsivos, landing pages, tráfego pago, SEO, CRM e automação. A agenciapixel.digital declara operar com 'time completo multidisciplinar' e proposta de escala de negócios com foco em LTV e redução de CAC. Fundada com mais de uma década de mercado publicitário, posiciona-se como parceira de crescimento full-service para PMEs.",
+    "identidade_percebida": "No Reclame Aqui, a Pixel Agencia Digital registra 2 reclamações abertas com 0% de resposta — incluindo relatos de site que saiu do ar por falta de renovação de domínio e campanha encerrada sem comunicação ao cliente. No LinkedIn, a página da Agência Pixel (agenciapixel360) soma apenas 52 seguidores, sinalizando baixíssima presença institucional. O nome 'Pixel' é fragmentado entre ao menos 6 entidades distintas no Brasil (agenciapx.com, agenciapixel.digital, eusoupixel.com, officialpixel.com.br, agenciapixelsergipe no Instagram, agenciapixel.com.br), tornando a busca pela marca uma experiência confusa e diluída para o mercado.",
+    "justificativa_scores": "O score de singularidade (3) reflete a impossibilidade prática de construir marca memorável com um nome compartilhado por 6+ entidades no Brasil, sem metodologia proprietária declarada e sem narrativa distinta. O score de consistência (4) considera a variação de tom entre os domínios (agenciapx.com vs agenciapixel.digital vs eusoupixel.com), a ausência de sistema editorial e o contraste entre a proposta de sofisticação (IA, CRM, escala) e a entrega verbal do site (linguagem de panfleto com exclamações). O score de posicionamento (3) decorre da inexistência de um território defensável: a Pixel concorre simultaneamente com agências de tráfego pago, de branding, de sites, de marketing jurídico e de consultoria de escala — sem ganhar nenhuma dessas batalhas com clareza.",
+    "pergunta_provocativa": "Se amanhã todas as agências chamadas 'Pixel' no Brasil desaparecessem, o que ficaria no mercado que só esta Pixel poderia ter criado — e alguém perceberia a diferença?",
+    "score_posicionamento": 3,
+    "territorios_possíveis": [
+      {
+        "nome": "A Agência que Usa IA Antes de Vender IA",
+        "tese": "A Pixel já oferece produção de vídeo com personagens virtuais e comunicação por IA como serviço — isso é raro entre agências de PME no Brasil. Mas o que diferenciaria de verdade seria usar essa capacidade como prova viva: ser a agência cujo próprio funcionamento demonstra o que vende. Uma agência que opera com IA internamente (atendimento, onboarding, relatórios, criação) tem argumento de autoridade que nenhuma concorrente de porte similar consegue replicar facilmente.",
+        "tensao": "Exigiria abrir mão da postura de agência generalista e apostar em um território técnico que pode afastar clientes mais tradicionais. Também exige que a própria operação da Pixel seja transparentemente demonstrada como 'AI-first' — o que implica reestruturação interna visível",
+        "sustenta": "Site agenciapx.com já descreve 'Comunicação por IA' com personagens virtuais e vídeos sem estúdio como serviço ativo — evidência de capacidade técnica instalada, não apenas promessa",
+        "confianca": "media",
+        "diferencia": "Go Biz e Orgânica Digital não têm oferta de IA criativa documentada. Agência Mestre foca em SEO/inbound. Nenhuma das 'Pixels' concorrentes identificadas comunica IA como diferencial central de posicionamento",
+        "exploracao": "Valeria mapear quais processos internos já usam IA e tornar isso visível — não como feature, mas como ponto de vista de agência. O que significa ser uma agência que pratica o que vende? Essa pergunta pode gerar um manifesto, um formato de case e uma narrativa de diferenciação que nenhuma Pixel concorrente ocupou ainda.",
+        "fit_publico": "PMEs que precisam produzir conteúdo em escala sem estrutura de estúdio — público real da Pixel, que já busca custo-benefício e praticidade como critérios de escolha"
+      },
+      {
+        "nome": "Parceiro de Negócios, Não Fornecedor de Serviços",
+        "tese": "A Pixel (agenciapixel.digital) já articula uma proposta de 'consultoria de escala de negócios' que vai além do marketing — funil comercial, LTV, CAC, CRM integrado. Esse é um território de maior valor percebido e menor concorrência direta no segmento de PMEs: a maioria das agências vende pacote, não raciocínio estratégico. Se a Pixel conseguir provar que pensa junto com o cliente (não apenas executa), pode disputar um posicionamento de parceiro de crescimento — o que justifica tickets maiores e contratos mais longos.",
+        "tensao": "Esse território exige evidências públicas de resultado (cases com dados reais) e uma equipe que de fato entregue consultoria — não apenas execução com linguagem de consultoria. Sem casos comprovados, o discurso soa como promessa vazia, o que pode piorar a percepção atual",
+        "sustenta": "agenciapixel.digital declara 'consultoria de escala de negócios, escala de vendas, funil comercial e mapeamento da jornada de compra com objetivos de aumentar LTV e reduzir CAC' — linguagem de parceiro estratégico, não de fornecedor tático",
+        "confianca": "hipotese",
+        "diferencia": "Go Biz e agências de porte similar vendem execução com método. A distinção estaria em documentar e comunicar raciocínio de negócio — o 'por quê' antes do 'o quê'. Nenhuma das Pixels concorrentes no Brasil ocupa esse discurso com consistência",
+        "exploracao": "O ponto de partida seria documentar 2 ou 3 clientes reais com resultados mensuráveis e construir um formato de case que mostre o raciocínio estratégico por trás da execução. Isso transformaria a proposta de valor em evidência — e evidência é o que falta hoje para tornar essa ambição crível.",
+        "fit_publico": "Empresas de médio porte em fase de crescimento que já tiveram agências táticas e buscam algo com visão mais integrada — público que a Pixel parece querer atingir, dado o portfólio declarado"
+      }
+    ]
+  },
+  "publico": true,
+  "tipo": "manual",
+  "workspace_id": "00072885-a6aa-4a32-99a2-e713251a6838",
+  "status": "done"
+}

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
+import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar } from './_identidade.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
@@ -51,7 +52,15 @@ export const handler = async (event) => {
     dominio     = null
   }
 
-  const msgText = `Diagnóstico Smart Branding para: "${empresaNome}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`
+  // O ALVO carrega nome E domínio. Antes ia só `empresaNome` — o domínio era
+  // carregado acima e nunca chegava ao modelo. O workspace "Pixel" recebeu um
+  // diagnóstico da "Pixel Agência Digital" (agenciapx.com) por causa disso:
+  // "Pixel" é nome de dezenas de agências, e o modelo escolheu outra.
+  const alvo    = { nome: empresaNome, dominio }
+  const msgText = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(alvo)}".`
+    + `${contexto ? `\nContexto: ${contexto}` : ''}`
+    + instrucaoDeIdentidade(alvo)
+    + `\nGere o JSON completo.`
   const userName = user.user_metadata?.full_name || user.email.split('@')[0]
 
   const saveError = async (msg) => {
@@ -108,16 +117,30 @@ export const handler = async (event) => {
     return { statusCode: 200 }
   }
 
+  // A GUARDA DE IDENTIDADE. Roda depois do modelo e antes de gravar: se o
+  // diagnóstico é de outra empresa, ele não vira registro `done`. Diagnóstico
+  // errado que chega ao cliente com cara de pronto é pior que diagnóstico
+  // nenhum — o cliente age em cima dele.
+  const conferencia = conferirIdentidade(alvo, parsed)
+  if (!conferencia.ok) {
+    const detalhe = `esperado ${conferencia.esperado || '?'}, recebido ${conferencia.recebido || '?'}`
+    console.error(`[diagnostico] identidade recusada: ${conferencia.motivo} (${detalhe})`)
+    await saveError(`Identificação falhou — ${conferencia.motivo}. ${detalhe}. `
+      + 'O diagnóstico foi descartado para não atribuir a esta marca a análise de outra empresa.')
+    return { statusCode: 200 }
+  }
+
   const payload = {
-    empresa:              parsed.empresa,
-    dominio:              parsed.dominio,
+    // A identidade vem da ENTRADA, não da resposta. Era `parsed.empresa` /
+    // `parsed.dominio`, e o modelo sobrescrevia quem era o cliente.
+    ...identidadeParaGravar(alvo, parsed),
     setor:                parsed.setor,
     porte:                parsed.porte,
     score_singularidade:  parsed.score_singularidade,
     score_consistencia:   parsed.score_consistencia,
     score_posicionamento: parsed.score_posicionamento,
     frase_diagnostico:    parsed.frase_diagnostico,
-    data:                 parsed,
+    data:                 { ...parsed, _identidade: conferencia },
     publico:              true,
     status:               'done',
   }

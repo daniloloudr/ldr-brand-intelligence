@@ -122,7 +122,7 @@ export function ContentIdeias({ ideias, clusters, workspace }) {
           exclusive
           onChange={(_, v) => { if (v) setFiltroFormato(v) }}
           size="small"
-          sx={{ flexWrap: 'wrap', gap: '0.5px',
+          sx={{ flexWrap: 'wrap', gap: 0.5,
             '& .MuiToggleButton-root': { px: 2, py: 0.5, fontSize: 12, fontWeight: 700,
               fontFamily: "'Cairo', sans-serif", borderRadius: '4px !important',
               border: '1px solid !important', borderColor: 'divider !important',

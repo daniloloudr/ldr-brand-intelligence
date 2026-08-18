@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { callAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
 import { withHeartbeat } from './_watchdog.js'
+import { conferirIdentidade, identidadeParaGravar } from './_identidade.js'
 
 // Scheduled: toda segunda-feira às 8h (configurado em netlify.toml)
 // Gera diagnóstico automático para workspaces com monitor ativo
@@ -65,19 +66,28 @@ async function run(event) {
 
       if (!verificarFrequencia(ws.plano, diaDaSemana, hoje)) continue
 
-      // Usa dominio se disponível, senão nome do workspace
-      const empresa = ws.dominio || ws.nome
-      if (!empresa) continue
+      // Nome E domínio vão ao modelo — o domínio é o identificador definitivo.
+      const alvo = { nome: ws.nome, dominio: ws.dominio }
+      if (!alvo.nome && !alvo.dominio) continue
 
-      console.log(`[cron-monitor] Gerando diagnóstico para ${ws.id} — ${empresa}`)
-      const parsed = await gerarDiagnostico(empresa, null)
+      console.log(`[cron-monitor] Gerando diagnóstico para ${ws.id} — ${alvo.dominio || alvo.nome}`)
+      const parsed = await gerarDiagnostico(alvo, null)
+
+      // Este cron roda TODA SEGUNDA e grava por cima. Sem a guarda, um
+      // diagnóstico de outra empresa entrava no histórico do cliente
+      // semanalmente, sem ninguém olhar.
+      const conf = conferirIdentidade(alvo, parsed)
+      if (!conf.ok) {
+        console.error(`[cron-monitor] identidade recusada em ${ws.id}: ${conf.motivo} `
+          + `(esperado ${conf.esperado || '?'}, recebido ${conf.recebido || '?'}) — diagnóstico descartado`)
+        continue
+      }
 
       const { data: diag, error: diagErr } = await supabase
         .from('diagnosticos')
         .insert({
           workspace_id:        ws.id,
-          empresa:             parsed.empresa,
-          dominio:             parsed.dominio,
+          ...identidadeParaGravar(alvo, parsed),
           setor:               parsed.setor,
           porte:               parsed.porte,
           score_singularidade: parsed.score_singularidade,

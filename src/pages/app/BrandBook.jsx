@@ -51,7 +51,7 @@ function HistorySection({ history }) {
     )
   }
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {history.map(h => (
         <Paper key={h.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>

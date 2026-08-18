@@ -1,0 +1,139 @@
+import { describe, it, expect } from 'vitest'
+import { readFileSync, readdirSync } from 'fs'
+
+// ── AS INVARIANTES DO NÚCLEO DE INTELIGÊNCIA ────────────────────────────
+//
+// Este arquivo NÃO testa se o modelo é bom. Testa se o ARREDOR está correto —
+// e foi sempre o arredor que falhou. Os quatro defeitos achados em 18/08/2026:
+//
+//   1. o domínio do cliente carregado e nunca enviado ao modelo
+//   2. a identidade do cliente sobrescrita pela resposta do modelo
+//   3. `callAI` devolvendo só o primeiro bloco de texto de uma resposta picada
+//   4. coletor sem busca web "coletando" — inventando o que não podia procurar
+//
+// Nenhum é falha de raciocínio do modelo. Modelo melhor não conserta nenhum
+// deles. É por isso que estas invariantes valem mais que qualquer avaliação de
+// qualidade: elas pegam a classe de erro que de fato chegou ao cliente.
+//
+// Regra para quem mexer aqui: teste que só faz `grep` no fonte é trava de
+// regressão, não prova de comportamento. Onde dá para executar a função, execute
+// — os testes de comportamento estão em ia-identidade.test.js.
+
+const ler = (p) => readFileSync(p, 'utf8')
+// A varredura olha CÓDIGO. Sem tirar os comentários, a própria documentação do
+// bug (que cita o padrão antigo) acusa o arquivo que existe para consertá-lo.
+const lerCodigo = (p) => ler(p)
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n').map(l => l.replace(/(^|\s)\/\/.*$/, '')).join('\n')
+const FUNCOES = 'netlify/functions'
+
+describe('1 · quem é o sujeito da análise é ENTRADA, nunca saída', () => {
+  const bg = ler(`${FUNCOES}/diagnostico-gerar-background.js`)
+  const compartilhado = ler(`${FUNCOES}/_diagnostico.js`)
+
+  it('o diagnóstico manda o domínio ao modelo', () => {
+    expect(bg).toMatch(/alvoDoDiagnostico\(alvo\)/)
+    expect(bg).toMatch(/instrucaoDeIdentidade\(alvo\)/)
+  })
+
+  it('o diagnóstico NÃO grava a empresa que o modelo devolveu', () => {
+    // Este é o teste que teria evitado o relatório da Pixel chegar ao cliente.
+    expect(bg).not.toMatch(/empresa:\s*parsed\.empresa/)
+    expect(bg).not.toMatch(/dominio:\s*parsed\.dominio/)
+    expect(bg).toMatch(/identidadeParaGravar\(alvo, parsed\)/)
+  })
+
+  it('a guarda roda ANTES da gravação, não depois', () => {
+    const guarda = bg.indexOf('conferirIdentidade(alvo, parsed)')
+    const grava  = bg.indexOf('const payload = {')
+    expect(guarda).toBeGreaterThan(0)
+    expect(guarda).toBeLessThan(grava)
+  })
+
+  it('identidade recusada não vira registro `done`', () => {
+    const trecho = bg.slice(bg.indexOf('conferirIdentidade(alvo, parsed)'), bg.indexOf('const payload = {'))
+    expect(trecho).toMatch(/saveError/)
+    expect(trecho).toMatch(/return \{ statusCode: 200 \}/)
+  })
+
+  it('o diagnóstico de CONCORRENTE tem a mesma guarda', () => {
+    // Pesa mais aqui: concorrente trocado vira emitSignal permanente no cérebro.
+    expect(compartilhado).toMatch(/conferirIdentidade\(sujeito, parsed\)/)
+    expect(compartilhado).toMatch(/alvoDoDiagnostico\(sujeito\)/)
+    expect(compartilhado).not.toMatch(/const empresa = concorrente\.dominio \|\| concorrente\.nome/)
+  })
+})
+
+describe('2 · a resposta do modelo é lida inteira', () => {
+  const ai = ler(`${FUNCOES}/_ai.js`)
+
+  it('callAI concatena TODOS os blocos de texto', () => {
+    // Com busca web a Anthropic pica a resposta em um bloco por trecho citado —
+    // medido: 37 blocos, 30+ de texto. O `.find()` entregava o primeiro
+    // fragmento como se fosse a resposta inteira. Só mordia em produção, porque
+    // em dev o tier standard desliga a busca e a resposta volta num bloco só.
+    expect(ai).not.toMatch(/content\?\.find\(b => b\.type === 'text'\)/)
+    expect(ai).toMatch(/filter\(b => b\.type === 'text'\)/)
+    expect(ai).toMatch(/\.join\(''\)/)
+  })
+
+  it('callAI devolve o content cru para quem usa busca web', () => {
+    // Sem os blocos `web_search_tool_result` não há como tirar a URL do índice;
+    // só resta pedir o link ao modelo, que é a origem da menção inventada.
+    expect(ai).toMatch(/return \{ text, content: blocos/)
+  })
+
+  it('streamAI acumula todos os deltas', () => {
+    expect(ai).toMatch(/fullText \+= evt\.delta\.text/)
+  })
+})
+
+describe('3 · coletor sem acesso ao mundo não coleta', () => {
+  const escuta = ler(`${FUNCOES}/listening-coletar-background.js`)
+
+  it('a escuta para e alerta em vez de degradar em silêncio', () => {
+    // O modo degradado silencioso gravou 122 eventos inventados. Modelo sem
+    // como pesquisar não recusa: descreve o que o ramo "costuma" receber.
+    expect(escuta).toMatch(/if \(!googleConfigurado\(\)\)/)
+    expect(escuta).toMatch(/statusCode: 503/)
+  })
+
+  it('quem classifica não tem ferramenta de busca', () => {
+    const bloco = escuta.slice(escuta.indexOf('async function classificar'), escuta.indexOf('export const handler'))
+    expect(bloco).toMatch(/tools:\s*undefined/)
+  })
+
+  it('falha total não vira snapshot zerado', () => {
+    // Snapshot com 0 menções é uma AFIRMAÇÃO sobre a semana da marca.
+    const i = escuta.indexOf('falhas.length === queries.length')
+    expect(i).toBeGreaterThan(0)
+    expect(i).toBeLessThan(escuta.indexOf('sentiment_snapshots'))
+  })
+})
+
+describe('4 · varredura do núcleo — nenhuma função nova pode reintroduzir o padrão', () => {
+  const arquivos = readdirSync(FUNCOES).filter(f => f.endsWith('.js'))
+
+  it('ninguém mais lê só o primeiro bloco de texto', () => {
+    const infratores = arquivos.filter(f =>
+      /content\s*\??\.\s*find\(\s*b\s*=>\s*b\.type\s*===\s*'text'\s*\)/.test(lerCodigo(`${FUNCOES}/${f}`)))
+    expect(infratores).toEqual([])
+  })
+
+  it('ninguém grava identidade vinda do modelo', () => {
+    // Qualquer `empresa: parsed.empresa` novo reabre o caso Pixel.
+    const infratores = arquivos.filter(f =>
+      /(empresa|dominio):\s*(parsed|p)\.(empresa|dominio)\b/.test(lerCodigo(`${FUNCOES}/${f}`)))
+    expect(infratores).toEqual([])
+  })
+
+  it('todo caminho de diagnóstico passa pela guarda', () => {
+    const geradores = arquivos.filter(f => {
+      const s = ler(`${FUNCOES}/${f}`)
+      return s.includes('SYSTEM_PROMPT') && /streamAI|callAI/.test(s)
+    })
+    expect(geradores.length).toBeGreaterThan(0)
+    const semGuarda = geradores.filter(f => !ler(`${FUNCOES}/${f}`).includes('conferirIdentidade'))
+    expect(semGuarda).toEqual([])
+  })
+})

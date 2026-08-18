@@ -817,7 +817,7 @@ export function StudioCanvas({ brandId, workflowId }) {
       />
       <Box ref={flowWrapRef} sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {/* Rail vertical de ações do workflow */}
-        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25px', p: 0.5, borderRadius: 3 }}>
+        <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 3 }}>
           <Tooltip title="Adicionar nó" placement="right">
             <IconButton onClick={e => setAddAnchor(e.currentTarget)} sx={{ bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, mb: 0.25 }}>
               <AddIcon />
@@ -844,7 +844,7 @@ export function StudioCanvas({ brandId, workflowId }) {
         </Menu>
         {/* Alinhar / distribuir / agrupar — aparece com 2+ nós selecionados */}
         {selectedTop.length >= 2 && (
-          <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, display: 'flex', alignItems: 'center', gap: '0.25px', p: 0.5, borderRadius: 2 }}>
+          <Paper elevation={3} sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, display: 'flex', alignItems: 'center', gap: 0.25, p: 0.5, borderRadius: 2 }}>
             <Tooltip title="Alinhar à esquerda"><IconButton size="small" onClick={() => align('left')}><AlignHorizontalLeftIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
             <Tooltip title="Centralizar horizontal"><IconButton size="small" onClick={() => align('hcenter')}><AlignHorizontalCenterIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
             <Tooltip title="Alinhar à direita"><IconButton size="small" onClick={() => align('right')}><AlignHorizontalRightIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>

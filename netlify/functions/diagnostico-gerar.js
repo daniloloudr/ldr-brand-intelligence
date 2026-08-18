@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { streamAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
+import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar } from './_identidade.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -41,9 +42,12 @@ export const handler = async (event) => {
     .single()
   if (!ws) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Workspace não encontrado' }) }
 
-  const empresa  = ws.dominio || ws.nome
+  const alvo     = { nome: ws.nome, dominio: ws.dominio }
   const dev      = isDev()
-  const msgText  = `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`
+  const msgText  = `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(alvo)}".`
+    + `${contexto ? `\nContexto: ${contexto}` : ''}`
+    + instrucaoDeIdentidade(alvo)
+    + `\nGere o JSON completo.`
 
   let fullText
   try {
@@ -63,6 +67,17 @@ export const handler = async (event) => {
   const parsed = extractJSON(fullText)
   if (!parsed) return { statusCode: 500, headers, body: JSON.stringify({ error: 'JSON não encontrado na resposta' }) }
 
+  // Guarda de identidade antes de gravar: diagnóstico de outra empresa não vira
+  // registro. Erro visível é recuperável; erro com cara de relatório pronto não.
+  const conf = conferirIdentidade(alvo, parsed)
+  if (!conf.ok) {
+    const detalhe = `esperado ${conf.esperado || '?'}, recebido ${conf.recebido || '?'}`
+    console.error(`[diagnostico-gerar] identidade recusada: ${conf.motivo} (${detalhe})`)
+    return { statusCode: 422, headers, body: JSON.stringify({
+      error: `A análise voltou sobre outra empresa (${detalhe}). Nada foi gravado — tente de novo.`,
+    }) }
+  }
+
   const { data: diag, error: diagErr } = await supabase
     .from('diagnosticos')
     .insert({
@@ -70,8 +85,7 @@ export const handler = async (event) => {
       user_id:              user.id,
       user_email:           user.email,
       user_name:            user.user_metadata?.full_name || user.email.split('@')[0],
-      empresa:              parsed.empresa,
-      dominio:              parsed.dominio,
+      ...identidadeParaGravar(alvo, parsed),
       setor:                parsed.setor,
       porte:                parsed.porte,
       score_singularidade:  parsed.score_singularidade,

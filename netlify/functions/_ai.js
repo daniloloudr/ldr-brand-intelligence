@@ -9,18 +9,27 @@ const ANTHROPIC_BASE    = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 
 // Named model presets — swap here to update every function at once
+// Troca de geração em 18/08/2026. Custo por milhão de tokens medido contra a
+// tabela: sonnet-5 = US$ 3/15, igual ao 4-6; opus-5 = US$ 5/25, igual ao 4-7.
+// A troca é LATERAL em preço — o gasto real dos últimos 30 dias (US$ 29,80)
+// não se move. Não é economia nem despesa: é geração mais nova de graça.
 export const MODELS = {
-  fast:   'claude-haiku-4-5-20251001',  // cheap, no web_search — local dev / simple tasks
-  medium: 'claude-sonnet-4-5',          // faster sonnet — dev when 30s netlify-cli timeout applies
-  smart:  'claude-sonnet-4-6',          // full capability + web_search — production
-  opus:   'claude-opus-4-7',            // máxima qualidade — extração de manuais, análises sensíveis
+  fast:   'claude-haiku-4-5-20251001',  // barato, sem web_search — dev / tarefas simples
+  medium: 'claude-sonnet-4-5',          // sonnet rápido — dev, onde vale o teto de 30s do netlify-cli
+  smart:  'claude-sonnet-5',            // capacidade cheia + web_search — produção
+  opus:   'claude-opus-5',              // máxima qualidade — extração de manuais, análises sensíveis
 }
 
 export const TOOLS = {
   // max_uses limita o loop agêntico de busca — sem isso a chamada não-streaming
   // pode enrolar por minutos e estourar o teto de 15 min da background function em prod.
   // O prompt do diagnóstico pede 5 buscas; 6 dá 1 de folga sem esticar o tempo.
-  webSearch: { type: 'web_search_20250305', name: 'web_search', max_uses: 6 },
+  //
+  // web_search_20260209 substitui a 20250305. Sondei o schema da nova contra a
+  // nossa chave: aceita max_uses, allowed_domains, blocked_domains e
+  // user_location. NÃO existe filtro de data em nenhuma das duas — a janela de
+  // 7 dias da escuta não sai daqui, sai da deduplicação contra o banco.
+  webSearch: { type: 'web_search_20260209', name: 'web_search', max_uses: 6 },
 }
 
 export const isDev = () => !!process.env.NETLIFY_DEV
@@ -33,6 +42,8 @@ const TOKEN_PRICE = {
   'claude-sonnet-4-5':          { in: 3,    out: 15 },
   'claude-haiku-4-5-20251001':  { in: 1,    out: 5 },
   'claude-opus-4-7':            { in: 5,    out: 25 },
+  'claude-sonnet-5':            { in: 3,    out: 15 },
+  'claude-opus-5':              { in: 5,    out: 25 },
 }
 export async function logAiUsage(supabase, { model, usage, tag = null }) {
   try {
@@ -181,9 +192,18 @@ export async function callAI({
       }
 
       const data = await resp.json()
-      const text = data.content?.find(b => b.type === 'text')?.text || ''
+      // Concatena TODOS os blocos de texto. Era `.find(...)`, que pegava só o
+      // primeiro — invisível em resposta comum (bloco único), mas com busca web
+      // a resposta vem picada em dezenas de blocos entre as buscas, e o
+      // chamador recebia o primeiro fragmento como se fosse a resposta inteira.
+      const blocos = Array.isArray(data.content) ? data.content : []
+      const text = blocos.filter(b => b.type === 'text').map(b => b.text || '').join('')
       await logAiUsage(supabase, { model: body.model, usage: data.usage, tag })
-      return { text, usage: data.usage }
+      // `content` cru sai junto: quem usa busca web precisa dos blocos
+      // `web_search_tool_result` (URL e título vindos do índice) e das
+      // `citations` (trecho verbatim da página). Sem isso, só resta a prosa do
+      // modelo — e foi ler só a prosa que fez a escuta gravar link inventado.
+      return { text, content: blocos, stop_reason: data.stop_reason, usage: data.usage }
     } catch (e) {
       if (e.name === 'AbortError') throw new AIError(`Timeout após ${Math.round(timeoutMs / 1000)}s`, 408)
       if (e instanceof AIError) throw e

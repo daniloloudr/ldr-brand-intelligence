@@ -431,7 +431,7 @@ export function StudioImage({ brandId }) {
               <Box sx={{ flex: 1 }} />
               <IconButton size="small" onClick={() => setDuel(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
             </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${duel.entries.length}, 1fr)` }, gap: '1.5px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${duel.entries.length}, 1fr)` }, gap: 1.5 }}>
               {duel.entries.map(e => {
                 const it = items.find(i => i.id === e.genId)
                 const done = it?.status === 'done' && it.image_url

@@ -109,7 +109,7 @@ export function Campaigns({ brandId }) {
           </Button>
         </Card>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {campaigns.map(c => (
             <CampaignCard
               key={c.id}

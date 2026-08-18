@@ -1,27 +1,97 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
+import { canalDoHost, montarQueries } from '../netlify/functions/listening-coletar-background.js'
 
-// A função é um handler de background com efeitos; o que dá para fixar aqui —
-// e é o que quebrou — são as duas regras de conteúdo: por qual termo se busca,
-// e o que conta como menção.
 const fonte = readFileSync('netlify/functions/listening-coletar-background.js', 'utf8')
+const google = readFileSync('netlify/functions/_google.js', 'utf8')
 
-// Reproduz as regras do arquivo para testá-las sem executar o handler.
-const DISCLAIMER = [
-  /não (tenho|possui|é possível|foi possível)/i,
-  /sem acesso/i,
-  /base de conhecimento/i,
-  /não (consigo|posso) (acessar|pesquisar|buscar)/i,
-  /acesso (em tempo real|direto)/i,
-  /nenhuma? (menç|resultado|registro|publicaç)/i,
-  /sem (menç|resultado|registro|publicaç)/i,
-  /não (foram|foi) encontrad/i,
-  /não há (menç|registro|resultado)/i,
-  /não retorn/i,
-  /presença digital limitada/i,
-]
-const ehMencao = (t) => !DISCLAIMER.some(p => p.test(t))
-const hostDe = (d) => (d || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '')
+describe('quem coleta é o Google, quem classifica é o modelo', () => {
+  it('a URL não passa mais pela cabeça do modelo', () => {
+    // A raiz de tudo: o esquema antigo pedia `"url":"https://..."` ao modelo, e
+    // modelo que escreve link escreve link plausível. A PES ganhou 9 queixas de
+    // cancelamento que ninguém escreveu. Agora a URL vem do índice.
+    const prompt = fonte.slice(fonte.indexOf('function promptClassificar'), fonte.indexOf('async function classificar'))
+    expect(prompt).not.toMatch(/"url"/)
+    expect(prompt).toMatch(/NÃO invente detalhe/)
+  })
+
+  it('a classificação roda sem busca web', () => {
+    // Dar busca ao classificador reabriria a porta que a inversão fechou: ele
+    // sairia procurando e voltaria com coisa que o Google não trouxe.
+    const bloco = fonte.slice(fonte.indexOf('async function classificar'), fonte.indexOf('export const handler'))
+    expect(bloco).toMatch(/tools:\s*undefined/)
+  })
+
+  it('sem chave do Google a escuta PARA — não degrada', () => {
+    // Foi o modo degradado silencioso que gravou 122 eventos inventados:
+    // `standard` desligava a busca em dev e o modelo, sem como pesquisar,
+    // preenchia o vazio. Coletor sem acesso ao índice não coleta.
+    expect(fonte).toMatch(/if \(!googleConfigurado\(\)\)/)
+    expect(fonte).toMatch(/statusCode: 503/)
+  })
+})
+
+describe('a janela é de 7 dias, e é filtro de verdade', () => {
+  it('a busca manda dateRestrict ao Google', () => {
+    // Antes, "última semana" só dava para PEDIR no prompt — e pedido não filtra.
+    expect(google).toMatch(/params\.set\('dateRestrict', `d\$\{dias\}`\)/)
+  })
+
+  it('a janela do coletor é 7 e casa com o cron semanal', () => {
+    expect(fonte).toMatch(/const JANELA_DIAS = 7/)
+    const toml = readFileSync('netlify.toml', 'utf8')
+    expect(toml).toMatch(/\[functions\."listening-cron"\][\s\S]*?schedule = "0 5 \* \* 1"/)
+  })
+})
+
+describe('o canal é derivado do host, não adivinhado', () => {
+  it('reconhece as plataformas pelo domínio do resultado', () => {
+    expect(canalDoHost('www.reclameaqui.com.br')).toBe('Reclame Aqui')
+    expect(canalDoHost('x.com')).toBe('Twitter/X')
+    expect(canalDoHost('twitter.com')).toBe('Twitter/X')
+    expect(canalDoHost('br.linkedin.com')).toBe('LinkedIn')
+    expect(canalDoHost('m.youtube.com')).toBe('YouTube')
+  })
+
+  it('subdomínio conta, sufixo parecido não', () => {
+    expect(canalDoHost('business.instagram.com')).toBe('Instagram')
+    // "naoinstagram.com" não é o Instagram — o casamento é por rótulo de
+    // domínio, não por `includes`.
+    expect(canalDoHost('naoinstagram.com')).toBe('Web')
+  })
+
+  it('o que não é plataforma conhecida é Web, não palpite', () => {
+    expect(canalDoHost('g1.globo.com')).toBe('Web')
+    expect(canalDoHost('')).toBe('Web')
+  })
+})
+
+describe('as queries são string nossa, versionada', () => {
+  const qs = montarQueries('PES English', ['pesenglish.com.br'])
+
+  it('o nome da marca vai entre aspas em toda consulta', () => {
+    // Sem aspas, "PES English" vira busca por qualquer página com as duas
+    // palavras soltas.
+    expect(qs.every(q => q.includes('"'))).toBe(true)
+    expect(qs).toContain('"PES English"')
+  })
+
+  it('busca aberta E por canal — as duas famílias', () => {
+    expect(qs.some(q => /reclamação/.test(q))).toBe(true)
+    expect(qs.some(q => q.startsWith('site:reclameaqui.com.br'))).toBe(true)
+    expect(qs.some(q => q.startsWith('site:x.com OR site:twitter.com'))).toBe(true)
+  })
+
+  it('o termo do cliente vira consulta própria', () => {
+    // Ele existe para pegar o que o nome sozinho não pega: apelido, produto,
+    // hashtag, o domínio.
+    expect(qs).toContain('"pesenglish.com.br"')
+  })
+
+  it('marca sem termo extra ainda tem consulta', () => {
+    expect(montarQueries('Vhita').length).toBeGreaterThan(5)
+  })
+})
 
 describe('por qual termo a escuta procura', () => {
   it('o NOME vem antes do domínio', () => {
@@ -31,86 +101,52 @@ describe('por qual termo a escuta procura', () => {
     expect(fonte).toContain('const marca = ws.nome || ws.dominio')
     expect(fonte).not.toContain('const marca = ws.dominio || ws.nome')
   })
+})
 
-  it('o domínio vira termo secundário, como host limpo', () => {
-    expect(hostDe('https://www.pesenglish.com.br/')).toBe('pesenglish.com.br')
-    expect(hostDe('http://hering.com.br')).toBe('hering.com.br')
-    expect(hostDe('')).toBe('')
+describe('falha de busca não pode virar silêncio de mercado', () => {
+  it('cota estourada dispara alerta em vez de "nada encontrado"', () => {
+    expect(fonte).toMatch(/f\.motivo === 'cota'/)
+    expect(fonte).toMatch(/sendAlert\('listening', `cota:/)
+  })
+
+  it('todas as consultas falhando devolve erro, não snapshot zerado', () => {
+    // Snapshot com 0 menções é uma AFIRMAÇÃO sobre a semana da marca. Só pode
+    // ser gravado quando a busca de fato aconteceu e não achou nada.
+    const i = fonte.indexOf('falhas.length === queries.length')
+    const j = fonte.indexOf('sentiment_snapshots')
+    expect(i).toBeGreaterThan(0)
+    expect(i).toBeLessThan(j)
+    expect(fonte.slice(i, i + 300)).toMatch(/statusCode: 502/)
+  })
+
+  it('uma consulta que falha não derruba as outras', () => {
+    expect(google).toMatch(/Promise\.allSettled/)
   })
 })
 
-describe('o que conta como menção', () => {
-  it('"procurei e não achei" é resultado, não menção', () => {
-    // A PES tinha 19 "menções" e todas eram esta frase, uma por canal, por rodada.
-    expect(ehMencao('Nenhuma menção recente encontrada')).toBe(false)
-    expect(ehMencao('Sem menções recentes encontradas')).toBe(false)
-    expect(ehMencao('Não foram encontradas publicações no período')).toBe(false)
-    expect(ehMencao('Não há registros recentes')).toBe(false)
+describe('o cron semanal', () => {
+  const cron = readFileSync('netlify/functions/listening-cron.js', 'utf8')
+
+  it('é despachante puro — um worker por workspace', () => {
+    // Loop serial numa função só estoura o teto de 15 min bem antes de 30 marcas.
+    expect(cron).toMatch(/Promise\.allSettled/)
+    expect(cron).toMatch(/listening-coletar-background/)
   })
 
-  it('recusa de ferramenta continua sendo descartada', () => {
-    expect(ehMencao('Não consigo acessar o Instagram em tempo real')).toBe(false)
-    expect(ehMencao('Baseado na minha base de conhecimento')).toBe(false)
+  it('entra pela porta interna, com a chave de serviço', () => {
+    expect(cron).toMatch(/Bearer \$\{process\.env\.SUPABASE_SERVICE_KEY\}/)
+    expect(fonte).toMatch(/token !== process\.env\.SUPABASE_SERVICE_KEY/)
   })
 
-  it('menção de verdade passa — inclusive negativa', () => {
-    expect(ehMencao('Aluno elogia a metodologia do PES nas escolas')).toBe(true)
-    expect(ehMencao('Mãe reclama do atendimento e não recomenda')).toBe(true)
-    // A palavra "sem" no meio de uma menção real não pode derrubá-la
-    expect(ehMencao('Ensino sem complicação, dizem os professores')).toBe(true)
-  })
-})
-
-describe('menção precisa ser verificável', () => {
-  const temFonte = (url) => /^https?:\/\/\S+$/i.test(String(url || '').trim())
-
-  it('sem URL não é menção — é afirmação que ninguém confere', () => {
-    // A PES tinha 10 eventos e ZERO URLs: reclamações de cancelamento que
-    // ninguém escreveu, geradas porque o modelo não tinha como pesquisar.
-    expect(temFonte(null)).toBe(false)
-    expect(temFonte('')).toBe(false)
-    expect(temFonte('   ')).toBe(false)
-    expect(temFonte('Reclame Aqui')).toBe(false)
-    expect(temFonte('https://www.reclameaqui.com.br/empresa/pes/')).toBe(true)
+  it('não despacha sem chave do Google', () => {
+    // 30 workers acordando só para disparar o mesmo alerta é 30 alertas.
+    const antesDoFetch = cron.slice(0, cron.indexOf('Promise.allSettled'))
+    expect(antesDoFetch).toMatch(/if \(!googleConfigurado\(\)\)/)
   })
 
-  it('o esquema do prompt não oferece mais url nula', () => {
-    // Era `"url":"https://...ou null"` — o modelo aceitava o convite. Confere a
-    // LINHA do esquema, não o arquivo: o comentário que explica o bug cita a
-    // string antiga e faria o teste passar por engano ao contrário.
-    const linhaEsquema = fonte.split('\n').find(l => l.includes('"url":"https'))
-    expect(linhaEsquema).toBeTruthy()
-    expect(linhaEsquema).not.toMatch(/ou null/)
-    expect(fonte).toContain('Sem link verificável, NÃO inclua')
-  })
-})
-
-describe('coletor sem busca web não coleta', () => {
-  it('a escuta usa o tier que tem busca em TODO ambiente', () => {
-    // 'standard' desliga a busca em dev: o modelo inventava menções plausíveis
-    // para o ramo em vez de procurar as reais.
-    expect(fonte).toContain("aiConfig('premium')")
-    expect(fonte).not.toContain("aiConfig('standard')")
-  })
-})
-
-describe('busca aberta por canal', () => {
-  it('nenhum canal usa filtro por domínio', () => {
-    // `site:twitter.com` devolvia vazio SEMPRE — as redes bloqueiam crawler ou
-    // exigem login, então o índice não tem o conteúdo. Medido: com o filtro,
-    // 3 buscas e nada; sem ele, o Instagram devolveu 7 menções com permalink.
-    const bloco = fonte.slice(fonte.indexOf('const FONTES'), fonte.indexOf('function buildPrompt'))
-    expect(bloco).not.toMatch(/site:/)
-    expect(bloco).toMatch(/alvo:/)
-  })
-
-  it('o prompt proíbe o modelo de restringir por domínio', () => {
-    expect(fonte).toMatch(/NÃO restrinja a busca a um domínio/)
-  })
-
-  it('a pergunta é sobre PERCEPÇÃO, não sobre menção genérica', () => {
-    // A escuta existe para avaliar como a marca é percebida (decisão do Danilo).
-    expect(fonte).toMatch(/é percebida em/)
-    expect(fonte).toMatch(/Post da\n?\s*própria marca só entra se a reação/)
+  it('o watchdog sabe que ele existe', () => {
+    // Cron que não roda é invisível: sem entrada no watchdog, a escuta pode
+    // parar por semanas sem ninguém notar.
+    expect(readFileSync('netlify/functions/cron-watchdog.js', 'utf8')).toMatch(/'listening-cron'/)
   })
 })

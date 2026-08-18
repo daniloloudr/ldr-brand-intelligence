@@ -106,7 +106,12 @@ export const handler = async (event) => {
     const agora = now()
     const onb = {
       started_at: agora, brand_id: brand.id, phase_at: agora, rev: 0, notas,
-      fases: { inteligencia: agora, marca: agora },
+      // O relógio da marca só corre se a extração começou. Sem manual ela fica
+      // esperando — e esperar não conta tempo, senão um PDF que chega dias
+      // depois nasce com o teto estourado. Quando ele chega, a ação `manual`
+      // carimba o relógio; se vier pelo cron, _onboard.js carimba.
+      fases: brandStep === 'running' ? { inteligencia: agora, marca: agora }
+                                     : { inteligencia: agora },
       steps: { brand: brandStep, diagnostico: 'pending', concorrentes: 'pending', mineracao: 'pending', sinteses: 'pending', destilacao: 'pending' },
     }
     return await save(onb)

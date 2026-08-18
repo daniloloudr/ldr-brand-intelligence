@@ -526,7 +526,7 @@ function renderRich(text) {
     const li = line.match(/^\s*[-*•]\s+(.*)/)
     if (li) {
       out.push(
-        <Box key={i} sx={{ display: 'flex', gap: '0.75px', pl: 1 }}>
+        <Box key={i} sx={{ display: 'flex', gap: 0.75, pl: 1 }}>
           <Typography component="span">•</Typography><Typography component="span" sx={{ flex: 1 }}>{inlineParts(li[1], i)}</Typography>
         </Box>
       )
@@ -972,7 +972,7 @@ export function BrandAssistant({ brandId }) {
         {/* Mensagens */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
           {messages.length === 0 && !streaming && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: '1.5px' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1.5 }}>
               <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 36, mb: 1 }} />
               <Typography fontWeight={800} textAlign="center">
                 Como posso ajudar com a {brand?.nome}?
@@ -980,7 +980,7 @@ export function BrandAssistant({ brandId }) {
               <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={400}>
                 Faço estratégia, briefings, copy e orientações de marca — tudo baseado no brand book.
               </Typography>
-              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: '0.75px', width: '100%', maxWidth: 420 }}>
+              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 0.75, width: '100%', maxWidth: 420 }}>
                 {SUGESTOES.slice(0, 3).map(s => (
                   <Button
                     key={s}
