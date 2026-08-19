@@ -12,6 +12,7 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v2':         2,   // ~$0,08
   'fal-ai/ideogram/v3':         2,   // $0,06 (balanced)
   'fal-ai/nano-banana-pro':     3,   // $0,15
+  'fal-ai/flux-pro/v1/vto':     3,   // $0,0375 1º MP + $0,005/MP extra → ~$0,10 com as nossas imagens
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado)
   'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight de estúdio)
   // demais = 1 (Nano Banana, GPT Image 2, Seedream, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen, Bria product-shot ~$0,04)

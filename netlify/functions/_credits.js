@@ -9,6 +9,7 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v2':         2,
   'fal-ai/ideogram/v3':         2,
   'fal-ai/nano-banana-pro':     3,
+  'fal-ai/flux-pro/v1/vto':     3,   // $0,0375 1º MP + $0,005/MP extra → ~$0,10 com as nossas imagens
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado) — espelha o front
   'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight)
   // fal-ai/bria/product-shot = 1 (~$0,04)

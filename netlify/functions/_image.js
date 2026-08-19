@@ -97,6 +97,25 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   const endpoint = modelFor(model, { references, mode })
   // FASHN Try-On (piloto Hering): schema próprio — veste a PEÇA real no MODELO.
   // Convenção de referências: 1ª = modelo (pessoa), 2ª = peça (roupa).
+  // FLUX Virtual Try-On — troca a PEÇA numa foto que já existe, preservando
+  // pessoa, pose, calça, calçado e fundo. A diferença decisiva para o FASHN:
+  // aceita PROMPT, então dá para descrever modelagem. No piloto Hering (19/08)
+  // foi o que eliminou a fenda lateral que vazava da regata da foto de casting —
+  // o FASHN, sem prompt, não tinha como ser corrigido.
+  // Mesma convenção de referências: 1ª = modelo (pessoa), 2ª = peça (roupa).
+  if (/flux-pro\/v1\/vto/.test(endpoint)) {
+    if ((references || []).length < 2)
+      throw new Error('Try-on precisa de 2 imagens conectadas: 1ª = modelo (pessoa), 2ª = peça (roupa)')
+    const body = {
+      human_image_url:   references[0],
+      garment_image_url: references[1],
+      prompt: prompt || 'a peça de roupa da imagem de referência, fiel em cor, estampa, gola, mangas e barra',
+      ...(extra || {}),
+    }
+    // schema estrito: campos de geração comum vazados por `extra` causam 422
+    delete body.num_images; delete body.aspect_ratio; delete body.image_size; delete body.image_urls
+    return submitFal(endpoint, body, webhookUrl)
+  }
   if (/fashn\/tryon/.test(endpoint)) {
     if ((references || []).length < 2)
       throw new Error('Try-on precisa de 2 imagens conectadas: 1ª = modelo (pessoa), 2ª = peça (roupa)')

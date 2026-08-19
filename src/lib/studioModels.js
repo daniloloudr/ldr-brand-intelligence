@@ -22,6 +22,7 @@ export const IMAGE_MODELS = [
   { id: 'fal-ai/ideogram/v2',                           label: 'Ideogram v2',              group: 'Design & tipografia',    refs: false },
   { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               group: 'Design & tipografia',    refs: false },
   // ── Especializados (moda/produto) ──
+  { id: 'fal-ai/flux-pro/v1/vto',                       label: 'FLUX Try-On (troca a peça na foto)', group: 'Especializados', refs: true },
   { id: 'fal-ai/fashn/tryon/v1.6',                      label: 'FASHN Try-On (vestir modelo)', group: 'Especializados', refs: true },
   { id: 'fal-ai/bria/product-shot',                     label: 'Bria Product Shot (produto em cena)', group: 'Especializados', refs: true },
   { id: 'fal-ai/iclight-v2',                            label: 'IC-Light (reiluminar)',        group: 'Especializados', refs: true },

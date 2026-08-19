@@ -50,7 +50,11 @@ export const handler = async (event) => {
   // FASHN try-on tem schema próprio SEM prompt (modelo + peça) — prompt é
   // dispensado e ignorado aqui, venha de que superfície vier (canvas, Imagem,
   // Copiloto): o modelo rejeita campos fora do schema.
-  const isTryon = /fashn\/tryon/.test(model || '')
+  const isTryon = /fashn\/tryon/.test(model || '')   // FASHN: schema sem prompt
+  // FLUX VTO também veste a modelo, mas ACEITA prompt — é ele que permite
+  // descrever modelagem (barra reta) que a foto original não tem. Por isso NÃO
+  // entra em `isTryon`: perder o prompt aqui anularia a vantagem do modelo.
+  const vesteModelo = isTryon || /flux-pro\/v1\/vto/.test(model || '')
   if (!prompt && !isTryon) return { statusCode: 400, headers, body: JSON.stringify({ error: 'prompt obrigatório' }) }
 
   // Brand → workspace (fonte autoritativa)
