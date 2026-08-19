@@ -1,9 +1,23 @@
 # brandcode — Especificação Completa do Produto
-**Versão:** 8.2
+**Versão:** 8.3
 **Data:** Agosto 2026
 **Status:** Documento vivo — atualizar a cada entrega
 **Owner:** Danilo Silva · LOUDR
 **Nomes:** o produto é o **brandcode** (`br4ndcode.com` — o "4" existe só no domínio). **LOUDR é a empresa/agência** e permanece como tal: assina o relatório público de diagnóstico, o framework Smart Branding e os contratos. Dentro do app logado, nada mais se chama LOUDR.
+
+**Changelog v8.3 (19/ago/2026) — O PILOTO HERING NA PRÁTICA: o método de escolher modelo, e o Studio que aprendeu com ele.** Dia da reunião com a Worten (Danilo: "foi incrível") e do primeiro teste de fluxo real da Hering — o brief do KH6V por e-mail: 2 stills, 3 castings, 2 acessórios, 3 imagens pedidas, 1920×2720, fundo #F2F2F2.
+
+**O MÉTODO, que vale mais que o resultado.** A pergunta "qual modelo serve?" foi respondida com **bake-off**: mesmo alvo, mesmas entradas, N caminhos, todos julgados pelo MESMO juiz de fidelidade. Depois **repetição** dos finalistas, 3 rodadas cada. Script em [`arquivo/hering-bakeoff.mjs`](./arquivo/hering-bakeoff.mjs), reutilizável trocando três URLs. Três lições, todas caras: **(1) rodada única é sorte** — o nano banana venceu o primeiro teste e reprovou 2 de 3 na repetição (listras derivando para cinza e bege); **(2) juiz mede só o que você pediu** — o flux fez 3/3 na peça e TROCOU A MODELO nas três, e passou porque o critério mandava ignorar tudo que não fosse roupa; **(3) veredito automático precisa de conferência humana enquanto o critério está sendo calibrado** — o juiz reprovou um seedream correto por ler "listras azul-marinho" como "camiseta azul-marinho", falso negativo da redação ambígua do critério.
+
+**O QUE O TESTE ENSINOU SOBRE O PRODUTO.** A primeira rodada reprovou nos 3 portões: o try-on não vestiu nada e devolveu a foto de casting intacta (a modelo escolhida era de COSTAS, e o fluxo tinha um nó de modelo só alimentando as três linhas). Depois a calça mudou entre frente e costas, porque cada geração inventava o look do zero — corrigido com **imagem-âncora**: o plano inteiro alimenta as outras como referência. E a anatomia saía torta às vezes: testei se era a proporção 1920×2720 (não-nativa) e **NÃO ERA** — a mesma proporção deu rodada boa e rodada torta. É variação do modelo, e prompt não conserta aleatoriedade: entrou no critério do portão, que reprova e manda regerar.
+
+**FLUX VIRTUAL TRY-ON.** O vazamento que fechou o ciclo: a fenda lateral da regata do casting aparecia na camiseta gerada, e nenhuma instrução resolvia (modelo de imagem não obedece negação — "sem corte lateral" injeta o conceito). Testados os 4 try-on da fal: FLUX VTO, Kling e Leffa aprovaram com barra reta; o FASHN reprovou. **O FLUX aceita `prompt`** — o FASHN não, e é por isso que ele nunca teve conserto. Integrado a 3 créditos. Cuidado registrado no código: o canvas removia o prompt em try-on (certo para o FASHN), e aplicar a mesma regra ao FLUX mataria a vantagem dele — os conceitos foram separados em `isTryon` e `vesteModelo`.
+
+**DIAGNÓSTICO — o site é a fonte primária.** Caso costclarity.com: o campo único do admin jogava fora o domínio colado, e o diagnóstico voltou sobre a homônima da Arcadis. Medido: costclarity.com tem 1 página indexada e "cost clarity" é jargão de FinOps com centenas — sem âncora, o modelo vai onde há material. `separarAlvo()` lê URL do campo único. E **`web_fetch` entrou no tier premium**: estava disponível na nossa chave e não era usado, então o modelo só sabia PROCURAR quem falou da marca, nunca LER o site dela. Material escasso deixou de ser motivo de recusa — vira achado declarado em `base_de_evidencia`; só recusa se o próprio site não abrir.
+
+**STUDIO.** Nó "Gerar" → **"Imagem"**, com a imagem inline e a barra de aprovar/reprovar/baixar/salvar, no padrão do de Vídeo (com 6 saídas no canvas, abrir prévia uma a uma era o gargalo). Junto veio um defeito silencioso: o nó recuperava a URL ao recarregar mas **não o `genId`** — voto e "salvar" viravam sinal órfão e não alimentavam o cérebro.
+
+**CUSTO MEDIDO DO PILOTO:** 146 gerações de imagem em 3h = **US$ 6,08 (R$ 33)**, para 3 imagens aprovadas — US$ 2,03 por aprovada, taxa de um dia de CALIBRAÇÃO, não de produção. Em regime, 6 imagens de seedream custam US$ 0,24. **Buraco aberto:** `submitGeneration` NÃO grava `custo_estimado`, e admin não debita crédito (`if (!platformAdmin)`) — então quando o operador testa, nada é medido. O número acima é reconstrução por contagem × preço de tabela, não medição.
 
 **Changelog v8.2 (18/ago/2026) — O DIA DA INTEGRIDADE: guarda de identidade, custo por marca, mercado por país e o porteiro do núcleo.** Semana dos setups de **Worten, Hering e Pixel Retail** — o dia inteiro foi endurecer o núcleo antes dos clientes entrarem.
 
