@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
 import {
   host, dominioRaiz, dominiosEm, mesmoDominio,
-  alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar,
+  alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar, separarAlvo,
 } from '../netlify/functions/_identidade.js'
 
 // ── O CASO REAL ─────────────────────────────────────────────────────────
@@ -115,5 +116,58 @@ describe('a guarda não pode fingir que verificou', () => {
   it('entrada vazia não explode e não aprova verificado', () => {
     expect(conferirIdentidade(null, null)).toMatchObject({ ok: true, verificado: false })
     expect(conferirIdentidade({}, {})).toMatchObject({ verificado: false })
+  })
+})
+
+describe('o campo único do admin — o caso Cost Clarity', () => {
+  it('URL colada vira DOMÍNIO, não nome', () => {
+    // 19/08: colado "https://www.costclarity.com/pt-BR", o código fazia
+    // `dominio = null` e a guarda ficava sem referência. O diagnóstico voltou
+    // sobre a "Cost Clarity" da Arcadis — software de custos de CONSTRUÇÃO —
+    // em vez do SaaS de cloud. Medido depois: costclarity.com tem 1 página
+    // indexada, e "cost clarity" é termo de indústria em FinOps com centenas.
+    // O homônimo tinha material; o cliente não.
+    expect(separarAlvo('https://www.costclarity.com/pt-BR'))
+      .toEqual({ nome: '', dominio: 'costclarity.com' })
+  })
+
+  it('nome e domínio juntos são separados', () => {
+    expect(separarAlvo('Cost Clarity costclarity.com'))
+      .toEqual({ nome: 'Cost Clarity', dominio: 'costclarity.com' })
+    expect(separarAlvo('Worten https://www.worten.pt/'))
+      .toEqual({ nome: 'Worten', dominio: 'worten.pt' })
+  })
+
+  it('texto sem domínio continua sendo nome', () => {
+    expect(separarAlvo('Cost Clarity')).toEqual({ nome: 'Cost Clarity', dominio: null })
+    expect(separarAlvo('')).toEqual({ nome: '', dominio: null })
+  })
+
+  it('o fluxo do admin usa a separação', () => {
+    const bg = readFileSync('netlify/functions/diagnostico-gerar-background.js', 'utf8')
+    expect(bg).toMatch(/separarAlvo\(empresaParam\)/)
+    expect(bg).not.toMatch(/empresaNome = empresaParam\s*\n\s*dominio\s*=\s*null/)
+  })
+
+  it('as duas recusas dizem coisas diferentes — e material escasso não é recusa', () => {
+    // Regra revista em 19/08 (Danilo: "se não encontrar dados suficientes,
+    // precisa trazer isso. o site é o principal termo sobre o tema"): pouca
+    // coisa pública deixou de ser motivo para desistir — é ACHADO sobre a
+    // marca, declarado em `base_de_evidencia`. Só recusa se o SITE não abrir,
+    // porque sem a fonte primária sobra material de terceiros e o risco é
+    // analisar a homônima.
+    const bg = readFileSync('netlify/functions/diagnostico-gerar-background.js', 'utf8')
+    expect(bg).toMatch(/Não foi possível LER o site/)
+    expect(bg).toMatch(/voltou sobre OUTRA empresa/)
+    expect(bg).not.toMatch(/Não há material público suficiente/)
+  })
+
+  it('a instrução manda LER o site antes de procurar menção', () => {
+    const i = instrucaoDeIdentidade({ nome: 'Cost Clarity', dominio: 'costclarity.com' })
+    expect(i).toMatch(/COMECE LENDO costclarity\.com com web_fetch/)
+    expect(i).toMatch(/NÃO é motivo para desistir/)
+    // \s+ e não espaço literal: o texto quebra linha no meio da frase, e regex
+    // com espaço fixo falha por formatação — não por comportamento.
+    expect(i).toMatch(/SOMENTE se o próprio site\s+estiver inacessível/)
   })
 })

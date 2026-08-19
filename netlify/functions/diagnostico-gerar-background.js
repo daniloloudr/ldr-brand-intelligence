@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
-import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar } from './_identidade.js'
+import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar, separarAlvo } from './_identidade.js'
 import { contextoDeMercado } from './_mercado.js'
 
 export const handler = async (event) => {
@@ -49,8 +49,13 @@ export const handler = async (event) => {
       .from('platform_admins').select('id').eq('user_id', user.id).maybeSingle()
     if (!platformAdmin) return { statusCode: 403 }
 
-    empresaNome = empresaParam
-    dominio     = null
+    // O admin digita numa caixa só — e o que costuma ser colado ali é a URL.
+    // Jogar o domínio fora deixava a guarda sem referência: foi assim que
+    // "https://www.costclarity.com/pt-BR" virou um diagnóstico da Cost Clarity
+    // da Arcadis, que é software de custos de construção.
+    const separado = separarAlvo(empresaParam)
+    empresaNome = separado.nome || empresaParam
+    dominio     = separado.dominio
   }
 
   // O ALVO carrega nome E domínio. Antes ia só `empresaNome` — o domínio era
@@ -128,10 +133,22 @@ export const handler = async (event) => {
   // nenhum — o cliente age em cima dele.
   const conferencia = conferirIdentidade(alvo, parsed)
   if (!conferencia.ok) {
-    const detalhe = `esperado ${conferencia.esperado || '?'}, recebido ${conferencia.recebido || '?'}`
-    console.error(`[diagnostico] identidade recusada: ${conferencia.motivo} (${detalhe})`)
-    await saveError(`Identificação falhou — ${conferencia.motivo}. ${detalhe}. `
-      + 'O diagnóstico foi descartado para não atribuir a esta marca a análise de outra empresa.')
+    console.error(`[diagnostico] identidade recusada: ${conferencia.motivo} (esperado ${conferencia.esperado || '?'}, recebido ${conferencia.recebido || '?'})`)
+    // Duas recusas MUITO diferentes, e confundi-las manda o usuário para o lado
+    // errado: "achei outra empresa" é ambiguidade de nome (some ao dar contexto);
+    // "não achei material" é pegada pública fina (nenhum contexto resolve).
+    // Caso real: costclarity.com tem 1 página indexada, enquanto "cost clarity"
+    // é termo de indústria em FinOps com centenas — foi o que fez o modelo
+    // devolver a Cost Clarity da Arcadis antes de a guarda existir.
+    const semMaterial = /não encontrou o sujeito/.test(conferencia.motivo || '')
+    await saveError(semMaterial
+      ? `Não foi possível LER o site ${conferencia.esperado}. Nada foi gravado. `
+        + 'O site é a fonte primária do diagnóstico — sem ele sobra só material de terceiros, '
+        + 'e aí o risco é analisar outra empresa de nome parecido. Confira se o endereço está '
+        + 'certo e se o site responde.'
+      : `O diagnóstico voltou sobre OUTRA empresa — esperado ${conferencia.esperado || '?'}, `
+        + `recebido ${conferencia.recebido || '?'}. Nada foi gravado. `
+        + 'Se o nome for ambíguo, informe o domínio junto para desempatar.')
     return { statusCode: 200 }
   }
 

@@ -196,3 +196,28 @@ describe('5 · a reserva de modelo existe E está ligada', () => {
     expect(ai).toMatch(/!usouReserva/)
   })
 })
+
+describe('6 · o site é a fonte primária do diagnóstico', () => {
+  it('o tier do diagnóstico tem a ferramenta de LER página', () => {
+    // `web_fetch` estava disponível na nossa chave e não era usado: o modelo só
+    // sabia PROCURAR quem falou da marca. Para a costclarity.com — 1 página
+    // indexada contra centenas do jargão "cost clarity" em FinOps e da homônima
+    // da Arcadis — isso foi a diferença entre acertar e errar a empresa.
+    const ai = ler(`${FUNCOES}/_ai.js`)
+    expect(ai).toMatch(/webFetch:\s*\{ type: 'web_fetch_/)
+    const premium = ai.slice(ai.indexOf("tier === 'premium'"), ai.indexOf("// 'standard' — default"))
+    expect(premium).toMatch(/tools:\s*\[TOOLS\.webSearch, TOOLS\.webFetch\]/)
+  })
+
+  it('o prompt manda ler o site ANTES de buscar', () => {
+    const p = ler(`${FUNCOES}/_prompt.js`)
+    expect(p).toMatch(/1\. LEIA O SITE OFICIAL com web_fetch/)
+    expect(p).toMatch(/FONTE PRIMÁRIA/)
+  })
+
+  it('material escasso vira achado declarado, não desistência', () => {
+    const p = ler(`${FUNCOES}/_prompt.js`)
+    expect(p).toMatch(/MATERIAL ESCASSO NÃO É MOTIVO PARA DESISTIR NEM PARA INVENTAR/)
+    expect(p).toMatch(/"base_de_evidencia"/)
+  })
+})

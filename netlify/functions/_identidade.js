@@ -65,6 +65,35 @@ export function mesmoDominio(a, b) {
 }
 
 /**
+ * Separa nome e domínio do que foi digitado numa caixa só.
+ *
+ * O fluxo do admin tem UM campo. Em 19/08/2026 o Danilo colou
+ * "https://www.costclarity.com/pt-BR" e o código jogava o domínio fora
+ * (`dominio = null`): a guarda ficou sem referência para conferir, a instrução
+ * de identidade caiu na variante fraca, e o diagnóstico voltou sobre a "Cost
+ * Clarity" da Arcadis — um produto de custos de CONSTRUÇÃO — em vez do SaaS de
+ * cloud da costclarity.com. Dois homônimos, e escolhemos o errado de novo.
+ *
+ * Se o que veio contém domínio, ele é o identificador. O que sobra vira nome.
+ */
+export function separarAlvo(entrada) {
+  const bruto = String(entrada || '').trim()
+  if (!bruto) return { nome: '', dominio: null }
+
+  const dominios = dominiosEm(bruto)
+  if (!dominios.length) return { nome: bruto, dominio: null }
+
+  const dominio = dominios[0]
+  // Sobrou nome legível fora da URL? ("Cost Clarity costclarity.com" → o nome).
+  // Se o campo era só a URL, o nome fica vazio e `alvoDoDiagnostico` usa o host.
+  const nome = bruto
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+/gi, ' ')
+    .replace(/\s+/g, ' ').trim()
+  return { nome, dominio }
+}
+
+/**
  * O rótulo que vai ao modelo. Com domínio conhecido ele vira o identificador
  * primário e o nome fica como apoio — é o inverso do que a escuta faz, e de
  * propósito: para ACHAR MENÇÃO procura-se pelo nome (ninguém escreve URL num
@@ -108,13 +137,18 @@ razão social e domínio raramente coincidem — e nesse caso o domínio prevale
 Se o material que você achar pelo nome pertencer a outro domínio, ele NÃO é do sujeito:
 descarte, por mais abundante ou convincente que seja.
 
-Comece a pesquisa pelo próprio ${h} para fixar quem é a empresa; só depois use o nome
-para achar percepção externa, e confira que cada achado se refere a ESTA empresa.
+COMECE LENDO ${h} com web_fetch — home, produto, sobre, preços. O site é a fonte
+PRIMÁRIA: é a marca falando de si, e é o que fixa de que empresa estamos tratando.
+Só depois use o nome para procurar percepção externa, conferindo que cada achado se
+refere a ESTA empresa e não a uma homônima.
 No JSON, o campo "dominio" deve conter exatamente ${h}.
 
-Se não encontrar material suficiente sobre ${h}, devolva
-{"erro_identificacao":"não encontrei material sobre ${h}"} em vez de diagnosticar outra
-empresa. Devolver isso é resposta correta; diagnosticar o homônimo não é.`
+Pouca coisa pública sobre ${h} NÃO é motivo para desistir: marca pequena ou de nicho
+é assim, e isso mesmo é um achado. Com o site lido, diagnostique — declarando em
+"base_de_evidencia" o que faltou e baixando a confiança onde for inferência.
+
+Devolva {"erro_identificacao":"não consegui ler ${h}"} SOMENTE se o próprio site
+estiver inacessível. Nesse caso é resposta correta; diagnosticar o homônimo nunca é.`
 }
 
 /**

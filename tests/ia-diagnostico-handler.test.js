@@ -69,8 +69,13 @@ describe('a guarda BLOQUEIA — não apenas existe', () => {
     expect(gravadosComoProntos()).toEqual([])          // nada entregue ao cliente
     const erro = gravacoes.find(g => g.linha?.status === 'error')
     expect(erro).toBeTruthy()
-    expect(erro.linha.data.error).toMatch(/Identificação falhou/)
+    // A mensagem precisa dizer QUAL das duas recusas foi: "achei outra empresa"
+    // some quando se informa o domínio; "não achei material" não some com
+    // contexto nenhum (caso costclarity.com, 19/08). Confundir as duas manda o
+    // usuário para o lado errado.
+    expect(erro.linha.data.error).toMatch(/voltou sobre OUTRA empresa/)
     expect(erro.linha.data.error).toMatch(/agenciapx\.com/)
+    expect(erro.linha.data.error).toMatch(/informe o domínio junto/)
   })
 
   it('diagnóstico da empresa certa é gravado normalmente', async () => {
