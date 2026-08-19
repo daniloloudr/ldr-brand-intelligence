@@ -208,6 +208,13 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 - [~] F0.3 🟢 pilotinho: **FLUXO MONTADO + ENSAIO COMPLETO 14/jul** — template "Piloto Hering: Duelo de Fidelidade (por peça)" + instância "Peça 1" no Fluxos. Ensaio com a jaqueta placeholder: **3 stills APROVADOS pelo juiz** (Nano/GPT/Seedream) + **try-on julgado "Com ressalvas" citando texto letra a letra** (mesmo diagnóstico da análise humana de 12/jul). 3 bugs achados e corrigidos no ensaio: saldo fal esgotado (recarregado), prompt no FASHN (backend dispensa/ignora), **ordem das referências = ordem das CONEXÕES** (raiz do "1ª imagem precisa ser PESSOA"; era ordem do array de nós). Falta só: peças reais + fichas · *gatilho: Rafael marcar a conversa*
 - [x] ~~**Alerta de saldo dos provedores**~~ ✅ 14/jul — `alertIfBalanceError` no `_watchdog.js` plugado nos 4 pontos (fal imagem ×2, fal vídeo, Anthropic call+stream): erro de saldo/billing → alerta ao Danilo (Sentry, dedup 24h) + usuário vê "instabilidade no sistema" (nunca o erro cru). Validado com os erros reais (403 fal, 400 Anthropic). Futuro opcional: checagem PROATIVA de saldo (endpoint de billing da fal) no cron-watchdog
 
+- [x] ~~**F0.4 — teste de fluxo real (KH6V)**~~ ✅ 19/ago — brief real por e-mail (2 stills, 3 castings, 1920×2720, 350 KB). **Caminho aprovado = base de casting limpa + Seedream 5.0 Pro** (os dois juntos; nenhum sozinho resolveu). Detalhe, pendências de entrega e as 3 perguntas abertas com o cliente em [`features/piloto-hering.md`](features/piloto-hering.md) § F0.4
+- [ ] **F0.5 — fechar a entrega do KH6V** *(destravado pela resposta da Hering — ver as 3 perguntas em `features/piloto-hering.md`)*
+  - [ ] nó **Ampliar** entre Imagem e Recortar: o Seedream 5 Pro tem teto de ~4,19 MP e devolve **1720×2432 calado** quando se pede 1920×2720
+  - [ ] **alvo de peso no nó Recortar** — hoje grava webp q92 sem teto; 350 KB não é garantido (a geração de referência saiu com 359 KB). **Vale para todos os fluxos, não só a Hering**: é o que separa "deu certo no teste" de "roda sem alguém olhando"
+  - [ ] **biblioteca de bases de casting neutras** (uma vez por modelo/pose, reaproveitada em todo produto) — vira pré-requisito se o volume for alto
+  - [ ] testar o **Seedream Layerize** (instalado, não testado): separa a imagem em camadas — caminho alternativo para isolar a peça sem gerar base
+
 *F1 — o processo (Fluxo "Guia de Compras"):*
 - [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
 - [ ] F1.2 template "Guia de Compras": still fiel → manequim fantasma → variação de modelo (teste A/B) → close

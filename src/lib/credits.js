@@ -15,7 +15,9 @@ export const IMAGE_CREDITS = {
   'fal-ai/flux-pro/v1/vto':     3,   // $0,0375 1º MP + $0,005/MP extra → ~$0,10 com as nossas imagens
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado)
   'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight de estúdio)
-  // demais = 1 (Nano Banana, GPT Image 2, Seedream, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen, Bria product-shot ~$0,04)
+  'bytedance/seedream/v5/pro/text-to-image': 2,  // $0,0675/img acima de 1536² (o nosso 1920×2720 é)
+  'bytedance/seedream/v5/pro/layerize':      4,  // $0,0675 POR CAMADA gerada — ~3 camadas no caso típico
+  // demais = 1 (Nano Banana, GPT Image 2, Seedream 4.x e 5 Lite $0,035, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen, Bria product-shot ~$0,04)
 }
 
 // Vídeo — por key de modelo (videoModels) e duração (string em segundos).
@@ -58,7 +60,10 @@ export const IMAGE_GUIDE = [
   { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', beneficio: 'Versátil e rápido, ótimo com referências. Padrão.' },
   { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro',          beneficio: 'Máxima qualidade Gemini, edição avançada, até 4K.' },
   { id: 'openai/gpt-image-2',                           label: 'GPT Image 2',              beneficio: 'Forte em coerência, composição e instruções.' },
-  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             beneficio: 'Fotorrealismo de alto nível.' },
+  { id: 'bytedance/seedream/v5/pro/text-to-image',      label: 'Seedream 5.0 Pro',         beneficio: 'Geração atual da ByteDance, fotorrealismo e fidelidade de referência.' },
+  { id: 'bytedance/seedream/v5/lite/text-to-image',     label: 'Seedream 5.0 Lite',        beneficio: 'Mesma família, mais barato e rápido.' },
+  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             beneficio: 'Fotorrealismo de alto nível (geração anterior).' },
+  { id: 'bytedance/seedream/v5/pro/layerize',           label: 'Seedream Layerize',        beneficio: 'Separa uma imagem em camadas (sujeito, fundo, elementos).' },
   { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             beneficio: 'Flagship FLUX, multi-referência.' },
   { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'FLUX Pro 1.1 Ultra',       beneficio: 'Fotorrealismo premium, alta resolução.' },
   { id: 'fal-ai/ideogram/v3',                           label: 'Ideogram v3',              beneficio: 'Tipografia e texto dentro da imagem.' },

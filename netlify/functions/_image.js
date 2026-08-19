@@ -46,6 +46,10 @@ const I2I = {
   // ByteDance Seedream
   'fal-ai/bytedance/seedream/v4/text-to-image':   { endpoint: 'fal-ai/bytedance/seedream/v4/edit',          field: 'image_urls' },
   'fal-ai/bytedance/seedream/v4.5/text-to-image': { endpoint: 'fal-ai/bytedance/seedream/v4.5/edit',        field: 'image_urls' },
+  // Seedream 5 — ATENÇÃO: sem o prefixo `fal-ai/` (o 4.x tem). Mesmo schema do
+  // 4.5 (prompt + image_urls + image_size), então cai no caminho default.
+  'bytedance/seedream/v5/pro/text-to-image':      { endpoint: 'bytedance/seedream/v5/pro/edit',             field: 'image_urls' },
+  'bytedance/seedream/v5/lite/text-to-image':     { endpoint: 'bytedance/seedream/v5/lite/edit',            field: 'image_urls' },
   // FLUX — kontext e flux-2-pro já aceitam imagem no mesmo endpoint (mapeia p/ si)
   'fal-ai/flux-2-pro':                            { endpoint: 'fal-ai/flux-2-pro',                          field: 'image_urls' },
   'fal-ai/flux-pro/kontext':                      { endpoint: 'fal-ai/flux-pro/kontext',                    field: 'image_url'  },
@@ -136,6 +140,19 @@ export async function submitImageJob({ model, prompt, references = [], format, m
       ...(references[1] ? { ref_image_url: references[1] } : { placement_type: 'automatic' }),
       ...(extra || {}),
     }
+    return submitFal(endpoint, body, webhookUrl)
+  }
+  // Seedream Layerize: schema próprio — recebe UMA imagem e devolve suas camadas
+  // separadas (sujeito, fundo, elementos). `images` é a mesma lista de `layers`,
+  // achatada para galeria, então o caminho normal de leitura já funciona.
+  // `image_size` aqui é STRING (auto | ...), não objeto — por isso o extra do nó
+  // de formato personalizado é descartado.
+  if (/seedream\/v5\/pro\/layerize/.test(endpoint)) {
+    if (!(references || []).length)
+      throw new Error('Layerize precisa da imagem conectada (1ª referência).')
+    const body = { image_url: references[0], ...(prompt ? { prompt } : {}), ...(extra || {}) }
+    delete body.num_images; delete body.aspect_ratio; delete body.image_urls
+    if (body.image_size && typeof body.image_size !== 'string') delete body.image_size
     return submitFal(endpoint, body, webhookUrl)
   }
   // IC-Light V2: schema próprio — reilumina a imagem (1ª ref) conforme o prompt
