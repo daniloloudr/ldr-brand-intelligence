@@ -6,9 +6,13 @@ export const IMAGE_MODELS = [
   { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro (Gemini)', group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', group: 'Mais usados',           refs: true  },
   { id: 'openai/gpt-image-2',                           label: 'GPT Image 2 (OpenAI)',     group: 'Mais usados',           refs: true  },
-  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             group: 'Mais usados',           refs: true  },
+  { id: 'bytedance/seedream/v5/pro/text-to-image',      label: 'Seedream 5.0 Pro',         group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             group: 'Mais usados',           refs: true  },
   // ── Fotorrealismo & edição ──
+  // ⚠️ o id do Seedream 5 NÃO tem o prefixo `fal-ai/` (o 4.x tem). Copiar o
+  // padrão da linha de baixo dá 404.
+  { id: 'bytedance/seedream/v5/lite/text-to-image',     label: 'Seedream 5.0 Lite',        group: 'Fotorrealismo & edição', refs: true  },
+  { id: 'fal-ai/bytedance/seedream/v4.5/text-to-image', label: 'Seedream 4.5',             group: 'Fotorrealismo & edição', refs: true  },
   { id: 'fal-ai/flux-pro/v1.1-ultra',                   label: 'FLUX Pro 1.1 Ultra',       group: 'Fotorrealismo & edição', refs: false },
   { id: 'fal-ai/flux-pro/v1.1',                         label: 'FLUX Pro 1.1',             group: 'Fotorrealismo & edição', refs: false },
   { id: 'fal-ai/flux-pro/kontext',                      label: 'FLUX.1 Kontext [pro]',     group: 'Fotorrealismo & edição', refs: true  },
@@ -22,7 +26,9 @@ export const IMAGE_MODELS = [
   { id: 'fal-ai/ideogram/v2',                           label: 'Ideogram v2',              group: 'Design & tipografia',    refs: false },
   { id: 'fal-ai/recraft-v3',                            label: 'Recraft v3',               group: 'Design & tipografia',    refs: false },
   // ── Especializados (moda/produto) ──
+  { id: 'fal-ai/flux-pro/v1/vto',                       label: 'FLUX Try-On (troca a peça na foto)', group: 'Especializados', refs: true },
   { id: 'fal-ai/fashn/tryon/v1.6',                      label: 'FASHN Try-On (vestir modelo)', group: 'Especializados', refs: true },
+  { id: 'bytedance/seedream/v5/pro/layerize',           label: 'Seedream Layerize (separa a imagem em camadas)', group: 'Especializados', refs: true },
   { id: 'fal-ai/bria/product-shot',                     label: 'Bria Product Shot (produto em cena)', group: 'Especializados', refs: true },
   { id: 'fal-ai/iclight-v2',                            label: 'IC-Light (reiluminar)',        group: 'Especializados', refs: true },
   // ── Automático (usado pelo Workflow) ──

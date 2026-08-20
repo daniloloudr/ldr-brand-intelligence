@@ -46,6 +46,10 @@ const I2I = {
   // ByteDance Seedream
   'fal-ai/bytedance/seedream/v4/text-to-image':   { endpoint: 'fal-ai/bytedance/seedream/v4/edit',          field: 'image_urls' },
   'fal-ai/bytedance/seedream/v4.5/text-to-image': { endpoint: 'fal-ai/bytedance/seedream/v4.5/edit',        field: 'image_urls' },
+  // Seedream 5 — ATENÇÃO: sem o prefixo `fal-ai/` (o 4.x tem). Mesmo schema do
+  // 4.5 (prompt + image_urls + image_size), então cai no caminho default.
+  'bytedance/seedream/v5/pro/text-to-image':      { endpoint: 'bytedance/seedream/v5/pro/edit',             field: 'image_urls' },
+  'bytedance/seedream/v5/lite/text-to-image':     { endpoint: 'bytedance/seedream/v5/lite/edit',            field: 'image_urls' },
   // FLUX — kontext e flux-2-pro já aceitam imagem no mesmo endpoint (mapeia p/ si)
   'fal-ai/flux-2-pro':                            { endpoint: 'fal-ai/flux-2-pro',                          field: 'image_urls' },
   'fal-ai/flux-pro/kontext':                      { endpoint: 'fal-ai/flux-pro/kontext',                    field: 'image_url'  },
@@ -97,6 +101,25 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   const endpoint = modelFor(model, { references, mode })
   // FASHN Try-On (piloto Hering): schema próprio — veste a PEÇA real no MODELO.
   // Convenção de referências: 1ª = modelo (pessoa), 2ª = peça (roupa).
+  // FLUX Virtual Try-On — troca a PEÇA numa foto que já existe, preservando
+  // pessoa, pose, calça, calçado e fundo. A diferença decisiva para o FASHN:
+  // aceita PROMPT, então dá para descrever modelagem. No piloto Hering (19/08)
+  // foi o que eliminou a fenda lateral que vazava da regata da foto de casting —
+  // o FASHN, sem prompt, não tinha como ser corrigido.
+  // Mesma convenção de referências: 1ª = modelo (pessoa), 2ª = peça (roupa).
+  if (/flux-pro\/v1\/vto/.test(endpoint)) {
+    if ((references || []).length < 2)
+      throw new Error('Try-on precisa de 2 imagens conectadas: 1ª = modelo (pessoa), 2ª = peça (roupa)')
+    const body = {
+      human_image_url:   references[0],
+      garment_image_url: references[1],
+      prompt: prompt || 'a peça de roupa da imagem de referência, fiel em cor, estampa, gola, mangas e barra',
+      ...(extra || {}),
+    }
+    // schema estrito: campos de geração comum vazados por `extra` causam 422
+    delete body.num_images; delete body.aspect_ratio; delete body.image_size; delete body.image_urls
+    return submitFal(endpoint, body, webhookUrl)
+  }
   if (/fashn\/tryon/.test(endpoint)) {
     if ((references || []).length < 2)
       throw new Error('Try-on precisa de 2 imagens conectadas: 1ª = modelo (pessoa), 2ª = peça (roupa)')
@@ -117,6 +140,19 @@ export async function submitImageJob({ model, prompt, references = [], format, m
       ...(references[1] ? { ref_image_url: references[1] } : { placement_type: 'automatic' }),
       ...(extra || {}),
     }
+    return submitFal(endpoint, body, webhookUrl)
+  }
+  // Seedream Layerize: schema próprio — recebe UMA imagem e devolve suas camadas
+  // separadas (sujeito, fundo, elementos). `images` é a mesma lista de `layers`,
+  // achatada para galeria, então o caminho normal de leitura já funciona.
+  // `image_size` aqui é STRING (auto | ...), não objeto — por isso o extra do nó
+  // de formato personalizado é descartado.
+  if (/seedream\/v5\/pro\/layerize/.test(endpoint)) {
+    if (!(references || []).length)
+      throw new Error('Layerize precisa da imagem conectada (1ª referência).')
+    const body = { image_url: references[0], ...(prompt ? { prompt } : {}), ...(extra || {}) }
+    delete body.num_images; delete body.aspect_ratio; delete body.image_urls
+    if (body.image_size && typeof body.image_size !== 'string') delete body.image_size
     return submitFal(endpoint, body, webhookUrl)
   }
   // IC-Light V2: schema próprio — reilumina a imagem (1ª ref) conforme o prompt

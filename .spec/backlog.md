@@ -109,6 +109,23 @@ O código está à frente do comercial — as próximas jogadas não são featur
 
 ## H1 — PROVAR (agora → ~3 meses) · *marca no mercado, ~10 clientes com case*
 
+> ### 🔴 ESTA SEMANA (18–24/ago/2026) — SETUP DE TRÊS CLIENTES
+> **Worten** (Portugal · reunião 19/08 + setup) · **Hering** (piloto Rafael Passos) · **Pixel Retail** (retail media).
+>
+> É a primeira vez que a plataforma recebe clientes reais em sequência, e a primeira com marca **fora do Brasil**.
+> O dia 18/08 foi gasto endurecendo o núcleo por causa disso (changelog v8.2 em `produto.md`).
+>
+> **Checklist por setup:** ① país correto no cadastro (Worten = PT — define mercado, praças de reputação e idioma)
+> · ② domínio preenchido, porque a guarda de identidade depende dele e sem ele o diagnóstico passa "não verificado"
+> · ③ conferir o diagnóstico ANTES de mostrar ao cliente (`_identidade` grava `ok`/`verificado` em `diagnosticos.data`)
+> · ④ concorrentes cadastrados com domínio, e os errados **desativados** (desativar já basta: a leitura passou a respeitar)
+> · ⑤ rodar clipping na mão depois de cadastrar concorrente — o cron só roda segunda
+> · ⑥ olhar `/admin` → **Saúde** depois de cada setup.
+>
+> **Pendências que afetam os três:** o `cron-monitor` está morrendo desde 10/08 (regenera diagnóstico de todas as
+> marcas toda segunda — investigar antes que os três estejam dentro) e o header de Diagnósticos segue quebrado.
+
+
 | Item | O quê | Tamanho / gatilho |
 |---|---|---|
 | ~~**⭐ Duelo de Modelos**~~ ✅ 14/jul | **ENTREGUE (imagem):** modo ⚔️ na página Imagem — 2–3 modelos, mesma peça, arena lado a lado, voto único → sinal `model_duel` (peso 2, vencedor+perdedores) + `image_vote` na vencedora; destilador entende preferência pareada como a evidência mais forte do win_rate. Validado ponta a ponta. **Falta (fase 2):** duelo de TEXTO (gatilho: conector OpenRouter) e usar a arena no pilotinho Hering | ✅ · texto: pós-OpenRouter |
@@ -190,6 +207,13 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 - [x] ~~F0.2~~ ✅ 2026-07-12 — mapa completo em [`features/piloto-hering.md`](features/piloto-hering.md): FASHN try-on $0,075 ⭐ (veste a peça REAL, aceita cabide/flat-lay) · Nano Banana $0,039 · GPT Image 2 edit $0,07-0,41; **custo por produto (4 saídas) ≈ R$1-2** vs R$50-300 do estúdio tradicional
 - [~] F0.3 🟢 pilotinho: **FLUXO MONTADO + ENSAIO COMPLETO 14/jul** — template "Piloto Hering: Duelo de Fidelidade (por peça)" + instância "Peça 1" no Fluxos. Ensaio com a jaqueta placeholder: **3 stills APROVADOS pelo juiz** (Nano/GPT/Seedream) + **try-on julgado "Com ressalvas" citando texto letra a letra** (mesmo diagnóstico da análise humana de 12/jul). 3 bugs achados e corrigidos no ensaio: saldo fal esgotado (recarregado), prompt no FASHN (backend dispensa/ignora), **ordem das referências = ordem das CONEXÕES** (raiz do "1ª imagem precisa ser PESSOA"; era ordem do array de nós). Falta só: peças reais + fichas · *gatilho: Rafael marcar a conversa*
 - [x] ~~**Alerta de saldo dos provedores**~~ ✅ 14/jul — `alertIfBalanceError` no `_watchdog.js` plugado nos 4 pontos (fal imagem ×2, fal vídeo, Anthropic call+stream): erro de saldo/billing → alerta ao Danilo (Sentry, dedup 24h) + usuário vê "instabilidade no sistema" (nunca o erro cru). Validado com os erros reais (403 fal, 400 Anthropic). Futuro opcional: checagem PROATIVA de saldo (endpoint de billing da fal) no cron-watchdog
+
+- [x] ~~**F0.4 — teste de fluxo real (KH6V)**~~ ✅ 19/ago — brief real por e-mail (2 stills, 3 castings, 1920×2720, 350 KB). **Caminho aprovado = base de casting limpa + Seedream 5.0 Pro** (os dois juntos; nenhum sozinho resolveu). Detalhe, pendências de entrega e as 3 perguntas abertas com o cliente em [`features/piloto-hering.md`](features/piloto-hering.md) § F0.4
+- [ ] **F0.5 — fechar a entrega do KH6V** *(destravado pela resposta da Hering — ver as 3 perguntas em `features/piloto-hering.md`)*
+  - [ ] nó **Ampliar** entre Imagem e Recortar: o Seedream 5 Pro tem teto de ~4,19 MP e devolve **1720×2432 calado** quando se pede 1920×2720
+  - [ ] **alvo de peso no nó Recortar** — hoje grava webp q92 sem teto; 350 KB não é garantido (a geração de referência saiu com 359 KB). **Vale para todos os fluxos, não só a Hering**: é o que separa "deu certo no teste" de "roda sem alguém olhando"
+  - [ ] **biblioteca de bases de casting neutras** (uma vez por modelo/pose, reaproveitada em todo produto) — vira pré-requisito se o volume for alto
+  - [ ] testar o **Seedream Layerize** (instalado, não testado): separa a imagem em camadas — caminho alternativo para isolar a peça sem gerar base
 
 *F1 — o processo (Fluxo "Guia de Compras"):*
 - [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
@@ -298,6 +322,16 @@ Princípio: **o juiz é um módulo só, duas superfícies** — interativo no ch
 - **Fallback de LLM em outra plataforma** (Danilo, 18/08/2026 — "depois; ter o fallback dentro da Anthropic já funciona"). O que já está de pé: `MODELS_RESERVA` faz sonnet-4-6 → sonnet-5 em 429/500/502/503/504/529/408, que cobre sobrecarga e instabilidade de modelo — a falha frequente. Falta a queda TOTAL da Anthropic, que é rara e curta. **Sugestão: OpenAI**, por três motivos — nuvem independente (Azure; a Anthropic roda em AWS/GCP, e o Gemini em GCP não separa o domínio de falha), busca web nativa madura devolvendo URL real, e Structured Outputs, que eliminaria o `extractJSON` raspando `{...}` do texto (foi essa raspagem que traduziu estouro de teto em "JSON não extraído"). Descartados: Gemini (URLs de redirect que expiram — ruim porque guardamos link para o flywheel), Grok (o acesso nativo ao X é valioso para a ESCUTA, não como reserva geral), Perplexity (camada fina de busca, não substitui o raciocínio). **Tamanho: ~1 dia, não 1 hora** — conector novo (mensagens, ferramentas e streaming são todos diferentes), `SYSTEM_PROMPT` adaptado e avaliado (foi afinado meses para o Claude; sem adaptar, o cliente recebe um diagnóstico visivelmente diferente no dia da queda) e entrada própria na avaliação ao vivo, porque **reserva não exercitada não funciona no dia em que precisa**. **Gatilho:** primeira indisponibilidade da Anthropic que passe de ~15 min em horário de cliente, ou volume que torne o risco caro.
 - **Alerta de indisponibilidade da Anthropic** (barato, sai junto ou antes do item acima). O `_ai.js` tem `alertIfBalanceError` para saldo, mas 5xx/529 não disparam alerta nenhum — hoje você descobre a queda pelo cliente.
 
+- **💸 Custo de geração do Studio não é gravado** (achado 19/08 ao tentar somar o gasto da Hering). `submitGeneration` grava provider, request_id e status mas NUNCA `custo_estimado` — as 146 gerações do piloto registraram US$ 0,00. E `if (!platformAdmin)` faz o admin não debitar crédito, então **quando o operador testa, nada é medido**. Consequência: a fórmula de manutenção por cliente continua sendo chute do lado do Studio, mesmo depois de a migration 050 ter resolvido o lado do LLM. **Conserto:** gravar `custo_estimado` no insert (a tabela de preço por modelo já existe em `_credits.js`) e decidir se admin deve ao menos REGISTRAR consumo sem debitar. **Tamanho: 1h.** Gatilho: antes de fechar contrato com preço por asset.
+
+- **🎽 Piloto Hering — o que falta no KH6V** (19/08). ✅ Feito: bake-off escolheu seedream 4.5, FLUX VTO integrado (resolve fidelidade e continuidade de look), fluxo de 6 saídas com imagem-âncora, portões checando peça + modelo + anatomia + continuidade. ❌ Aberto: **(a)** o limite de **350 KB** do brief — o nó Recortar entrega os px exatos mas grava webp q92 sem alvo de peso, e não sai em JPG (~30 min de `sharp`); **(b)** a **gola** vem mais sutil que o still nas ressalvas dos portões — decidir com a Hering se compromete; **(c)** poses novas ainda dependem de geração, porque o VTO preserva a pose da foto — se a Hering mandar castings em mais poses, o VTO resolve tudo.
+
+- **🖥️ Header de Diagnósticos no admin ainda quebrado** (Danilo, 18/08/2026 — "continua errado"). O que JÁ foi corrigido e não era isso, ou não era só isso: os filtros Setor/Porte em branco (faltava `SelectProps={{ displayEmpty: true }}` — o MUI não renderiza o rótulo do `<MenuItem value="">` sem ele) e o zebrado da lista (`background:` com token de tema dentro de ternário, que escapou da primeira varredura). **Falta caracterizar o defeito restante** — no print de 18/08 o título "Todos os diagnósticos" aparece cortado no topo, encostado na barra superior, o que sugere problema de layout do container (`PageHeader`/`AppLayout`) e não do conteúdo. Começar por aí, com o print em mãos. Fica no `/admin` → aba Diagnósticos.
+
+- **🧪 Teste que RENDERIZA os componentes** — o buraco que explica os cinco defeitos visuais de 18/08. Todos passaram por `npm run build`, pela suíte inteira e pelo deploy sem um sinal, e todos foram achados pelo Danilo olhando a tela: espaçamento sub-pixel em 31 telas, modal transparente, aba Saúde em tela branca, filtros em branco, zebrado sumido. **A suíte não renderiza nada** — as varreduras que existem hoje cobrem os padrões JÁ conhecidos, e a próxima classe de erro visual passa igual. Instalar `jsdom` + `@testing-library/react` (2 pacotes de dev) e um teste de "monta sem explodir" por tela. Não precisa asserção de aparência: só isso teria pego a tela branca, o modal e provavelmente os filtros. **Tamanho: meio dia**, contando a calibragem dos mocks de Supabase. Gatilho: antes de qualquer sprint que mexa em UI em volume.
+
+- **🔍 Varredura completa do commit d7852fb** ("identidade BR4NDCODE, reset do legado"). Commit grande e mecânico, de onde já saíram DUAS classes de erro que chegaram em produção: espaçamento (`gap: 1.25` → `'1.25px'`, 85 ocorrências em 31 arquivos) e cor (`background: 'background.paper'`, 20 ocorrências em 4 arquivos). Se tem duas, pode ter três. Ler o diff inteiro procurando outras conversões mecânicas — candidatos: `fontSize`, `borderRadius`, `boxShadow`, `zIndex`, valores de `sx` que viraram string literal, e imports do design system antigo substituídos por equivalentes com API diferente. **Tamanho: 2h de leitura de diff.**
+
 ---
 
 ## 🧊 Geladeira
@@ -308,6 +342,10 @@ Nurturing emails (D+2…D+15) · F07b Search Listening (busca orgânica) · atua
 ---
 
 ## ✅ Entregue (resumo — história completa no changelog v6.0 do specs.md)
+
+**19/ago/2026, "o piloto na prática":** reunião Worten (setup + diagnóstico validado em `worten.pt`) · primeiro teste de fluxo real da Hering com o brief do KH6V · **método de bake-off** (mesmo alvo, N caminhos, mesmo juiz, repetição para medir consistência — `arquivo/hering-bakeoff.mjs`) que elegeu o **seedream 4.5** e desmentiu duas recomendações minhas em sequência · **FLUX Virtual Try-On integrado** (aceita prompt, o FASHN não — foi o que matou a fenda lateral que vazava do casting) · nó **"Imagem"** com prévia inline e `genId` consertado · diagnóstico passa a **LER o site** com `web_fetch` e a declarar `base_de_evidencia` em vez de desistir quando o material é escasso (caso costclarity.com) · `separarAlvo()` no campo único do admin. Custo do piloto medido: US$ 6,08 em 146 gerações.
+
+**18/ago/2026, "o dia da integridade":** guarda de identidade nos 4 caminhos de diagnóstico (o modelo não define mais quem é o cliente — origem: relatório da "Pixel Agência Digital" entregue à Pixel Retail) · **`npm run guarda`** com varredura de mutação 21/21 e hook de pre-commit sobre os 11 arquivos do núcleo · avaliação ao vivo contra a API · **mercado por país** (`_mercado.js` + migration 051; Worten validada de verdade) · **custo por workspace** (migration 050; `streamAI` nunca registrara nada) · escuta sem depender do Google (`_busca.js`, adaptadores, cron semanal) · sonnet-4-6 principal com sonnet-5 de reserva, medido em A/B · **migration 049** fecha leitura anônima de 111 diagnósticos · e-mail do operador sai da Gestão de time · concorrente desativado para de alimentar a inteligência de mercado · aba **Saúde** no admin · limpezas com backup (diagnóstico errado, 6 sinais e 3 sínteses contaminadas, 131 eventos de escuta sem URL). 9 deploys. Doutrina do núcleo em [`nucleo-ia.md`](nucleo-ia.md).
 
 **06–08/jul/2026, "a era do cérebro":** `_brain.js` (cérebro como módulo único) · flywheel completo (todas as superfícies leem+escrevem) · `brand_dataset` (exemplos julgados p/ fine-tune) · modelo vivo enriquecido (taxonomia por código, facetas territorio/conteudo, métricas por versão) · sinais `content_used`/`image_regen`/`writing_edit` · Writing Room (frameworks + blocos editáveis + compilador peça→workflow) · Biblioteca de assets · painel admin Cérebros + IA LOUDR como prova viva (narrativa + **rede neural viva**) · cron autônomo consertado · dogfooding Pupila · migrations 025–034 via CLI · docs v6.0. Concorrentes mapeados: Pupila (direto, DNA estático) e Tess (indireto, valida a tese borda-commodity).
 

@@ -150,26 +150,64 @@ const FormatoNode = memo(({ id, data, selected }) => (
   </NodeShell>
 ))
 
-const GenerateNode = memo(({ id, data, selected }) => (
-  <NodeShell id={id} color={TEAL} title="Gerar" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
-    <Stack spacing={0.5} className="nodrag">
-      <Select value={(data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL}
-        onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11 }}>
-        {IMAGE_MODEL_GROUPS.flatMap(g => [
-          <ListSubheader key={g} sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 2.2, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
-          ...IMAGE_MODELS.filter(m => m.group === g).map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>),
-        ])}
-      </Select>
-      {/* visão de custo: o cliente sabe quanto CADA geração consome */}
-      <Typography sx={{ fontSize: 9.5, color: 'text.disabled' }}>
-        {(() => { const c = creditsForImage((data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL); return `${c} crédito${c > 1 ? 's' : ''} por geração` })()}
-      </Typography>
-      {data.status === 'running' && <Stack direction="row" spacing={0.75} alignItems="center"><CircularProgress size={12} sx={{ color: 'primary.main' }} /><Typography sx={{ fontSize: 10, color: 'primary.main' }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>}
-      {data.status === 'done'    && <Typography sx={{ fontSize: 10, color: 'primary.main', fontWeight: 700 }}>✓ concluído</Typography>}
-      {data.status === 'error'   && <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>}
-    </Stack>
-  </NodeShell>
-))
+// Geração de IMAGEM. Mostra o resultado NO PRÓPRIO NÓ, como o de Vídeo — pedido
+// do Danilo (19/08) durante o piloto Hering: com 6 saídas no canvas, abrir a
+// prévia de cada uma para conferir era o gargalo da revisão.
+const GenerateNode = memo(({ id, data, selected }) => {
+  const modelo = (data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL
+  return (
+    <NodeShell id={id} color={TEAL} title="Imagem" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
+      <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
+        <Select value={modelo} onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11, flexShrink: 0 }}>
+          {IMAGE_MODEL_GROUPS.flatMap(g => [
+            <ListSubheader key={g} sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 2.2, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
+            ...IMAGE_MODELS.filter(m => m.group === g).map(m => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 11 }}>{m.label}</MenuItem>),
+          ])}
+        </Select>
+        {/* visão de custo: o cliente sabe quanto CADA geração consome */}
+        <Typography sx={{ fontSize: 9.5, color: 'text.disabled', flexShrink: 0 }}>
+          {(() => { const c = creditsForImage(modelo); return `${c} crédito${c > 1 ? 's' : ''} por geração` })()}
+        </Typography>
+
+        {data.outputUrl ? (
+          <>
+            <Box onClick={() => data.onOpen?.(data.outputUrl)}
+              sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-in' }}>
+              <Box component="img" src={data.outputUrl} alt=""
+                sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 1, display: 'block' }} />
+            </Box>
+            <Stack direction="row" spacing={0} alignItems="center" sx={{ mt: 0.25, flexShrink: 0 }}>
+              <Tooltip title="Aprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'up')}>
+                {data.feedback === 'up' ? <ThumbUpIcon sx={{ fontSize: 14, color: TEAL }} /> : <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />}
+              </IconButton></Tooltip>
+              <Tooltip title="Reprovar"><IconButton size="small" onClick={() => data.onVote?.(id, data.genId, 'down')}>
+                {data.feedback === 'down' ? <ThumbDownIcon sx={{ fontSize: 14, color: CORAL }} /> : <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />}
+              </IconButton></Tooltip>
+              <Box sx={{ flex: 1 }} />
+              <Tooltip title="Baixar"><IconButton size="small" onClick={() => data.onDownload?.(data.outputUrl)}>
+                <DownloadOutlinedIcon sx={{ fontSize: 15 }} />
+              </IconButton></Tooltip>
+              <Tooltip title={data.saved ? 'Salvo nos assets' : 'Salvar nos assets'}>
+                <Typography component="span"><IconButton size="small" disabled={data.saved}
+                  onClick={() => data.onSave?.(id, { imageUrl: data.outputUrl, genId: data.genId, formato: data.formato, saved: data.saved })}>
+                  <BookmarkAddOutlinedIcon sx={{ fontSize: 15, color: data.saved ? TEAL : 'inherit' }} />
+                </IconButton></Typography>
+              </Tooltip>
+            </Stack>
+          </>
+        ) : (
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 1 }}>
+            {data.status === 'running'
+              ? <Stack alignItems="center" spacing={0.5}><CircularProgress size={18} sx={{ color: TEAL }} /><Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>gerando… {fmtElapsed(data.elapsed || 0)}</Typography></Stack>
+              : data.status === 'error'
+                ? <Typography sx={{ fontSize: 10, color: CORAL }}>{data.error || 'erro'}</Typography>
+                : <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>conecte um prompt e rode</Typography>}
+          </Box>
+        )}
+      </Stack>
+    </NodeShell>
+  )
+})
 
 const PreviewNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={CORAL} title="Prévia" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
@@ -475,7 +513,8 @@ const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview', 'art
 const MAX_REF = 5
 const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
 // Formato e Gerar têm pouco conteúdo → altura fixa compacta p/ não ficar feio
-const NODE_SIZE = { formato: { width: 250, height: 150 }, generate: { width: 250, height: 140 } }
+// generate cresceu: agora mostra a imagem gerada dentro do nó.
+const NODE_SIZE = { formato: { width: 250, height: 150 }, generate: { width: 250, height: 330 } }
 const sizeFor = type => NODE_SIZE[type] || { width: DEFAULT_NODE, height: DEFAULT_NODE }
 const fmtElapsed = s => s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`
 // Normaliza a saída de um nó em lista de URLs (imageInput pode ter várias)
@@ -487,7 +526,7 @@ const NODE_TEMPLATES = [
   { type: 'prompt',       label: 'Prompt',       data: { text: '' } },
   { type: 'context',      label: 'Contexto',     data: { text: '' }, style: { width: 280, height: 220 } },
   { type: 'formato',      label: 'Formato',      data: { formato: '1:1' } },
-  { type: 'generate',     label: 'Gerar',        data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
+  { type: 'generate',     label: 'Imagem',       data: { status: 'idle', model: DEFAULT_IMAGE_MODEL } },
   { type: 'videoGen',     label: 'Vídeo',        data: { status: 'idle', model: DEFAULT_VIDEO_MODEL, duration: videoModelByKey(DEFAULT_VIDEO_MODEL)?.defaultDuration } },
   { type: 'preview',      label: 'Prévia',       data: { imageUrl: null } },
   { type: 'imageInput',   label: 'Imagem (upload)', data: {} },

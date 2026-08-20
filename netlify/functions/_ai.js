@@ -59,6 +59,12 @@ export const TOOLS = {
   // nossa chave: só max_uses, allowed_domains, blocked_domains e user_location.
   // A janela semanal da escuta vem da deduplicação contra o banco.
   webSearch: { type: 'web_search_20250305', name: 'web_search', max_uses: 6 },
+  // LER a página, não procurar quem falou dela. Para marca de pegada fina, o
+  // SITE é a fonte primária — decisão do Danilo, 19/08: "o site é o principal
+  // termo sobre o tema". Sem isto, a costclarity.com (1 página indexada) perdia
+  // para o jargão "cost clarity" do setor de FinOps e para a homônima da
+  // Arcadis, que têm centenas de páginas falando delas.
+  webFetch:  { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 6 },
 }
 
 export const isDev = () => !!process.env.NETLIFY_DEV
@@ -116,7 +122,7 @@ export function aiConfig(tier = 'standard') {
     model:         MODELS.smart,
     modeloReserva: MODELS_RESERVA[MODELS.smart],
     maxTokens:     32000,
-    tools:      [TOOLS.webSearch],
+    tools:      [TOOLS.webSearch, TOOLS.webFetch],
     retries:    1,
     retryDelay: 5000,
   }

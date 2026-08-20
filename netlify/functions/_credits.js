@@ -9,8 +9,12 @@ export const IMAGE_CREDITS = {
   'fal-ai/ideogram/v2':         2,
   'fal-ai/ideogram/v3':         2,
   'fal-ai/nano-banana-pro':     3,
+  'fal-ai/flux-pro/v1/vto':     3,   // $0,0375 1º MP + $0,005/MP extra → ~$0,10 com as nossas imagens
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado) — espelha o front
   'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight)
+  'bytedance/seedream/v5/pro/text-to-image': 2,  // $0,0675/img acima de 1536² (o nosso 1920×2720 é)
+  'bytedance/seedream/v5/pro/layerize':      4,  // $0,0675 POR CAMADA gerada — ~3 camadas no caso típico
+  // bytedance/seedream/v5/lite = 1 ($0,035 — mais barato que o 4.5)
   // fal-ai/bria/product-shot = 1 (~$0,04)
 }
 

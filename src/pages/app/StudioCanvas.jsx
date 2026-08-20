@@ -232,7 +232,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     // regen de GERAÇÃO pede o motivo (telemetria do juiz: por que falhou?)
     if (['generate', 'videoGen'].includes(n.type)) data.regenMenu = true
     if (n.type === 'artGate') data.onRegen = regenNodeCb   // re-julgar a peça
-    if (['preview', 'app', 'videoGen'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
+    if (['preview', 'app', 'videoGen', 'generate'].includes(n.type)) { data.onSave = savePiece; data.onDownload = downloadImage; data.onOpen = openLightbox; data.onVote = votePiece }
     if (n.type === 'imageInput') { data.onUpload = uploadImageInput; data.onRemoveImg = removeImageInput; data.onOpen = openLightbox }
     return { ...n, style, data }
   }, [updateNodeData, savePiece, downloadImage, deleteNode, duplicateNode, uploadImageInput, removeImageInput, improvePrompt, openLightbox, votePiece, runNode, regenNodeCb, ungroup, deleteGroup, markDirty])
@@ -290,7 +290,8 @@ export function StudioCanvas({ brandId, workflowId }) {
             if (d.loading) d.loading = false
             const hit = byNode[n.id]
             if (hit) {
-              if (n.type === 'generate') { d.outputUrl = d.outputUrl || hit.url; d.status = 'done' }
+              // genId junto: sem ele o voto e o "salvar" do nó não se ligam à geração
+              if (n.type === 'generate') { d.outputUrl = d.outputUrl || hit.url; d.genId = d.genId || hit.id; d.status = 'done' }
               if (n.type === 'app' || n.type === 'videoGen') { d.outputUrl = d.outputUrl || hit.url; d.genId = d.genId || hit.id; d.status = 'done' }
             }
             return { ...n, data: d }
@@ -455,10 +456,11 @@ export function StudioCanvas({ brandId, workflowId }) {
     const { prompt, formato, customSize, hasBrand, brandFacets, context, previewNodeId } = inputsFor(g.id)
     const model = resolveModel(g.data?.model === 'custom' ? g.data?.customModel : g.data?.model)
     // FASHN try-on não usa prompt: veste a 2ª imagem (peça) na 1ª (modelo)
-    const isTryon = /fashn\/tryon/.test(model || '')
+    const isTryon = /fashn\/tryon/.test(model || '')          // FASHN: sem prompt
+    const vesteModelo = isTryon || /flux-pro\/v1\/vto/.test(model || '')   // ambos: 2 refs (1ª modelo, 2ª peça)
     if (!prompt && !isTryon) { updateNodeData(g.id, { status: 'error', error: 'conecte um nó Prompt' }); dispatched.add(g.id); return null }
     const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
-    if (isTryon && references.length < 2) { updateNodeData(g.id, { status: 'error', error: 'try-on: conecte 2 imagens (1ª modelo, 2ª peça)' }); dispatched.add(g.id); return null }
+    if (vesteModelo && references.length < 2) { updateNodeData(g.id, { status: 'error', error: 'try-on: conecte 2 imagens (1ª modelo, 2ª peça)' }); dispatched.add(g.id); return null }
     updateNodeData(g.id, { status: 'running', error: null })
     if (previewNodeId) updateNodeData(previewNodeId, { imageUrl: null, loading: true })
     try {

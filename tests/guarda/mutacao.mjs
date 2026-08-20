@@ -111,6 +111,14 @@ const MUTACOES = [
     de: "bgcolor: i % 2 === 0 ? 'background.default' : 'action.hover'",
     para: "background: i % 2 === 0 ? 'background.default' : 'action.hover'" },
 
+  { nome: 'admin volta a jogar o domínio fora (caso Cost Clarity)',
+    arq: 'netlify/functions/diagnostico-gerar-background.js',
+    de: 'const separado = separarAlvo(empresaParam)', para: 'const separado = { nome: empresaParam, dominio: null }' },
+
+  { nome: 'diagnóstico perde a leitura de site (volta a só buscar)',
+    arq: 'netlify/functions/_ai.js',
+    de: 'tools:      [TOOLS.webSearch, TOOLS.webFetch],', para: 'tools:      [TOOLS.webSearch],' },
+
   { nome: 'guarda aprova qualquer coisa',
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",
