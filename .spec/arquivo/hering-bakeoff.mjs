@@ -11,7 +11,9 @@
 import { submitImageJob, getJobStatus, getJobResult, firstImageUrl } from '../../netlify/functions/_image.js'
 import { callAI, MODELS } from '../../netlify/functions/_ai.js'
 
-const B = 'https://uoaeegvpksaummjvmwxg.supabase.co/storage/v1/object/public/brand-assets/09f3d65b-07d9-46c9-b6e7-f878377dd7c2/workflow'
+// A base vem do ambiente: URL de projeto escrita no código faz o scanner de
+// segredos do Netlify reprovar o build inteiro (aconteceu em 19/08).
+const B = `${process.env.SUPABASE_URL}/storage/v1/object/public/brand-assets/09f3d65b-07d9-46c9-b6e7-f878377dd7c2/workflow`
 const STILL   = `${B}/1787160605941-x3im-KH6V_still_frente.jpg`
 const MODELO  = `${B}/1787161228142-azfq-imagem_1_modelo.jpg`
 const MODELO2 = `${B}/1787161396886-ppgt-imagem_2_modelo.jpg`

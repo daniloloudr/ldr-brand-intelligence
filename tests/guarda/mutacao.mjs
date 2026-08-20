@@ -123,6 +123,15 @@ const MUTACOES = [
     arq: 'netlify/functions/_identidade.js',
     de: "  if (recebidos.some(d => d === esperado)) return { ok: true, verificado: true }",
     para: '  return { ok: true, verificado: true }' },
+
+  // 19/08: o scanner do Netlify barrou o merge para produção por causa da URL
+  // do projeto escrita em três scripts arquivados. Build barrado = correção que
+  // não chega ao cliente — e o log do build não é acessível pela API, então a
+  // causa levou meia hora para aparecer.
+  { nome: 'URL do Supabase volta a ser escrita no código',
+    arq: '.spec/arquivo/hering-bakeoff.mjs',
+    de: '${process.env.SUPABASE_URL}',
+    para: 'https://uoaeegvpksaummjvmwxg.supabase.co' },
 ]
 
 let pegos = 0

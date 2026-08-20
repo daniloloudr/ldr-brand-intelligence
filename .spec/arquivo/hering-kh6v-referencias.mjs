@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 const WF = '5de24372-a3ab-43d6-afec-c0960125aa59'
-const B = 'https://uoaeegvpksaummjvmwxg.supabase.co/storage/v1/object/public/brand-assets/09f3d65b-07d9-46c9-b6e7-f878377dd7c2/workflow'
+// A base vem do ambiente: URL de projeto escrita no código faz o scanner de
+// segredos do Netlify reprovar o build inteiro (aconteceu em 19/08).
+const B = `${process.env.SUPABASE_URL}/storage/v1/object/public/brand-assets/09f3d65b-07d9-46c9-b6e7-f878377dd7c2/workflow`
 
 const A = {
   modelo1: `${B}/1787161228142-azfq-imagem_1_modelo.jpg`,   // frente
