@@ -32,8 +32,11 @@ describe('nenhum segredo escrito em arquivo rastreado', () => {
   it('não tem URL de projeto Supabase literal (o que reprovou o build de 19/08)', () => {
     // Qualquer subdomínio de projeto — não fixa o nosso, senão o teste morre
     // junto com a instância e para de proteger na próxima.
+    // `tests/` NÃO é exceção: na primeira versão eu excluí a pasta inteira, e o
+    // segredo caiu justo lá — a mutação que deveria pegar a URL literal foi
+    // escrita COM a URL literal, e o build barrou de novo. Guarda que abre
+    // exceção para si mesma não é guarda.
     const culpados = conteudo()
-      .filter(([a]) => !a.startsWith('tests/'))         // este arquivo descreve o padrão
       .filter(([, t]) => /https?:\/\/[a-z0-9]{15,}\.supabase\.co/i.test(t))
       .map(([a]) => a)
     expect(culpados, `URL de projeto Supabase literal em: ${culpados.join(', ')} — use process.env.SUPABASE_URL`).toEqual([])
@@ -50,7 +53,6 @@ describe('nenhum segredo escrito em arquivo rastreado', () => {
     ]
     const achados = []
     for (const [arquivo, texto] of conteudo()) {
-      if (arquivo.startsWith('tests/')) continue
       for (const [re, nome] of PADROES) if (re.test(texto)) achados.push(`${arquivo} → ${nome}`)
     }
     expect(achados, `segredo literal em: ${achados.join(' | ')}`).toEqual([])

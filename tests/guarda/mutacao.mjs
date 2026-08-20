@@ -128,10 +128,15 @@ const MUTACOES = [
   // do projeto escrita em três scripts arquivados. Build barrado = correção que
   // não chega ao cliente — e o log do build não é acessível pela API, então a
   // causa levou meia hora para aparecer.
+  // Duas armadilhas aqui, as duas descobertas do jeito caro em 19/08:
+  // 1. a URL é FICTÍCIA — escrever a real reintroduz o defeito dentro da
+  //    própria guarda (foi o que barrou o build na primeira tentativa);
+  // 2. e vai CONCATENADA — mesmo fictícia, o literal contíguo faria a guarda
+  //    acusar este arquivo. O valor só existe quando a mutação é aplicada.
   { nome: 'URL do Supabase volta a ser escrita no código',
     arq: '.spec/arquivo/hering-bakeoff.mjs',
     de: '${process.env.SUPABASE_URL}',
-    para: 'https://uoaeegvpksaummjvmwxg.supabase.co' },
+    para: 'https://projetoficticio' + 'detestes.supabase' + '.co' },
 ]
 
 let pegos = 0
