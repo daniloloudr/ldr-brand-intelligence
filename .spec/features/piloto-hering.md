@@ -88,6 +88,40 @@ original ANTES de usar — erro ali contamina tudo a jusante. Mesmo raciocínio 
 3. **Volume, cadência e poses.** 3 imagens de piloto e 200/semana pedem coisas diferentes — com
    volume, biblioteca de bases e alvo de peso deixam de ser refinamento.
 
+## F0.6 ✅ 2026-08-21 — O PROCESSO, em 4 etapas
+
+Fechado pelo Danilo depois de três dias no KH6V. Cada etapa nasceu de um defeito
+que custou rodada — é receita de produção, não teoria.
+
+| # | Etapa | Entradas | Modelo | Por que assim |
+|---|---|---|---|---|
+| **0** | **Base de casting limpa** — 3 versões da modelo sem os adereços de roupa dela, em malha colada ao corpo (segunda pele) | casting aprovado | **nano banana 2.5** | foca em pessoa/casting; é o que impede a roupa do casting de vazar na peça |
+| **1** | **Primeira imagem inteira** — corpo inteiro com acessórios e a peça em caimento real; depois N versões fiéis | base limpa + still + acessórios | **Seedream 5.0** | fidelidade de peça |
+| **2** | **Poses diferentes** — só muda o ângulo fotográfico | **referência de POSE** + **as imagens já aprovadas da modelo com a peça** + referência do produto | Seedream 5.0 | a saída aprovada vira entrada: qualidade compõe |
+| **3** | **Costas** | versão da modelo de costas + still de costas | Seedream 5.0 | — |
+| **4** | **Fotos livres** | as fotos que **deram certo** + novas poses + a peça | Seedream 5.0 | — |
+
+**A regra que vale em TODAS as etapas** — a divisão de trabalho entre os nós:
+
+> **CONTEXTO** = o que é constante: **visão de câmera e ângulo** + **descrição da
+> peça**. · **PROMPT** = específico por foto.
+
+**Dois princípios que valem além da Hering:**
+1. **Modelo diferente para trabalho diferente.** Nano banana para pessoa,
+   Seedream 5 para fidelidade de peça. Não existe "o melhor modelo" — existe o
+   melhor para a etapa.
+2. **A saída aprovada vira entrada da etapa seguinte** (etapas 2 e 4). É o mesmo
+   mecanismo que a Worten pediu como "estrela / cânone" — aqui ele aparece por
+   necessidade de produção, não por pedido de cliente.
+
+**Distância entre o processo e o fluxo de hoje** (o que falta construir):
+- [ ] etapa 0 não usa nano banana: as bases limpas atuais saíram de outros modelos
+- [ ] etapa 2 **não tem referência de pose** nem consome as imagens aprovadas —
+      hoje vai direto de base + still, e a pose vem só do texto
+- [ ] etapa 4 não existe no fluxo
+- [ ] o contexto ainda não traz **visão de câmera e ângulo** de forma sistemática
+      (entrou por prompt, caso a caso)
+
 ## F1 — próximo (depois do pilotinho)
 
 Fluxo "Guia de Compras" com **juiz de fidelidade** = o nó Diretor de Arte (F2 ✅ entregue)
