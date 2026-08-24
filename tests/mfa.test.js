@@ -107,3 +107,45 @@ describe('o gate de tela existe — mas é o complemento, não a proteção', ()
     expect(app).toMatch(/setMfaOk\(false\)/)
   })
 })
+
+// ── MFA é OPCIONAL para o cliente (decisão do Danilo, 24/ago) ────────
+// A única conta em que é obrigatório é a de operador. Forçar o cliente seria
+// mudar o contrato de acesso de gente que já está usando — e no meio de uma
+// semana de setup de três clientes.
+describe('para o cliente o segundo fator é opcional', () => {
+  const app  = soCodigo(readFileSync('src/App.jsx', 'utf8'))
+  const gate = soCodigo(readFileSync('src/pages/auth/MfaGate.jsx', 'utf8'))
+  const conta = soCodigo(readFileSync('src/pages/app/WorkspacePage.jsx', 'utf8'))
+
+  it('sem fator inscrito e sem obrigatoriedade, o gate libera na hora', () => {
+    // Esta linha é a diferença entre "opcional" e "obrigatório para todos".
+    expect(gate).toMatch(/if \(!obrigatorio\) return onLiberado\(\)/)
+    // E ela vem ANTES de qualquer inscrição.
+    expect(gate.indexOf('if (!obrigatorio) return onLiberado()'))
+      .toBeLessThan(gate.indexOf('await inscrever()'))
+  })
+
+  it('só a rota de admin passa `obrigatorio`', () => {
+    const admin = app.slice(app.indexOf('ADMIN_ROUTES.includes(route)'))
+    const cliente = app.slice(app.indexOf('WORKSPACE_ROUTES.includes(route)'),
+                              app.indexOf('ADMIN_ROUTES.includes(route)'))
+    expect(admin, 'o /admin deixou de exigir').toMatch(/<MfaGate obrigatorio/)
+    expect(cliente, 'o app do cliente passou a EXIGIR segundo fator').not.toMatch(/obrigatorio/)
+  })
+
+  it('o cliente tem como ligar por conta própria', () => {
+    expect(conta).toMatch(/function SegundoFator/)
+    expect(conta).toMatch(/mfa\.inscrever\(\)/)
+    expect(conta).toMatch(/mfa\.desligar\(\)/)
+  })
+
+  it('quem LIGOU é verificado — senão a sessão dele cai em 15 min', () => {
+    // "Limit duration of AAL1 sessions" está ativo no Supabase: sessão com
+    // fator inscrito e não verificada é encerrada. Sem o gate na rota do
+    // cliente, ligar o MFA viraria queda de sessão a cada quarto de hora.
+    const cliente = app.slice(app.indexOf('WORKSPACE_ROUTES.includes(route)'),
+                              app.indexOf('ADMIN_ROUTES.includes(route)'))
+    expect(cliente).toMatch(/if \(!mfaOk\)/)
+    expect(cliente).toMatch(/MfaGate/)
+  })
+})

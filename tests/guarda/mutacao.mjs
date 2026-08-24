@@ -276,7 +276,25 @@ const MUTACOES = [
 
   { nome: 'o /admin monta sem o segundo fator',
     arq: 'src/App.jsx',
-    de: '    if (!mfaOk) {', para: '    if (false) {' },
+    de: '          <MfaGate obrigatorio onLiberado={() => setMfaOk(true)} onLogout={doLogout} />',
+    para: '          <MfaGate onLiberado={() => setMfaOk(true)} onLogout={doLogout} />' },
+
+  { nome: 'o segundo fator vira OBRIGATÓRIO para o cliente',
+    arq: 'src/pages/auth/MfaGate.jsx',
+    de: '    if (!obrigatorio) return onLiberado()', para: '' },
+
+  { nome: 'quem ligou o MFA deixa de ser verificado (sessão cai em 15 min)',
+    arq: 'src/App.jsx',
+    de: `    if (!mfaOk) {
+      return (
+        <Suspense fallback={<PageFallback />}>
+          <MfaGate onLiberado={() => setMfaOk(true)} onLogout={doLogout} />
+        </Suspense>
+      );
+    }
+    return (
+      <AppShell`,
+    para: '    return (\n      <AppShell' },
 
   // ── Redefinir senha (24/08) ───────────────────────────────────────
   { nome: 'redefinir senha volta a aceitar quem não é operador',

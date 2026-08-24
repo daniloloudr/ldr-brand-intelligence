@@ -22,6 +22,7 @@ import { durLabel } from '../../lib/videoModels'
 import { PageHeader }     from '../../components/shell/PageHeader'
 import { PALETTE } from '../../lib/theme'
 import { PRESETS, ORDEM_PRESETS, presetDoMembro, papelDoPreset } from '../../lib/papeis'
+import * as mfa from '../../lib/mfa'
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"]
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"]
@@ -645,6 +646,105 @@ function PageShell({ title, subtitle, children }) {
   )
 }
 
+// ── Segundo fator, por escolha da pessoa ─────────────────────────────
+// OPCIONAL para o cliente (decisão do Danilo, 24/ago) — a única conta em que é
+// obrigatório é a de operador da plataforma, que atravessa a RLS de 15 tabelas.
+//
+// Quem liga aqui passa a ver a tela de código no próximo login. Isso não é
+// capricho: o Supabase está com "Limit duration of AAL1 sessions" ativo, então
+// sessão com fator inscrito e não verificada é encerrada em 15 minutos. Ligar
+// sem pedir o código faria o app parecer instável para quem escolheu se
+// proteger — o pior desfecho possível para uma opção de segurança.
+function SegundoFator() {
+  const [ligado, setLigado]     = useState(null)   // null = ainda lendo
+  const [inscricao, setInscricao] = useState(null) // { factorId, qr, segredo }
+  const [codigo, setCodigo]     = useState('')
+  const [ocupado, setOcupado]   = useState(false)
+  const [msg, setMsg]           = useState('')
+  const [erro, setErro]         = useState('')
+
+  useEffect(() => { mfa.fatores().then(f => setLigado(f.length > 0)) }, [])
+
+  async function comecar() {
+    setErro(''); setMsg(''); setOcupado(true)
+    const r = await mfa.inscrever()
+    setOcupado(false)
+    if (r.erro) return setErro(r.erro)
+    setInscricao(r)
+  }
+
+  async function confirmar(e) {
+    e.preventDefault()
+    setErro(''); setOcupado(true)
+    const r = await mfa.confirmar(inscricao.factorId, codigo)
+    setOcupado(false)
+    if (r.erro) { setCodigo(''); return setErro(r.erro) }
+    setInscricao(null); setCodigo(''); setLigado(true)
+    setMsg('Verificação em duas etapas ativada.')
+  }
+
+  async function desligar() {
+    if (!window.confirm('Desligar a verificação em duas etapas desta conta?')) return
+    setErro(''); setOcupado(true)
+    const r = await mfa.desligar()
+    setOcupado(false)
+    if (r.erro) return setErro(r.erro)
+    setLigado(false); setMsg('Verificação em duas etapas desativada.')
+  }
+
+  if (ligado === null) return null
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Verificação em duas etapas</Typography>
+      {msg  && <Alert severity="success" sx={{ borderRadius: 2 }} onClose={() => setMsg('')}>{msg}</Alert>}
+      {erro && <Alert severity="error"   sx={{ borderRadius: 2 }} onClose={() => setErro('')}>{erro}</Alert>}
+
+      {inscricao ? (
+        <Box component="form" onSubmit={confirmar} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Escaneie o código no seu app autenticador e digite os 6 dígitos.
+          </Typography>
+          {inscricao.qr && (
+            <Box component="img" src={inscricao.qr} alt="QR code do segundo fator"
+              sx={{ width: 180, height: 180 }} />
+          )}
+          {inscricao.segredo && (
+            <Typography variant="caption" color="text.disabled" sx={{ wordBreak: 'break-all' }}>
+              Não consegue escanear? Use o código: <strong>{inscricao.segredo}</strong>
+            </Typography>
+          )}
+          <TextField size="small" label="Código de 6 dígitos" value={codigo} autoFocus
+            onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputProps={{ inputMode: 'numeric', autoComplete: 'one-time-code' }} sx={{ maxWidth: 220 }} />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button type="submit" variant="contained" disabled={ocupado || codigo.length < 6} sx={{ fontWeight: 800 }}>
+              Ativar
+            </Button>
+            <Button color="inherit" disabled={ocupado}
+              onClick={async () => { await mfa.abortarInscricao(inscricao.factorId); setInscricao(null); setCodigo('') }}>
+              Cancelar
+            </Button>
+          </Box>
+        </Box>
+      ) : (
+        <>
+          <Typography variant="body2" color="text.secondary">
+            {ligado
+              ? 'Ativada. No próximo acesso pediremos o código do seu app autenticador.'
+              : 'Opcional. Se ativar, além da senha pediremos um código de 6 dígitos do seu celular a cada acesso.'}
+          </Typography>
+          <Button variant={ligado ? 'outlined' : 'contained'} color={ligado ? 'error' : 'primary'}
+            onClick={ligado ? desligar : comecar} disabled={ocupado}
+            sx={{ alignSelf: 'flex-start', fontWeight: 800, px: 3 }}>
+            {ligado ? 'Desativar' : 'Ativar'}
+          </Button>
+        </>
+      )}
+    </Box>
+  )
+}
+
 // ── Minha conta ──────────────────────────────────────────────────────
 // A página da PESSOA. Não existia: `/app/conta` se chamava "Configurações da
 // conta" e mostrava dados da EMPRESA. Depois da tela forçada de primeiro acesso
@@ -704,6 +804,10 @@ function TabMinhaConta() {
           Salvar
         </Button>
       </Box>
+
+      <Divider />
+
+      <SegundoFator />
 
       <Divider />
 

@@ -165,6 +165,20 @@ export default function App() {
     // No domínio de sistema, workspace só existe via impersonação do admin —
     // nunca por associação. Sem impersonar, manda pra casa (admin→/admin).
     if (systemDomain && !impersonating) return homeForLoggedIn();
+
+    // MFA aqui é OPCIONAL: quem não ligou passa direto (o gate devolve na hora,
+    // porque `obrigatorio` é false). O que ele faz é PEDIR O CÓDIGO de quem
+    // ligou — e isso não é rigor nosso: com "Limit duration of AAL1 sessions"
+    // ativo no Supabase, a sessão de quem TEM fator e não verifica é encerrada
+    // em 15 minutos. Sem esta tela, ligar o segundo fator viraria queda de
+    // sessão a cada quarto de hora, e o cliente concluiria que o app é instável.
+    if (!mfaOk) {
+      return (
+        <Suspense fallback={<PageFallback />}>
+          <MfaGate onLiberado={() => setMfaOk(true)} onLogout={doLogout} />
+        </Suspense>
+      );
+    }
     return (
       <AppShell
         user={user}
@@ -195,7 +209,9 @@ export default function App() {
     if (!mfaOk) {
       return (
         <Suspense fallback={<PageFallback />}>
-          <MfaGate onLiberado={() => setMfaOk(true)} onLogout={doLogout} />
+          {/* obrigatorio: aqui o gate INSCREVE quem ainda não tem fator. É a
+              única conta do produto em que o segundo fator não é opcional. */}
+          <MfaGate obrigatorio onLiberado={() => setMfaOk(true)} onLogout={doLogout} />
         </Suspense>
       );
     }

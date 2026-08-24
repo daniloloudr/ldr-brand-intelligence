@@ -83,6 +83,20 @@ export async function abortarInscricao(factorId) {
   if (factorId) await supabase.auth.mfa.unenroll({ factorId })
 }
 
+/**
+ * Desliga o segundo fator. Só o próprio dono da conta chega aqui (é a sessão
+ * dele que o Supabase usa) — ninguém desliga o de outro pela aplicação.
+ */
+export async function desligar() {
+  const lista = await fatores()
+  if (!lista.length) return { ok: true }
+  for (const f of lista) {
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: f.id })
+    if (error) return { erro: error.message }
+  }
+  return { ok: true }
+}
+
 function humanizar(bruto = '') {
   if (/invalid.*code|verification failed/i.test(bruto)) {
     return 'Código inválido. Confira se o relógio do aparelho está certo — o código muda a cada 30 segundos.'

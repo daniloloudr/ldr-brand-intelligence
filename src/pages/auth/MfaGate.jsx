@@ -20,7 +20,21 @@ import { themeLight } from '../../lib/theme'
 import { Wordmark } from '../../components/Wordmark'
 import { NIVEL, situacao, inscrever, confirmar, abortarInscricao } from '../../lib/mfa'
 
-export function MfaGate({ onLiberado, onLogout }) {
+/**
+ * `obrigatorio` separa duas coisas que não podem se confundir:
+ *
+ *  · true  (só o operador) — sem fator inscrito, o gate INSCREVE. A conta que
+ *    atravessa a RLS de 15 tabelas não devia depender só de uma senha.
+ *  · false (todo o resto)  — sem fator inscrito, passa direto. MFA é OPCIONAL
+ *    para o cliente: ele liga em "Minha conta" se quiser.
+ *
+ * A VERIFICAÇÃO, essa vale para os dois. Quem ligou o segundo fator precisa
+ * apresentá-lo — e não é rigor nosso: o Supabase está com "Limit duration of
+ * AAL1 sessions" ligado, então a sessão de quem TEM fator e não verifica é
+ * encerrada em 15 minutos. Um app que não pede o código transformaria a escolha
+ * do cliente em queda de sessão a cada quarto de hora.
+ */
+export function MfaGate({ onLiberado, onLogout, obrigatorio = false }) {
   const [estado, setEstado]   = useState('carregando')  // carregando | inscrever | verificar | erro
   const [qr, setQr]           = useState(null)
   const [segredo, setSegredo] = useState(null)
@@ -35,11 +49,15 @@ export function MfaGate({ onLiberado, onLogout }) {
     if (s.nivel === NIVEL.FALTA_VERIFICAR) return setEstado('verificar')
     if (s.nivel === NIVEL.ERRO) { setErro(s.erro); return setEstado('erro') }
 
+    // Sem fator inscrito e não obrigatório: o cliente segue a vida. Ligar o
+    // segundo fator é escolha dele, em "Minha conta".
+    if (!obrigatorio) return onLiberado()
+
     const r = await inscrever()
     if (r.erro) { setErro(r.erro); return setEstado('erro') }
     setFactorId(r.factorId); setQr(r.qr); setSegredo(r.segredo)
     setEstado('inscrever')
-  }, [onLiberado])
+  }, [onLiberado, obrigatorio])
 
   useEffect(() => { avaliar() }, [avaliar])
 
