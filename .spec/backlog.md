@@ -7,7 +7,112 @@
 >
 > **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
-> Atualizado: 2026-08-17
+> Atualizado: 2026-08-24
+
+---
+
+## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (próxima)
+
+> **Regra de release (Danilo, 24/ago):** objetivo declarado → testes → quality gate (`npm run guarda`) → security gate (`/security-review`) → só então aprovada. Deploy em prod **sempre no fim do dia, fora do horário comercial**. Migration que toca RLS passa também por `npm run guarda:rls`.
+
+**Objetivo:** que o comprometimento de uma conta deixe de valer a plataforma inteira. Hoje uma credencial concentra super admin + participação nos workspaces dos clientes.
+
+**Gatilho:** pergunta do Danilo (24/ago) — *"o meu usuário de super admin precisa ser diferente; separar /admin de /app em subdomínio deixa mais seguro?"*
+
+### O diagnóstico (levantado no código, 24/ago)
+
+**O subdomínio separado já existe — e não é ele que protege.** `/admin` roda no domínio de sistema (`app.br4ndcode.com`, `systemDomain = !getTenantSlug()`), os clientes em `<slug>.br4ndcode.com`. Origens diferentes ⇒ localStorage diferente ⇒ a sessão do admin já não é legível por código do subdomínio de um cliente. E `ADMIN_ROUTES` + `isAdmin` já separam as rotas — mas essa guarda é **client-side**: decide o que renderizar, não o que o banco entrega.
+
+**O risco real é o bypass permanente.** A migration `007` deu ao `platform_admin` `for all using (is_platform_admin())` em **13 tabelas** (`workspaces`, `workspace_members`, `brands`, `brand_books`, `brand_book_history`, `conversations`, `messages`, `campaigns`, `alertas`, `listening_events`, `sentiment_snapshots`, `concorrentes`, `identity_gap_snapshots`), mais `listening_terms` e `content_hub_analyses` inline nas 010–013. **27 functions** aceitam `platform_admin` como passe.
+
+Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, sem cerimônia. `is_platform_admin()` responde "sim" para sempre — não existe estado de "agora estou operando" versus "agora não estou". E a mesma conta é membro (dona, depois da 052) dos workspaces dos clientes. Phishing nela entrega Hering, Worten e Pixel de uma vez.
+
+### As frentes, em ordem de retorno
+
+| # | O quê | Por quê / Tamanho |
+|---|---|---|
+| **S1** | **Duas identidades para a mesma pessoa** — conta de operação (membro dos tenants) ≠ conta de super admin (só `platform_admins`, **nunca** membro de workspace). O operador sai da lista de membros dos tenants e passa a enxergar só pelo bypass, que já funciona sozinho (provado em `guarda:rls`) | zero código · **fazer primeiro** |
+| **S2** | **MFA (TOTP) na conta de super admin** — o Supabase suporta. Maior ganho por real gasto; sem isso o resto é decoração | config · 🟢 |
+| **S3 🔴** | **Bypass com validade, não permanente** — `platform_admin_sessions(user_id, workspace_id, expira_em, motivo)`; `is_platform_admin()` passa a exigir sessão aberta **para aquele workspace**. Fora dela o operador não enxerga dado de cliente nenhum. Transforma "acesso permanente a tudo" em "acesso declarado, por tenant, por tempo". **É o item que muda o risco de verdade.** Toca as 13 policies + as inline + as 27 functions | 🟡 · o maior |
+| S4 | **Trilha de auditoria** — quem entrou em qual tenant, quando, com que motivo. Pergunta de due diligence da Worten (GDPR), não higiene só nossa. Nasce de graça junto do S3: a sessão de suporte JÁ é o registro | 🟢 · junto do S3 |
+| S5 | **`admin.br4ndcode.com` dedicado** — o admin deixa de ser servido no mesmo host do `/app` de impersonação; vira lugar limpo para CSP mais dura, allowlist de IP e exigência de MFA. É **embalagem** do S1–S4, não substituto | 🟢 · depois |
+
+### Decisões já tomadas
+
+- **O subdomínio não vem primeiro.** Ele não mexe no JWT nem nas policies; entra no fim, embalando o que realmente protege.
+- **S3 é o coração.** Se só um item for feito depois do MFA, é esse.
+- **Não entrou na release de 24/ago** (gestão de usuários por tenant): abrir o modelo de super admin na véspera do deploy obrigaria a refazer os três portões com risco muito maior.
+
+### Cuidados registrados
+
+- A 052 tornou o operador **dono** dos workspaces onde ele era `admin` — fiel ao que já era. O S1 desfaz isso saindo da lista de membros; conferir antes que o bypass cobre tudo que a tela de impersonação precisa (o `guarda:rls` já mostra que sim para `workspaces`/`workspace_members`).
+- `is_platform_admin()` é `SECURITY DEFINER` com `search_path` fixo — ao reescrever para o S3, **manter as duas propriedades**.
+- O ensaio `tests/guarda/rls/052-retrato.sql` reproduz o bypass do 007. Qualquer mudança no S3 tem que ser exercitada lá antes de encostar em produção.
+
+---
+
+## 👥 RELEASE — GESTÃO DE USUÁRIOS POR TENANT (24/ago/2026)
+
+> ### ✅ FECHADA — aprovada para deploy na janela fora do horário comercial
+>
+> | Portão | Resultado |
+> |---|---|
+> | Testes | **443 passando**, 3 skipped, 28 arquivos |
+> | Quality gate (`npm run guarda`) | **54/54** defeitos reintroduzidos detectados |
+> | RLS gate (`npm run guarda:rls`) | **15/15** em Postgres local descartável |
+> | Build | `dist` íntegro, 45 assets, fallback do SPA presente |
+> | Security gate (`/security-review`) | **0 High · 0 Medium** · 1 Low residual documentado |
+>
+> **Telas validadas em localhost contra o banco AINDA SEM a 052** — que é o estado em que a produção recebe o código: Minha conta, Gestão de time, Criar acesso, Editar acesso, Admin → Membros, Redefinir senha.
+>
+> **Falta só:** autorização do Danilo para aplicar a `052` na janela. Depois de aplicar: conferir a contagem de papéis em produção e revalidar as telas com o esquema novo.
+>
+> **Pendência de transição:** convites emitidos ANTES deste deploy não têm `app_metadata.convite_workspace_id` e darão 403 no aceite. Conferir se há convite pendente; se houver, gravar o campo ou reenviar.
+
+**Gatilho:** os acessos do time da Hering. Criar o primeiro acesso expôs que o tenant não gerencia o próprio time, e que quem entra manda em todo mundo.
+
+**O levantamento (24/ago, sobre o código real):**
+
+| Achado | Evidência |
+|---|---|
+| **O papel é decorativo** | `role` não aparece em **nenhuma** policy de RLS. As ~40 policies gateiam por participação (`workspace_id in (select … where user_id = auth.uid())`). `admin` vs `member` só muda a cor de um Chip em `WorkspacePage.jsx:209` |
+| 🔴 **Qualquer membro manda em todos** | `005_setup_completo.sql:283` — `create policy "membro acessa workspace_members" … for all using (workspace_id in …)`. `for all` inclui UPDATE e DELETE: qualquer pessoa do tenant se promove a owner, rebaixa o dono ou remove quem quiser. A tela `/app/time` já escreve direto pelo client, sem passar por function |
+| **Não existe página da pessoa** | `/app/conta` ("Configurações da conta") renderiza `TabEmpresa` — nome/domínio/setor/porte **da empresa**. Trocar o próprio nome ou senha só na tela forçada de 1º acesso (`ForcePassword`, via `must_change_password`); depois disso não há caminho. É por isso que a senha temporária viaja em texto |
+| **`role` sem CHECK** | `workspace_members.role text default 'member'` aceita qualquer string; os valores válidos moram em dois lugares (`AppInterno.jsx` e `WorkspacePage.jsx:27`) |
+| **Aprovar aprendizado não existe** | 17 pontos inserem em `brand_signals` direto; o cron destila ao juntar 5 (`BRAND_DISTILL_THRESHOLD`). Não há revisão entre o sinal e o cérebro |
+
+**Decisões do Danilo (24/ago):**
+1. **Papel + capacidades**, não escada de papéis — aprovar peça e aprovar aprendizado são independentes. `role` (`owner`|`membro`) + `pode_aprovar_pecas` + `pode_aprovar_aprendizado`. A UI mostra presets nomeados (Dono · Curador · Aprovador · Criador · Leitor); o dado compõe, então ser as duas coisas não inventa papel novo.
+2. **O owner do tenant cria acesso com senha temporária** (espelha o que o admin faz hoje; `must_change_password` força a troca). O convite por e-mail fica como evolução — ver B4.
+3. **Escopo da manhã = F1 completa.** Os gates de aprovação (F2) vêm depois: trigger novo em produção sem uso real observado pode barrar aprovação legítima no dia 1 da Hering.
+
+**Onde o gate mora (doutrina):** aprovação hoje é escrita direta do browser. Regra só na UI é a mutação "guarda que existe mas não bloqueia" que a suíte da casa já reprova. O gate vai de **trigger no Postgres** — vale para browser, function e cron, e não se contorna trocando o fetch. Service key (`auth.uid() is null`) passa direto, que é o que o cron precisa.
+
+### F1 · a release da manhã 🟢
+
+| # | O quê |
+|---|---|
+| U1 | **Migration `052`** — CHECK no `role` (`owner`\|`membro`), colunas `pode_aprovar_pecas` / `pode_aprovar_aprendizado`, backfill: quem é `admin` hoje nasce owner com as duas capacidades |
+| U2 | 🔴 **Fechar a policy de `workspace_members`** — leitura para todo membro; INSERT/UPDATE/DELETE só para owner. É o buraco de segurança, e vai para cliente enterprise |
+| U3 | **Minha conta** — página da pessoa (nome, e-mail, trocar senha via `supabase.auth.updateUser`, sair). Hoje `/app/conta` é da empresa; separar os dois |
+| U4 | **Gestão de time** (`/app/time`) com os presets reais + quem pode o quê, exclusiva do owner |
+| U5 | **Owner cria acesso** dentro do tenant (senha temporária + `must_change_password`), reusando `admin-create-user` com porteiro de owner |
+| U6 | **Testes + mutação** — papel inválido barrado, membro comum não promove ninguém nem se auto-promove, owner não fica órfão |
+| U7 | **Redefinir senha no `/admin`** (pedido do Danilo, 24/ago) — `admin-reset-password.js`, botão por membro, sem precisar da senha antiga. **Vira ação com nome próprio** porque a capacidade já existia escondida: o `admin-create-user` redefine a senha quando o e-mail já existe, então um caractere a mais num endereço real trocava a credencial de alguém sem intenção e sem aviso. Limites: só `platform_admins`; **não** redefine a senha de outro operador (takeover lateral — esse caso vai pelo console do Supabase); `must_change_password` deixa a senha transitória. **Sem trilha ainda** → S4 da release do super admin |
+| U8 | **Gerador de senha criptográfico** — era `Math.floor(Math.random() * n)` em duas cópias (admin e Gestão de time). `Math.random()` é PRNG previsível: observando saídas dá para prever as próximas. Virou `novaSenha()` em `helpers.js`, com `crypto.getRandomValues`, num lugar só |
+
+### F2 · os gates de aprovação 🟢 *(depois de observar o uso real)*
+
+- trigger em `generations.feedback` e `studio_campaigns.status` → só quem tem `pode_aprovar_pecas`
+- trigger em `brand_signals` para os tipos de aprendizado (`image_vote`, `assistant_correction`, `reference_upload`) → só quem tem `pode_aprovar_aprendizado`
+- quem não tem a capacidade **sugere** em vez de aprovar; a fila do Approvals ganha "aguardando curadoria"
+- **mutação para cada gate** — senão é teatro
+
+### F3 · a trilha 🟡
+
+`quem aprovou / quando` visível na certidão do asset e na versão do cérebro. É o que a Worten pede em due diligence e o que fecha o argumento contra a Fullsix (frente 1, pacote de confiança).
+
+**Puxados para esta release:** **C7** (isolamento entre tenants com teste explícito — mesmo perímetro, os testes nascem juntos) · **B4** (convite + 1º acesso ponta a ponta — é o caminho que aposenta a senha em texto) · **C1/C2** (porteiro das background functions, já na bancada — mesma doutrina de gate server-side) · **H0.1** (cobertura). **Fora:** A4 (hexes/reskin), i18n (só garantir que string nova nasce via `t()`), **H0.6** (rate limiting — par natural, fica anotado).
 
 ---
 
@@ -209,11 +314,7 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 - [x] ~~**Alerta de saldo dos provedores**~~ ✅ 14/jul — `alertIfBalanceError` no `_watchdog.js` plugado nos 4 pontos (fal imagem ×2, fal vídeo, Anthropic call+stream): erro de saldo/billing → alerta ao Danilo (Sentry, dedup 24h) + usuário vê "instabilidade no sistema" (nunca o erro cru). Validado com os erros reais (403 fal, 400 Anthropic). Futuro opcional: checagem PROATIVA de saldo (endpoint de billing da fal) no cron-watchdog
 
 - [x] ~~**F0.4 — teste de fluxo real (KH6V)**~~ ✅ 19/ago — brief real por e-mail (2 stills, 3 castings, 1920×2720, 350 KB). **Caminho aprovado = base de casting limpa + Seedream 5.0 Pro** (os dois juntos; nenhum sozinho resolveu). Detalhe, pendências de entrega e as 3 perguntas abertas com o cliente em [`features/piloto-hering.md`](features/piloto-hering.md) § F0.4
-- [ ] **F0.5 — fechar a entrega do KH6V** *(destravado pela resposta da Hering — ver as 3 perguntas em `features/piloto-hering.md`)*
-  - [ ] nó **Ampliar** entre Imagem e Recortar: o Seedream 5 Pro tem teto de ~4,19 MP e devolve **1720×2432 calado** quando se pede 1920×2720
-  - [ ] **alvo de peso no nó Recortar** — hoje grava webp q92 sem teto; 350 KB não é garantido (a geração de referência saiu com 359 KB). **Vale para todos os fluxos, não só a Hering**: é o que separa "deu certo no teste" de "roda sem alguém olhando"
-  - [ ] **biblioteca de bases de casting neutras** (uma vez por modelo/pose, reaproveitada em todo produto) — vira pré-requisito se o volume for alto
-  - [ ] testar o **Seedream Layerize** (instalado, não testado): separa a imagem em camadas — caminho alternativo para isolar a peça sem gerar base
+- ~~F0.5 — fechar a entrega do KH6V~~ **REMOVIDO 21/ago** (decisão do Danilo: "não é um problema"). Resolução/peso de arquivo e biblioteca de bases deixaram de ser bloqueio de entrega — **o time da Hering aprovou o resultado e vai testar**. O que sobrou de útil daqui (alvo de peso no Recortar, bases de casting reaproveitáveis) só volta à fila se o volume trouxer de volta.
 
 *F1 — o processo (Fluxo "Guia de Compras"):*
 - [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
