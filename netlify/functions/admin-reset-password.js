@@ -27,6 +27,7 @@
 // "Separação do super admin" (backlog), junto da sessão de suporte.
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
+import { exigirSegundoFator } from './_mfa.js'
 
 const cabecalhos = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
 const erro = (statusCode, mensagem) => ({ statusCode, headers: cabecalhos, body: JSON.stringify({ error: mensagem }) })
@@ -46,6 +47,13 @@ export const handler = async (event) => {
   const { data: operador } = await supabase
     .from('platform_admins').select('id').eq('user_id', quemChama.id).maybeSingle()
   if (!operador) return erro(403, 'Acesso negado')
+
+  // Segundo fator. A identidade já foi VALIDADA acima (getUser confere a
+  // assinatura do token); só depois disso faz sentido ler a claim `aal` dele.
+  // Redefinir credencial alheia é a operação mais sensível do painel — se
+  // alguma exige o degrau, é esta.
+  const semFator = exigirSegundoFator(token, cabecalhos)
+  if (semFator) return semFator
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return erro(400, 'Corpo inválido') }

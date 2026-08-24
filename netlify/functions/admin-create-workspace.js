@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { exigirSegundoFator } from './_mfa.js'
 import { MERCADOS, PADRAO } from './_mercado.js'
 
 // slug do subdomínio (nomedamarca.br4ndcode.com) — mesma lógica da migration 044
@@ -68,6 +69,10 @@ export const handler = async (event) => {
   const token = event.headers.authorization?.replace('Bearer ', '')
   const adminUser = await isPlatformAdmin(supabase, token)
   if (!adminUser) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acesso negado' }) }
+  // Segundo fator. A identidade já foi VALIDADA acima (getUser confere a
+  // assinatura do token); só depois disso faz sentido ler a claim `aal` dele.
+  const semFator = exigirSegundoFator(token, headers)
+  if (semFator) return semFator
 
   const { nome, dominio, setor, porte, pais, creditos_mes, valor_mensal_centavos, slug: slugInput } = JSON.parse(event.body || '{}')
   if (!nome) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nome obrigatório' }) }

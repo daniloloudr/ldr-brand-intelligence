@@ -260,6 +260,24 @@ const MUTACOES = [
     de: "  if (listErr) ({ data: members } = await listar('id, user_id, role, created_at'))",
     para: '' },
 
+  // ── Segundo fator no operador (24/08) ─────────────────────────────
+  { nome: 'endpoint de operador aceita token sem segundo fator',
+    arq: 'netlify/functions/admin-reset-password.js',
+    de: '  if (semFator) return semFator', para: '' },
+
+  { nome: 'token ilegível passa a valer aal2 (falha ABERTA)',
+    arq: 'netlify/functions/_mfa.js',
+    de: "    return JSON.parse(json).aal || 'aal1'", para: "    return JSON.parse(json).aal || 'aal2'" },
+
+  { nome: 'comparação frouxa do nível (AAL2, aal3 entram)',
+    arq: 'netlify/functions/_mfa.js',
+    de: "export const temSegundoFator = (token) => nivelDoToken(token) === 'aal2'",
+    para: "export const temSegundoFator = (token) => /aal/i.test(String(nivelDoToken(token)))" },
+
+  { nome: 'o /admin monta sem o segundo fator',
+    arq: 'src/App.jsx',
+    de: '    if (!mfaOk) {', para: '    if (false) {' },
+
   // ── Redefinir senha (24/08) ───────────────────────────────────────
   { nome: 'redefinir senha volta a aceitar quem não é operador',
     arq: 'netlify/functions/admin-reset-password.js',
