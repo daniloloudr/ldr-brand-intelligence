@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
+import { internalHeaders } from './_interno.js'
 
 const THRESHOLD = parseInt(process.env.BRAND_DISTILL_THRESHOLD || '5', 10)
 
@@ -25,7 +26,7 @@ const run = async () => {
   // sem destilar nada em prod (06–08/jul).
   const results = await Promise.allSettled(brands.map(brand_id =>
     fetch(`${siteBase()}/.netlify/functions/brand-distill-background`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: internalHeaders(),
       body: JSON.stringify({ brand_id }),
     })
   ))

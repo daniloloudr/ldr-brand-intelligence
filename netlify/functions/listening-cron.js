@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js'
 import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
 import { provedorDeBusca } from './_busca.js'
+import { internalHeaders } from './_interno.js'
 
 const run = async () => {
   // Não há mais porta de configuração para travar: a busca padrão usa a mesma
@@ -33,11 +34,8 @@ const run = async () => {
   const results = await Promise.allSettled((wss || []).map(ws =>
     fetch(`${siteBase()}/.netlify/functions/listening-coletar-background`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Porta interna do worker: a chave de serviço só existe no servidor.
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-      },
+      // Porta interna do worker: segredo derivado, não a chave de serviço crua.
+      headers: internalHeaders(),
       body: JSON.stringify({ workspace_id: ws.id }),
     })
   ))

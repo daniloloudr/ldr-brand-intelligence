@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { withHeartbeat } from './_watchdog.js'
 import { siteBase } from './_studio.js'
+import { internalHeaders } from './_interno.js'
 
 const run = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
@@ -12,7 +13,7 @@ const run = async () => {
 
   const results = await Promise.allSettled((wss || []).map(ws =>
     fetch(`${siteBase()}/.netlify/functions/trends-workspace-background`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: internalHeaders(),
       body: JSON.stringify({ workspace_id: ws.id, jitter: true }),
     })
   ))

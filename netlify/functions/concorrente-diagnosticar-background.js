@@ -4,10 +4,16 @@
 // Background function (teto de 15 min); grava em diagnosticos_concorrentes.
 import { createClient } from '@supabase/supabase-js'
 import { concorrentesPendentes, diagnosticarEmSerie } from './_diagnostico.js'
+import { autorizarBackground } from './_interno.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
+
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
