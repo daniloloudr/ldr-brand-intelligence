@@ -7,13 +7,14 @@ import {
 import '@xyflow/react/dist/style.css'
 import {
   Box, Button, Typography, TextField, MenuItem, Select, ListSubheader, Paper,
-  Stack, CircularProgress, Divider, Tooltip, IconButton, Menu, Dialog, Chip,
+  Stack, Divider, Tooltip, IconButton, Menu, Dialog, Chip,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SaveIcon from '@mui/icons-material/Save'
 import AddIcon from '@mui/icons-material/Add'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import StopIcon from '@mui/icons-material/Stop'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined'
 import TextFieldsIcon from '@mui/icons-material/TextFields'
@@ -59,6 +60,12 @@ export function StudioCanvas({ brandId, workflowId }) {
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [elapsed, setElapsed] = useState(0)        // segundos desde o início do run
   const pollRef = useRef(null)
+  // Parada manual. O crédito é debitado no DISPATCH (studio-generate.js), então
+  // parar economiza tudo que ainda não foi enviado — num fluxo em cascata isso é
+  // a maior parte. O que já foi para o provedor não volta: continua lá e já foi
+  // cobrado. A UI diz isso em vez de fingir cancelamento total.
+  const abortRef = useRef(false)
+  const stopRunRef = useRef(null)    // encerrador do pollEngine em curso
   const campaignRef = useRef(null)   // campanha dona deste fluxo (peças nascem vinculadas)
   const rfRef = useRef(null)
   const flowWrapRef = useRef(null)
@@ -560,6 +567,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     while (rodou) {
       rodou = false
       for (const g of gateNodes) {
+        if (abortRef.current) return       // julgar também custa: não gasta depois do Parar
         if (ctx.dispatched.has(g.id)) continue
         const ups = imageUpstreamsOf(g.id)
         const produtor = ups.find(u => ['generate', 'app', 'artGate', 'preview'].includes(u.type)) || ups[0]
@@ -594,6 +602,12 @@ export function StudioCanvas({ brandId, workflowId }) {
     }
     if (!genNodes.length && !appNodes.length && !vidNodes.length && !gateNodes.length) return setMsg('Adicione nós ao canvas.')
     setMsg('')
+    abortRef.current = false
+    // running liga AQUI, não no pollEngine: é durante o laço de dispatch abaixo
+    // que cada envio debita um crédito, e é lá que Parar economiza mais. Ligar só
+    // no poll deixaria o botão dizendo "Gerar" justamente na janela mais cara —
+    // a bandeira existiria sem nenhum jeito de levantá-la.
+    setRunning(true)
 
     const auth = await authHeaders()
     const outputs = {}            // nodeId -> image_url pronto (encadeamento)
@@ -609,15 +623,22 @@ export function StudioCanvas({ brandId, workflowId }) {
     // Generate só dispara quando todas as referências de imagem conectadas estão prontas
     const genReady = g => imageUpstreamsOf(g.id).every(u => toUrls(outputs[u.id]).length > 0)
 
+    // Cada dispatch é um débito: a parada é conferida ANTES de cada envio, não
+    // só no fim do lote — senão parar no meio ainda cobraria a fila inteira.
     const jobs = []
-    for (const g of genNodes) { if (genReady(g)) { const job = await dispatchGenerateNode(g, ctx); if (job) jobs.push(job) } }
-    for (const v of vidNodes) { if (genReady(v)) { const job = await dispatchVideoNode(v, ctx); if (job) jobs.push(job) } }
+    for (const g of genNodes) { if (abortRef.current) break; if (genReady(g)) { const job = await dispatchGenerateNode(g, ctx); if (job) jobs.push(job) } }
+    for (const v of vidNodes) { if (abortRef.current) break; if (genReady(v)) { const job = await dispatchVideoNode(v, ctx); if (job) jobs.push(job) } }
     for (const a of appNodes) {
+      if (abortRef.current) break
       if (dispatched.has(a.id)) continue
       const up = imageUpstreamOf(a.id)
       if (up && toUrls(outputs[up.id]).length) { const job = await dispatchAppNode(a, ctx); if (job) jobs.push(job) }
     }
+    if (abortRef.current) { setRunning(false); return }
     if (!jobs.length) {
+      // Sem job não há poll — e sem poll ninguém desliga o running. Cada saída
+      // daqui precisa apagá-lo, senão o botão fica travado em "Parar" para sempre.
+      setRunning(false)
       // só portões rodaram (julgamento sem geração nova) — nada a acompanhar
       if (gateNodes.some(g => dispatched.has(g.id))) { if (wfId) saveRef.current?.(); return }
       return setMsg('Nada para gerar — adicione um Generate/Vídeo ou conecte uma imagem a um app.')
@@ -625,6 +646,18 @@ export function StudioCanvas({ brandId, workflowId }) {
     pollEngine(jobs, { outputs, dispatched, genNodes, appNodes, vidNodes, gateNodes, auth,
       dispatchGenerate: g => dispatchGenerateNode(g, ctx), dispatchApp: a => dispatchAppNode(a, ctx), dispatchVideo: v => dispatchVideoNode(v, ctx), genReady })
     reloadWorkspace?.()   // saldo cai assim que os jobs são submetidos (débito já ocorreu)
+  }
+
+  // Parar a execução. O que ainda não foi enviado não é enviado (nem cobrado);
+  // o que já está no provedor continua lá e já foi debitado — a mensagem diz
+  // exatamente isso, porque prometer cancelamento total seria mentira.
+  function pararRun() {
+    abortRef.current = true
+    const emVoo = stopRunRef.current?.() ?? 0
+    setRunning(false)
+    setMsg(emVoo
+      ? `Parado. ${emVoo} geração(ões) já enviada(s) seguem no provedor e vão aparecer na galeria — o crédito delas já foi debitado.`
+      : 'Parado. Nada mais será enviado.')
   }
 
   // Regerar UM nó usando as saídas já produzidas até aqui (sem cascata a jusante).
@@ -659,11 +692,24 @@ export function StudioCanvas({ brandId, workflowId }) {
     const start = Date.now()
     setRunning(true); setProgress({ done: 0, total: jobs.length }); setElapsed(0)
     const stop = () => {
-      clearInterval(pollRef.current); pollRef.current = null; setRunning(false); setElapsed(0)
+      clearInterval(pollRef.current); pollRef.current = null; stopRunRef.current = null
+      setRunning(false); setElapsed(0)
       if (wfId) setTimeout(() => saveRef.current?.(), 400)   // autosave após o estado assentar
       reloadWorkspace?.()             // atualiza saldo de créditos ao fim do run
     }
+    // Exposto para o botão Parar: devolve os nós em voo ao estado ocioso (ficam
+    // regeráveis) e conta quantos seguiram no provedor — a UI precisa dizer isso.
+    stopRunRef.current = () => {
+      const emVoo = [...pending].map(id => jobs.find(j => j.genId === id)).filter(Boolean)
+      for (const j of emVoo) {
+        updateNodeData(j.nodeId, { status: 'idle', elapsed: null })
+        if (j.previewNodeId) updateNodeData(j.previewNodeId, { loading: false })
+      }
+      stop()
+      return emVoo.length
+    }
     pollRef.current = setInterval(async () => {
+      if (abortRef.current) return                 // parada manual: stopRunRef já encerrou
       const secs = Math.floor((Date.now() - start) / 1000)
       setElapsed(secs)
       // tempo decorrido por nó vivo (atualização "silenciosa" — não marca não-salvo)
@@ -702,6 +748,9 @@ export function StudioCanvas({ brandId, workflowId }) {
       }
       // encadeamento: re-varre tudo que ainda não rodou e cujas entradas já estão prontas
       // (cobre app←imagem, generate←referência e continuar a partir de um Preview)
+      // A parada pode ter chegado durante o await do poll acima: conferir aqui
+      // impede que a cascata dispare (e cobre) uma etapa inteira depois do Parar.
+      if (abortRef.current) return
       // Portões primeiro: o veredito decide se o ramo continua (aprovada → outputs)
       if (gateNodes.length && auth) await runReadyGates(gateNodes, { outputs, dispatched, auth })
       for (const a of appNodes) {
@@ -809,11 +858,19 @@ export function StudioCanvas({ brandId, workflowId }) {
             {msg && <Typography sx={{ fontSize: 12, color: msg.startsWith('Erro') || msg.includes('conecte') || msg.includes('Adicione') ? CORAL : 'text.secondary' }}>{msg}</Typography>}
             <CreditBadge />
             <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={save} disabled={saving || !dirty}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</Button>
-            <Button size="small" variant="contained" disabled={running} onClick={() => run()}
-              startIcon={running ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, minWidth: 104 }}>
-              {running ? (progress.total ? `Gerando… ${progress.done}/${progress.total}` : 'Gerando…') : 'Gerar'}
-            </Button>
+            {/* Rodando, o botão principal VIRA o Parar: é onde o olho já está, e
+                um botão extra ao lado do "Gerando…" seria clicado por engano. */}
+            {running ? (
+              <Button size="small" variant="contained" onClick={pararRun} startIcon={<StopIcon />}
+                sx={{ bgcolor: CORAL, '&:hover': { bgcolor: CORAL, filter: 'brightness(0.92)' }, minWidth: 104 }}>
+                {progress.total ? `Parar · ${progress.done}/${progress.total}` : 'Parar'}
+              </Button>
+            ) : (
+              <Button size="small" variant="contained" onClick={() => run()} startIcon={<AutoAwesomeIcon />}
+                sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, minWidth: 104 }}>
+                Gerar
+              </Button>
+            )}
           </Stack>
         }
       />
@@ -833,9 +890,9 @@ export function StudioCanvas({ brandId, workflowId }) {
           <Tooltip title="Imagem (upload)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'imageInput'))}><ImageOutlinedIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
           <Tooltip title="Nota (sticky)" placement="right"><IconButton size="small" onClick={() => addNode(NODE_TEMPLATES.find(t => t.type === 'note'))}><StickyNote2OutlinedIcon sx={{ fontSize: 19, color: PALETTE.data.atencao }} /></IconButton></Tooltip>
           <Divider flexItem sx={{ my: 0.25 }} />
-          <Tooltip title="Rodar tudo" placement="right">
-            <Typography component="span"><IconButton size="small" onClick={() => run()} disabled={running}>
-              {running ? <CircularProgress size={18} sx={{ color: 'primary.main' }} /> : <PlayArrowIcon sx={{ fontSize: 21, color: TEAL }} />}
+          <Tooltip title={running ? 'Parar execução' : 'Rodar tudo'} placement="right">
+            <Typography component="span"><IconButton size="small" onClick={() => (running ? pararRun() : run())}>
+              {running ? <StopIcon sx={{ fontSize: 21, color: CORAL }} /> : <PlayArrowIcon sx={{ fontSize: 21, color: TEAL }} />}
             </IconButton></Typography>
           </Tooltip>
           <Tooltip title="Ajustar à tela" placement="right"><IconButton size="small" onClick={() => rfRef.current?.fitView({ padding: 0.2, duration: 300 })}><FitScreenIcon sx={{ fontSize: 19, color: GRAY }} /></IconButton></Tooltip>
