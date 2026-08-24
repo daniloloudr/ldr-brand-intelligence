@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { derivarCapacidades } from './_papeis.js'
 
 // Lista membros de um workspace incluindo nome/email (que vêm de auth.users
 // e não são acessíveis via RLS direto pro cliente). Requer que o usuário
@@ -25,11 +26,18 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem acesso ao workspace' }) }
 
-  const { data: members } = await supabase
-    .from('workspace_members')
-    .select('id, user_id, role, created_at')
+  // Tolera banco pré-052: entre o deploy do código e a migration existe uma
+  // janela, e `select` de coluna inexistente derruba a query INTEIRA (a lista de
+  // membros some para todo mundo). Ver `derivarCapacidades` em _papeis.js.
+  const listar = (campos) => supabase
+    .from('workspace_members').select(campos)
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: true })
+
+  let { data: members, error: listErr } = await listar(
+    'id, user_id, role, pode_aprovar_pecas, pode_aprovar_aprendizado, created_at')
+  if (listErr) ({ data: members } = await listar('id, user_id, role, created_at'))
+  members = (members || []).map(derivarCapacidades)
 
   if (!members?.length) return { statusCode: 200, headers, body: JSON.stringify({ members: [] }) }
 
@@ -57,6 +65,8 @@ export const handler = async (event) => {
       id:         m.id,
       user_id:    m.user_id,
       role:       m.role,
+      pode_aprovar_pecas:       !!m.pode_aprovar_pecas,
+      pode_aprovar_aprendizado: !!m.pode_aprovar_aprendizado,
       created_at: m.created_at,
       email:      userMap[m.user_id]?.email || null,
       nome:       userMap[m.user_id]?.user_metadata?.full_name || null,

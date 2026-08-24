@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { derivarCapacidades } from './_papeis.js'
 
 async function isPlatformAdmin(supabase, token) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -37,10 +38,16 @@ export const handler = async (event) => {
   const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 200 })
   const userMap = Object.fromEntries((users || []).map(u => [u.id, u]))
 
-  const result = members.map(m => ({
+  // Normaliza o papel antes de mandar para a tela. Sem isto, uma linha ainda em
+  // `admin` (banco pré-052) chega ao <Select> cujas opções são owner|member, e o
+  // MUI renderiza o campo VAZIO — o operador vê um papel em branco e conclui que
+  // a pessoa não tem acesso. É a mesma classe do "filtro em branco" de 18/08.
+  const result = members.map(derivarCapacidades).map(m => ({
     id:         m.id,
     user_id:    m.user_id,
     role:       m.role,
+    pode_aprovar_pecas:       m.pode_aprovar_pecas,
+    pode_aprovar_aprendizado: m.pode_aprovar_aprendizado,
     created_at: m.created_at,
     email:      userMap[m.user_id]?.email || null,
     nome:       userMap[m.user_id]?.user_metadata?.full_name || null,

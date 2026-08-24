@@ -107,11 +107,16 @@ export const handler = async (event) => {
 
   if (wsError) return { statusCode: 400, headers, body: JSON.stringify({ error: wsError.message }) }
 
-  // Adiciona o admin como membro do workspace criado
+  // Adiciona o operador como DONO do workspace criado. `admin` virou `owner` na
+  // migration 052 — a palavra colidia com platform_admins e o CHECK agora
+  // recusa o valor antigo. Todo workspace nasce com um dono; sem isso ninguém
+  // consegue gerenciar o time dele.
   await supabase.from('workspace_members').insert({
     workspace_id: ws.id,
     user_id: adminUser.id,
-    role: 'admin',
+    role: 'owner',
+    pode_aprovar_pecas: true,
+    pode_aprovar_aprendizado: true,
   })
 
   // A MARCA nasce JUNTO do workspace, compartilhando nome/slug/site — não pede de novo

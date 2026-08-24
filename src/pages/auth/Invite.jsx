@@ -32,25 +32,29 @@ export function InvitePage({ onDone }) {
 
     setLoading(true)
     try {
-      const { data: { user }, error: updateError } = await supabase.auth.updateUser({ password })
+      const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
 
-      const workspaceId = user?.user_metadata?.workspace_id
-      if (workspaceId) {
-        const { data: existing } = await supabase
-          .from('workspace_members')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('workspace_id', workspaceId)
-          .maybeSingle()
+      // Entrar no workspace deixou de ser coisa que o browser faz. Antes esta
+      // tela inseria a própria participação, apoiada numa policy que checava só
+      // `user_id = auth.uid()` — sem workspace_id nenhum. Qualquer conta com o
+      // UUID de um cliente entrava nele. Agora quem decide é o servidor, lendo
+      // o convite de app_metadata (que o usuário não consegue reescrever).
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/.netlify/functions/workspace-join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      })
 
-        if (!existing) {
-          await supabase.from('workspace_members').insert({
-            workspace_id: workspaceId,
-            user_id: user.id,
-            role: 'member',
-          })
-        }
+      // 403 = sem convite pendente. Não é caminho de erro fatal: a senha já foi
+      // trocada, e uma conta que já é membro (reconvite, segundo acesso) segue
+      // para o app normalmente. Travar aqui deixaria a pessoa sem porta.
+      if (!res.ok && res.status !== 403) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j.error || 'Não foi possível concluir o acesso ao workspace.')
       }
 
       onDone?.()

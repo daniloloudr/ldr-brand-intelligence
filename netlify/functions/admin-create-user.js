@@ -72,10 +72,16 @@ export const handler = async (event) => {
     .maybeSingle()
 
   if (!existingMember) {
+    // `admin` virou `owner` na migration 052 (colidia com platform_admins, e o
+    // CHECK recusa o valor antigo). Dono recebe as duas capacidades: era o que
+    // "admin" significava na prática antes de elas existirem.
+    const dono = role === 'admin' || role === 'owner'
     const { error: memberErr } = await supabase.from('workspace_members').insert({
       workspace_id,
       user_id: userId,
-      role: role === 'admin' ? 'admin' : 'member',
+      role: dono ? 'owner' : 'member',
+      pode_aprovar_pecas: dono,
+      pode_aprovar_aprendizado: dono,
     })
     if (memberErr) return { statusCode: 400, headers, body: JSON.stringify({ error: memberErr.message }) }
   }
