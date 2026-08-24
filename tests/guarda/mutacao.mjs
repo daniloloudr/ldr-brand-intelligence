@@ -102,6 +102,14 @@ const MUTACOES = [
     de: 'TableCell, TableContainer, Paper } from "@mui/material";',
     para: 'TableCell } from "@mui/material";' },
 
+  // 21/08: clicar em "Membros" no admin apagava a tela, no meio da criação dos
+  // acessos da Hering. `WorkspacesAdmin` lia o `isDark` que é estado do
+  // `AppInterno` — outro componente. O jsx-imports não pegava (só olha nome de
+  // componente em JSX); quem pega é o jsx-escopo, que pergunta ao parser.
+  { nome: 'tema lido da closure de outro componente (tela branca)',
+    arq: 'src/pages/AppInterno.jsx',
+    de: '  const isDark = useTheme().palette.mode === "dark";\n', para: '' },
+
   { nome: 'filtro de select volta a ficar em branco',
     arq: 'src/pages/AppInterno.jsx',
     de: "sx={{ minWidth: 180 }} SelectProps={{ displayEmpty: true }}>", para: "sx={{ minWidth: 180 }}>" },
@@ -128,6 +136,176 @@ const MUTACOES = [
   // do projeto escrita em três scripts arquivados. Build barrado = correção que
   // não chega ao cliente — e o log do build não é acessível pela API, então a
   // causa levou meia hora para aparecer.
+  // O crédito é debitado no dispatch. Um Parar que só desliga o poll deixa a
+  // cascata enviar e cobrar a fila inteira mostrando "Parado" na tela.
+  { nome: 'Parar deixa a cascata disparar (e cobrar) mesmo assim',
+    arq: 'src/pages/app/StudioCanvas.jsx',
+    de: '      if (abortRef.current) return\n      // Portões primeiro',
+    para: '      // Portões primeiro' },
+
+  { nome: 'Parar só vale para o próximo lote, não para a fila atual',
+    arq: 'src/pages/app/StudioCanvas.jsx',
+    de: 'for (const g of genNodes) { if (abortRef.current) break; if (genReady(g))',
+    para: 'for (const g of genNodes) { if (genReady(g))' },
+
+  // O buraco que passou batido na 1ª tentativa (20/08): a bandeira estava certa,
+  // mas `running` só ligava no pollEngine — depois de todos os dispatches. O
+  // botão dizia "Gerar" durante a janela em que cada envio debita. Bandeira sem
+  // botão = mesmo efeito de não ter botão nenhum.
+  // C1 — as background functions eram endpoints públicos rodando com a service
+  // key. Quem soubesse o caminho disparava trabalho pago no nosso provedor.
+  { nome: 'background function volta a aceitar chamada anônima',
+    arq: 'netlify/functions/studio-poll-background.js',
+    de: '  const porteiro = await autorizarBackground(event)\n  if (porteiro.erro) return porteiro.erro\n',
+    para: '' },
+
+  // Pior que não checar: checar e seguir mesmo assim. Parece protegido em
+  // revisão de código e não está.
+  { nome: 'background chama o porteiro e ignora o veredito',
+    arq: 'netlify/functions/content-hub-gerar-background.js',
+    de: '  if (porteiro.erro) return porteiro.erro',
+    para: '  if (false) return porteiro.erro' },
+
+  // O outro lado: cron que para de se identificar leva 401 e o trabalho
+  // agendado simplesmente deixa de acontecer, sem ninguém perceber.
+  { nome: 'cron volta a disparar background sem se identificar',
+    arq: 'netlify/functions/trends-cron.js',
+    de: "headers: internalHeaders(),", para: "headers: { 'Content-Type': 'application/json' }," },
+
+  // C2 — o webhook do Studio aceitava POST anônimo. A proteção estava escrita
+  // nos dois lados e desligada nos dois: `if (secret && ...)` com a variável
+  // nunca definida, e a URL registrada no fal sem o `?s=`. Quem alcança esse
+  // endpoint escreve no nosso banco.
+  { nome: 'webhook do Studio volta a aceitar POST anônimo',
+    arq: 'netlify/functions/studio-webhook.js',
+    de: '  if (!secret) return { statusCode: 500, body: \'webhook sem segredo\' }\n  if (event.queryStringParameters?.s !== secret)',
+    para: '  if (secret && event.queryStringParameters?.s !== secret)' },
+
+  // A outra metade do mesmo defeito: sem o `?s=` na URL, configurar o segredo
+  // faria o webhook recusar TODAS as conclusões — e em produção não há poll,
+  // então a geração morreria no timeout de 10 min do canvas.
+  { nome: 'a URL do webhook volta a ir sem o segredo',
+    arq: 'netlify/functions/_studio.js',
+    de: '  const webhookUrl = studioWebhookUrl()',
+    para: '  const webhookUrl = isDev() ? null : `${siteBase()}/.netlify/functions/studio-webhook`' },
+
+  // 21/08: a tela branca do dev. O `_redirects` na raiz faz o Netlify Dev
+  // devolver /index.html para /src/main.jsx — HTML onde o browser espera JS.
+  // O build verde não denuncia nada; só o console, com 3 erros de parse.
+  { nome: 'o dev volta a servir o dist velho (tela branca ou app congelado)',
+    arq: 'package.json',
+    de: '"dev": "rm -rf dist && vite"', para: '"dev": "vite"' },
+
+  { nome: 'o dist volta a depender de um cp solto no fim do build',
+    arq: 'package.json',
+    de: '"build": "vite build && node tests/guarda/dist.mjs"',
+    para: '"build": "vite build && cp _redirects dist/_redirects"' },
+
+  { nome: 'o botão Parar só aparece depois de tudo já ter sido cobrado',
+    arq: 'src/pages/app/StudioCanvas.jsx',
+    de: '    setRunning(true)\n\n    const auth = await authHeaders()',
+    para: '\n    const auth = await authHeaders()' },
+
+  // ── Papéis por tenant (release de 24/08) ──────────────────────────
+  // Os três primeiros são os buracos que a 052 fecha; os outros são as
+  // promessas que as functions passaram a fazer.
+  { nome: 'workspace_members volta a ser `for all` (todos mandam em todos)',
+    arq: 'supabase/migrations/052_papeis_por_tenant.sql',
+    de: 'for select using (public.eh_membro(workspace_id))',
+    para: 'for all using (public.eh_membro(workspace_id))' },
+
+  { nome: 'volta a auto-inserção em qualquer tenant (bypass)',
+    arq: 'supabase/migrations/052_papeis_por_tenant.sql',
+    de: 'drop policy if exists "autenticado adiciona membro"     on workspace_members;',
+    para: '' },
+
+  { nome: 'o saldo de créditos volta a ser editável pelo cliente',
+    arq: 'supabase/migrations/052_papeis_por_tenant.sql',
+    de: '  if new.creditos_saldo        is distinct from old.creditos_saldo\n',
+    para: '  if false\n' },
+
+  { nome: 'a migration rebaixa quem já era admin',
+    arq: 'supabase/migrations/052_papeis_por_tenant.sql',
+    de: "update workspace_members set role = 'owner'  where role = 'admin';",
+    para: '' },
+
+  { nome: 'o último dono volta a poder sair (workspace ingovernável)',
+    arq: 'supabase/migrations/052_papeis_por_tenant.sql',
+    de: 'create trigger trg_protege_ultimo_owner', para: 'create trigger trg_desligado' },
+
+  { nome: 'member_id sozinho volta a atravessar tenant',
+    arq: 'netlify/functions/workspace-member.js',
+    de: ".eq('id', member_id).eq('workspace_id', workspace_id)",
+    para: ".eq('id', member_id)" },
+
+  { nome: 'dono do tenant volta a vincular conta alheia em silêncio',
+    arq: 'netlify/functions/workspace-create-user.js',
+    de: "    return erro(409, 'Não foi possível criar este acesso com esse e-mail. Fale com o suporte do brandcode para vincular a pessoa a este workspace.')",
+    para: '    userId = existente.id' },
+
+  { nome: 'a resposta volta a dizer se o e-mail já tem conta (enumeração)',
+    arq: 'netlify/functions/workspace-create-user.js',
+    de: '  return ok({ email: emailNorm })',
+    para: '  return ok({ email: emailNorm, user_id: userId, ja_existia: false })' },
+
+  // A janela do deploy: código novo + banco velho. Sem fallback, NENHUM tenant
+  // carrega até a migration rodar — e a ordem passa a ser crítica às 22h.
+  { nome: 'o login do tenant deixa de aguentar o banco pré-052',
+    arq: 'src/lib/WorkspaceContext.jsx',
+    de: "      if (error) ({ data } = await buscar('role, workspaces!inner(*)'))",
+    para: '' },
+
+  { nome: 'a lista do time deixa de aguentar o banco pré-052',
+    arq: 'netlify/functions/workspace-members.js',
+    de: "  if (listErr) ({ data: members } = await listar('id, user_id, role, created_at'))",
+    para: '' },
+
+  // ── Redefinir senha (24/08) ───────────────────────────────────────
+  { nome: 'redefinir senha volta a aceitar quem não é operador',
+    arq: 'netlify/functions/admin-reset-password.js',
+    de: '  if (!operador) return erro(403, \'Acesso negado\')', para: '' },
+
+  { nome: 'um operador redefine a senha do outro (takeover lateral)',
+    arq: 'netlify/functions/admin-reset-password.js',
+    de: '  if (user_id !== quemChama.id) {', para: '  if (false) {' },
+
+  { nome: 'senha redefinida deixa de ser transitória',
+    arq: 'netlify/functions/admin-reset-password.js',
+    de: 'must_change_password: true', para: 'must_change_password: false' },
+
+  { nome: 'gerador de senha volta ao Math.random (previsível)',
+    arq: 'src/lib/helpers.js',
+    de: "  crypto.getRandomValues(bytes);\n  return Array.from(bytes, b => chars[b % chars.length]).join('');",
+    para: "  return Array.from(bytes, () => chars[Math.floor(Math.random() * chars.length)]).join('');" },
+
+  { nome: 'papel cru chega à tela e o dropdown fica em branco',
+    arq: 'netlify/functions/admin-list-members.js',
+    de: '  const result = members.map(derivarCapacidades).map(m => ({',
+    para: '  const result = members.map(m => ({' },
+
+  { nome: 'o porteiro deixa de aguentar o banco pré-052',
+    arq: 'netlify/functions/_papeis.js',
+    de: "  const { data: velho } = await consulta('id, role')",
+    para: '  const velho = null' },
+
+  { nome: 'o convite volta a sair de user_metadata (que o usuário reescreve)',
+    arq: 'netlify/functions/workspace-join.js',
+    de: 'user.app_metadata?.convite_workspace_id',
+    para: 'user.user_metadata?.workspace_id' },
+
+  { nome: 'dono sem as capacidades (estado que a tela não representa)',
+    arq: 'netlify/functions/_papeis.js',
+    de: "    ...(role === 'owner' ? { pode_aprovar_pecas: true, pode_aprovar_aprendizado: true } : {}),",
+    para: '' },
+
+  { nome: 'a tela volta a escrever direto em workspace_members',
+    arq: 'src/pages/app/WorkspacePage.jsx',
+    de: `      await chamar('/.netlify/functions/workspace-member', {
+        method: 'PATCH',`,
+    para: `      await supabase.from('workspace_members').update(papelDoPreset(editPreset)).eq('id', editing.id)
+      await chamar('/.netlify/functions/nada', {
+        method: 'PATCH',` },
+
   // Duas armadilhas aqui, as duas descobertas do jeito caro em 19/08:
   // 1. a URL é FICTÍCIA — escrever a real reintroduz o defeito dentro da
   //    própria guarda (foi o que barrou o build na primeira tentativa);

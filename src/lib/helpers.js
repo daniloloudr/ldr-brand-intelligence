@@ -209,3 +209,21 @@ export function checkPlano(workspace, feature) {
   const req = { 'evolucao': 1, 'listening': 2, 'concorrentes': 1, 'relatorio-mensal': 1 };
   return idx >= (req[feature] ?? 0);
 }
+
+// ── Senha temporária de primeiro acesso / redefinição ────────────────
+// Vive aqui porque nasceu duplicada em dois lugares (admin e Gestão de time),
+// e senha gerada de dois jeitos diferentes é duas superfícies para revisar.
+//
+// A primeira versão usava `Math.floor(Math.random() * n)`. `Math.random()` é um
+// PRNG rápido e PREVISÍVEL: observando algumas saídas dá para reconstruir o
+// estado interno e prever as próximas. Para embaralhar uma lista tanto faz;
+// para gerar a credencial de acesso de um cliente, não.
+//
+// Sem caracteres ambíguos (l/1/I, O/0): esta senha vai ser lida em voz alta ou
+// copiada à mão mais vezes do que gostaríamos.
+export function novaSenha(tamanho = 12) {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint32Array(tamanho);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => chars[b % chars.length]).join('');
+}
