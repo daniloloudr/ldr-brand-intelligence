@@ -39,3 +39,6 @@ backups/
 
 # cache do Vite
 .vite/
+
+# Export de dados de cliente antes de limpeza — NUNCA versionar
+.backup-escuta/

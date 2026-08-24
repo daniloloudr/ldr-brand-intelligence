@@ -18,8 +18,8 @@
 | # | Item | O que se descobriu ao medir |
 |---|---|---|
 | **1.1** | **Duas identidades + MFA** (S1/S2) | 🔴 **Tem pré-requisito que ninguém sabia.** Sete tabelas de cliente **não têm o bypass do operador**: `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias` e `ai_usage`. Se o operador sair das participações hoje, a impersonação abre **vazia** nessas telas. Estender o bypass a elas vira o **S0** da release do super admin |
-| **1.2** | **Opt-out de treino na Voyage** | Ação do Danilo no painel da conta — não há código nosso envolvido. Aberto desde 14/jul; é dado de marca de cliente indo para treino de terceiro |
-| **1.3** | **Escuta contaminada** | 🔴 **Muito maior que o documentado.** O doc falava em "122 eventos e 13 snapshots da PES". A medição real: **eventos sem URL = 0** (a limpeza anterior pegou todos), mas restam **52 snapshots contaminados em 5 marcas, declarando 244 menções sem evento correspondente — e 24 sinais JÁ CONSUMIDOS pela destilação**. Detalhe abaixo |
+| **1.2** | **Opt-out de treino na Voyage** | ✅ **FEITO pelo Danilo, 24/ago.** Aberto desde 14/jul |
+| **1.3** | **Escuta contaminada** | ✅ **LIMPO 24/ago** — 52 snapshots e 6 sinais não-consumidos apagados; 24 consumidos preservados (inertes). `auditoria:escuta` devolve limpo. **Fica aberto** o que a limpeza não desfaz: a percepção que já virou memória em `brand_intelligence` — decisão de produto, detalhe abaixo |
 | **1.4** | **C7 — isolamento entre tenants** | ✅ **ENTREGUE** — `npm run guarda:isolamento` |
 | **1.5** | **B3 — extração de manual (413)** | ✅ **JÁ ESTAVA ENTREGUE** — o backlog estava velho. A function migrou para a **Files API** (teto de 500 MB, `TETO_MB` 400, guarda de 50 MB no front); o caso da PES (100 pág / 36,5 MB) está documentado no cabeçalho como causa raiz, e o erro de limite de páginas é humanizado |
 

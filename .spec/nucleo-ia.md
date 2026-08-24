@@ -170,21 +170,28 @@ só cresce.**
   anterior pegou todos — `listening_events` sem URL não existe mais em nenhuma
   marca. O que ficou aberto é o parágrafo abaixo, e é maior.
 
-- ⚠️ **52 `sentiment_snapshots` contaminados em 5 marcas** (o registro antigo
-  falava em "13 da PES" — a medição real é outra). Eles declaram **244 menções
-  sem evento correspondente**: PES 16 snapshots, Escola da Inteligência 16,
-  LOUDR 15, Hering 4, scolex 1. Worten e Pixel estão limpas, e **todo snapshot
-  de 24/08 é consistente** — a correção de 18/08 funciona; isto é passivo.
+- ~~52 `sentiment_snapshots` contaminados~~ ✅ **LIMPO em 24/08/2026** (OK do
+  Danilo). O registro antigo falava em "13 da PES"; a medição real era 52
+  snapshots em 5 marcas declarando **244 menções sem evento correspondente**.
 
-  O que torna o caso difícil: **24 desses sinais já foram CONSUMIDOS pela
-  destilação**. Como `distillBrand` lê *versão atual + sinais novos*, a versão
-  seguinte é construída em cima da anterior — apagar o snapshot não desfaz a
-  memória. Limpar exige decidir o que fazer com as versões de
-  `brand_intelligence` de PES, Escola, LOUDR e Hering.
+  O que foi feito: apagados os **52 snapshots** e os **6 sinais ainda NÃO
+  consumidos** — esses envenenariam a próxima destilação. Os **24 já
+  consumidos** foram PRESERVADOS de propósito: `distillBrand` só lê sinal com
+  `consumido_em is null`, então eles são inertes, e apagá-los apagaria o
+  registro do que aconteceu sem mudar desfecho nenhum. Export completo em
+  `.backup-escuta/` (fora do git — é dado de cliente).
 
-  Ferramenta: `npm run auditoria:escuta` (somente leitura). O invariante que ela
+  `npm run auditoria:escuta` passou a devolver limpo. O invariante que ela
   afere: snapshot é agregado do ciclo e nunca pode declarar mais menções do que
   existem eventos com URL naquele dia.
+
+- ⚠️ **O que a limpeza NÃO desfaz.** Aqueles 24 sinais já viraram memória em
+  `brand_intelligence` de PES, Escola da Inteligência, LOUDR e Hering. Como a
+  destilação lê *versão atual + sinais novos*, cada versão nova é construída em
+  cima da anterior — a percepção inventada segue lá dentro até que se decida o
+  que fazer com essas versões. **Decisão de produto, ainda aberta.** As saídas
+  vão de "deixar diluir com volume novo" a "descartar as versões afetadas e
+  re-destilar do zero".
 - `ALERT_WEBHOOK_URL` ausente em produção — alertas só chegam ao Sentry.
 - O diagnóstico usa `streamAI`, que **não registra em `ai_usage`**: o rastreio
   de custo tem um ponto cego justamente na operação mais cara.
