@@ -11,6 +11,36 @@
 
 ---
 
+## 🩺 BLOCO 1 — RISCO VIVO (levantado 24/ago, com os números reais)
+
+> Cinco itens que o Danilo mandou fechar. Três terminaram em **descoberta**, não em código: dois já estavam entregues e um é muito maior do que estava escrito.
+
+| # | Item | O que se descobriu ao medir |
+|---|---|---|
+| **1.1** | **Duas identidades + MFA** (S1/S2) | 🔴 **Tem pré-requisito que ninguém sabia.** Sete tabelas de cliente **não têm o bypass do operador**: `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias` e `ai_usage`. Se o operador sair das participações hoje, a impersonação abre **vazia** nessas telas. Estender o bypass a elas vira o **S0** da release do super admin |
+| **1.2** | **Opt-out de treino na Voyage** | Ação do Danilo no painel da conta — não há código nosso envolvido. Aberto desde 14/jul; é dado de marca de cliente indo para treino de terceiro |
+| **1.3** | **Escuta contaminada** | 🔴 **Muito maior que o documentado.** O doc falava em "122 eventos e 13 snapshots da PES". A medição real: **eventos sem URL = 0** (a limpeza anterior pegou todos), mas restam **52 snapshots contaminados em 5 marcas, declarando 244 menções sem evento correspondente — e 24 sinais JÁ CONSUMIDOS pela destilação**. Detalhe abaixo |
+| **1.4** | **C7 — isolamento entre tenants** | ✅ **ENTREGUE** — `npm run guarda:isolamento` |
+| **1.5** | **B3 — extração de manual (413)** | ✅ **JÁ ESTAVA ENTREGUE** — o backlog estava velho. A function migrou para a **Files API** (teto de 500 MB, `TETO_MB` 400, guarda de 50 MB no front); o caso da PES (100 pág / 36,5 MB) está documentado no cabeçalho como causa raiz, e o erro de limite de páginas é humanizado |
+
+### 1.3 · o estrago da escuta, medido
+
+`npm run auditoria:escuta` — somente leitura, roda quando quiser. O invariante: um snapshot é agregado dos eventos do ciclo e **nunca** pode declarar mais menções do que existem eventos com URL naquele dia.
+
+| marca | snapshots contaminados | menções fantasma | sinais já consumidos |
+|---|---|---|---|
+| PES English | 16 (todos de 18/08) | 34 | **15** |
+| Escola da Inteligência | 16 | 105 | 4 |
+| LOUDR | 15 | 76 | 4 |
+| Hering | 4 (21/07) | 10 | 1 |
+| scolex | 1 | 6 | 0 |
+
+**Worten e Pixel Retail estão limpas.** Todo snapshot de 24/08 é consistente — a correção de 18/08 funciona; o que sobrou é passivo.
+
+**Por que não é um DELETE e pronto:** a destilação lê *versão atual + sinais novos*, então a versão seguinte é construída EM CIMA da anterior. Os 24 sinais consumidos já viraram memória da marca em PES, Escola, LOUDR e Hering. Limpar de verdade exige decidir o que fazer com as versões de `brand_intelligence` dessas marcas — e isso é decisão de produto, não de banco. **Aguarda o Danilo.**
+
+---
+
 ## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (próxima)
 
 > **Regra de release (Danilo, 24/ago):** objetivo declarado → testes → quality gate (`npm run guarda`) → security gate (`/security-review`) → só então aprovada. Deploy em prod **sempre no fim do dia, fora do horário comercial**. Migration que toca RLS passa também por `npm run guarda:rls`.
@@ -31,7 +61,8 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 
 | # | O quê | Por quê / Tamanho |
 |---|---|---|
-| **S1** | **Duas identidades para a mesma pessoa** — conta de operação (membro dos tenants) ≠ conta de super admin (só `platform_admins`, **nunca** membro de workspace). O operador sai da lista de membros dos tenants e passa a enxergar só pelo bypass, que já funciona sozinho (provado em `guarda:rls`) | zero código · **fazer primeiro** |
+| **S0 🔴** | **PRÉ-REQUISITO do S1, achado em 24/ago:** sete tabelas de cliente **não têm o bypass do operador** — `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias`, `ai_usage`. Hoje o operador só as enxerga porque é MEMBRO. Tirá-lo das participações sem estender o bypass abre a impersonação **vazia** em Tendências, Insights, Mercado, Clipping de concorrente, Diagnósticos de concorrentes e Peças. Achado por `npm run guarda:isolamento` | 🟢 · **antes do S1** |
+| **S1** | **Duas identidades para a mesma pessoa** — conta de operação (membro dos tenants) ≠ conta de super admin (só `platform_admins`, **nunca** membro de workspace). O operador sai da lista de membros e passa a enxergar só pelo bypass — que cobre `workspaces`/`workspace_members` (provado em `guarda:rls`), mas **ainda não cobre as sete do S0** | zero código · **depois do S0** |
 | **S2** | **MFA (TOTP) na conta de super admin** — o Supabase suporta. Maior ganho por real gasto; sem isso o resto é decoração | config · 🟢 |
 | **S3 🔴** | **Bypass com validade, não permanente** — `platform_admin_sessions(user_id, workspace_id, expira_em, motivo)`; `is_platform_admin()` passa a exigir sessão aberta **para aquele workspace**. Fora dela o operador não enxerga dado de cliente nenhum. Transforma "acesso permanente a tudo" em "acesso declarado, por tenant, por tempo". **É o item que muda o risco de verdade.** Toca as 13 policies + as inline + as 27 functions | 🟡 · o maior |
 | S4 | **Trilha de auditoria** — quem entrou em qual tenant, quando, com que motivo. Pergunta de due diligence da Worten (GDPR), não higiene só nossa. Nasce de graça junto do S3: a sessão de suporte JÁ é o registro | 🟢 · junto do S3 |
@@ -316,10 +347,10 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 - [x] ~~**F0.4 — teste de fluxo real (KH6V)**~~ ✅ 19/ago — brief real por e-mail (2 stills, 3 castings, 1920×2720, 350 KB). **Caminho aprovado = base de casting limpa + Seedream 5.0 Pro** (os dois juntos; nenhum sozinho resolveu). Detalhe, pendências de entrega e as 3 perguntas abertas com o cliente em [`features/piloto-hering.md`](features/piloto-hering.md) § F0.4
 - ~~F0.5 — fechar a entrega do KH6V~~ **REMOVIDO 21/ago** (decisão do Danilo: "não é um problema"). Resolução/peso de arquivo e biblioteca de bases deixaram de ser bloqueio de entrega — **o time da Hering aprovou o resultado e vai testar**. O que sobrou de útil daqui (alvo de peso no Recortar, bases de casting reaproveitáveis) só volta à fila se o volume trouxer de volta.
 
-*F1 — o processo (Fluxo "Guia de Compras"):*
-- [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
-- [ ] F1.2 template "Guia de Compras": still fiel → manequim fantasma → variação de modelo (teste A/B) → close
-- [ ] F1.3 **juiz de fidelidade** (gerada vs foto original — reprova alucinação de estampa/cor) = primeira encarnação do diretor de arte (F1/F2 da seção Copiloto)
+*F1 — o processo (Fluxo "Guia de Compras"):* ⏸️ **FORA DA FILA — 24/ago** (decisão do Danilo: *"não precisa, já estamos em piloto na Hering"*). O processo real que está rodando é o de 4 etapas fechado em 21/ago (`project_processo_catalogo`), montado à mão nos Fluxos; formalizar em template só volta à fila se o volume pedir.
+- [ ] ~~F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó~~
+- [ ] ~~F1.2 template "Guia de Compras": still fiel → manequim fantasma → variação de modelo (teste A/B) → close~~
+- [ ] ~~F1.3 juiz de fidelidade~~ — na prática já existe: `art-review` com `modo: 'fidelidade'` + `reference_url`, validado em 12/jul
 
 *F2 — escala:* lote via planilha/CSV ou pasta do Drive → fila de gerações com progresso + **teto de créditos por lote** (guarda)
 *F3 — integração:* API key por workspace (compartilha a F0 do plano MCP) + endpoint de entrada e endpoint de consulta + docs mínimos

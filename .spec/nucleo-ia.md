@@ -166,9 +166,25 @@ só cresce.**
 
 ## O que ainda está aberto
 
-- 122 eventos de escuta sem URL em outras marcas (75% da Escola da
-  Inteligência, 29% da Hering) ainda alimentando a destilação.
-- 13 `sentiment_snapshots` da PES derivados de eventos apagados.
+- ~~122 eventos de escuta sem URL~~ ✅ **medido em 24/08: zero.** A limpeza
+  anterior pegou todos — `listening_events` sem URL não existe mais em nenhuma
+  marca. O que ficou aberto é o parágrafo abaixo, e é maior.
+
+- ⚠️ **52 `sentiment_snapshots` contaminados em 5 marcas** (o registro antigo
+  falava em "13 da PES" — a medição real é outra). Eles declaram **244 menções
+  sem evento correspondente**: PES 16 snapshots, Escola da Inteligência 16,
+  LOUDR 15, Hering 4, scolex 1. Worten e Pixel estão limpas, e **todo snapshot
+  de 24/08 é consistente** — a correção de 18/08 funciona; isto é passivo.
+
+  O que torna o caso difícil: **24 desses sinais já foram CONSUMIDOS pela
+  destilação**. Como `distillBrand` lê *versão atual + sinais novos*, a versão
+  seguinte é construída em cima da anterior — apagar o snapshot não desfaz a
+  memória. Limpar exige decidir o que fazer com as versões de
+  `brand_intelligence` de PES, Escola, LOUDR e Hering.
+
+  Ferramenta: `npm run auditoria:escuta` (somente leitura). O invariante que ela
+  afere: snapshot é agregado do ciclo e nunca pode declarar mais menções do que
+  existem eventos com URL naquele dia.
 - `ALERT_WEBHOOK_URL` ausente em produção — alertas só chegam ao Sentry.
 - O diagnóstico usa `streamAI`, que **não registra em `ai_usage`**: o rastreio
   de custo tem um ponto cego justamente na operação mais cara.

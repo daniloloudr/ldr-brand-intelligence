@@ -13,7 +13,9 @@
     "guarda:ao-vivo": "EVAL_AO_VIVO=1 vitest run tests/guarda/eval-ao-vivo.test.js",
     "guarda:rls": "node tests/guarda/rls/rodar.mjs",
     "guarda:instalar": "node tests/guarda/nucleo.mjs --instalar",
-    "nucleo": "node tests/guarda/nucleo.mjs"
+    "nucleo": "node tests/guarda/nucleo.mjs",
+    "auditoria:escuta": "node scripts/auditoria-escuta.mjs",
+    "guarda:isolamento": "node scripts/auditoria-isolamento.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",
