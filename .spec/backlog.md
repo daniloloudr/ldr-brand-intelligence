@@ -294,6 +294,32 @@ Origem: decks do AI Creative Engine (Fullsix/Havas CX) em `.spec/competitors/` �
 
 ---
 
+### 🌊 Frentes Riverflow (5º arquétipo — análise do Danilo 2026-08-25)
+
+Dossiê: [`competitors/riverflow.md`](competitors/riverflow.md). Gerador de imagem de produto para varejo, self-serve a partir de US$ 39, nº 1 em benchmark de edição. **É o primeiro concorrente que produz bem, barato e sozinho** — e aparece na mesma demo que a gente na Worten.
+
+**A conferência muda a leitura.** Metade da lista já existe aqui; a lacuna real não é falta de feature, é que **três coisas nossas estão pela metade ou no lugar errado**: a URL não alimenta a identidade visual, o lote não tem portão, e o catálogo não entra.
+
+**Regra de admissão** (vale para toda frente daqui): *isso reforça o cérebro, ou só aumenta a superfície de produção?* URL onboarding reforça. Mais um modelo de vídeo não.
+
+| # | Frente | O quê · nosso estado real | Tamanho / gatilho |
+|---|---|---|---|
+| **R1 ⭐** | **URL como fonte da identidade** | 🟡 PARCIAL — a INTELIGÊNCIA já nasce só do domínio (`admin-create-workspace` dispara diagnóstico e mineração sem manual; a marca fica em `waiting`). Falta a **identidade declarada** vir do site: logo, cores, tipografia. É a mesma máquina da extração de manual apontada para outro lugar. **Resolve uma contradição do pitch:** prometemos "setup €0, o cérebro nasce em dias" e o fluxo pede PDF. Com URL, a promessa vira demonstrável na frente do cliente — o momento mágico passa a ser *"colamos sua URL e o cérebro já leu sua marca"* | 🟡 · **sprint** |
+| **R2 ⭐** | **O juiz no portão do LOTE** | 🟡 O juiz EXISTE (`art-review`), a POSIÇÃO não: ele roda no nó de portão do fluxo e no Assistente, não no ponto de exportação em volume. Copiar a **posição**, não a feature — é onde o volume dói. A diferença que já é nossa: cada decisão ali **treina** | 🟡 · **sprint** |
+| **R3 ⭐** | **Importação de catálogo (Shopify/VTEX)** | 🔴 Ausente. Era pendência nossa; o Riverflow prova que é **obrigatório**, não opcional, para ICP de varejo. Casa direto com o guia de compras da Hering e com a Worten | 🟡 · **sprint** |
+| R4 | **Lote de formatos com preview e aprovação** | 🟡 PARCIAL — nó Recortar (0 crédito) + template "1 peça → 6 formatos" já existem. Falta o lote com preview e aprovação. **Pedido da Worten** (GIF + formatos produzidos). Primo do motor de adaptação (Fullsix 5) | 🟢 |
+| R5 | **Scenes / Styles como entidade** | 🔴 Ausente. **Torção:** deles é preset salvo; nosso é **cânone** — a cena que produziu peça estrelada vira referência da marca | 🟡 |
+| R6 | **Characters = elenco da marca** | 🔴 Ausente; caminho mapeado (Kling custom elements, 3º da varredura fal). **Pedido da Worten.** Torção: elenco **aprovado**, que entra no cânone pela estrela + argumento RGPD (pessoa sintética, zero direito de imagem) | 🟡 |
+| R7 | **Galeria de prompts** | 🔴 Ausente (o *prompt enhance* já existe: "Melhorar prompt"). Padrão de categoria, pedido pela Worten | 🟢 |
+| R8 | **Confirmar fundo transparente e teto de 4K** | ✅ Os apps existem (`removebg`, `upscale`) — **falta CONFERIR** transparência real (alfa) e resolução máxima. Table stakes de varejo: se falhar, aparece em teste técnico | 🟢 · **checar antes da demo** |
+| R9 | **Trust Centre como página** | 🟡 O dossiê existe (`compliance.md`); falta virar **página pública**. Começo da resposta de procurement enquanto certificação real não vem. Par natural do C6 | 🟢 |
+
+**Lição de arquitetura (vale mais que as features):** **Photoshoots × Images** — eles separaram *"tenho um produto e preciso dele num cenário"* de *"tenho uma ideia e quero ver"* em vez de fazer um formulário universal. Encaixa na tensão que já está registrada aqui: *"o usuário de campanha NÃO deveria ver o canvas"* (decisão em observação, 13/jul). Mesma percepção, outro caminho.
+
+**NÃO copiar:** planos self-serve baixos (US$ 39 puxa a conversa para preço por imagem, onde perdemos — contradiz o pivô de 12/jul) · suíte horizontal de geração (mais feature de gerador = mais comparável) · benchmark de modelo (a nossa régua é convergência, não fidelidade de pixel).
+
+---
+
 ### 📊 Frentes Valometry (Ana Couto — análise do Danilo 2026-07-15)
 
 Fonte: [`competitors/valometry.md`](competitors/valometry.md) (análise completa: ficha, mapa de 2 eixos, munição de venda). O 4º arquétipo mapeado: dashboard de MEDIÇÃO forte que não cria nem aprende — o quadrante "mede+cria+aprende" segue exclusivamente nosso. Regra: **NÃO fazer** pesquisa primária com painel (contradiz "setup em minutos") nem mídia offline.
