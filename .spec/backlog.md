@@ -306,7 +306,7 @@ Dossiê: [`competitors/riverflow.md`](competitors/riverflow.md). Gerador de imag
 |---|---|---|---|
 | **R1 ⭐** | **URL como fonte da identidade** | 🟡 PARCIAL — a INTELIGÊNCIA já nasce só do domínio (`admin-create-workspace` dispara diagnóstico e mineração sem manual; a marca fica em `waiting`). Falta a **identidade declarada** vir do site: logo, cores, tipografia. É a mesma máquina da extração de manual apontada para outro lugar. **Resolve uma contradição do pitch:** prometemos "setup €0, o cérebro nasce em dias" e o fluxo pede PDF. Com URL, a promessa vira demonstrável na frente do cliente — o momento mágico passa a ser *"colamos sua URL e o cérebro já leu sua marca"* | 🟡 · **sprint** |
 | **R2 ⭐** | **O juiz no portão do LOTE** | 🟡 O juiz EXISTE (`art-review`), a POSIÇÃO não: ele roda no nó de portão do fluxo e no Assistente, não no ponto de exportação em volume. Copiar a **posição**, não a feature — é onde o volume dói. A diferença que já é nossa: cada decisão ali **treina** | 🟡 · **sprint** |
-| **R3 ⭐** | **Importação de catálogo (Shopify/VTEX)** | 🔴 Ausente. Era pendência nossa; o Riverflow prova que é **obrigatório**, não opcional, para ICP de varejo. Casa direto com o guia de compras da Hering e com a Worten | 🟡 · **sprint** |
+| R3 | **Importação de catálogo (Shopify/VTEX)** | 🔴 Ausente. ⬇️ **DESCEU da sprint (Danilo, 25/ago: "é o que menos me preocupa").** A leitura: catálogo é conveniência de entrada, não vantagem — quem tem 174 produtos importados e nenhum cérebro produz mais rápido a peça errada. Volta à fila quando o volume de um cliente tornar a digitação o gargalo | 🟡 · sem gatilho |
 | R4 | **Lote de formatos com preview e aprovação** | 🟡 PARCIAL — nó Recortar (0 crédito) + template "1 peça → 6 formatos" já existem. Falta o lote com preview e aprovação. **Pedido da Worten** (GIF + formatos produzidos). Primo do motor de adaptação (Fullsix 5) | 🟢 |
 | R5 | **Scenes / Styles como entidade** | 🔴 Ausente. **Torção:** deles é preset salvo; nosso é **cânone** — a cena que produziu peça estrelada vira referência da marca | 🟡 |
 | R6 | **Characters = elenco da marca** | 🔴 Ausente; caminho mapeado (Kling custom elements, 3º da varredura fal). **Pedido da Worten.** Torção: elenco **aprovado**, que entra no cânone pela estrela + argumento RGPD (pessoa sintética, zero direito de imagem) | 🟡 |
@@ -314,7 +314,36 @@ Dossiê: [`competitors/riverflow.md`](competitors/riverflow.md). Gerador de imag
 | R8 | **Confirmar fundo transparente e teto de 4K** | ✅ Os apps existem (`removebg`, `upscale`) — **falta CONFERIR** transparência real (alfa) e resolução máxima. Table stakes de varejo: se falhar, aparece em teste técnico | 🟢 · **checar antes da demo** |
 | R9 | **Trust Centre como página** | 🟡 O dossiê existe (`compliance.md`); falta virar **página pública**. Começo da resposta de procurement enquanto certificação real não vem. Par natural do C6 | 🟢 |
 
-**Lição de arquitetura (vale mais que as features):** **Photoshoots × Images** — eles separaram *"tenho um produto e preciso dele num cenário"* de *"tenho uma ideia e quero ver"* em vez de fazer um formulário universal. Encaixa na tensão que já está registrada aqui: *"o usuário de campanha NÃO deveria ver o canvas"* (decisão em observação, 13/jul). Mesma percepção, outro caminho.
+---
+
+### 🧭 PONTO DE EVOLUÇÃO — entrada por INTENÇÃO, não por ferramenta
+
+> Promovido de "lição do concorrente" a item próprio em 25/ago. Não é feature: é a forma do produto.
+
+**O que eles viram.** O usuário chega com duas intenções incompatíveis — *"tenho um produto e preciso dele num cenário"* e *"tenho uma ideia e quero ver"* — e o Riverflow separou os fluxos (Photoshoots × Images) em vez de fazer um formulário universal.
+
+**Por que isso nos interessa mais do que a eles.** Nós já tínhamos chegado no mesmo lugar por outro caminho, e deixamos anotado sem resolver:
+
+> *"o usuário de campanha NÃO deveria ver o canvas — brief → fluxo roda sozinho → peças no dossiê (canvas = bastidores opcional)"*
+> — decisão em observação, 13/jul: *"não sei se estou convencido — por enquanto deixamos ali"*
+
+São a mesma percepção. A diferença é que eles agiram e nós registramos a dúvida. **O concorrente não trouxe a ideia: trouxe a confirmação de que a dúvida tinha resposta.**
+
+**O que muda na prática.** Hoje a porta do Estúdio é a FERRAMENTA (Imagem · Vídeo · Fluxos · Redação) — o usuário precisa saber qual ferramenta resolve o problema dele antes de começar. A evolução é a porta ser a INTENÇÃO:
+
+| Intenção | O que acontece |
+|---|---|
+| *"tenho um produto e preciso dele em cenário"* | entrada por produto + cena → o fluxo certo roda por baixo |
+| *"tenho uma ideia e quero ver"* | entrada livre, exploração |
+| *"tenho uma campanha e preciso das peças"* | brief → fluxo → dossiê (o A3, que já está no roadmap) |
+
+O canvas não morre — vira **bastidor**, para quem quer abrir. É exatamente o que a nota de 13/jul propunha como hipótese de síntese.
+
+**Por que é ponto de evolução e não sprint.** Ele reordena a navegação inteira do Estúdio e toca o A3/agentes. Não se faz correndo, e não se faz antes de o uso real dar veredito — que é o que o piloto Hering e o setup da Worten estão produzindo agora. **Gatilho: quando o A3 existir, ou quando o uso real de Hering/Worten disser qual porta as pessoas procuram.**
+
+Nota de coerência: essa evolução passa na régua nova sem esforço — ela **reforça o cérebro** (a intenção declarada é contexto que o cérebro usa) em vez de aumentar a superfície de produção.
+
+---
 
 **NÃO copiar:** planos self-serve baixos (US$ 39 puxa a conversa para preço por imagem, onde perdemos — contradiz o pivô de 12/jul) · suíte horizontal de geração (mais feature de gerador = mais comparável) · benchmark de modelo (a nossa régua é convergência, não fidelidade de pixel).
 

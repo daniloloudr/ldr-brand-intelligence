@@ -1,7 +1,6 @@
 # Riverflow — o 5º arquétipo: gerador de imagem de produto, self-serve
 
-> Análise do Danilo, 25/08/2026. Nome anotado nas duas grafias que apareceram
-> (Riverstudio / Riverflow) — **confirmar a oficial antes de usar em material de venda.**
+> Análise do Danilo, 25/08/2026. Nome **confirmado: Riverflow**.
 >
 > Companheiros de prateleira: [`valometry.md`](valometry.md) (mede, não cria),
 > Fullsix (fábrica com humanos), Pupila (Studio sem cérebro), Tess (horizontal).
