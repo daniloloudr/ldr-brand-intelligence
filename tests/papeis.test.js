@@ -256,6 +256,11 @@ describe('o código aguenta o banco pré-052 (a janela do deploy)', () => {
       'netlify/functions/workspace-members.js', "listar('id, user_id, role, created_at')"],
     '_papeis (todo endpoint novo)': [
       'netlify/functions/_papeis.js', "consulta('id, role')"],
+    // ESCRITA também atravessa a janela, e essa foi a que mordeu: o vínculo do
+    // dono levava as capacidades novas e o insert inteiro era recusado no
+    // esquema velho — workspace nascia sem dono e não abria para ninguém.
+    'admin-create-workspace (o vínculo do dono)': [
+      'netlify/functions/admin-create-workspace.js', "vincular({ role: 'owner' })"],
   }
   for (const [nome, [arq, fallback]] of Object.entries(caminhos)) {
     it(nome, () => {

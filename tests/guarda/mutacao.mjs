@@ -260,6 +260,10 @@ const MUTACOES = [
     de: "  if (listErr) ({ data: members } = await listar('id, user_id, role, created_at'))",
     para: '' },
 
+  { nome: 'workspace nasce sem dono e a falha é engolida',
+    arq: 'netlify/functions/admin-create-workspace.js',
+    de: "  if (vincErr) ({ error: vincErr } = await vincular({ role: 'owner' }))", para: '' },
+
   // ── O onboarding que não andava sozinho (25/08, Zétona) ───────────
   { nome: 'o cron do onboarding volta a despachar sem se identificar',
     arq: 'netlify/functions/_onboard.js',
