@@ -374,9 +374,37 @@ const MUTACOES = [
 let pegos = 0
 console.log('mutação'.padEnd(52), 'resultado')
 console.log('-'.repeat(72))
+// ── Restaurar SEMPRE, inclusive quando a varredura é morta ──────────
+//
+// 25/08: o hook de pre-commit rodou esta varredura, a chamada estourou o tempo
+// e o processo foi morto NO MEIO de uma mutação. O arquivo ficou no disco com o
+// defeito reintroduzido — no caso, o buraco que deixava o dono de um tenant
+// vincular conta alheia em silêncio, consertado no dia anterior.
+//
+// A suíte pegaria (é o que a mutação testa), então não é silencioso. Mas
+// "confia que alguém vai rodar os testes de novo" não é rede: bastava um
+// `--no-verify` para o defeito voltar a produção pela porta da frente.
+//
+// A ferramenta que reintroduz defeito de propósito é obrigada a desfazer isso
+// mesmo morrendo. `emRestauracao` guarda o arquivo em voo; os handlers cobrem
+// Ctrl-C, kill e exceção não tratada.
+let emRestauracao = null
+const restaurar = () => {
+  if (!emRestauracao) return
+  writeFileSync(emRestauracao.arq, emRestauracao.orig)
+  console.error(`\n⚠ varredura interrompida — ${emRestauracao.arq} restaurado`)
+  emRestauracao = null
+}
+for (const sinal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sinal, () => { restaurar(); process.exit(130) })
+}
+process.on('uncaughtException', (e) => { restaurar(); console.error(e); process.exit(1) })
+process.on('exit', restaurar)
+
 for (const m of MUTACOES) {
   const orig = readFileSync(m.arq, 'utf8')
   if (!orig.includes(m.de)) { console.log(m.nome.padEnd(52), '⚠ alvo não encontrado'); continue }
+  emRestauracao = { arq: m.arq, orig }
   writeFileSync(m.arq, orig.replace(m.de, m.para))
   let vermelho = false, quantos = 0
   try {
@@ -388,6 +416,7 @@ for (const m of MUTACOES) {
     if (quantos > 0) vermelho = true
   } catch { /* json pode faltar se o vitest morreu */ }
   writeFileSync(m.arq, orig)
+  emRestauracao = null          // restaurado no fluxo normal
   if (vermelho) pegos++
   console.log(m.nome.padEnd(52), vermelho ? `✓ PEGA (${quantos} teste(s) vermelho(s))` : '✗ PASSOU DESPERCEBIDA')
 }
