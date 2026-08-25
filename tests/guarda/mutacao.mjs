@@ -260,6 +260,24 @@ const MUTACOES = [
     de: "  if (listErr) ({ data: members } = await listar('id, user_id, role, created_at'))",
     para: '' },
 
+  // ── O onboarding que não andava sozinho (25/08, Zétona) ───────────
+  { nome: 'o cron do onboarding volta a despachar sem se identificar',
+    arq: 'netlify/functions/_onboard.js',
+    de: '        : internalHeaders()', para: "        : { 'Content-Type': 'application/json' }" },
+
+  { nome: 'o diagnóstico volta a exigir token e mata o cron em silêncio',
+    arq: 'netlify/functions/diagnostico-gerar-background.js',
+    de: '  const user = porteiro.user',
+    para: "  const token = event.headers.authorization?.replace('Bearer ', '')\n  if (!token) return { statusCode: 401 }\n  const user = porteiro.user" },
+
+  { nome: 'checagem de participação roda sem usuário (TypeError no cron)',
+    arq: 'netlify/functions/diagnostico-gerar-background.js',
+    de: '    if (!porteiro.interno) {', para: '    if (true) {' },
+
+  { nome: 'diagnóstico de servidor volta a inventar autor',
+    arq: 'netlify/functions/diagnostico-gerar-background.js',
+    de: "    : { tipo: 'onboarding' }", para: "    : { tipo: 'manual' }" },
+
   // ── Segundo fator no operador (24/08) ─────────────────────────────
   { nome: 'endpoint de operador aceita token sem segundo fator',
     arq: 'netlify/functions/admin-reset-password.js',
