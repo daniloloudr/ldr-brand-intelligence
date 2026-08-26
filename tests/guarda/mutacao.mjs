@@ -423,6 +423,24 @@ const MUTACOES = [
     arq: 'src/lib/WorkspaceContext.jsx',
     de: 'const { data: ws } = operador',
     para: 'const { data: ws } = true' },
+
+  // F11 — a extração aprendeu `strategy`. O risco não é a passada nova (que
+  // falha visível: campo em branco); é a ESCRITA apagar o que o Copiloto
+  // gravou, num reimport, em silêncio.
+  { nome: 'a estratégia volta a não ter onde ser gravada',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: '    strategy:        strategyMesclada,\n',
+    para: '' },
+
+  { nome: 'a mescla vira substituição (apaga o que o Copiloto gravou)',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: '  const saida = { ...(atual || {}) }',
+    para: '  const saida = { ...(novo || {}) }' },
+
+  { nome: 'o esqueleto vazio do modelo passa a apagar dado bom',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: 'if (!vazio(v)) saida[k] = v',
+    para: 'saida[k] = v' },
 ]
 
 let pegos = 0

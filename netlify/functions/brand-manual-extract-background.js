@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { extractJSON, MODELS, logAiUsage } from './_ai.js'
-import { renderSmartbrand } from './_smartbrand.js'
+import { renderSmartbrand, vazio } from './_smartbrand.js'
 import { autorizarBackground } from './_interno.js'
 
 const ANTHROPIC_BASE  = 'https://api.anthropic.com/v1/messages'
@@ -48,6 +48,28 @@ NÃO invente. Campo sem lastro no manual: string vazia ou array vazio. Um brand 
 meio inventado é pior que um incompleto — a destilação aprende a invenção.
 
 Responda APENAS com o JSON pedido, sem markdown e sem texto em volta.`
+
+/* `strategy` é a ÚNICA coluna do brand book que a extração MESCLA em vez de
+   substituir, e por um motivo concreto: é a única onde outra mão escreve. O
+   Copiloto grava `goals_kpis` ali pela tool `salvar_estrategia`, e `personas`
+   de marcas antigas ainda vive lá como legado (a tela trata isso em
+   StrategySections). Substituir a coluna inteira — que é o que as outras três
+   fazem — apagaria em silêncio o que o cliente respondeu ao Copiloto. E
+   apagaria justamente num REIMPORT, que é quando ele acha que está
+   ACRESCENTANDO informação.
+
+   A regra é a mesma do resto do arquivo: só entra o que o manual disse. Campo
+   que a extração devolveu vazio não sobrescreve nada; campo que ela preencheu
+   vence, porque aí o manual É a fonte.
+
+   `vazio` vem do smartbrand e é recursivo — o modelo às vezes devolve o
+   esqueleto do array de volta com tudo em branco, e um `.length` ingênuo leria
+   isso como conteúdo, apagando o dado bom com uma casca. */
+export const mesclarStrategy = (atual, novo) => {
+  const saida = { ...(atual || {}) }
+  for (const [k, v] of Object.entries(novo || {})) if (!vazio(v)) saida[k] = v
+  return saida
+}
 
 /* Um bloco por leitura. O documento está no cache: o que muda entre as
    chamadas é a pergunta, e cada resposta cabe folgada no seu teto. */
@@ -101,6 +123,64 @@ frase ou peça; não junte várias numa só.
 - "notas": em par "usar vs. evitar", registre aqui o lado a EVITAR e o porquê.
 
 Só devolva lista vazia se o manual realmente não trouxer nenhuma frase pronta.`,
+  },
+  {
+    // F11 — a coluna `strategy` (migration 035) nunca teve caminho de entrada.
+    //
+    // Achado no manual da Worten (26/08): a extração devolveu 41 lacunas e as
+    // seções Função e Experiência vieram inteiras em branco. Duas causas
+    // empilhadas: aquele manual é de EXPRESSÃO e realmente não traz modelo de
+    // negócio nem jornada — mas, mesmo que trouxesse, não haveria onde gravar.
+    // Nenhuma passada perguntava por isto, e a escrita não mencionava
+    // `strategy` uma única vez. O smartbrand já cobrava esses campos (ele lê o
+    // mesmo mapa da tela, SECOES_DA_MARCA), então o produto pedia um dado que
+    // não tinha porta.
+    //
+    // Passada PRÓPRIA, e não um apêndice da verbal: são perguntas de natureza
+    // diferente (a verbal é quem a marca diz que é; esta é como o negócio se
+    // organiza), e no manual da PES uma leitura só já estourou os 16 mil tokens
+    // de saída ainda dentro da identidade verbal.
+    chave: 'strategy', tag: 'estrategia', max: 10000,
+    prompt: `${REGRAS}
+
+Extraia a ESTRATÉGIA — como o negócio da marca se organiza e o que ela promete
+como experiência. Manual de marca costuma ter POUCO disto: a maioria trata de
+expressão (logo, cores, tipografia). Se o manual não falar destes assuntos,
+devolva os campos vazios. Campo vazio aqui é resposta correta e esperada.
+
+{
+  "meaning": "",
+  "business_model": "",
+  "portfolio": "",
+  "brand_architecture": "",
+  "stakeholders": [],
+  "goals_kpis": [{ "objetivo": "", "kpi": "", "meta": "" }],
+  "ux": "",
+  "ui": "",
+  "customer_journey": "",
+  "design_notes": "",
+  "territorio": "",
+  "storytelling_overview": "",
+  "seasons": [{ "nome": "", "periodo": "", "narrativa": "" }]
+}
+
+O que cada campo quer dizer:
+- "meaning": o que a marca representa na vida das pessoas, além do que vende.
+- "business_model": como ela gera valor e receita.
+- "portfolio": produtos e serviços, e como se organizam.
+- "brand_architecture": relação entre marca-mãe, submarcas e produtos — inclua
+  quando o manual listar submarcas, linhas ou negócios com identidade própria.
+- "stakeholders": a quem a marca responde (clientes, parceiros, investidores…).
+- "ux" / "ui": princípios de experiência e de interface, quando declarados.
+- "customer_journey": do primeiro contato ao pós-venda, com os momentos-chave.
+- "design_notes": regras de design que não couberam no sistema de design.
+- "territorio": o terreno que a marca reivindica — o que ela é dona de falar.
+  Só se o manual DECLARAR. Território inferido é trabalho da destilação, e
+  inventar aqui envenenaria o modelo vivo com uma afirmação sem lastro.
+- "storytelling_overview" / "seasons": o arco narrativo e seus capítulos, se o
+  manual descrever campanhas com tema próprio.
+
+NÃO derive nada do que você sabe sobre a marca por fora do documento.`,
   },
   {
     chave: 'visual_identity', tag: 'visual-declarado', max: 12000,
@@ -405,10 +485,16 @@ export const handler = async (event) => {
   console.log(`[brand-manual] verbal_identity tem ${Object.keys(extracted.verbal_identity || {}).length} chaves`)
   console.log(`[brand-manual] visual_identity tem ${Object.keys(extracted.visual_identity || {}).length} chaves`)
   console.log(`[brand-manual] design_system tem ${Object.keys(extracted.design_system || {}).length} chaves`)
+  // Manual de expressão devolve isto quase todo vazio, e isso é esperado — o
+  // log existe para a diferença aparecer quando a plataforma de marca chegar.
+  const strategyCheios = Object.entries(extracted.strategy || {}).filter(([, v]) => !vazio(v))
+  console.log(`[brand-manual] strategy tem ${strategyCheios.length} campo(s) com conteúdo: ${strategyCheios.map(([k]) => k).join(', ') || '—'}`)
 
   // Busca a row mais recente (não maybeSingle, que falha com duplicatas)
+  // `strategy` vem junto porque a escrita dela é MESCLADA, não substituída —
+  // ver a nota em `strategyMesclada` abaixo.
   const { data: existingBooks } = await supabase
-    .from('brand_books').select('id, version').eq('brand_id', brand_id)
+    .from('brand_books').select('id, version, strategy').eq('brand_id', brand_id)
     .order('created_at', { ascending: false }).limit(1)
   const existingBook = existingBooks?.[0] || null
   console.log(`[brand-manual] Existing book:`, existingBook?.id, 'version:', existingBook?.version)
@@ -419,40 +505,55 @@ export const handler = async (event) => {
   const smart = renderSmartbrand(extracted, { marca: brand.nome })
   console.log(`[brand-manual] smartbrand: ${smart.preenchidos}/${smart.total} campos · ${smart.lacunas.length} lacuna(s)`)
 
+  const strategyMesclada = mesclarStrategy(existingBook?.strategy, extracted.strategy)
+
   const campos = {
     verbal_identity: extracted.verbal_identity || {},
     visual_identity: extracted.visual_identity || {},
     design_system:   extracted.design_system   || {},
+    strategy:        strategyMesclada,
     smartbrand:      smart.markdown,
     smartbrand_gaps: smart.lacunas,
   }
 
-  // Se este código subir antes da migration 047, a coluna `smartbrand` não
-  // existe e o Postgres derruba a escrita INTEIRA — perdendo uma extração que
-  // já foi paga. Nesse caso salva o que existia antes e avisa alto.
-  const semSmartbrand = (erro) => /smartbrand/i.test(erro?.message || '')
-  const { smartbrand, smartbrand_gaps, ...camposBase } = campos
-  const gritar = () => console.error(
-    '[brand-manual] migration 047 ainda não rodou: brand book salvo SEM o smartbrand'
+  // Coluna que ainda não existe derruba a escrita INTEIRA no Postgres — e o que
+  // se perde é uma extração JÁ PAGA. Vale para `smartbrand` (migration 047) e
+  // agora também para `strategy` (035): se este código chegar a um banco velho,
+  // salva o que a versão de lá aguenta e avisa alto, em vez de perder tudo.
+  //
+  // Progressivo de propósito: cada degrau abre mão de UMA coluna. Tirar as duas
+  // de uma vez no primeiro erro jogaria fora a estratégia por causa do
+  // smartbrand, que é o degrau mais provável.
+  const semColuna = (erro, nome) => new RegExp(nome, 'i').test(erro?.message || '')
+  const { smartbrand, smartbrand_gaps, ...semSmart } = campos
+  const { strategy, ...semSmartNemStrategy } = semSmart
+  const gritar = (mig, coluna) => console.error(
+    `[brand-manual] migration ${mig} ainda não rodou: brand book salvo SEM ${coluna}`
   )
 
-  if (existingBook?.id) {
-    const alvo = supabase.from('brand_books')
-    const patch = { version: (existingBook.version || 1) + 1, updated_at: new Date().toISOString() }
-    let { error: upErr } = await alvo.update({ ...campos, ...patch }).eq('id', existingBook.id)
-    if (semSmartbrand(upErr)) {
-      gritar()
-      ;({ error: upErr } = await alvo.update({ ...camposBase, ...patch }).eq('id', existingBook.id))
+  // Tenta o conjunto completo e vai degrau a degrau. Devolve o erro final.
+  const escrever = async (aplicar) => {
+    let { error, data } = await aplicar(campos)
+    if (semColuna(error, 'smartbrand')) {
+      gritar('047', 'o smartbrand')
+      ;({ error, data } = await aplicar(semSmart))
     }
+    if (semColuna(error, 'strategy')) {
+      gritar('035', 'a estratégia')
+      ;({ error, data } = await aplicar(semSmartNemStrategy))
+    }
+    return { error, data }
+  }
+
+  if (existingBook?.id) {
+    const patch = { version: (existingBook.version || 1) + 1, updated_at: new Date().toISOString() }
+    const { error: upErr } = await escrever((c) =>
+      supabase.from('brand_books').update({ ...c, ...patch }).eq('id', existingBook.id))
     if (upErr) console.error(`[brand-manual] UPDATE falhou:`, upErr.message)
     else       console.log(`[brand-manual] UPDATE concluído em ${existingBook.id}`)
   } else {
-    const criar = (c) => supabase.from('brand_books').insert({ brand_id, ...c }).select('id').single()
-    let { data: newBook, error: insErr } = await criar(campos)
-    if (semSmartbrand(insErr)) {
-      gritar()
-      ;({ data: newBook, error: insErr } = await criar(camposBase))
-    }
+    const { data: newBook, error: insErr } = await escrever((c) =>
+      supabase.from('brand_books').insert({ brand_id, ...c }).select('id').single())
     if (insErr) console.error(`[brand-manual] INSERT falhou:`, insErr.message)
     else        console.log(`[brand-manual] INSERT criou:`, newBook?.id)
   }
