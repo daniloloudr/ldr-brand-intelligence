@@ -27,6 +27,19 @@ export function getTenantSlug() {
   return sub.toLowerCase();
 }
 
+// Estamos rodando na máquina de quem desenvolve?
+//
+// É o HOST que responde, não o modo de build. `import.meta.env.DEV` depende de
+// como o bundle foi gerado — um build de desenvolvimento servido em produção
+// mentiria, e mentiria justamente numa decisão de acesso. O hostname não mente.
+//
+// Usado pelo atalho de `?tenant=` do operador (ver WorkspaceContext): repare
+// que `getTenantSlug` acima aceita `?tenant=` em QUALQUER host, inclusive
+// produção — o que é inofensivo enquanto o acesso exigir participação, e
+// deixaria de ser no instante em que alguém abrisse exceção sem esta trava.
+export const ehAmbienteLocal = () =>
+  ['localhost', '127.0.0.1', '[::1]', '::1'].includes(window.location.hostname);
+
 // URL de acesso do cliente (subdomínio da marca em produção)
 export const tenantUrl = (slug) => `https://${slug}.${ROOT_DOMAIN}`;
 

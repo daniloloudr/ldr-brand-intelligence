@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
-import { getTenantSlug } from './helpers'
+import { getTenantSlug, ehAmbienteLocal } from './helpers'
 
 const WorkspaceContext = createContext(null)
 
@@ -68,7 +68,46 @@ export function WorkspaceProvider({ user, onLogout, children, overrideWorkspaceI
           pode_aprovar_aprendizado: data.pode_aprovar_aprendizado ?? dono,
         })
       }
-      else { setWorkspace(null); setDenied(true) }   // não é membro desta marca
+      else {
+        // ── ATALHO DE DESENVOLVIMENTO ────────────────────────────────
+        // `?tenant=<slug>` em localhost, para quem opera a plataforma. Pedido
+        // do Danilo (26/08): em ambiente local ele precisa abrir qualquer
+        // marca para acompanhar setup, testar e implementar — sem virar membro
+        // do tenant do cliente, que anda contra a separação do super admin (S1).
+        //
+        // O caso que motivou: a Zétona nasceu sem ele na lista de membros, e
+        // `?tenant=zetona` respondia "Sem acesso a esta marca" — corretamente,
+        // porque o caminho do subdomínio exige participação.
+        //
+        // DUAS travas, e as duas precisam valer:
+        //  · HOST local — `getTenantSlug` aceita `?tenant=` em qualquer host,
+        //    então sem isto o atalho seria um trocador de tenant por URL em
+        //    PRODUÇÃO, e ainda por cima sem a tarja de impersonação na tela;
+        //  · `platform_admins` — a lista real, lida do banco (a policy "admin
+        //    le proprio registro" permite ao usuário ver a própria linha).
+        //
+        // A trava que vale mesmo não está aqui: é a RLS. Sem linha em
+        // platform_admins o bypass do 007 não se aplica e as telas vêm vazias
+        // de qualquer jeito. Isto é conveniência de UI sobre uma permissão que
+        // o banco JÁ concede — nunca a permissão em si.
+        const { data: operador } = ehAmbienteLocal()
+          ? await supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle()
+          : { data: null }
+
+        const { data: ws } = operador
+          ? await supabase.from('workspaces').select('*').eq('slug', tenantSlug).maybeSingle()
+          : { data: null }
+
+        if (ws) {
+          // Mesmo tratamento da impersonação: para fins de suporte, o operador
+          // é dono. Papel de tela, não de banco — ele não entra em
+          // workspace_members.
+          setWorkspace(ws); setRole('owner'); setDenied(false)
+          setCapacidades({ pode_aprovar_pecas: true, pode_aprovar_aprendizado: true })
+        } else {
+          setWorkspace(null); setDenied(true)   // não é membro desta marca
+        }
+      }
     } else {
       // Domínio de sistema (app./localhost): NÃO carrega workspace por associação.
       // app.br4ndcode.com é exclusivo do admin; aqui só se entra num workspace via
