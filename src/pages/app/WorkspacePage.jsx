@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { navigate } from '../../lib/helpers';
+import { navigate, novaSenha } from '../../lib/helpers';
 import {
   Box, Card, CardContent, Typography, TextField, Button, MenuItem,
   Tab, Tabs, Chip, CircularProgress, Alert, IconButton, Select, FormControl,
@@ -21,11 +21,15 @@ import {
 import { durLabel } from '../../lib/videoModels'
 import { PageHeader }     from '../../components/shell/PageHeader'
 import { PALETTE } from '../../lib/theme'
+import { PRESETS, ORDEM_PRESETS, presetDoMembro, papelDoPreset } from '../../lib/papeis'
+import * as mfa from '../../lib/mfa'
 
 const SETORES = ["Tecnologia","Saúde","Educação","Finanças","Varejo","Fashion","Indústria","Serviços","Alimentação","Imóveis","Logística","Mídia","Energia","Agronegócio","Outro"]
 const PORTES  = ["Startup","PME","Médio porte","Grande empresa"]
-const ROLES   = ['admin', 'member']
-const ROLE_LABEL = { admin: 'Administrador', member: 'Membro' }
+// Papéis: ver src/lib/papeis.js. O dado é role + duas capacidades; a tela fala
+// em presets nomeados porque "member + pode_aprovar_pecas" não é frase que se
+// mostre a um cliente.
+
 
 function TabEmpresa({ workspace, reload }) {
   const [form, setForm]       = useState({ nome: workspace.nome || '', dominio: workspace.dominio || '', setor: workspace.setor || '', porte: workspace.porte || '' })
@@ -63,28 +67,43 @@ function TabEmpresa({ workspace, reload }) {
   )
 }
 
+// ── Gestão de time ───────────────────────────────────────────────────
+// Toda escrita aqui passa pelo servidor (workspace-member / workspace-create-user).
+// Antes era `supabase.from('workspace_members').update(...)` direto do browser,
+// e a policy que "protegia" era `for all using (é membro)` — ou seja, qualquer
+// pessoa do tenant podia se promover, rebaixar o dono ou remover um colega.
+//
+// Com a RLS corrigida (migration 052) o browser passaria a receber "0 linhas
+// afetadas" em silêncio, e a tela diria "salvo". Por isso a escrita mudou de
+// lugar junto com a policy: quem não pode precisa ouvir POR QUE não pode.
 function TabEquipe({ workspace }) {
+  const { ehOwner } = useWorkspace()
   const [membros, setMembros]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
-  const [email, setEmail]       = useState('')
-  const [convMsg, setConvMsg]   = useState('')
   const [editing, setEditing]   = useState(null) // { membro }
-  const [editRole, setEditRole] = useState('member')
+  const [editPreset, setEditPreset] = useState('criador')
   const [saving, setSaving]     = useState(false)
   const [confirmDel, setConfirmDel] = useState(null) // { membro }
   const [deleting, setDeleting] = useState(false)
+  const [novo, setNovo]         = useState(null)   // form de criar acesso
+  const [criando, setCriando]   = useState(false)
+  const [criado, setCriado]     = useState(null)   // credencial recém-gerada
 
   useEffect(() => { loadMembros() }, [workspace.id])
+
+  async function autorizacao() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Sessão expirada.')
+    return { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }
+  }
 
   async function loadMembros() {
     setLoading(true)
     setError('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Sessão expirada.')
       const res = await fetch(`/.netlify/functions/workspace-members?workspace_id=${workspace.id}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: await autorizacao(),
       })
       if (!res.ok) throw new Error(`Erro ${res.status}`)
       const { members } = await res.json()
@@ -96,27 +115,33 @@ function TabEquipe({ workspace }) {
     }
   }
 
-  async function convidar(e) {
-    e.preventDefault()
-    if (!email) return
-    setConvMsg('Funcionalidade de convite via e-mail requer Edge Function. O link de convite foi copiado.')
-    const link = `${window.location.origin}/#/register?workspace=${workspace.id}`
-    navigator.clipboard.writeText(link).catch(() => {})
-    setEmail('')
+  /** O servidor é quem decide; a tela só traduz o "não" para português. */
+  async function chamar(url, opcoes) {
+    const res = await fetch(url, { headers: await autorizacao(), ...opcoes })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json.error || `Erro ${res.status}`)
+    return json
   }
 
   function abrirEditar(m) {
     setEditing(m)
-    setEditRole(m.role || 'member')
+    setEditPreset(presetDoMembro(m))
   }
 
   async function salvarEdicao() {
     if (!editing) return
-    setSaving(true)
+    setSaving(true); setError('')
     try {
-      await supabase.from('workspace_members').update({ role: editRole }).eq('id', editing.id)
+      await chamar('/.netlify/functions/workspace-member', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          workspace_id: workspace.id, member_id: editing.id, ...papelDoPreset(editPreset),
+        }),
+      })
       setEditing(null)
       await loadMembros()
+    } catch (e) {
+      setError(e.message)
     } finally {
       setSaving(false)
     }
@@ -124,13 +149,49 @@ function TabEquipe({ workspace }) {
 
   async function confirmarRemocao() {
     if (!confirmDel) return
-    setDeleting(true)
+    setDeleting(true); setError('')
     try {
-      await supabase.from('workspace_members').delete().eq('id', confirmDel.id)
+      await chamar('/.netlify/functions/workspace-member', {
+        method: 'DELETE',
+        body: JSON.stringify({ workspace_id: workspace.id, member_id: confirmDel.id }),
+      })
       setConfirmDel(null)
       await loadMembros()
+    } catch (e) {
+      setError(e.message)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  function abrirNovo() {
+    setCriado(null); setError('')
+    setNovo({ nome: '', email: '', password: novaSenha(), preset: 'criador' })
+  }
+
+  async function criarAcesso(e) {
+    e.preventDefault()
+    if (!novo?.email?.trim()) return
+    setCriando(true); setError('')
+    try {
+      const r = await chamar('/.netlify/functions/workspace-create-user', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspace_id: workspace.id,
+          nome: novo.nome, email: novo.email, password: novo.password,
+          ...papelDoPreset(novo.preset),
+        }),
+      })
+      // O servidor só chega aqui quando criou a conta — e-mail já cadastrado é
+      // recusado com 409 e cai no catch. Então a senha mostrada é sempre a que
+      // vale.
+      setCriado({ ...r, password: novo.password })
+      setNovo(null)
+      await loadMembros()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setCriando(false)
     }
   }
 
@@ -156,17 +217,28 @@ function TabEquipe({ workspace }) {
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
-      {convMsg && <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setConvMsg('')}>{convMsg}</Alert>}
 
-      <Box component="form" onSubmit={convidar} sx={{ display: 'flex', gap: 1.5, mb: 3, maxWidth: 560 }}>
-        <TextField
-          fullWidth size="small" label="E-mail do convidado"
-          value={email} onChange={e => setEmail(e.target.value)} type="email"
-        />
-        <Button type="submit" variant="contained" color="primary" sx={{ whiteSpace: 'nowrap', fontWeight: 800 }}>
-          Convidar
-        </Button>
-      </Box>
+      {criado && (
+        <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setCriado(null)}
+          action={
+            <Button size="small" onClick={() => navigator.clipboard?.writeText(`${criado.email} / ${criado.password}`)}>Copiar</Button>
+          }>
+          Acesso criado: <strong>{criado.email}</strong> · senha temporária <strong>{criado.password}</strong>.
+          Entregue de forma segura — no primeiro acesso a pessoa define a senha dela.
+        </Alert>
+      )}
+
+      {ehOwner ? (
+        <Box sx={{ mb: 3 }}>
+          <Button variant="contained" color="primary" onClick={abrirNovo} sx={{ fontWeight: 800 }}>
+            Criar acesso
+          </Button>
+        </Box>
+      ) : (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          Só o dono do workspace pode criar acessos e alterar papéis.
+        </Alert>
+      )}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -201,25 +273,31 @@ function TabEquipe({ workspace }) {
                       {m.email || <Typography component="span" sx={{ color: PALETTE.neutral[400] }}>—</Typography>}
                     </TableCell>
                     <TableCell sx={{ fontSize: 13 }}>
-                      <Chip
-                        label={ROLE_LABEL[m.role] || m.role}
-                        size="small"
-                        sx={{
-                          fontWeight: 700, fontSize: 11,
-                          bgcolor: m.role === 'admin' ? 'rgba(13,158,122,0.12)' : 'action.hover',
-                          color:   m.role === 'admin' ? 'primary.main' : 'text.secondary',
-                        }}
-                      />
+                      <Tooltip title={PRESETS[presetDoMembro(m)].descricao}>
+                        <Chip
+                          label={PRESETS[presetDoMembro(m)].label}
+                          size="small"
+                          sx={{
+                            fontWeight: 700, fontSize: 11,
+                            bgcolor: m.role === 'owner' ? 'rgba(13,158,122,0.12)' : 'action.hover',
+                            color:   m.role === 'owner' ? 'primary.main' : 'text.secondary',
+                          }}
+                        />
+                      </Tooltip>
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Editar">
-                        <IconButton size="small" onClick={() => abrirEditar(m)} sx={{ color: 'text.secondary' }}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={m.is_self ? 'Não é possível remover você mesmo' : 'Remover'}>
+                      {/* Sem dono, sem botão. A RLS recusa de qualquer jeito; o
+                          que se evita aqui é o clique que não faz nada. */}
+                      <Tooltip title={ehOwner ? 'Editar' : 'Só o dono altera papéis'}>
                         <Typography component="span">
-                          <IconButton size="small" disabled={m.is_self}
+                          <IconButton size="small" disabled={!ehOwner} onClick={() => abrirEditar(m)} sx={{ color: 'text.secondary' }}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Typography>
+                      </Tooltip>
+                      <Tooltip title={m.is_self ? 'Não é possível remover você mesmo' : ehOwner ? 'Remover' : 'Só o dono remove membros'}>
+                        <Typography component="span">
+                          <IconButton size="small" disabled={m.is_self || !ehOwner}
                             onClick={() => setConfirmDel(m)}
                             sx={{ color: 'error.main', '&.Mui-disabled': { color: 'action.disabled' } }}>
                             <DeleteIcon fontSize="small" />
@@ -244,10 +322,13 @@ function TabEquipe({ workspace }) {
           </DialogContentText>
           <FormControl fullWidth size="small">
             <InputLabel>Acesso</InputLabel>
-            <Select value={editRole} label="Acesso" onChange={e => setEditRole(e.target.value)}>
-              {ROLES.map(r => <MenuItem key={r} value={r}>{ROLE_LABEL[r]}</MenuItem>)}
+            <Select value={editPreset} label="Acesso" onChange={e => setEditPreset(e.target.value)}>
+              {ORDEM_PRESETS.map(k => <MenuItem key={k} value={k}>{PRESETS[k].label}</MenuItem>)}
             </Select>
           </FormControl>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+            {PRESETS[editPreset]?.descricao}
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setEditing(null)} disabled={saving} color="inherit">Cancelar</Button>
@@ -272,6 +353,48 @@ function TabEquipe({ workspace }) {
             {deleting ? 'Removendo…' : 'Remover'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Criar acesso — o dono do tenant dá entrada no próprio time */}
+      <Dialog open={Boolean(novo)} onClose={() => !criando && setNovo(null)} maxWidth="xs" fullWidth>
+        <Box component="form" onSubmit={criarAcesso}>
+          <DialogTitle sx={{ fontWeight: 900 }}>Criar acesso</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2, fontSize: 13 }}>
+              A pessoa entra com uma senha temporária e define a dela no primeiro acesso.
+            </DialogContentText>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField size="small" label="Nome" value={novo?.nome || ''}
+                onChange={e => setNovo(n => ({ ...n, nome: e.target.value }))} />
+              <TextField size="small" label="E-mail" type="email" required value={novo?.email || ''}
+                onChange={e => setNovo(n => ({ ...n, email: e.target.value }))} />
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField size="small" label="Senha temporária" sx={{ flex: 1 }} required
+                  value={novo?.password || ''}
+                  onChange={e => setNovo(n => ({ ...n, password: e.target.value }))} />
+                <Button size="small" variant="outlined" onClick={() => setNovo(n => ({ ...n, password: novaSenha() }))}>
+                  Gerar
+                </Button>
+              </Box>
+              <FormControl fullWidth size="small">
+                <InputLabel>Acesso</InputLabel>
+                <Select value={novo?.preset || 'criador'} label="Acesso"
+                  onChange={e => setNovo(n => ({ ...n, preset: e.target.value }))}>
+                  {ORDEM_PRESETS.map(k => <MenuItem key={k} value={k}>{PRESETS[k].label}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" color="text.secondary">
+                {PRESETS[novo?.preset || 'criador']?.descricao}
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setNovo(null)} disabled={criando} color="inherit">Cancelar</Button>
+            <Button type="submit" disabled={criando} variant="contained" sx={{ fontWeight: 800 }}>
+              {criando ? 'Criando…' : 'Criar acesso'}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </Box>
   )
@@ -523,12 +646,203 @@ function PageShell({ title, subtitle, children }) {
   )
 }
 
+// ── Segundo fator, por escolha da pessoa ─────────────────────────────
+// OPCIONAL para o cliente (decisão do Danilo, 24/ago) — a única conta em que é
+// obrigatório é a de operador da plataforma, que atravessa a RLS de 15 tabelas.
+//
+// Quem liga aqui passa a ver a tela de código no próximo login. Isso não é
+// capricho: o Supabase está com "Limit duration of AAL1 sessions" ativo, então
+// sessão com fator inscrito e não verificada é encerrada em 15 minutos. Ligar
+// sem pedir o código faria o app parecer instável para quem escolheu se
+// proteger — o pior desfecho possível para uma opção de segurança.
+function SegundoFator() {
+  const [ligado, setLigado]     = useState(null)   // null = ainda lendo
+  const [inscricao, setInscricao] = useState(null) // { factorId, qr, segredo }
+  const [codigo, setCodigo]     = useState('')
+  const [ocupado, setOcupado]   = useState(false)
+  const [msg, setMsg]           = useState('')
+  const [erro, setErro]         = useState('')
+
+  useEffect(() => { mfa.fatores().then(f => setLigado(f.length > 0)) }, [])
+
+  async function comecar() {
+    setErro(''); setMsg(''); setOcupado(true)
+    const r = await mfa.inscrever()
+    setOcupado(false)
+    if (r.erro) return setErro(r.erro)
+    setInscricao(r)
+  }
+
+  async function confirmar(e) {
+    e.preventDefault()
+    setErro(''); setOcupado(true)
+    const r = await mfa.confirmar(inscricao.factorId, codigo)
+    setOcupado(false)
+    if (r.erro) { setCodigo(''); return setErro(r.erro) }
+    setInscricao(null); setCodigo(''); setLigado(true)
+    setMsg('Verificação em duas etapas ativada.')
+  }
+
+  async function desligar() {
+    if (!window.confirm('Desligar a verificação em duas etapas desta conta?')) return
+    setErro(''); setOcupado(true)
+    const r = await mfa.desligar()
+    setOcupado(false)
+    if (r.erro) return setErro(r.erro)
+    setLigado(false); setMsg('Verificação em duas etapas desativada.')
+  }
+
+  if (ligado === null) return null
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Verificação em duas etapas</Typography>
+      {msg  && <Alert severity="success" sx={{ borderRadius: 2 }} onClose={() => setMsg('')}>{msg}</Alert>}
+      {erro && <Alert severity="error"   sx={{ borderRadius: 2 }} onClose={() => setErro('')}>{erro}</Alert>}
+
+      {inscricao ? (
+        <Box component="form" onSubmit={confirmar} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Escaneie o código no seu app autenticador e digite os 6 dígitos.
+          </Typography>
+          {inscricao.qr && (
+            <Box component="img" src={inscricao.qr} alt="QR code do segundo fator"
+              sx={{ width: 180, height: 180 }} />
+          )}
+          {inscricao.segredo && (
+            <Typography variant="caption" color="text.disabled" sx={{ wordBreak: 'break-all' }}>
+              Não consegue escanear? Use o código: <strong>{inscricao.segredo}</strong>
+            </Typography>
+          )}
+          <TextField size="small" label="Código de 6 dígitos" value={codigo} autoFocus
+            onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputProps={{ inputMode: 'numeric', autoComplete: 'one-time-code' }} sx={{ maxWidth: 220 }} />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button type="submit" variant="contained" disabled={ocupado || codigo.length < 6} sx={{ fontWeight: 800 }}>
+              Ativar
+            </Button>
+            <Button color="inherit" disabled={ocupado}
+              onClick={async () => { await mfa.abortarInscricao(inscricao.factorId); setInscricao(null); setCodigo('') }}>
+              Cancelar
+            </Button>
+          </Box>
+        </Box>
+      ) : (
+        <>
+          <Typography variant="body2" color="text.secondary">
+            {ligado
+              ? 'Ativada. No próximo acesso pediremos o código do seu app autenticador.'
+              : 'Opcional. Se ativar, além da senha pediremos um código de 6 dígitos do seu celular a cada acesso.'}
+          </Typography>
+          <Button variant={ligado ? 'outlined' : 'contained'} color={ligado ? 'error' : 'primary'}
+            onClick={ligado ? desligar : comecar} disabled={ocupado}
+            sx={{ alignSelf: 'flex-start', fontWeight: 800, px: 3 }}>
+            {ligado ? 'Desativar' : 'Ativar'}
+          </Button>
+        </>
+      )}
+    </Box>
+  )
+}
+
+// ── Minha conta ──────────────────────────────────────────────────────
+// A página da PESSOA. Não existia: `/app/conta` se chamava "Configurações da
+// conta" e mostrava dados da EMPRESA. Depois da tela forçada de primeiro acesso
+// não havia caminho nenhum para trocar o próprio nome ou a própria senha — por
+// isso a senha temporária que o admin gera acabava virando a senha definitiva,
+// circulando em texto por e-mail e WhatsApp.
+function TabMinhaConta() {
+  const { user } = useWorkspace()
+  const [nome, setNome]     = useState(user?.user_metadata?.full_name || '')
+  const [senha, setSenha]   = useState('')
+  const [confirma, setConfirma] = useState('')
+  const [msg, setMsg]       = useState('')
+  const [erro, setErro]     = useState('')
+  const [salvando, setSalvando] = useState(false)
+
+  async function salvarNome(e) {
+    e.preventDefault()
+    setSalvando(true); setMsg(''); setErro('')
+    const { error } = await supabase.auth.updateUser({ data: { full_name: nome.trim() || null } })
+    setSalvando(false)
+    if (error) return setErro(error.message)
+    setMsg('Nome atualizado.')
+  }
+
+  async function trocarSenha(e) {
+    e.preventDefault()
+    setMsg(''); setErro('')
+    if (senha.length < 8)   return setErro('A senha deve ter pelo menos 8 caracteres.')
+    if (senha !== confirma) return setErro('As senhas não coincidem.')
+    setSalvando(true)
+    // must_change_password cai junto: quem escolheu a própria senha já cumpriu
+    // a exigência do primeiro acesso, e deixá-la de pé faria a tela forçada
+    // reaparecer no próximo login.
+    const { error } = await supabase.auth.updateUser({
+      password: senha,
+      data: { must_change_password: false },
+    })
+    setSalvando(false)
+    if (error) return setErro(error.message)
+    setSenha(''); setConfirma('')
+    setMsg('Senha alterada.')
+  }
+
+  return (
+    <Box sx={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {msg  && <Alert severity="success" sx={{ borderRadius: 2 }} onClose={() => setMsg('')}>{msg}</Alert>}
+      {erro && <Alert severity="error"   sx={{ borderRadius: 2 }} onClose={() => setErro('')}>{erro}</Alert>}
+
+      <Box component="form" onSubmit={salvarNome} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Seus dados</Typography>
+        <TextField fullWidth label="Nome" value={nome} onChange={e => setNome(e.target.value)} />
+        {/* E-mail é o login: trocar exige reconfirmação e é caminho de suporte,
+            não de autoatendimento. Mostrar bloqueado evita a pergunta. */}
+        <TextField fullWidth label="E-mail (login)" value={user?.email || ''} disabled
+          helperText="Para alterar o e-mail de acesso, fale com o suporte." />
+        <Button type="submit" variant="contained" disabled={salvando} sx={{ alignSelf: 'flex-start', fontWeight: 800, px: 3 }}>
+          Salvar
+        </Button>
+      </Box>
+
+      <Divider />
+
+      <SegundoFator />
+
+      <Divider />
+
+      <Box component="form" onSubmit={trocarSenha} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Trocar senha</Typography>
+        <TextField fullWidth type="password" label="Nova senha" value={senha}
+          onChange={e => setSenha(e.target.value)} autoComplete="new-password" />
+        <TextField fullWidth type="password" label="Confirmar nova senha" value={confirma}
+          onChange={e => setConfirma(e.target.value)} autoComplete="new-password" />
+        <Button type="submit" variant="outlined" disabled={salvando || !senha} sx={{ alignSelf: 'flex-start', fontWeight: 800, px: 3 }}>
+          Alterar senha
+        </Button>
+      </Box>
+    </Box>
+  )
+}
+
 export function ContaPage() {
-  const { workspace, reload } = useWorkspace()
+  const { workspace, reload, ehOwner } = useWorkspace()
+  const [aba, setAba] = useState(0)
   if (!workspace) return null
   return (
-    <PageShell title="Configurações da conta" subtitle={`Workspace · ${workspace.nome}`}>
-      <TabEmpresa workspace={workspace} reload={reload} />
+    <PageShell title="Minha conta" subtitle={`Workspace · ${workspace.nome}`}>
+      <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Tab label="Meus dados" sx={{ fontWeight: 700 }} />
+        <Tab label="Empresa" sx={{ fontWeight: 700 }} />
+      </Tabs>
+      {aba === 0 && <TabMinhaConta />}
+      {aba === 1 && (
+        ehOwner
+          ? <TabEmpresa workspace={workspace} reload={reload} />
+          : <Alert severity="info" sx={{ borderRadius: 2, maxWidth: 480 }}>
+              Os dados da empresa são editados pelo dono do workspace.
+            </Alert>
+      )}
     </PageShell>
   )
 }

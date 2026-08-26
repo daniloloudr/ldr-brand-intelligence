@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { exigirSegundoFator } from './_mfa.js'
 import { MERCADOS, PADRAO } from './_mercado.js'
 
 // slug do subdomínio (nomedamarca.br4ndcode.com) — mesma lógica da migration 044
@@ -68,6 +69,10 @@ export const handler = async (event) => {
   const token = event.headers.authorization?.replace('Bearer ', '')
   const adminUser = await isPlatformAdmin(supabase, token)
   if (!adminUser) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acesso negado' }) }
+  // Segundo fator. A identidade já foi VALIDADA acima (getUser confere a
+  // assinatura do token); só depois disso faz sentido ler a claim `aal` dele.
+  const semFator = exigirSegundoFator(token, headers)
+  if (semFator) return semFator
 
   const { nome, dominio, setor, porte, pais, creditos_mes, valor_mensal_centavos, slug: slugInput } = JSON.parse(event.body || '{}')
   if (!nome) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nome obrigatório' }) }
@@ -107,12 +112,37 @@ export const handler = async (event) => {
 
   if (wsError) return { statusCode: 400, headers, body: JSON.stringify({ error: wsError.message }) }
 
-  // Adiciona o admin como membro do workspace criado
-  await supabase.from('workspace_members').insert({
-    workspace_id: ws.id,
-    user_id: adminUser.id,
-    role: 'admin',
+  // Adiciona o operador como DONO do workspace criado. `admin` virou `owner` na
+  // migration 052 — a palavra colidia com platform_admins e o CHECK agora
+  // recusa o valor antigo. Todo workspace nasce com um dono; sem isso ninguém
+  // consegue gerenciar o time dele.
+  // Tolera o banco pré-052 e NÃO engole o erro.
+  //
+  // 25/08, na Zétona: este insert levava as duas capacidades, que só existem
+  // depois da migration 052. Criado pelo localhost (código do dev) contra o
+  // banco de produção (esquema velho), o PostgREST recusou a linha inteira — e
+  // como o `await` não conferia `error`, ninguém soube. O workspace nasceu com
+  // ZERO membros e o app respondeu "Sem acesso a esta marca" para o próprio
+  // operador que acabara de criá-lo.
+  //
+  // Duas lições no mesmo lugar: (a) escrita que atravessa a janela do deploy
+  // precisa de fallback, igual às leituras; (b) falha ao criar o DONO não pode
+  // ser silenciosa — um workspace sem dono é um workspace em que ninguém entra.
+  const vincular = (campos) =>
+    supabase.from('workspace_members').insert({ workspace_id: ws.id, user_id: adminUser.id, ...campos })
+
+  let { error: vincErr } = await vincular({
+    role: 'owner', pode_aprovar_pecas: true, pode_aprovar_aprendizado: true,
   })
+  if (vincErr) ({ error: vincErr } = await vincular({ role: 'owner' }))
+  if (vincErr) {
+    console.error('[admin-create-workspace] workspace sem dono:', vincErr.message)
+    return { statusCode: 500, headers, body: JSON.stringify({
+      error: `Workspace "${ws.nome}" foi criado, mas ninguém foi vinculado como dono (${vincErr.message}). `
+           + 'Ele existe e não abre — vincule o dono antes de usar.',
+      workspace_id: ws.id,
+    }) }
+  }
 
   // A MARCA nasce JUNTO do workspace, compartilhando nome/slug/site — não pede de novo
   // (decisão 2026-07-21). O brand book começa vazio; a extração do manual PDF enriquece depois.

@@ -7,7 +7,143 @@
 >
 > **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
-> Atualizado: 2026-08-17
+> Atualizado: 2026-08-26
+
+---
+
+## 🩺 BLOCO 1 — RISCO VIVO (levantado 24/ago, com os números reais)
+
+> Cinco itens que o Danilo mandou fechar. Três terminaram em **descoberta**, não em código: dois já estavam entregues e um é muito maior do que estava escrito.
+
+| # | Item | O que se descobriu ao medir |
+|---|---|---|
+| **1.1** | **Duas identidades + MFA** (S1/S2) | 🔴 **Tem pré-requisito que ninguém sabia.** Sete tabelas de cliente **não têm o bypass do operador**: `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias` e `ai_usage`. Se o operador sair das participações hoje, a impersonação abre **vazia** nessas telas. Estender o bypass a elas vira o **S0** da release do super admin |
+| **1.2** | **Opt-out de treino na Voyage** | ✅ **FEITO pelo Danilo, 24/ago.** Aberto desde 14/jul |
+| **1.3** | **Escuta contaminada** | ✅ **LIMPO 24/ago** — 52 snapshots e 6 sinais não-consumidos apagados; 24 consumidos preservados (inertes). `auditoria:escuta` devolve limpo. **Fica aberto** o que a limpeza não desfaz: a percepção que já virou memória em `brand_intelligence` — decisão de produto, detalhe abaixo |
+| **1.4** | **C7 — isolamento entre tenants** | ✅ **ENTREGUE** — `npm run guarda:isolamento` |
+| **1.5** | **B3 — extração de manual (413)** | ✅ **JÁ ESTAVA ENTREGUE** — o backlog estava velho. A function migrou para a **Files API** (teto de 500 MB, `TETO_MB` 400, guarda de 50 MB no front); o caso da PES (100 pág / 36,5 MB) está documentado no cabeçalho como causa raiz, e o erro de limite de páginas é humanizado |
+
+### 1.3 · o estrago da escuta, medido
+
+`npm run auditoria:escuta` — somente leitura, roda quando quiser. O invariante: um snapshot é agregado dos eventos do ciclo e **nunca** pode declarar mais menções do que existem eventos com URL naquele dia.
+
+| marca | snapshots contaminados | menções fantasma | sinais já consumidos |
+|---|---|---|---|
+| PES English | 16 (todos de 18/08) | 34 | **15** |
+| Escola da Inteligência | 16 | 105 | 4 |
+| LOUDR | 15 | 76 | 4 |
+| Hering | 4 (21/07) | 10 | 1 |
+| scolex | 1 | 6 | 0 |
+
+**Worten e Pixel Retail estão limpas.** Todo snapshot de 24/08 é consistente — a correção de 18/08 funciona; o que sobrou é passivo.
+
+**Por que não é um DELETE e pronto:** a destilação lê *versão atual + sinais novos*, então a versão seguinte é construída EM CIMA da anterior. Os 24 sinais consumidos já viraram memória da marca em PES, Escola, LOUDR e Hering. Limpar de verdade exige decidir o que fazer com as versões de `brand_intelligence` dessas marcas — e isso é decisão de produto, não de banco. **Aguarda o Danilo.**
+
+---
+
+## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (próxima)
+
+> **Regra de release (Danilo, 24/ago):** objetivo declarado → testes → quality gate (`npm run guarda`) → security gate (`/security-review`) → só então aprovada. Deploy em prod **sempre no fim do dia, fora do horário comercial**. Migration que toca RLS passa também por `npm run guarda:rls`.
+
+**Objetivo:** que o comprometimento de uma conta deixe de valer a plataforma inteira. Hoje uma credencial concentra super admin + participação nos workspaces dos clientes.
+
+**Gatilho:** pergunta do Danilo (24/ago) — *"o meu usuário de super admin precisa ser diferente; separar /admin de /app em subdomínio deixa mais seguro?"*
+
+### O diagnóstico (levantado no código, 24/ago)
+
+**O subdomínio separado já existe — e não é ele que protege.** `/admin` roda no domínio de sistema (`app.br4ndcode.com`, `systemDomain = !getTenantSlug()`), os clientes em `<slug>.br4ndcode.com`. Origens diferentes ⇒ localStorage diferente ⇒ a sessão do admin já não é legível por código do subdomínio de um cliente. E `ADMIN_ROUTES` + `isAdmin` já separam as rotas — mas essa guarda é **client-side**: decide o que renderizar, não o que o banco entrega.
+
+**O risco real é o bypass permanente.** A migration `007` deu ao `platform_admin` `for all using (is_platform_admin())` em **13 tabelas** (`workspaces`, `workspace_members`, `brands`, `brand_books`, `brand_book_history`, `conversations`, `messages`, `campaigns`, `alertas`, `listening_events`, `sentiment_snapshots`, `concorrentes`, `identity_gap_snapshots`), mais `listening_terms` e `content_hub_analyses` inline nas 010–013. **27 functions** aceitam `platform_admin` como passe.
+
+Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, sem cerimônia. `is_platform_admin()` responde "sim" para sempre — não existe estado de "agora estou operando" versus "agora não estou". E a mesma conta é membro (dona, depois da 052) dos workspaces dos clientes. Phishing nela entrega Hering, Worten e Pixel de uma vez.
+
+### As frentes, em ordem de retorno
+
+| # | O quê | Por quê / Tamanho |
+|---|---|---|
+| **S0 🔴** | **PRÉ-REQUISITO do S1, achado em 24/ago:** sete tabelas de cliente **não têm o bypass do operador** — `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias`, `ai_usage`. Hoje o operador só as enxerga porque é MEMBRO. Tirá-lo das participações sem estender o bypass abre a impersonação **vazia** em Tendências, Insights, Mercado, Clipping de concorrente, Diagnósticos de concorrentes e Peças. Achado por `npm run guarda:isolamento` | 🟢 · **antes do S1** |
+| **S1** | **Duas identidades para a mesma pessoa** — conta de operação (membro dos tenants) ≠ conta de super admin (só `platform_admins`, **nunca** membro de workspace). O operador sai da lista de membros e passa a enxergar só pelo bypass — que cobre `workspaces`/`workspace_members` (provado em `guarda:rls`), mas **ainda não cobre as sete do S0** | zero código · **depois do S0** |
+| ~~**S2**~~ ✅ **24/ago** | **MFA (TOTP) no operador** — TOTP habilitado no projeto pelo Danilo, **mais o que o console não entrega**: `MfaGate` (o `/admin` não monta sem aal2; inscrição por QR na primeira vez) e `_mfa.js` (os 5 endpoints de operador conferem a claim `aal` do token, depois de validar a assinatura). Gate de tela não protege contra token roubado — quem tem o token chama a function direto. **MFA é OPCIONAL para o cliente** (decisão do Danilo, 24/ago): ele liga em Minha conta se quiser, e quem liga passa a ser verificado no login — sem isso o "Limit duration of AAL1 sessions" derrubaria a sessão dele a cada 15 min. Obrigatório só na conta de operador. **Fator inscrito e validado ponta a ponta em 24/ago** (localhost): login com código funciona, e `admin-list-members` — que agora exige aal2 — respondeu 200. Isso prova a claim `aal` chegando ao servidor no formato esperado; era o maior risco de integração da camada. ⚠️ *"Limit duration of AAL1 sessions" está ON no console: depois da primeira inscrição, confirmar que não derruba usuário SEM fator — senão todo cliente cai a cada 15 min* | ✅ |
+| **S3 🔴** | **Bypass com validade, não permanente** — `platform_admin_sessions(user_id, workspace_id, expira_em, motivo)`; `is_platform_admin()` passa a exigir sessão aberta **para aquele workspace**. Fora dela o operador não enxerga dado de cliente nenhum. Transforma "acesso permanente a tudo" em "acesso declarado, por tenant, por tempo". **É o item que muda o risco de verdade.** Toca as 13 policies + as inline + as 27 functions | 🟡 · o maior |
+| S4 | **Trilha de auditoria** — quem entrou em qual tenant, quando, com que motivo. Pergunta de due diligence da Worten (GDPR), não higiene só nossa. Nasce de graça junto do S3: a sessão de suporte JÁ é o registro | 🟢 · junto do S3 |
+| S5 | **`admin.br4ndcode.com` dedicado** — o admin deixa de ser servido no mesmo host do `/app` de impersonação; vira lugar limpo para CSP mais dura, allowlist de IP e exigência de MFA. É **embalagem** do S1–S4, não substituto | 🟢 · depois |
+
+### Decisões já tomadas
+
+- **O subdomínio não vem primeiro.** Ele não mexe no JWT nem nas policies; entra no fim, embalando o que realmente protege.
+- **S3 é o coração.** Se só um item for feito depois do MFA, é esse.
+- **Não entrou na release de 24/ago** (gestão de usuários por tenant): abrir o modelo de super admin na véspera do deploy obrigaria a refazer os três portões com risco muito maior.
+
+### Cuidados registrados
+
+- A 052 tornou o operador **dono** dos workspaces onde ele era `admin` — fiel ao que já era. O S1 desfaz isso saindo da lista de membros; conferir antes que o bypass cobre tudo que a tela de impersonação precisa (o `guarda:rls` já mostra que sim para `workspaces`/`workspace_members`).
+- `is_platform_admin()` é `SECURITY DEFINER` com `search_path` fixo — ao reescrever para o S3, **manter as duas propriedades**.
+- O ensaio `tests/guarda/rls/052-retrato.sql` reproduz o bypass do 007. Qualquer mudança no S3 tem que ser exercitada lá antes de encostar em produção.
+
+---
+
+## 👥 RELEASE — GESTÃO DE USUÁRIOS POR TENANT (24/ago/2026)
+
+> ### ✅ FECHADA — aprovada para deploy na janela fora do horário comercial
+>
+> | Portão | Resultado |
+> |---|---|
+> | Testes | **443 passando**, 3 skipped, 28 arquivos |
+> | Quality gate (`npm run guarda`) | **54/54** defeitos reintroduzidos detectados |
+> | RLS gate (`npm run guarda:rls`) | **15/15** em Postgres local descartável |
+> | Build | `dist` íntegro, 45 assets, fallback do SPA presente |
+> | Security gate (`/security-review`) | **0 High · 0 Medium** · 1 Low residual documentado |
+>
+> **Telas validadas em localhost contra o banco AINDA SEM a 052** — que é o estado em que a produção recebe o código: Minha conta, Gestão de time, Criar acesso, Editar acesso, Admin → Membros, Redefinir senha.
+>
+> **Falta só:** autorização do Danilo para aplicar a `052` na janela. Depois de aplicar: conferir a contagem de papéis em produção e revalidar as telas com o esquema novo.
+>
+> **Pendência de transição:** convites emitidos ANTES deste deploy não têm `app_metadata.convite_workspace_id` e darão 403 no aceite. Conferir se há convite pendente; se houver, gravar o campo ou reenviar.
+
+**Gatilho:** os acessos do time da Hering. Criar o primeiro acesso expôs que o tenant não gerencia o próprio time, e que quem entra manda em todo mundo.
+
+**O levantamento (24/ago, sobre o código real):**
+
+| Achado | Evidência |
+|---|---|
+| **O papel é decorativo** | `role` não aparece em **nenhuma** policy de RLS. As ~40 policies gateiam por participação (`workspace_id in (select … where user_id = auth.uid())`). `admin` vs `member` só muda a cor de um Chip em `WorkspacePage.jsx:209` |
+| 🔴 **Qualquer membro manda em todos** | `005_setup_completo.sql:283` — `create policy "membro acessa workspace_members" … for all using (workspace_id in …)`. `for all` inclui UPDATE e DELETE: qualquer pessoa do tenant se promove a owner, rebaixa o dono ou remove quem quiser. A tela `/app/time` já escreve direto pelo client, sem passar por function |
+| **Não existe página da pessoa** | `/app/conta` ("Configurações da conta") renderiza `TabEmpresa` — nome/domínio/setor/porte **da empresa**. Trocar o próprio nome ou senha só na tela forçada de 1º acesso (`ForcePassword`, via `must_change_password`); depois disso não há caminho. É por isso que a senha temporária viaja em texto |
+| **`role` sem CHECK** | `workspace_members.role text default 'member'` aceita qualquer string; os valores válidos moram em dois lugares (`AppInterno.jsx` e `WorkspacePage.jsx:27`) |
+| **Aprovar aprendizado não existe** | 17 pontos inserem em `brand_signals` direto; o cron destila ao juntar 5 (`BRAND_DISTILL_THRESHOLD`). Não há revisão entre o sinal e o cérebro |
+
+**Decisões do Danilo (24/ago):**
+1. **Papel + capacidades**, não escada de papéis — aprovar peça e aprovar aprendizado são independentes. `role` (`owner`|`membro`) + `pode_aprovar_pecas` + `pode_aprovar_aprendizado`. A UI mostra presets nomeados (Dono · Curador · Aprovador · Criador · Leitor); o dado compõe, então ser as duas coisas não inventa papel novo.
+2. **O owner do tenant cria acesso com senha temporária** (espelha o que o admin faz hoje; `must_change_password` força a troca). O convite por e-mail fica como evolução — ver B4.
+3. **Escopo da manhã = F1 completa.** Os gates de aprovação (F2) vêm depois: trigger novo em produção sem uso real observado pode barrar aprovação legítima no dia 1 da Hering.
+
+**Onde o gate mora (doutrina):** aprovação hoje é escrita direta do browser. Regra só na UI é a mutação "guarda que existe mas não bloqueia" que a suíte da casa já reprova. O gate vai de **trigger no Postgres** — vale para browser, function e cron, e não se contorna trocando o fetch. Service key (`auth.uid() is null`) passa direto, que é o que o cron precisa.
+
+### F1 · a release da manhã 🟢
+
+| # | O quê |
+|---|---|
+| U1 | **Migration `052`** — CHECK no `role` (`owner`\|`membro`), colunas `pode_aprovar_pecas` / `pode_aprovar_aprendizado`, backfill: quem é `admin` hoje nasce owner com as duas capacidades |
+| U2 | 🔴 **Fechar a policy de `workspace_members`** — leitura para todo membro; INSERT/UPDATE/DELETE só para owner. É o buraco de segurança, e vai para cliente enterprise |
+| U3 | **Minha conta** — página da pessoa (nome, e-mail, trocar senha via `supabase.auth.updateUser`, sair). Hoje `/app/conta` é da empresa; separar os dois |
+| U4 | **Gestão de time** (`/app/time`) com os presets reais + quem pode o quê, exclusiva do owner |
+| U5 | **Owner cria acesso** dentro do tenant (senha temporária + `must_change_password`), reusando `admin-create-user` com porteiro de owner |
+| U6 | **Testes + mutação** — papel inválido barrado, membro comum não promove ninguém nem se auto-promove, owner não fica órfão |
+| U7 | **Redefinir senha no `/admin`** (pedido do Danilo, 24/ago) — `admin-reset-password.js`, botão por membro, sem precisar da senha antiga. **Vira ação com nome próprio** porque a capacidade já existia escondida: o `admin-create-user` redefine a senha quando o e-mail já existe, então um caractere a mais num endereço real trocava a credencial de alguém sem intenção e sem aviso. Limites: só `platform_admins`; **não** redefine a senha de outro operador (takeover lateral — esse caso vai pelo console do Supabase); `must_change_password` deixa a senha transitória. **Sem trilha ainda** → S4 da release do super admin |
+| U8 | **Gerador de senha criptográfico** — era `Math.floor(Math.random() * n)` em duas cópias (admin e Gestão de time). `Math.random()` é PRNG previsível: observando saídas dá para prever as próximas. Virou `novaSenha()` em `helpers.js`, com `crypto.getRandomValues`, num lugar só |
+
+### F2 · os gates de aprovação 🟢 *(depois de observar o uso real)*
+
+- trigger em `generations.feedback` e `studio_campaigns.status` → só quem tem `pode_aprovar_pecas`
+- trigger em `brand_signals` para os tipos de aprendizado (`image_vote`, `assistant_correction`, `reference_upload`) → só quem tem `pode_aprovar_aprendizado`
+- quem não tem a capacidade **sugere** em vez de aprovar; a fila do Approvals ganha "aguardando curadoria"
+- **mutação para cada gate** — senão é teatro
+
+### F3 · a trilha 🟡
+
+`quem aprovou / quando` visível na certidão do asset e na versão do cérebro. É o que a Worten pede em due diligence e o que fecha o argumento contra a Fullsix (frente 1, pacote de confiança).
+
+**Puxados para esta release:** **C7** (isolamento entre tenants com teste explícito — mesmo perímetro, os testes nascem juntos) · **B4** (convite + 1º acesso ponta a ponta — é o caminho que aposenta a senha em texto) · **C1/C2** (porteiro das background functions, já na bancada — mesma doutrina de gate server-side) · **H0.1** (cobertura). **Fora:** A4 (hexes/reskin), i18n (só garantir que string nova nasce via `t()`), **H0.6** (rate limiting — par natural, fica anotado).
 
 ---
 
@@ -158,6 +294,99 @@ Origem: decks do AI Creative Engine (Fullsix/Havas CX) em `.spec/competitors/` �
 
 ---
 
+### 🌊 Frentes Riverflow (5º arquétipo — análise do Danilo 2026-08-25)
+
+Dossiê: [`competitors/riverflow.md`](competitors/riverflow.md). Gerador de imagem de produto para varejo, self-serve a partir de US$ 39, nº 1 em benchmark de edição. **É o primeiro concorrente que produz bem, barato e sozinho** — e aparece na mesma demo que a gente na Worten.
+
+**A conferência muda a leitura.** Metade da lista já existe aqui; a lacuna real não é falta de feature, é que **três coisas nossas estão pela metade ou no lugar errado**: a URL não alimenta a identidade visual, o lote não tem portão, e o catálogo não entra.
+
+**Regra de admissão** (vale para toda frente daqui): *isso reforça o cérebro, ou só aumenta a superfície de produção?* URL onboarding reforça. Mais um modelo de vídeo não.
+
+| # | Frente | O quê · nosso estado real | Tamanho / gatilho |
+|---|---|---|---|
+| **R1 ⭐** | **URL como fonte da identidade** | 🟡 PARCIAL — a INTELIGÊNCIA já nasce só do domínio (`admin-create-workspace` dispara diagnóstico e mineração sem manual; a marca fica em `waiting`). Falta a **identidade declarada** vir do site: logo, cores, tipografia. É a mesma máquina da extração de manual apontada para outro lugar. **Resolve uma contradição do pitch:** prometemos "setup €0, o cérebro nasce em dias" e o fluxo pede PDF. Com URL, a promessa vira demonstrável na frente do cliente — o momento mágico passa a ser *"colamos sua URL e o cérebro já leu sua marca"* | 🟡 · **sprint** |
+| **R2 ⭐** | **O juiz no portão do LOTE** | 🟡 O juiz EXISTE (`art-review`), a POSIÇÃO não: ele roda no nó de portão do fluxo e no Assistente, não no ponto de exportação em volume. Copiar a **posição**, não a feature — é onde o volume dói. A diferença que já é nossa: cada decisão ali **treina** | 🟡 · **sprint** |
+| R3 | **Importação de catálogo (Shopify/VTEX)** | 🔴 Ausente. ⬇️ **DESCEU da sprint (Danilo, 25/ago: "é o que menos me preocupa").** A leitura: catálogo é conveniência de entrada, não vantagem — quem tem 174 produtos importados e nenhum cérebro produz mais rápido a peça errada. Volta à fila quando o volume de um cliente tornar a digitação o gargalo | 🟡 · sem gatilho |
+| R4 | **Lote de formatos com preview e aprovação** | 🟡 PARCIAL — nó Recortar (0 crédito) + template "1 peça → 6 formatos" já existem. Falta o lote com preview e aprovação. **Pedido da Worten** (GIF + formatos produzidos). Primo do motor de adaptação (Fullsix 5) | 🟢 |
+| R5 | **Scenes / Styles como entidade** | 🔴 Ausente. **Torção:** deles é preset salvo; nosso é **cânone** — a cena que produziu peça estrelada vira referência da marca | 🟡 |
+| R6 | **Characters = elenco da marca** | 🔴 Ausente; caminho mapeado (Kling custom elements, 3º da varredura fal). **Pedido da Worten.** Torção: elenco **aprovado**, que entra no cânone pela estrela + argumento RGPD (pessoa sintética, zero direito de imagem) | 🟡 |
+| R7 | **Galeria de prompts** | 🔴 Ausente (o *prompt enhance* já existe: "Melhorar prompt"). Padrão de categoria, pedido pela Worten | 🟢 |
+| R8 | **Confirmar fundo transparente e teto de 4K** | ✅ Os apps existem (`removebg`, `upscale`) — **falta CONFERIR** transparência real (alfa) e resolução máxima. Table stakes de varejo: se falhar, aparece em teste técnico | 🟢 · **checar antes da demo** |
+| R9 | **Trust Centre como página** | 🟡 O dossiê existe (`compliance.md`); falta virar **página pública**. Começo da resposta de procurement enquanto certificação real não vem. Par natural do C6 | 🟢 |
+
+---
+
+### 🧭 PONTO DE EVOLUÇÃO — entrada por INTENÇÃO, não por ferramenta
+
+> Promovido de "lição do concorrente" a item próprio em 25/ago. Não é feature: é a forma do produto.
+
+**O que eles viram.** O usuário chega com duas intenções incompatíveis — *"tenho um produto e preciso dele num cenário"* e *"tenho uma ideia e quero ver"* — e o Riverflow separou os fluxos (Photoshoots × Images) em vez de fazer um formulário universal.
+
+**Por que isso nos interessa mais do que a eles.** Nós já tínhamos chegado no mesmo lugar por outro caminho, e deixamos anotado sem resolver:
+
+> *"o usuário de campanha NÃO deveria ver o canvas — brief → fluxo roda sozinho → peças no dossiê (canvas = bastidores opcional)"*
+> — decisão em observação, 13/jul: *"não sei se estou convencido — por enquanto deixamos ali"*
+
+São a mesma percepção. A diferença é que eles agiram e nós registramos a dúvida. **O concorrente não trouxe a ideia: trouxe a confirmação de que a dúvida tinha resposta.**
+
+**O que muda na prática.** Hoje a porta do Estúdio é a FERRAMENTA (Imagem · Vídeo · Fluxos · Redação) — o usuário precisa saber qual ferramenta resolve o problema dele antes de começar. A evolução é a porta ser a INTENÇÃO:
+
+| Intenção | O que acontece |
+|---|---|
+| *"tenho um produto e preciso dele em cenário"* | entrada por produto + cena → o fluxo certo roda por baixo |
+| *"tenho uma ideia e quero ver"* | entrada livre, exploração |
+| *"tenho uma campanha e preciso das peças"* | brief → fluxo → dossiê (o A3, que já está no roadmap) |
+
+O canvas não morre — vira **bastidor**, para quem quer abrir. É exatamente o que a nota de 13/jul propunha como hipótese de síntese.
+
+**Por que é ponto de evolução e não sprint.** Ele reordena a navegação inteira do Estúdio e toca o A3/agentes. Não se faz correndo, e não se faz antes de o uso real dar veredito — que é o que o piloto Hering e o setup da Worten estão produzindo agora. **Gatilho: quando o A3 existir, ou quando o uso real de Hering/Worten disser qual porta as pessoas procuram.**
+
+Nota de coerência: essa evolução passa na régua nova sem esforço — ela **reforça o cérebro** (a intenção declarada é contexto que o cérebro usa) em vez de aumentar a superfície de produção.
+
+---
+
+**NÃO copiar:** planos self-serve baixos (US$ 39 puxa a conversa para preço por imagem, onde perdemos — contradiz o pivô de 12/jul) · suíte horizontal de geração (mais feature de gerador = mais comparável) · benchmark de modelo (a nossa régua é convergência, não fidelidade de pixel).
+
+---
+
+### 🎧 EVOLUÇÃO DA ESCUTA — rota real por rede social (estruturado 2026-08-26)
+
+> **Decisão do Danilo:** incrementar a nossa arquitetura, **não refazer**. O documento "Brand Pulse" que ele desenhou entrou como insumo — aproveitamos cinco itens e descartamos o resto. **Estruturado, execução adiada.**
+
+**O achado que justifica a frente:** ~40% do orçamento de busca é desperdício estrutural. `montarQueries` monta ~15 consultas por rodada, **6 delas `site:` de rede social**, todas disputando um teto duro de 12 buscas — e todas vão para o índice da Anthropic, **que não tem o conteúdo dessas plataformas** (está escrito no comentário do próprio arquivo). Como o modelo escolhe quais 12 executar, as consultas mortas ainda podem expulsar as que rendem. A escuta não é fraca em rede social por falta de modelo melhor: manda a pergunta certa para a porta errada.
+
+**Decisão de arquitetura — duas naturezas de rota.** Não cabe uma interface só:
+
+```
+buscar(consulta)           →  X (xAI) · web · reputação
+   sem credencial do cliente · por consulta · imediato
+sincronizar(conta, cursor) →  Instagram · Facebook · Threads
+   token do cliente · incremental · escopo = ativos da marca
+```
+
+**Meta NÃO é rota de busca — é rota de conta conectada** (conferido 26/08): busca de post público por palavra-chave não existe no Facebook desde a v1 da Graph API, nem no Instagram. Existe: IG `mentioned_media`/`mentioned_comment`, comentários nos posts da marca, Hashtag Search (**teto de 30 hashtags únicas / 7 dias**); FB comentários e avaliações da Página, `/tagged`. Isso vira passo de onboarding (o cliente conecta), fila de App Review + Business Verification (semanas) e credencial por workspace.
+
+| # | O quê | Depende de | Tamanho |
+|---|---|---|---|
+| **E0** | Tirar as 6 consultas `site:` de rede social da rodada padrão | nós | 🟢 horas |
+| **E1** | **Run persistido + custo e rendimento por rota** — a régua. **Vem antes das rotas**, senão adicionamos rota no escuro. Também dá ao onboarding sinal de conclusão de verdade, em vez de inferir vida pela contagem de linhas (a forma da falha da Zétona) | nós | 🟢 1 dia |
+| **E2** | **Rota X via xAI** — onde a cobertura hoje é zero. Conector novo = doutrina do [`nucleo-ia.md`](nucleo-ia.md): commit separado, guarda de mutação, avaliação ao vivo. ⚠️ **Confirmar preço na conta antes de dimensionar:** US$5/1.000 chamadas (X Search) × US$25/1.000 fontes (Live Search) — 5× de diferença muda a cadência | nós | 🟡 ~1 dia |
+| **E3** | **Rotas de reputação** — Reclame Aqui, Portal da Queixa, Google Reviews, Glassdoor. Web indexada, provedor que já temos, pergunta e periodicidade próprias. Maior densidade de sentimento por item | nós | 🟢 1 dia |
+| **E4** | **Registro do app na Meta + Business Verification + App Review** — **começa primeiro: é o único relógio de terceiro.** O MESMO app serve ao conector de Meta Ads (D3/E2) | Meta (semanas) | 🟢 ~nada de código |
+| **E5** | **Conector Meta conectado** — OAuth por workspace, token/refresh, cursor; IG menções e comentários, FB comentários e avaliações | cliente conectar | 🟡 ~2 dias |
+| **E6** | Threads — confirmar keyword search | — | 🟢 |
+
+**Aproveitar do doc:** run persistido · custo por item único por rota · degraus 2-3 da dedup (URL canônica, plataforma+autor+texto normalizado) · honestidade de volume ("informações públicas analisadas", nunca "menções") · teto de custo por rodada.
+**Descartar:** BrandContext como extração nova (derivar do cérebro + `brand_book.strategy` + `listening_terms`) · provider da Meta como busca · renames de tabela · **a remoção do portão de relevância** — tirar a relevância traz de volta o defeito do homônimo (caso Pixel).
+
+**Duas ressalvas registradas:** (a) `zero_results` **não** dispara cadeia de fallback — a marca quieta dispararia todas e custaria 3× para descobrir que continua quieta; (b) com Meta conectada, a tela mistura **conversa pública** (X/web/reputação) com **interação nos canais próprios** — somar as duas numa porcentagem só é a mesma desonestidade do snapshot que mentiu em 18/08. Separar em duas famílias.
+
+**Clipping e trends ficam para depois** (decisão do Danilo, 26/08), com intenção de simplificar e ser mais assertivo. Anotado para quando chegar a vez: os dois **nunca receberam a inversão de 18/08** — pedem `"url":"https://...ou null"` ao modelo e chamam `emitSignal`, ou seja, link possivelmente inventado entrando no cérebro com peso 0,5.
+
+**A lacuna maior, para decidir junto com o item 1.3:** a escuta **não emite nenhum sinal**. `emitSignal` é chamado por diagnóstico, art-review, trends, clipping e studio — a voz real do consumidor é a única fonte de fora e a única desconectada do modelo vivo. Expansão em três camadas, quando for a hora: **L1** sinal `percepcao_publica` com evidência anexada · **L2** responder menção no tom da marca (output nº2 do brainstorm; fecha escuta→ação→aprendizado) · **L3** benchmark de categoria cross-tenant (= V1 do Valometry, sem painel pago).
+
+---
+
 ### 📊 Frentes Valometry (Ana Couto — análise do Danilo 2026-07-15)
 
 Fonte: [`competitors/valometry.md`](competitors/valometry.md) (análise completa: ficha, mapa de 2 eixos, munição de venda). O 4º arquétipo mapeado: dashboard de MEDIÇÃO forte que não cria nem aprende — o quadrante "mede+cria+aprende" segue exclusivamente nosso. Regra: **NÃO fazer** pesquisa primária com painel (contradiz "setup em minutos") nem mídia offline.
@@ -209,16 +438,12 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 - [x] ~~**Alerta de saldo dos provedores**~~ ✅ 14/jul — `alertIfBalanceError` no `_watchdog.js` plugado nos 4 pontos (fal imagem ×2, fal vídeo, Anthropic call+stream): erro de saldo/billing → alerta ao Danilo (Sentry, dedup 24h) + usuário vê "instabilidade no sistema" (nunca o erro cru). Validado com os erros reais (403 fal, 400 Anthropic). Futuro opcional: checagem PROATIVA de saldo (endpoint de billing da fal) no cron-watchdog
 
 - [x] ~~**F0.4 — teste de fluxo real (KH6V)**~~ ✅ 19/ago — brief real por e-mail (2 stills, 3 castings, 1920×2720, 350 KB). **Caminho aprovado = base de casting limpa + Seedream 5.0 Pro** (os dois juntos; nenhum sozinho resolveu). Detalhe, pendências de entrega e as 3 perguntas abertas com o cliente em [`features/piloto-hering.md`](features/piloto-hering.md) § F0.4
-- [ ] **F0.5 — fechar a entrega do KH6V** *(destravado pela resposta da Hering — ver as 3 perguntas em `features/piloto-hering.md`)*
-  - [ ] nó **Ampliar** entre Imagem e Recortar: o Seedream 5 Pro tem teto de ~4,19 MP e devolve **1720×2432 calado** quando se pede 1920×2720
-  - [ ] **alvo de peso no nó Recortar** — hoje grava webp q92 sem teto; 350 KB não é garantido (a geração de referência saiu com 359 KB). **Vale para todos os fluxos, não só a Hering**: é o que separa "deu certo no teste" de "roda sem alguém olhando"
-  - [ ] **biblioteca de bases de casting neutras** (uma vez por modelo/pose, reaproveitada em todo produto) — vira pré-requisito se o volume for alto
-  - [ ] testar o **Seedream Layerize** (instalado, não testado): separa a imagem em camadas — caminho alternativo para isolar a peça sem gerar base
+- ~~F0.5 — fechar a entrega do KH6V~~ **REMOVIDO 21/ago** (decisão do Danilo: "não é um problema"). Resolução/peso de arquivo e biblioteca de bases deixaram de ser bloqueio de entrega — **o time da Hering aprovou o resultado e vai testar**. O que sobrou de útil daqui (alvo de peso no Recortar, bases de casting reaproveitáveis) só volta à fila se o volume trouxer de volta.
 
-*F1 — o processo (Fluxo "Guia de Compras"):*
-- [ ] F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó
-- [ ] F1.2 template "Guia de Compras": still fiel → manequim fantasma → variação de modelo (teste A/B) → close
-- [ ] F1.3 **juiz de fidelidade** (gerada vs foto original — reprova alucinação de estampa/cor) = primeira encarnação do diretor de arte (F1/F2 da seção Copiloto)
+*F1 — o processo (Fluxo "Guia de Compras"):* ⏸️ **FORA DA FILA — 24/ago** (decisão do Danilo: *"não precisa, já estamos em piloto na Hering"*). O processo real que está rodando é o de 4 etapas fechado em 21/ago (`project_processo_catalogo`), montado à mão nos Fluxos; formalizar em template só volta à fila se o volume pedir.
+- [ ] ~~F1.1 entrada de produto no Fluxo: foto real + ficha técnica como contexto do nó~~
+- [ ] ~~F1.2 template "Guia de Compras": still fiel → manequim fantasma → variação de modelo (teste A/B) → close~~
+- [ ] ~~F1.3 juiz de fidelidade~~ — na prática já existe: `art-review` com `modo: 'fidelidade'` + `reference_url`, validado em 12/jul
 
 *F2 — escala:* lote via planilha/CSV ou pasta do Drive → fila de gerações com progresso + **teto de créditos por lote** (guarda)
 *F3 — integração:* API key por workspace (compartilha a F0 do plano MCP) + endpoint de entrada e endpoint de consulta + docs mínimos

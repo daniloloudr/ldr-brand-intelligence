@@ -8,6 +8,7 @@
 // Cada chamada avança NO MÁXIMO uma transição: despacha a próxima etapa, ou
 // detecta a saída no banco e encerra a atual.
 import { siteBase } from './_studio.js'
+import { internalHeaders } from './_interno.js'
 import { sendAlert } from './_watchdog.js'
 
 // Duas trilhas com relógios diferentes, e é por isso que elas são separadas:
@@ -156,8 +157,18 @@ export async function avancarOnboarding(supabase, { workspaceId, authHeader = ''
   // freeze da Lambda antes de sair — o bug do cron de destilação em julho.
   const dispatch = async (fn, payload) => {
     try {
-      const headers = { 'Content-Type': 'application/json' }
-      if (authHeader) headers.Authorization = authHeader
+      // Duas origens, duas provas. O painel "Preparar ambiente" avança com o
+      // token de quem clicou; o `onboard-cron` avança sozinho, de minuto em
+      // minuto, e não tem usuário nenhum para apresentar.
+      //
+      // Até 25/08 o cron mandava só `Content-Type`. O `diagnostico-gerar-background`
+      // exigia token e devolvia 401 sem gravar nada — nem linha de erro. A etapa
+      // simplesmente estourava o teto de 8 min e virava `expired`, arrastando os
+      // concorrentes junto. Aconteceu na Zétona; ninguém tinha visto antes porque
+      // com o painel aberto o caminho é o outro, e o manual escondia o automático.
+      const headers = authHeader
+        ? { 'Content-Type': 'application/json', Authorization: authHeader }
+        : internalHeaders()
       const r = await fetch(`${siteBase()}/.netlify/functions/${fn}`, {
         method: 'POST', headers, body: JSON.stringify(payload),
       })

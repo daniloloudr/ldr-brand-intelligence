@@ -4,6 +4,8 @@
 // - finalização (baixa do fal → R2 → update) + conclusão de campanha
 // Contexto de marca vive no cérebro (_brain.js → resolveBrandIntelligence).
 // ════════════════════════════════════════════════════════════════════
+import { createHmac } from 'node:crypto'
+import { internalHeaders } from './_interno.js'
 import { putObject, storageConfigured } from './_storage.js'
 import { isDev } from './_ai.js'
 import { submitImageJob, firstImageUrl } from './_image.js'
@@ -24,12 +26,45 @@ export function siteBase() {
   return (process.env.URL || process.env.DEPLOY_PRIME_URL || 'http://localhost:8888').replace(/\/$/, '')
 }
 
+// ── Segredo do webhook ───────────────────────────────────────────────
+// O webhook do fal é um endpoint HTTP público que marca gerações como
+// concluídas. Antes ele se protegia com `if (secret && ...)`: sem a variável no
+// ambiente, a checagem simplesmente não acontecia — e ela nunca esteve
+// configurada, porque a URL enviada ao fal também não levava o `?s=`. Ou seja, a
+// defesa estava escrita nos dois lados e desligada nos dois.
+//
+// Corrigir só exigindo a variável trocaria um buraco por uma queda: sem webhook
+// ninguém escreve o resultado no banco em produção (o poll-background só roda em
+// dev), e a geração fica órfã até o timeout de 10 min do canvas. Por isso o
+// segredo é DERIVADO da service key quando não há um explícito: ela existe
+// sempre onde este código roda, então a proteção liga sozinha, sem depender de
+// alguém lembrar de configurar nada. HMAC é unidirecional — o valor viaja na
+// query como qualquer token e não revela a chave de origem.
+//
+// Para rotacionar, basta definir STUDIO_WEBHOOK_SECRET: ele tem precedência.
+export function webhookSecret() {
+  const explicito = process.env.STUDIO_WEBHOOK_SECRET
+  if (explicito) return explicito
+  const base = process.env.SUPABASE_SERVICE_KEY
+  if (!base) return null            // sem isto não há banco — quem chama decide o que fazer
+  return createHmac('sha256', base).update('studio-webhook/v1').digest('hex').slice(0, 32)
+}
+
+// URL de callback registrada no fal. Em dev não existe: localhost não recebe
+// chamada de fora, e o poll-background cobre esse caso.
+export function studioWebhookUrl() {
+  if (isDev()) return null
+  const s = webhookSecret()
+  if (!s) return null
+  return `${siteBase()}/.netlify/functions/studio-webhook?s=${encodeURIComponent(s)}`
+}
+
 // ── Submissão de uma geração (fal + insert + poll dev) ───────────────
 export async function submitGeneration(supabase, {
   workspace_id, brand_id, workflow_id = null, node_id = null, campaign_id = null,
   promptFinal, snapshot, formato, references = [], mode, model, extra, input,
 }) {
-  const webhookUrl = isDev() ? null : `${siteBase()}/.netlify/functions/studio-webhook`
+  const webhookUrl = studioWebhookUrl()
   let job
   try {
     job = await submitImageJob({ model, prompt: promptFinal, references, format: formato, mode, extra, input, webhookUrl })
@@ -50,7 +85,7 @@ export async function submitGeneration(supabase, {
   // a rota — multi-path como /edit ou /text-to-image quebram na reconstrução (405).
   if (isDev()) {
     fetch(`${siteBase()}/.netlify/functions/studio-poll-background`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: internalHeaders(),
       body: JSON.stringify({
         generation_id: gen.id, model: job.model, request_id: job.request_id,
         status_url: job.status_url, response_url: job.response_url,
@@ -65,7 +100,7 @@ export async function submitVideoGeneration(supabase, {
   workspace_id, brand_id, workflow_id = null, node_id = null,
   promptFinal, snapshot, modelKey, imageUrl = null, endImageUrl = null, duration, aspectRatio,
 }) {
-  const webhookUrl = isDev() ? null : `${siteBase()}/.netlify/functions/studio-webhook`
+  const webhookUrl = studioWebhookUrl()
   let job
   try {
     job = await submitVideoJob({ modelKey, prompt: promptFinal, imageUrl, endImageUrl, duration, aspectRatio, webhookUrl })
@@ -84,7 +119,7 @@ export async function submitVideoGeneration(supabase, {
   // Dev: sem webhook em localhost → poll-background (sabe que é vídeo p/ extrair a URL).
   if (isDev()) {
     fetch(`${siteBase()}/.netlify/functions/studio-poll-background`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: internalHeaders(),
       body: JSON.stringify({
         generation_id: gen.id, model: job.model, request_id: job.request_id,
         status_url: job.status_url, response_url: job.response_url, media_type: 'video',

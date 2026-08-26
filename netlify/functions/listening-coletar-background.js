@@ -3,6 +3,7 @@ import { callAI, aiConfig, extractJSON } from './_ai.js'
 import { buscarNaWeb, provedorDeBusca } from './_busca.js'
 import { sendAlert } from './_watchdog.js'
 import { mercado } from './_mercado.js'
+import { autorizarBackground } from './_interno.js'
 
 // ── A INVERSÃO (2026-08-18) ─────────────────────────────────────────────
 // Antes: o modelo buscava E respondia. A URL saía da resposta dele, o que é o
@@ -153,6 +154,11 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
 
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
+
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
   let body
@@ -160,17 +166,17 @@ export const handler = async (event) => {
   const { workspace_id } = body
   if (!workspace_id) return { statusCode: 400 }
 
-  const token = event.headers.authorization?.replace('Bearer ', '')
-  if (!token) return { statusCode: 401 }
-
-  // Duas portas: o clique do usuário (token dele, checa participação no
-  // workspace) e o cron (chave de serviço, que só existe no servidor).
-  if (token !== process.env.SUPABASE_SERVICE_KEY) {
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-    if (authErr || !user) return { statusCode: 401 }
+  // Quem chamou já foi identificado pelo porteiro. Falta a AUTORIZAÇÃO: estar
+  // autenticado não dá acesso ao workspace dos outros. A chamada interna (cron)
+  // não tem usuário e não precisa — ela já é o servidor.
+  //
+  // Antes a porta do cron era o token ser igual à SUPABASE_SERVICE_KEY, ou seja,
+  // a chave de serviço viajava pela rede em todo disparo agendado. O segredo
+  // derivado do porteiro faz o mesmo papel sem expor a chave.
+  if (!porteiro.interno) {
     const [{ data: member }, { data: platformAdmin }] = await Promise.all([
-      supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user.id).maybeSingle(),
-      supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
+      supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', porteiro.user.id).maybeSingle(),
+      supabase.from('platform_admins').select('id').eq('user_id', porteiro.user.id).maybeSingle(),
     ])
     if (!member && !platformAdmin) return { statusCode: 403 }
   }

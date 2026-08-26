@@ -31,6 +31,7 @@ const WORKSPACE_ROUTES = [
   'market-intel', 'insights', 'competitors', 'trends', 'reports',
 ];
 const ADMIN_ROUTES = ['admin', 'admin-historico'];
+const MfaGate = lazy(() => import('./pages/auth/MfaGate').then(m => ({ default: m.MfaGate })));
 
 // Captura o hash de forma síncrona antes do Supabase processar e limpar a URL
 const _INITIAL_HASH = window.location.hash
@@ -53,6 +54,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [impersonating, setImpersonating] = useState(null); // { workspaceId, workspaceName }
   const [isAdmin, setIsAdmin]   = useState(null);      // null = ainda resolvendo (platform_admins)
+  // Sessão já em aal2? Volta a false a cada troca de usuário — segundo fator não
+  // se herda de quem estava logado antes.
+  const [mfaOk, setMfaOk]       = useState(false);
   const [homeSlug, setHomeSlug] = useState(undefined); // slug da marca do NÃO-admin (p/ redirect ao subdomínio); undefined = resolvendo
 
   useEffect(() => {
@@ -83,7 +87,7 @@ export default function App() {
   // Se NÃO for admin, guarda o slug da marca dele — no domínio de sistema ele é
   // mandado pro próprio subdomínio, já que app.br4ndcode.com é exclusivo do admin.
   useEffect(() => {
-    if (!user?.id) { setIsAdmin(null); setHomeSlug(undefined); return; }
+    if (!user?.id) { setIsAdmin(null); setHomeSlug(undefined); setMfaOk(false); return; }
     let on = true;
     (async () => {
       const { data: adm } = await supabase
@@ -161,6 +165,20 @@ export default function App() {
     // No domínio de sistema, workspace só existe via impersonação do admin —
     // nunca por associação. Sem impersonar, manda pra casa (admin→/admin).
     if (systemDomain && !impersonating) return homeForLoggedIn();
+
+    // MFA aqui é OPCIONAL: quem não ligou passa direto (o gate devolve na hora,
+    // porque `obrigatorio` é false). O que ele faz é PEDIR O CÓDIGO de quem
+    // ligou — e isso não é rigor nosso: com "Limit duration of AAL1 sessions"
+    // ativo no Supabase, a sessão de quem TEM fator e não verifica é encerrada
+    // em 15 minutos. Sem esta tela, ligar o segundo fator viraria queda de
+    // sessão a cada quarto de hora, e o cliente concluiria que o app é instável.
+    if (!mfaOk) {
+      return (
+        <Suspense fallback={<PageFallback />}>
+          <MfaGate onLiberado={() => setMfaOk(true)} onLogout={doLogout} />
+        </Suspense>
+      );
+    }
     return (
       <AppShell
         user={user}
@@ -180,6 +198,23 @@ export default function App() {
     if (!user) { navigate('/login'); return null; }
     if (isAdmin === null) return <PageFallback />;          // aguarda resolver o papel
     if (!isAdmin) { navigate('/app'); return null; }        // /admin é exclusivo do platform_admin
+
+    // Segundo fator antes do painel. A conta de operador atravessa a RLS de 15
+    // tabelas — ela lê e escreve o dado de TODOS os clientes com a sessão
+    // normal. Enquanto a sessão não estiver em aal2, o AppInterno nem monta.
+    //
+    // Isto é a tela. Os endpoints de admin conferem o `aal` do token por conta
+    // própria (ver `_mfa.js`), porque quem tem um token roubado não passa por
+    // aqui — chama a function direto.
+    if (!mfaOk) {
+      return (
+        <Suspense fallback={<PageFallback />}>
+          {/* obrigatorio: aqui o gate INSCREVE quem ainda não tem fator. É a
+              única conta do produto em que o segundo fator não é opcional. */}
+          <MfaGate obrigatorio onLiberado={() => setMfaOk(true)} onLogout={doLogout} />
+        </Suspense>
+      );
+    }
     return (
       <Suspense fallback={<PageFallback />}>
         <AppInterno

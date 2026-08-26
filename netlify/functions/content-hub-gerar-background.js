@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { callAI, aiConfig, extractJSON, isDev } from './_ai.js'
 import { resolveBrandIntelligence } from './_brain.js'
 import { idiomaDe } from './_mercado.js'
+import { autorizarBackground } from './_interno.js'
 
 function buildDiagContext(diag) {
   if (!diag?.data) return ''
@@ -66,6 +67,11 @@ JSON format only, no markdown:
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
+
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 

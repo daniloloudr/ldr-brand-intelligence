@@ -143,9 +143,14 @@ describe('o cron semanal', () => {
     expect(cron).toMatch(/listening-coletar-background/)
   })
 
-  it('entra pela porta interna, com a chave de serviço', () => {
-    expect(cron).toMatch(/Bearer \$\{process\.env\.SUPABASE_SERVICE_KEY\}/)
-    expect(fonte).toMatch(/token !== process\.env\.SUPABASE_SERVICE_KEY/)
+  it('entra pela porta interna — sem jogar a chave de serviço na rede', () => {
+    // Era `Bearer ${SUPABASE_SERVICE_KEY}`: a chave que abre o banco inteiro
+    // viajava em todo disparo agendado, e qualquer log de intermediário a
+    // guardava. Agora vai um segredo DERIVADO dela (ver _interno.js), que abre
+    // só as background functions.
+    expect(cron).toMatch(/internalHeaders\(\)/)
+    expect(cron, 'a chave de serviço voltou para o header').not.toMatch(/Bearer \$\{process\.env\.SUPABASE_SERVICE_KEY\}/)
+    expect(fonte, 'o worker precisa distinguir chamada interna de clique de usuário').toMatch(/porteiro\.interno/)
   })
 
   it('registra qual provedor de busca usou', () => {

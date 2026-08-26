@@ -3,18 +3,34 @@ import { streamAI, aiConfig, extractJSON } from './_ai.js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { alvoDoDiagnostico, instrucaoDeIdentidade, conferirIdentidade, identidadeParaGravar, separarAlvo } from './_identidade.js'
 import { contextoDeMercado } from './_mercado.js'
+import { autorizarBackground } from './_interno.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200 }
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
 
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
+
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
-  const token = event.headers.authorization?.replace('Bearer ', '')
-  if (!token) return { statusCode: 401 }
-
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-  if (authErr || !user) return { statusCode: 401 }
+  // Quem chamou já foi identificado pelo porteiro: `user` vem preenchido no
+  // clique do browser e NULO na chamada de servidor (cron do onboarding).
+  //
+  // Antes daqui havia um segundo `if (!token) return 401`, e ele derrubava em
+  // silêncio o caminho que mais importa. O onboarding foi feito para andar
+  // SOZINHO — o `onboard-cron` avança de minuto em minuto justamente para não
+  // depender da aba do admin aberta —, mas ele chama sem usuário nenhum. Efeito
+  // na Zétona (25/08): tendências gerou 8 linhas, o diagnóstico não gerou NEM
+  // linha de erro, e a etapa estourou o teto de 8 min virando `expired`. Com os
+  // concorrentes expirando atrás, por dependerem dela.
+  //
+  // Ninguém percebeu antes porque, com o painel "Preparar ambiente" aberto, o
+  // avanço sai do browser COM token e funciona. O caminho manual escondia o
+  // automático.
+  const user = porteiro.user
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
@@ -29,11 +45,15 @@ export const handler = async (event) => {
   let dominio     = null
 
   if (workspace_id) {
-    const [{ data: member }, { data: platformAdmin }] = await Promise.all([
-      supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user.id).maybeSingle(),
-      supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
-    if (!member && !platformAdmin) return { statusCode: 403 }
+    // Estar autenticado não dá acesso ao workspace dos outros. A chamada
+    // interna não tem usuário e não precisa — ela já É o servidor.
+    if (!porteiro.interno) {
+      const [{ data: member }, { data: platformAdmin }] = await Promise.all([
+        supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user.id).maybeSingle(),
+        supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
+      ])
+      if (!member && !platformAdmin) return { statusCode: 403 }
+    }
 
     const { data: ws } = await supabase
       .from('workspaces').select('id, nome, dominio, pais, diagnosticos_mes').eq('id', workspace_id).single()
@@ -44,7 +64,11 @@ export const handler = async (event) => {
     empresaNome = ws.nome || ws.dominio
     dominio     = ws.dominio || null
   } else {
-    // Admin direct flow — must be platform admin
+    // Admin direct flow — must be platform admin.
+    // A chamada interna SEMPRE manda workspace_id (é o onboarding de um
+    // workspace). Cair aqui sem usuário significa pedido malformado, não
+    // permissão a conceder — recusa em vez de abrir exceção.
+    if (!user) return { statusCode: 400 }
     const { data: platformAdmin } = await supabase
       .from('platform_admins').select('id').eq('user_id', user.id).maybeSingle()
     if (!platformAdmin) return { statusCode: 403 }
@@ -68,7 +92,14 @@ export const handler = async (event) => {
     + instrucaoDeIdentidade(alvo)
     + contextoDeMercado(wsData?.pais)
     + `\nGere o JSON completo.`
-  const userName = user.user_metadata?.full_name || user.email.split('@')[0]
+  // Procedência do registro. O cron-monitor já grava diagnóstico sem usuário
+  // (tipo 'cron'); aqui vale o mesmo: chamada de servidor não inventa autor.
+  // `tipo` distingue de onde veio — 'manual' (alguém clicou), 'onboarding' (a
+  // trilha andou sozinha), 'cron' (regeração semanal).
+  const userName = user ? (user.user_metadata?.full_name || user.email.split('@')[0]) : null
+  const autoria  = user
+    ? { user_id: user.id, user_email: user.email, user_name: userName, tipo: 'manual' }
+    : { tipo: 'onboarding' }
 
   const saveError = async (msg) => {
     if (diagnostico_id) {
@@ -81,9 +112,7 @@ export const handler = async (event) => {
     }
     await supabase.from('diagnosticos').insert({
       workspace_id: workspaceId,
-      user_id:      user.id,
-      user_email:   user.email,
-      user_name:    userName,
+      ...autoria,
       empresa:      empresaNome || 'N/A',
       dominio,
       data:         { _job_error: true, error: msg },
@@ -175,10 +204,7 @@ export const handler = async (event) => {
     const { error } = await supabase.from('diagnosticos').insert({
       ...payload,
       workspace_id: workspaceId,
-      user_id:      user.id,
-      user_email:   user.email,
-      user_name:    userName,
-      tipo:         'manual',
+      ...autoria,
     })
     writeErr = error
   }

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { extractJSON, MODELS, logAiUsage } from './_ai.js'
 import { renderSmartbrand } from './_smartbrand.js'
+import { autorizarBackground } from './_interno.js'
 
 const ANTHROPIC_BASE  = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_FILES = 'https://api.anthropic.com/v1/files'
@@ -227,6 +228,11 @@ Se não houver peça aplicada nenhuma, devolva a lista vazia.`,
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
+
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 

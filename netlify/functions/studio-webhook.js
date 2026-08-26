@@ -4,16 +4,22 @@
 // Idempotente por provider_request_id. Spec: studio.md §1
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
-import { finalizeGeneration, failGeneration, findGenerationByRequest, extractMediaUrl } from './_studio.js'
+import { finalizeGeneration, failGeneration, findGenerationByRequest, extractMediaUrl, webhookSecret } from './_studio.js'
 
 const ok = { statusCode: 200, body: 'ok' }
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'method' }
 
-  // Segredo opcional na query (?s=...) — defesa extra além do request_id UUID
-  const secret = process.env.STUDIO_WEBHOOK_SECRET
-  if (secret && event.queryStringParameters?.s !== secret) return { statusCode: 401, body: 'unauthorized' }
+  // Segredo OBRIGATÓRIO na query (?s=...). Era `if (secret && ...)`: sem a
+  // variável no ambiente a checagem não acontecia, e ela nunca esteve definida —
+  // este endpoint aceitava qualquer POST que acertasse um request_id. Autenticação
+  // que se desliga sozinha quando não configurada é porta aberta com cara de
+  // fechada. O segredo agora é derivado quando não há um explícito (ver
+  // webhookSecret), então não existe estado "sem proteção".
+  const secret = webhookSecret()
+  if (!secret) return { statusCode: 500, body: 'webhook sem segredo' }
+  if (event.queryStringParameters?.s !== secret) return { statusCode: 401, body: 'unauthorized' }
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return ok }

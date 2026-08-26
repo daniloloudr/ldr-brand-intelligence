@@ -4,11 +4,17 @@
 // workspace com seu próprio orçamento de 15 min. Disparado pelo cron.
 import { createClient } from '@supabase/supabase-js'
 import { concorrentesPendentes, diagnosticarEmSerie } from './_diagnostico.js'
+import { autorizarBackground } from './_interno.js'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
+
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
   const { workspace_id, jitter = false } = body

@@ -13,13 +13,14 @@ import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
-import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual } from "../lib/helpers";
+import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual, novaSenha } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
 import { NovoDiagnosticoDialog } from "./NovoManual";
 import { DashboardHistorico } from "./DashboardHistorico";
 import { PALETTE } from '../lib/theme'
 import Link from "@mui/material/Link";
+import { useTheme } from "@mui/material/styles";
 
 const PORTES  = ["Startup", "PME", "Médio", "Grande"];
 const NAV_W   = 220;
@@ -973,8 +974,12 @@ function CerebrosAdmin() {
   async function destilar(brandId) {
     setDistilling(d => ({ ...d, [brandId]: "run" }));
     try {
+      // A background function agora exige quem está chamando — era o único
+      // disparo do app que ia sem token (as outras telas já mandavam).
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/.netlify/functions/brand-distill-background", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ brand_id: brandId }),
       });
       if (!res.ok && res.status !== 202) throw new Error(`Erro ${res.status}`);
@@ -1135,6 +1140,13 @@ function centsToBRL(c) {
 }
 
 function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
+  // O tema sai do PROVIDER, não da closure de outro componente. Os painéis de
+  // membros e de preparação liam o `isDark` que mora no estado do AppInterno —
+  // e este componente não está dentro daquela função. Identificador livre não é
+  // erro de build: é ReferenceError na hora de renderizar, ou seja, tela branca
+  // ao clicar em "Membros" (21/08, no meio da criação dos acessos da Hering).
+  // Mesmo padrão já usado no DashboardHistorico.
+  const isDark = useTheme().palette.mode === "dark";
   const [workspaces, setWorkspaces]       = useState([]);
   const [loading, setLoading]             = useState(true);
   const [showCreate, setShowCreate]       = useState(false);
@@ -1160,6 +1172,8 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   const [onbManualPath, setOnbManualPath] = useState(null);  // PDF do manual subido (marca nasce dele)
   const [onbManualName, setOnbManualName] = useState('');    // nome do arquivo (feedback)
   const [onbUploading, setOnbUploading]   = useState(false);
+  const [resetSenha, setResetSenha]       = useState(null);   // membro com a redefinição aberta
+  const [resetando, setResetando]         = useState(false);
 
   useEffect(() => { fetchWorkspaces(); }, []);
 
@@ -1314,15 +1328,71 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     setLoadingMembers(l => ({ ...l, [wsId]: false }));
   }
 
+  // ── Time: a escrita saiu do browser ───────────────────────────────
+  // Estas duas gravavam direto em workspace_members. Com a RLS da migration 052
+  // (só o dono escreve), o update passaria a afetar ZERO linhas em silêncio e a
+  // tela seguiria mostrando o valor novo — mentira que só aparece no F5.
+  //
+  // A function reconhece o operador da plataforma, então isto também conserta um
+  // caso que já falhava calado: workspace onde o operador não é membro nunca foi
+  // editável por aqui, e ninguém percebeu porque a UI não perguntava o resultado.
+  async function chamarMembro(wsId, memberId, body, method) {
+    const token = await getToken();
+    const res = await fetch('/.netlify/functions/workspace-member', {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ workspace_id: wsId, member_id: memberId, ...body }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Erro ${res.status}`);
+    return json;
+  }
+
+  // ── Redefinir senha ───────────────────────────────────────────────
+  // Ação com nome próprio, e não efeito colateral de "criar acesso" (que hoje
+  // redefine a senha em silêncio quando o e-mail já existe — um caractere a mais
+  // num endereço real e você troca a credencial de alguém sem saber).
+  function abrirResetSenha(m) {
+    setError('');
+    setResetSenha({ ...m, password: novaSenha(), feito: false });
+  }
+
+  async function confirmarResetSenha() {
+    if (!resetSenha) return;
+    setResetando(true); setError('');
+    try {
+      const token = await getToken();
+      const res = await fetch('/.netlify/functions/admin-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ user_id: resetSenha.user_id, password: resetSenha.password }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Erro ${res.status}`);
+      setResetSenha(r => ({ ...r, feito: true, email: json.email || r.email }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setResetando(false);
+    }
+  }
+
   async function removeMember(wsId, memberId) {
     if (!window.confirm('Remover este membro do workspace?')) return;
-    await supabase.from('workspace_members').delete().eq('id', memberId);
-    setMembersMap(m => ({ ...m, [wsId]: m[wsId].filter(x => x.id !== memberId) }));
+    try {
+      await chamarMembro(wsId, memberId, {}, 'DELETE');
+      setMembersMap(m => ({ ...m, [wsId]: m[wsId].filter(x => x.id !== memberId) }));
+    } catch (e) { setError(e.message); }
   }
 
   async function changeMemberRole(wsId, memberId, role) {
-    await supabase.from('workspace_members').update({ role }).eq('id', memberId);
-    setMembersMap(m => ({ ...m, [wsId]: m[wsId].map(x => x.id === memberId ? { ...x, role } : x) }));
+    const dono = role === 'owner';
+    try {
+      await chamarMembro(wsId, memberId, {
+        role, pode_aprovar_pecas: dono, pode_aprovar_aprendizado: dono,
+      }, 'PATCH');
+      setMembersMap(m => ({ ...m, [wsId]: m[wsId].map(x => x.id === memberId ? { ...x, role } : x) }));
+    } catch (e) { setError(e.message); }
   }
 
   async function handleCreate(e) {
@@ -1373,10 +1443,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   }
 
   function genPassword() {
-    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let p = '';
-    for (let i = 0; i < 12; i++) p += chars[Math.floor(Math.random() * chars.length)];
-    setUserForm(f => ({ ...f, password: p }));
+    setUserForm(f => ({ ...f, password: novaSenha() }));
   }
 
   async function handleCreateUser(e) {
@@ -1609,9 +1676,10 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                           onChange={e => changeMemberRole(ws.id, m.id, e.target.value)}
                           sx={{ width: 110 }}
                         >
-                          <MenuItem value="member">member</MenuItem>
-                          <MenuItem value="admin">admin</MenuItem>
+                          <MenuItem value="member">Membro</MenuItem>
+                          <MenuItem value="owner">Dono</MenuItem>
                         </TextField>
+                        <Button size="small" variant="outlined" onClick={() => abrirResetSenha(m)}>Redefinir senha</Button>
                         <Button size="small" variant="outlined" color="error" onClick={() => removeMember(ws.id, m.id)}>Remover</Button>
                       </Box>
                     ))}
@@ -1729,6 +1797,49 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
         </Box>
       )}
 
+      {/* Modal redefinir senha — o operador não precisa da senha antiga */}
+      {resetSenha && (
+        <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', padding: '28px', width: '100%', maxWidth: 420 }}>
+            <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>
+              Redefinir senha · {resetSenha.nome || resetSenha.email}
+            </Box>
+            {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico, fontSize: 12 }}>{error}</Box>}
+
+            {resetSenha.feito ? (
+              <Box>
+                <Box sx={{ marginBottom: '16px', padding: '12px 14px', background: PALETTE.data.positivo + '22', color: PALETTE.data.positivo, fontSize: 13, fontWeight: 600, wordBreak: 'break-all' }}>
+                  Senha redefinida: {resetSenha.email} / {resetSenha.password}
+                </Box>
+                <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <Button type="button" size="small" variant="outlined"
+                    onClick={() => navigator.clipboard?.writeText(`${resetSenha.email} / ${resetSenha.password}`)}>Copiar</Button>
+                  <Button type="button" size="small" variant="contained" onClick={() => setResetSenha(null)}>Fechar</Button>
+                </Box>
+              </Box>
+            ) : (
+              <Box>
+                <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>
+                  A senha atual é substituída — não é preciso saber a antiga. No próximo acesso a pessoa
+                  será obrigada a definir a senha dela, então este valor serve só para entregar.
+                </Box>
+                <Box sx={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <TextField size="small" sx={{ flex: 1 }} value={resetSenha.password}
+                    onChange={e => setResetSenha(r => ({ ...r, password: e.target.value }))} />
+                  <Button type="button" size="small" variant="outlined"
+                    onClick={() => setResetSenha(r => ({ ...r, password: novaSenha() }))}>Gerar</Button>
+                </Box>
+                <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <Button type="button" size="small" variant="outlined" onClick={() => { setResetSenha(null); setError(''); }}>Cancelar</Button>
+                  <Button type="button" size="small" variant="contained" color="error" disabled={resetando}
+                    onClick={confirmarResetSenha}>{resetando ? 'Redefinindo…' : 'Redefinir senha'}</Button>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      )}
+
       {/* Modal criar acesso (nome + email + senha) */}
       {showCreateUser && (
         <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -1753,8 +1864,8 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                   <Button type="button" size="small" variant="outlined" onClick={genPassword}>Gerar</Button>
                 </Box>
                 <TextField select size="small"  value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
-                  <MenuItem value="member">member</MenuItem>
-                  <MenuItem value="admin">admin</MenuItem>
+                  <MenuItem value="member">Membro</MenuItem>
+                  <MenuItem value="owner">Dono</MenuItem>
                 </TextField>
                 <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
                   <Button type="button" size="small" variant="outlined" onClick={() => { setShowCreateUser(null); setError(''); }}>Cancelar</Button>

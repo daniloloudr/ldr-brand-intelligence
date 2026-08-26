@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { exigirSegundoFator } from './_mfa.js'
 
 async function isPlatformAdmin(supabase, token) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -22,6 +23,10 @@ export const handler = async (event) => {
   const token = event.headers.authorization?.replace('Bearer ', '')
   const adminUser = await isPlatformAdmin(supabase, token)
   if (!adminUser) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acesso negado' }) }
+  // Segundo fator. A identidade já foi VALIDADA acima (getUser confere a
+  // assinatura do token); só depois disso faz sentido ler a claim `aal` dele.
+  const semFator = exigirSegundoFator(token, headers)
+  if (semFator) return semFator
 
   const { nome, email, password, workspace_id, role } = JSON.parse(event.body || '{}')
   if (!email || !password || !workspace_id) {
@@ -72,10 +77,16 @@ export const handler = async (event) => {
     .maybeSingle()
 
   if (!existingMember) {
+    // `admin` virou `owner` na migration 052 (colidia com platform_admins, e o
+    // CHECK recusa o valor antigo). Dono recebe as duas capacidades: era o que
+    // "admin" significava na prática antes de elas existirem.
+    const dono = role === 'admin' || role === 'owner'
     const { error: memberErr } = await supabase.from('workspace_members').insert({
       workspace_id,
       user_id: userId,
-      role: role === 'admin' ? 'admin' : 'member',
+      role: dono ? 'owner' : 'member',
+      pode_aprovar_pecas: dono,
+      pode_aprovar_aprendizado: dono,
     })
     if (memberErr) return { statusCode: 400, headers, body: JSON.stringify({ error: memberErr.message }) }
   }

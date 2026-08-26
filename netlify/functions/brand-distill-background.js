@@ -6,9 +6,15 @@
 // ════════════════════════════════════════════════════════════════════
 import { createClient } from '@supabase/supabase-js'
 import { distillBrand } from './_brain.js'
+import { autorizarBackground } from './_interno.js'
 
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
+
+  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
+  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  const porteiro = await autorizarBackground(event)
+  if (porteiro.erro) return porteiro.erro
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
   const { brand_id } = body
