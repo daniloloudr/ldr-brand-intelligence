@@ -7,7 +7,7 @@
 >
 > **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
-> Atualizado: 2026-08-24
+> Atualizado: 2026-08-26
 
 ---
 
@@ -346,6 +346,44 @@ Nota de coerência: essa evolução passa na régua nova sem esforço — ela **
 ---
 
 **NÃO copiar:** planos self-serve baixos (US$ 39 puxa a conversa para preço por imagem, onde perdemos — contradiz o pivô de 12/jul) · suíte horizontal de geração (mais feature de gerador = mais comparável) · benchmark de modelo (a nossa régua é convergência, não fidelidade de pixel).
+
+---
+
+### 🎧 EVOLUÇÃO DA ESCUTA — rota real por rede social (estruturado 2026-08-26)
+
+> **Decisão do Danilo:** incrementar a nossa arquitetura, **não refazer**. O documento "Brand Pulse" que ele desenhou entrou como insumo — aproveitamos cinco itens e descartamos o resto. **Estruturado, execução adiada.**
+
+**O achado que justifica a frente:** ~40% do orçamento de busca é desperdício estrutural. `montarQueries` monta ~15 consultas por rodada, **6 delas `site:` de rede social**, todas disputando um teto duro de 12 buscas — e todas vão para o índice da Anthropic, **que não tem o conteúdo dessas plataformas** (está escrito no comentário do próprio arquivo). Como o modelo escolhe quais 12 executar, as consultas mortas ainda podem expulsar as que rendem. A escuta não é fraca em rede social por falta de modelo melhor: manda a pergunta certa para a porta errada.
+
+**Decisão de arquitetura — duas naturezas de rota.** Não cabe uma interface só:
+
+```
+buscar(consulta)           →  X (xAI) · web · reputação
+   sem credencial do cliente · por consulta · imediato
+sincronizar(conta, cursor) →  Instagram · Facebook · Threads
+   token do cliente · incremental · escopo = ativos da marca
+```
+
+**Meta NÃO é rota de busca — é rota de conta conectada** (conferido 26/08): busca de post público por palavra-chave não existe no Facebook desde a v1 da Graph API, nem no Instagram. Existe: IG `mentioned_media`/`mentioned_comment`, comentários nos posts da marca, Hashtag Search (**teto de 30 hashtags únicas / 7 dias**); FB comentários e avaliações da Página, `/tagged`. Isso vira passo de onboarding (o cliente conecta), fila de App Review + Business Verification (semanas) e credencial por workspace.
+
+| # | O quê | Depende de | Tamanho |
+|---|---|---|---|
+| **E0** | Tirar as 6 consultas `site:` de rede social da rodada padrão | nós | 🟢 horas |
+| **E1** | **Run persistido + custo e rendimento por rota** — a régua. **Vem antes das rotas**, senão adicionamos rota no escuro. Também dá ao onboarding sinal de conclusão de verdade, em vez de inferir vida pela contagem de linhas (a forma da falha da Zétona) | nós | 🟢 1 dia |
+| **E2** | **Rota X via xAI** — onde a cobertura hoje é zero. Conector novo = doutrina do [`nucleo-ia.md`](nucleo-ia.md): commit separado, guarda de mutação, avaliação ao vivo. ⚠️ **Confirmar preço na conta antes de dimensionar:** US$5/1.000 chamadas (X Search) × US$25/1.000 fontes (Live Search) — 5× de diferença muda a cadência | nós | 🟡 ~1 dia |
+| **E3** | **Rotas de reputação** — Reclame Aqui, Portal da Queixa, Google Reviews, Glassdoor. Web indexada, provedor que já temos, pergunta e periodicidade próprias. Maior densidade de sentimento por item | nós | 🟢 1 dia |
+| **E4** | **Registro do app na Meta + Business Verification + App Review** — **começa primeiro: é o único relógio de terceiro.** O MESMO app serve ao conector de Meta Ads (D3/E2) | Meta (semanas) | 🟢 ~nada de código |
+| **E5** | **Conector Meta conectado** — OAuth por workspace, token/refresh, cursor; IG menções e comentários, FB comentários e avaliações | cliente conectar | 🟡 ~2 dias |
+| **E6** | Threads — confirmar keyword search | — | 🟢 |
+
+**Aproveitar do doc:** run persistido · custo por item único por rota · degraus 2-3 da dedup (URL canônica, plataforma+autor+texto normalizado) · honestidade de volume ("informações públicas analisadas", nunca "menções") · teto de custo por rodada.
+**Descartar:** BrandContext como extração nova (derivar do cérebro + `brand_book.strategy` + `listening_terms`) · provider da Meta como busca · renames de tabela · **a remoção do portão de relevância** — tirar a relevância traz de volta o defeito do homônimo (caso Pixel).
+
+**Duas ressalvas registradas:** (a) `zero_results` **não** dispara cadeia de fallback — a marca quieta dispararia todas e custaria 3× para descobrir que continua quieta; (b) com Meta conectada, a tela mistura **conversa pública** (X/web/reputação) com **interação nos canais próprios** — somar as duas numa porcentagem só é a mesma desonestidade do snapshot que mentiu em 18/08. Separar em duas famílias.
+
+**Clipping e trends ficam para depois** (decisão do Danilo, 26/08), com intenção de simplificar e ser mais assertivo. Anotado para quando chegar a vez: os dois **nunca receberam a inversão de 18/08** — pedem `"url":"https://...ou null"` ao modelo e chamam `emitSignal`, ou seja, link possivelmente inventado entrando no cérebro com peso 0,5.
+
+**A lacuna maior, para decidir junto com o item 1.3:** a escuta **não emite nenhum sinal**. `emitSignal` é chamado por diagnóstico, art-review, trends, clipping e studio — a voz real do consumidor é a única fonte de fora e a única desconectada do modelo vivo. Expansão em três camadas, quando for a hora: **L1** sinal `percepcao_publica` com evidência anexada · **L2** responder menção no tom da marca (output nº2 do brainstorm; fecha escuta→ação→aprendizado) · **L3** benchmark de categoria cross-tenant (= V1 do Valometry, sem painel pago).
 
 ---
 
