@@ -42,3 +42,7 @@ backups/
 
 # Export de dados de cliente antes de limpeza — NUNCA versionar
 .backup-escuta/
+.backup-*/
+
+# Scripts descartáveis de diagnóstico — nunca versionar
+.tmp-*

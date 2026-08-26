@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SYSTEM_PROMPT } from './_prompt.js'
 import { callAI, MODELS, TOOLS, extractJSON, isDev } from './_ai.js'
 import { withHeartbeat } from './_watchdog.js'
-import { conferirIdentidade, identidadeParaGravar } from './_identidade.js'
+import { alvoDoDiagnostico, conferirIdentidade, identidadeParaGravar } from './_identidade.js'
 
 // Scheduled: toda segunda-feira às 8h (configurado em netlify.toml)
 // Gera diagnóstico automático para workspaces com monitor ativo
@@ -16,7 +16,10 @@ async function gerarDiagnostico(empresa, contexto) {
     tools:     dev ? [] : [TOOLS.webSearch],
     messages:  [{
       role:    'user',
-      content: `Diagnóstico Smart Branding para: "${empresa}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`,
+      // `empresa` é o objeto { nome, dominio }. Interpolado direto virava
+      // "[object Object]" e o modelo respondia, corretamente, que não sabia
+      // quem diagnosticar — foi o 0/10 da Worten em 24/08.
+      content: `Diagnóstico Smart Branding para: "${alvoDoDiagnostico(empresa)}".${contexto ? `\nContexto: ${contexto}` : ''}\nGere o JSON completo.`,
     }],
   })
 

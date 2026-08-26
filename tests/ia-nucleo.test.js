@@ -63,6 +63,16 @@ describe('1 · quem é o sujeito da análise é ENTRADA, nunca saída', () => {
     expect(trecho).toMatch(/return \{ statusCode: 200 \}/)
   })
 
+  it('o cron semanal manda o mesmo alvo — não o objeto cru', () => {
+    // 24/08: o cron montava `{ nome, dominio }` certinho e o helper interpolava
+    // o OBJETO na mensagem — o modelo recebeu "[object Object]" e devolveu 0/10
+    // dizendo que não sabia quem diagnosticar. Chegou ao topo dos Relatórios da
+    // Worten. A guarda de identidade não barra isso: ela impede o diagnóstico de
+    // OUTRA empresa, e um vazio não contradiz ninguém.
+    const cron = ler(`${FUNCOES}/cron-monitor.js`)
+    expect(cron).toMatch(/alvoDoDiagnostico\(empresa\)/)
+  })
+
   it('o diagnóstico de CONCORRENTE tem a mesma guarda', () => {
     // Pesa mais aqui: concorrente trocado vira emitSignal permanente no cérebro.
     expect(compartilhado).toMatch(/conferirIdentidade\(sujeito, parsed\)/)
