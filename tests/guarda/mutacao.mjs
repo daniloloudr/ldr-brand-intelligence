@@ -409,6 +409,38 @@ const MUTACOES = [
     arq: 'netlify/functions/insights-gerar-background.js',
     de: '  if (!porteiro.interno) {',
     para: "  const token = event.headers.authorization?.replace('Bearer ', '')\n  if (!token) return { statusCode: 401 }\n  if (!porteiro.interno) {" },
+
+  // O atalho de `?tenant=` do operador. As duas travas, uma mutação cada:
+  // sem a de host ele vale em PRODUÇÃO (getTenantSlug aceita ?tenant= em
+  // qualquer domínio); sem a de operador, qualquer usuário logado abre
+  // qualquer marca — e localhost aponta para o banco de produção.
+  { nome: 'o atalho de tenant perde a trava de host (passa a valer em prod)',
+    arq: 'src/lib/WorkspaceContext.jsx',
+    de: 'const { data: operador } = ehAmbienteLocal()',
+    para: 'const { data: operador } = true' },
+
+  { nome: 'o atalho de tenant abre a marca sem conferir se é operador',
+    arq: 'src/lib/WorkspaceContext.jsx',
+    de: 'const { data: ws } = operador',
+    para: 'const { data: ws } = true' },
+
+  // F11 — a extração aprendeu `strategy`. O risco não é a passada nova (que
+  // falha visível: campo em branco); é a ESCRITA apagar o que o Copiloto
+  // gravou, num reimport, em silêncio.
+  { nome: 'a estratégia volta a não ter onde ser gravada',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: '    strategy:        strategyMesclada,\n',
+    para: '' },
+
+  { nome: 'a mescla vira substituição (apaga o que o Copiloto gravou)',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: '  const saida = { ...(atual || {}) }',
+    para: '  const saida = { ...(novo || {}) }' },
+
+  { nome: 'o esqueleto vazio do modelo passa a apagar dado bom',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: 'if (!vazio(v)) saida[k] = v',
+    para: 'saida[k] = v' },
 ]
 
 let pegos = 0
