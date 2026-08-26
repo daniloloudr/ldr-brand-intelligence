@@ -13,10 +13,24 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 }
 
-  // Porteiro: usuário autenticado (browser) OU segredo interno (cron/servidor).
-  // Sem isto este endpoint é trabalho pago à disposição de quem souber o caminho.
+  // Porteiro: aqui, SÓ o segredo interno. Não é o padrão dos outros workers, e
+  // é de propósito.
+  //
+  // Os dois únicos chamadores (`_studio.js`, submit de imagem e de vídeo) estão
+  // atrás de `isDev()` e mandam `internalHeaders()`. Ninguém chama isto do
+  // browser — em produção quem finaliza a geração é o webhook. Ou seja, o
+  // caminho de token de usuário não servia a ninguém e era só superfície: o
+  // porteiro genérico aceita QUALQUER usuário autenticado, de qualquer tenant,
+  // e este handler não confere participação no workspace da geração.
+  //
+  // Com `status_url` vindo do corpo (ver `urlDeJobDoFal` no _image.js), isso
+  // valia a chave da fal para qualquer cliente com uma conta. Achado no
+  // security gate de 26/08.
   const porteiro = await autorizarBackground(event)
   if (porteiro.erro) return porteiro.erro
+  if (!porteiro.interno) {
+    return { statusCode: 403, body: JSON.stringify({ error: 'chamada interna apenas' }) }
+  }
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }

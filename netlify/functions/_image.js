@@ -195,9 +195,31 @@ export async function submitImageJob({ model, prompt, references = [], format, m
 // submit (statusUrl/resultUrl); a reconstrução fica só como fallback de compat.
 const stripOp = model => String(model).replace(/\/(edit|text-to-image|image-to-image)$/, '')
 
+/**
+ * A URL do job só vale se for do fal — porque estes dois fetch mandam a NOSSA
+ * chave no header `Authorization`.
+ *
+ * Achado no security gate de 26/08, antes de subir: `studio-poll-background`
+ * recebia `status_url`/`response_url` do corpo do request e passava direto para
+ * cá. Host e protocolo eram de quem chamasse, então bastava apontar para um
+ * servidor próprio para receber `Key <FAL_KEY>` no primeiro fetch — e passar a
+ * gastar na nossa conta, fora do sistema de créditos. Apontar para
+ * 169.254.169.254 alcançava o metadata da Lambda.
+ *
+ * A guarda mora AQUI, e não só no chamador, porque é aqui que a chave entra no
+ * fetch: qualquer caminho futuro que reuse estas funções nasce protegido.
+ */
+export function urlDeJobDoFal(url) {
+  if (!url) return null
+  let u
+  try { u = new URL(String(url)) } catch { throw new Error('URL de job do fal inválida') }
+  if (u.origin !== FAL_BASE) throw new Error(`URL de job fora do fal (${u.origin}) — recusada`)
+  return u.toString()
+}
+
 /** Status do job (dev fallback sem webhook). */
 export async function getJobStatus(model, requestId, statusUrl) {
-  const url = statusUrl || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}/status`
+  const url = urlDeJobDoFal(statusUrl) || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}/status`
   const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) throw new Error(`fal status ${res.status}`)
   return res.json()
@@ -205,7 +227,7 @@ export async function getJobStatus(model, requestId, statusUrl) {
 
 /** Resultado final do job — payload do modelo. */
 export async function getJobResult(model, requestId, resultUrl) {
-  const url = resultUrl || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}`
+  const url = urlDeJobDoFal(resultUrl) || `${FAL_BASE}/${stripOp(model)}/requests/${requestId}`
   const res = await fetch(url, { headers: authHeaders() })
   if (!res.ok) {
     // 422 = o job falhou na validação DENTRO do fal — o corpo traz o motivo real

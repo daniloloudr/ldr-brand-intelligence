@@ -163,11 +163,36 @@ describe('migration 052 — as policies fecham o que estava aberto', () => {
 })
 
 describe('migration 052 — o saldo não é editável pelo cliente', () => {
-  it('as colunas comerciais estão protegidas por trigger', () => {
+  // A versão original desta guarda ENUMERAVA o que proteger — e este teste
+  // conferia a enumeração, coluna por coluna. Os dois passaram em 24/08 e
+  // deixaram `creditos_ciclo_reset` de fora, que é a data do refill preguiçoso
+  // do debit_credits: zerá-la recompõe o pool mensal inteiro sem tocar em
+  // `creditos_saldo`. Um teste que confere uma lista não descobre o que não
+  // está na lista.
+  //
+  // Agora a guarda é lista-branca, e o teste confere a propriedade certa: quem
+  // decide é o conjunto do que se LIBERA, e as colunas de dinheiro não estão
+  // nele. O ensaio de RLS (052-assercoes.sql) prova o efeito contra um Postgres
+  // de verdade; aqui garantimos que a forma não regride.
+  it('a guarda é lista-branca — o que não está liberado, está protegido', () => {
     const fn = trecho(migration, 'function public.protege_campos_comerciais', 'drop trigger if exists trg_protege_campos_comerciais')
-    for (const col of ['creditos_saldo', 'creditos_mes', 'valor_mensal_centavos', 'plano', 'ativo', 'slug', 'pais']) {
-      expect(fn, `${col} ficou de fora da proteção`).toMatch(new RegExp(`new\\.${col}\\s+is distinct from old\\.${col}`))
+
+    const lista = fn.match(/editaveis\s+text\[\]\s*:=\s*array\[([^\]]+)\]/)
+    expect(lista, 'a lista-branca sumiu — a guarda voltou a enumerar proibidos?').toBeTruthy()
+    const liberadas = lista[1].split(',').map(s => s.trim().replace(/^'|'$/g, ''))
+
+    // O cliente edita o cadastro da empresa e os alertas. Mais nada.
+    expect(liberadas.sort()).toEqual(['dados_alertas', 'dominio', 'nome', 'porte', 'setor'])
+
+    // Nenhuma coluna comercial, de crédito ou de infra pode estar liberada.
+    for (const col of ['creditos_saldo', 'creditos_mes', 'creditos_ciclo_reset',
+                       'valor_mensal_centavos', 'plano', 'plano_status', 'ativo', 'slug', 'pais']) {
+      expect(liberadas, `${col} está na lista-branca — o cliente escreve nela`).not.toContain(col)
     }
+
+    // E a comparação tem que ser sobre o RESTO da linha, não sobre colunas
+    // nomeadas — senão a lista-branca é decorativa.
+    expect(fn).toMatch(/to_jsonb\(new\) - editaveis\)? is distinct from \(?to_jsonb\(old\) - editaveis/)
   })
 
   it('o servidor (service key) e o operador da plataforma passam', () => {

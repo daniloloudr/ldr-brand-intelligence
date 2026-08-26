@@ -16,7 +16,18 @@ create table workspaces (
   id uuid primary key default gen_random_uuid(),
   nome text, slug text, plano text default 'trial', ativo boolean default true,
   pais text not null default 'BR',
+  -- O cadastro que o cliente edita de verdade (TabEmpresa). Está aqui para o
+  -- ensaio provar que a guarda não fechou DEMAIS — proteger o saldo e proibir
+  -- o cliente de trocar o próprio setor seriam dois erros diferentes.
+  dominio text, setor text, porte text,
   creditos_saldo int, creditos_mes int, valor_mensal_centavos int,
+  -- `creditos_ciclo_reset` faltava neste retrato, e é por isso que o furo
+  -- passou: é a data do refill preguiçoso do debit_credits. Zerá-la recompõe
+  -- o pool mensal inteiro. `plano_status` decide quais workspaces os crons
+  -- varrem. Os dois entram porque a guarda de agora é lista-branca e precisa
+  -- ser exercitada contra colunas que ela NÃO lista.
+  creditos_ciclo_reset timestamptz,
+  plano_status text default 'active',
   dados_alertas jsonb
 );
 create table platform_admins (id uuid default gen_random_uuid() primary key, user_id uuid);
@@ -67,9 +78,13 @@ insert into auth.users (id) values
 
 insert into platform_admins (user_id) values ('33333333-3333-3333-3333-333333333333');
 
-insert into workspaces (id, nome, slug, creditos_saldo, valor_mensal_centavos) values
-  ('aaaaaaaa-0000-0000-0000-000000000001', 'Hering', 'hering', 2500, 900000),
-  ('aaaaaaaa-0000-0000-0000-000000000002', 'Orfao',  'orfao',   500,  10000);
+-- `creditos_ciclo_reset` vem PREENCHIDO de propósito: é o estado real (o
+-- debit_credits grava a data em toda cobrança), e sem ele o ensaio do refill
+-- não vale nada — zerar uma coluna que já é nula não é mudança, e o trigger
+-- corretamente não teria o que barrar.
+insert into workspaces (id, nome, slug, creditos_saldo, valor_mensal_centavos, creditos_ciclo_reset) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'Hering', 'hering', 2500, 900000, date_trunc('month', now()) + interval '1 month'),
+  ('aaaaaaaa-0000-0000-0000-000000000002', 'Orfao',  'orfao',   500,  10000, date_trunc('month', now()) + interval '1 month');
 
 insert into workspace_members (workspace_id, user_id, role, created_at) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'admin',  now() - interval '10 days'),

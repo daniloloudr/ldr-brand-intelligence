@@ -171,21 +171,39 @@ create trigger trg_protege_ultimo_owner
 -- edita (nome da empresa, configuração de alertas). Então o corte é por COLUNA,
 -- via trigger: campos comerciais e de infra só mudam pelo servidor (service
 -- key, `auth.uid()` nulo) ou por quem opera a plataforma.
+--
+-- LISTA-BRANCA, e não lista de proibidos — a primeira versão desta guarda
+-- enumerava o que proteger e ESQUECEU `creditos_ciclo_reset`. Essa coluna é a
+-- chave do refill preguiçoso do `debit_credits` (045:32):
+--
+--     if v_reset is null or now() >= v_reset then v_saldo := v_mes;
+--
+-- ou seja, um membro comum que escrevesse `creditos_ciclo_reset = null` na
+-- própria linha recompunha o pool mensal INTEIRO na geração seguinte — e a
+-- transação saía gravada como `refill/ciclo`, com cara de legítima. Repetindo
+-- antes de cada peça, gasto ilimitado na fal e na Anthropic, faturado para nós,
+-- direto do browser. `plano_status` tinha o mesmo problema: é ele que decide
+-- quais workspaces os crons varrem.
+--
+-- Enumerar o que se protege exige acertar hoje E lembrar amanhã. Enumerar o que
+-- se libera erra para o lado seguro: coluna comercial nova nasce protegida, e
+-- quem adicionar uma coluna que o cliente deva editar precisa dizer isso aqui,
+-- que é onde a decisão pertence.
 create or replace function public.protege_campos_comerciais()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  -- O que o cliente edita, e só: cadastro da empresa (TabEmpresa) e a
+  -- configuração de alertas (TabAlertas). Todo o resto é servidor ou operador.
+  editaveis text[] := array['nome', 'dominio', 'setor', 'porte', 'dados_alertas'];
 begin
   -- Servidor (service key) passa: é ele quem debita crédito e fecha contrato.
   if auth.uid() is null then return new; end if;
   -- Operador da plataforma passa: é quem configura plano, slug e ativação.
   if exists (select 1 from platform_admins where user_id = auth.uid()) then return new; end if;
 
-  if new.creditos_saldo        is distinct from old.creditos_saldo
-  or new.creditos_mes          is distinct from old.creditos_mes
-  or new.valor_mensal_centavos is distinct from old.valor_mensal_centavos
-  or new.plano                 is distinct from old.plano
-  or new.ativo                 is distinct from old.ativo
-  or new.slug                  is distinct from old.slug
-  or new.pais                  is distinct from old.pais then
+  -- Tira as colunas liberadas dos dois lados e compara o RESTO. Se sobrou
+  -- diferença, mexeram em algo que não lhes pertence.
+  if (to_jsonb(new) - editaveis) is distinct from (to_jsonb(old) - editaveis) then
     raise exception 'Plano, créditos, domínio e ativação são definidos pelo brandcode. Fale com o suporte.'
       using errcode = 'insufficient_privilege';
   end if;

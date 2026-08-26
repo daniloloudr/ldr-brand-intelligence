@@ -219,10 +219,13 @@ const MUTACOES = [
     de: 'drop policy if exists "autenticado adiciona membro"     on workspace_members;',
     para: '' },
 
+  // A guarda virou lista-branca em 26/08; o alvo desta mutação mudou junto.
+  // Desligar a comparação é a forma mais crua do defeito — o cliente volta a
+  // escrever em qualquer coluna de `workspaces`, saldo inclusive.
   { nome: 'o saldo de créditos volta a ser editável pelo cliente',
     arq: 'supabase/migrations/052_papeis_por_tenant.sql',
-    de: '  if new.creditos_saldo        is distinct from old.creditos_saldo\n',
-    para: '  if false\n' },
+    de: '  if (to_jsonb(new) - editaveis) is distinct from (to_jsonb(old) - editaveis) then',
+    para: '  if false then' },
 
   { nome: 'a migration rebaixa quem já era admin',
     arq: 'supabase/migrations/052_papeis_por_tenant.sql',
@@ -373,6 +376,27 @@ const MUTACOES = [
     arq: '.spec/arquivo/hering-bakeoff.mjs',
     de: '${process.env.SUPABASE_URL}',
     para: 'https://projetoficticio' + 'detestes.supabase' + '.co' },
+
+  // ── Os dois achados do security gate de 26/08, na véspera do deploy ──
+  // Entram aqui pela regra da casa: defeito encontrado vira mutação junto com
+  // o teste que o pega. Estes não chegaram ao cliente — foram pegos no portão —
+  // mas a classe é a mesma e o custo de esquecer seria a chave da fal.
+  { nome: 'a URL do job do fal volta a vir crua do chamador (chave vaza)',
+    arq: 'netlify/functions/_image.js',
+    de: 'const url = urlDeJobDoFal(statusUrl) ||',
+    para: 'const url = statusUrl ||' },
+
+  { nome: 'o poll do Studio volta a aceitar token de usuário qualquer',
+    arq: 'netlify/functions/studio-poll-background.js',
+    de: `  if (!porteiro.interno) {
+    return { statusCode: 403, body: JSON.stringify({ error: 'chamada interna apenas' }) }
+  }`,
+    para: '' },
+
+  { nome: 'a data do ciclo de crédito entra na lista-branca (refill infinito)',
+    arq: 'supabase/migrations/052_papeis_por_tenant.sql',
+    de: "array['nome', 'dominio', 'setor', 'porte', 'dados_alertas']",
+    para: "array['nome', 'dominio', 'setor', 'porte', 'dados_alertas', 'creditos_ciclo_reset']" },
 ]
 
 let pegos = 0

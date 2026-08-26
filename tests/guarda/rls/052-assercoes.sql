@@ -55,6 +55,27 @@ select caso('membro NÃO muda o valor do contrato',
   tentou_e_falhou($$update workspaces set valor_mensal_centavos = 1
     where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$));
 
+-- O caso que a primeira versão da guarda deixou passar: não é o SALDO que se
+-- ataca, é a DATA. `debit_credits` recompõe o pool quando o ciclo está vencido
+-- ou nulo — zerar aqui é pedir refill infinito sem tocar em creditos_saldo.
+select caso('membro NÃO zera o ciclo (refill infinito pela porta dos fundos)',
+  tentou_e_falhou($$update workspaces set creditos_ciclo_reset = null
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$));
+
+select caso('membro NÃO mexe no status do plano',
+  tentou_e_falhou($$update workspaces set plano_status = 'suspended'
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$));
+
+-- A outra metade da guarda: fechar demais também é defeito. O cliente tem que
+-- continuar editando o cadastro da própria empresa.
+select caso('membro AINDA edita o cadastro da empresa (não fechou demais)',
+  linhas($$update workspaces set setor = 'Fashion', porte = 'Grande empresa'
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$) = 1);
+
+select caso('membro AINDA salva a configuração de alertas',
+  linhas($$update workspaces set dados_alertas = '{"email_alertas":true}'::jsonb
+    where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$) = 1);
+
 -- ── 5. O dono faz o trabalho dele ───────────────────────────────────
 set teste.uid = '11111111-1111-1111-1111-111111111111';   -- dono da Hering
 
