@@ -133,6 +133,13 @@ rodar a avaliação ao vivo antes do deploy.
    avaliação ao vivo diz se o modelo está alucinando.
 5. **`--no-verify` existe, mas fica no histórico.** Se pulou a guarda, diga por
    quê no commit.
+6. **A menor alteração que resolve.** (Danilo, 26/08/2026) Vale para a aplicação
+   inteira, não só para o núcleo. Consertar é achar a linha errada, não escrever
+   um sistema em volta dela — o cron mandando `[object Object]` ao modelo era uma
+   interpolação, e a resposta certa foi trocar uma expressão, não propor quatro
+   frentes. Antes de escrever, responda: **isto é o defeito, ou é o meu medo de
+   que exista outro?** O segundo caso vira anotação, não código. Achado
+   adjacente se anota; ele não entra de carona no conserto.
 
 ## Antes de qualquer deploy que toque o núcleo
 
