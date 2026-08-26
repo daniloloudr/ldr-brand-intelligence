@@ -441,6 +441,11 @@ const MUTACOES = [
     arq: 'netlify/functions/brand-manual-extract-background.js',
     de: 'if (!vazio(v)) saida[k] = v',
     para: 'saida[k] = v' },
+
+  { nome: 'o cron volta a mandar o objeto cru ao modelo ([object Object])',
+    arq: 'netlify/functions/cron-monitor.js',
+    de: '${alvoDoDiagnostico(empresa)}',
+    para: '${empresa}' },
 ]
 
 let pegos = 0
