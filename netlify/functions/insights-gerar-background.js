@@ -22,21 +22,22 @@ export const handler = async (event) => {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
-  const token = event.headers.authorization?.replace('Bearer ', '')
-  if (!token) return { statusCode: 401 }
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-  if (authErr || !user) return { statusCode: 401 }
-
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400 } }
   const { workspace_id } = body
   if (!workspace_id) return { statusCode: 400 }
 
-  const [{ data: member }, { data: platformAdmin }] = await Promise.all([
-    supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user.id).maybeSingle(),
-    supabase.from('platform_admins').select('id').eq('user_id', user.id).maybeSingle(),
-  ])
-  if (!member && !platformAdmin) return { statusCode: 403 }
+  // Ver a nota gêmea no market-sintese-background: o `if (!token) return 401`
+  // que sobrava aqui recusava em silêncio o onboard-cron, que despacha as duas
+  // sínteses na mesma etapa. Autenticado não dá acesso ao workspace dos outros;
+  // chamada interna não tem usuário e não precisa — ela já é o servidor.
+  if (!porteiro.interno) {
+    const [{ data: member }, { data: platformAdmin }] = await Promise.all([
+      supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', porteiro.user.id).maybeSingle(),
+      supabase.from('platform_admins').select('id').eq('user_id', porteiro.user.id).maybeSingle(),
+    ])
+    if (!member && !platformAdmin) return { statusCode: 403 }
+  }
 
   const { data: brand } = await supabase.from('brands').select('id, nome').eq('workspace_id', workspace_id)
     .order('created_at', { ascending: true }).limit(1).maybeSingle()

@@ -30,6 +30,20 @@ const onboard = soCodigo(readFileSync('netlify/functions/_onboard.js', 'utf8'))
 const diag    = soCodigo(readFileSync('netlify/functions/diagnostico-gerar-background.js', 'utf8'))
 const cron    = soCodigo(readFileSync('netlify/functions/onboard-cron.js', 'utf8'))
 
+// Os workers que a trilha despacha. `expired` numa etapa custa o preço de tudo
+// que rodou antes dela — e, quando o motivo é 401 silencioso, custa duas vezes,
+// porque a segunda tentativa repete a corrida inteira.
+const WORKERS_DA_TRILHA = [
+  'diagnostico-gerar-background',
+  'trends-workspace-background',
+  'listening-coletar-background',
+  'clipping-workspace-background',
+  'diagnostico-concorrentes-workspace-background',
+  'market-sintese-background',
+  'insights-gerar-background',
+  'brand-distill-background',
+]
+
 function trecho(src, de, ate) {
   const i = src.indexOf(de)
   expect(i, `marcador sumiu: "${de}"`).toBeGreaterThan(-1)
@@ -81,6 +95,35 @@ describe('o diagnóstico aceita a chamada de servidor', () => {
     const bloco = trecho(diag, 'const autoria', 'const saveError')
     expect(bloco).toMatch(/tipo: 'onboarding'/)
     expect(bloco).toMatch(/user\s*\n?\s*\?\s*\{ user_id: user\.id/)
+  })
+
+  it('as duas sínteses também aceitam a chamada de servidor', () => {
+    // 26/08: o conserto de 25/08 curou o diagnóstico e parou ali. O MESMO
+    // `if (!token) return 401` seguia em market-sintese e insights-gerar — os
+    // dois workers da etapa `sinteses`, dois passos adiante na mesma trilha.
+    // Descoberto ao reabrir o ambiente da Zétona: a mineração teria rodado
+    // (com custo) para morrer na etapa seguinte, e a destilação fecharia por
+    // cima de dados incompletos, de novo.
+    for (const fn of ['market-sintese-background', 'insights-gerar-background']) {
+      const src = soCodigo(readFileSync(`netlify/functions/${fn}.js`, 'utf8'))
+      expect(src, `${fn}: voltou o 401 que ignora o porteiro`)
+        .not.toMatch(/if \(!token\) return \{ statusCode: 401 \}/)
+      expect(src, `${fn}: a participação precisa ser conferida só quando há usuário`)
+        .toMatch(/if \(!porteiro\.interno\)/)
+      expect(src, `${fn}: o usuário tem que vir do porteiro`)
+        .toMatch(/porteiro\.user\.id/)
+    }
+  })
+
+  it('NENHUM worker da trilha recusa a chamada de servidor', () => {
+    // A cobertura que faltava. Conferir um arquivo por vez é como o defeito
+    // sobreviveu ao próprio conserto: consertamos o que estava na frente e o
+    // irmão dois passos adiante ficou de pé.
+    const recusam = WORKERS_DA_TRILHA.filter(fn =>
+      /if \(!token\) return \{ statusCode: 401 \}/.test(
+        soCodigo(readFileSync(`netlify/functions/${fn}.js`, 'utf8'))))
+    expect(recusam, `worker da trilha que devolve 401 ao onboard-cron: ${recusam.join(', ')}`)
+      .toEqual([])
   })
 
   it('nenhum acesso a user.* fora da proteção de nulo', () => {
