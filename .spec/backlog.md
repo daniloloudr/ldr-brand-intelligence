@@ -13,11 +13,11 @@
 
 ## 🩺 BLOCO 1 — RISCO VIVO (levantado 24/ago, com os números reais)
 
-> Cinco itens que o Danilo mandou fechar. Três terminaram em **descoberta**, não em código: dois já estavam entregues e um é muito maior do que estava escrito.
+> Cinco itens que o Danilo mandou fechar. **Estado em 26/ago: 4 de 5 fechados** — sobra o 1.3 (decisão de produto) e o S0 dentro do 1.1. Três terminaram em **descoberta**, não em código: dois já estavam entregues e um é muito maior do que estava escrito.
 
 | # | Item | O que se descobriu ao medir |
 |---|---|---|
-| **1.1** | **Duas identidades + MFA** (S1/S2) | 🔴 **Tem pré-requisito que ninguém sabia.** Sete tabelas de cliente **não têm o bypass do operador**: `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias` e `ai_usage`. Se o operador sair das participações hoje, a impersonação abre **vazia** nessas telas. Estender o bypass a elas vira o **S0** da release do super admin |
+| **1.1** | **Duas identidades + MFA** (S1/S2) | 🟡 **MFA ✅ 24/ago** (S2 entregue e validado ponta a ponta). Resta o S1, e ele **tem pré-requisito**: sete tabelas de cliente não têm o bypass do operador — `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias` e `ai_usage`. Se o operador sair das participações hoje, a impersonação abre **vazia** nessas telas. É o **S0** da release do super admin |
 | **1.2** | **Opt-out de treino na Voyage** | ✅ **FEITO pelo Danilo, 24/ago.** Aberto desde 14/jul |
 | **1.3** | **Escuta contaminada** | ✅ **LIMPO 24/ago** — 52 snapshots e 6 sinais não-consumidos apagados; 24 consumidos preservados (inertes). `auditoria:escuta` devolve limpo. **Fica aberto** o que a limpeza não desfaz: a percepção que já virou memória em `brand_intelligence` — decisão de produto, detalhe abaixo |
 | **1.4** | **C7 — isolamento entre tenants** | ✅ **ENTREGUE** — `npm run guarda:isolamento` |
@@ -164,7 +164,7 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 | # | O quê | Tamanho / dono |
 |---|---|---|
 | ~~A1~~ ✅ 17/ago | **Rename no código** — `PRODUCT_NAME`/`ROOT_DOMAIN` como fonte única (`helpers.js`), lockup `MARCA.brandcode`, `Wordmark.jsx`, rota `/app/inteligencia` (+shim), LOUDR fora das telas logadas, docs do `.spec` atualizados | ✅ |
-| **A2 🔴** | **VIRADA DE DOMÍNIO** — roteiro completo em [`features/dominio-brandcode.md`](features/dominio-brandcode.md): DNS no Netlify → aliases → env (`ROOT_DOMAIN`/`VITE_ROOT_DOMAIN`/`VITE_APP_URL`) → **Supabase Auth redirect URLs** → validação. Corte seco: `s1ngulr.com` morre | **Danilo** (ação em prod) · bloqueia A3/B |
+| ~~**A2**~~ ✅ | ~~VIRADA DE DOMÍNIO~~ | **FEITA** — `br4ndcode.com` no ar com subdomínio por marca; `s1ngulr.com` fora. Roteiro histórico em [`features/dominio-brandcode.md`](features/dominio-brandcode.md) | ✅ |
 | A3 🟢 | **Reprovisionar subdomínios das marcas existentes** — `node scripts/provision-subdomains.mjs --apply` (dry-run rodado: 5 workspaces ativos, 5 aliases faltando no domínio novo, 3 aliases antigos a remover) | 🟢 · depois de A2 |
 | A4 🟡 | **Receber o bloco de layout** — o que precisa estar limpo do nosso lado: (a) tokens num lugar só (`theme.js` + `DS` em `constants.js`); (b) **hexes hardcoded** espalhados (follow-up da v8.0, ainda aberto) — enquanto existirem, reskin do time não pega tudo; (c) `Wordmark.jsx` esperando o SVG definitivo; (d) botões do admin ainda em `DS.green` teal | 🟡 · com o time |
 | A5 🟢 | **Favicon / OG / meta** — `index.html` já tem title+description do brandcode; falta `favicon.ico` novo e imagem de compartilhamento | 🟢 · junto do layout |
@@ -176,7 +176,7 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 |---|---|---|
 | B1 🟢 | **Criar os dois workspaces** no admin (créditos/mês + valor + slug); o alias do subdomínio nasce automático se A2 estiver de pé | 🟢 · depois de A2 |
 | B2 🟡 | **Onboarding "Preparar ambiente"** nos dois: manual PDF → diagnóstico → concorrentes → mineração (clipping/tendências/escuta) → sínteses → destilação. Acompanhar pelo painel de progresso antes de liberar acesso | 🟡 |
-| **B3 ⚠️ RISCO** | **Extração de manual em 3 camadas** — o gatilho ("fechar cliente novo") **disparou**. Hoje é Opus + PDF em base64: ~$3–5/manual e **erro 413 acima de ~24 MB** (caso real PES: 100 pág/36,5 MB, 3× 413 em prod). Se o manual da Hering ou da Worten for pesado/rasterizado, **trava o onboarding**. Detalhe do redesenho no H1 abaixo. *Workaround imediato: comprimir no Preview para ≤20 MB* | 🟡 · **checar o tamanho dos manuais no D1** |
+| ~~**B3**~~ ✅ | ~~Extração de manual (413)~~ | **JÁ ESTAVA ENTREGUE** (descoberto ao medir em 24/ago): a function migrou para a **Files API** — teto de 500 MB, `TETO_MB` 400, guarda de 50 MB no front. O 413 do base64 morreu com ela. Manual da Worten de 31,9 MB passou em 26/ago | ✅ |
 | B4 🟢 | **Convites + fluxo de primeiro acesso** — testar ponta a ponta DEPOIS da virada (o convite passa por `app.*` antes de mandar o usuário ao subdomínio da marca; é o trecho mais frágil) | 🟢 · depois de A2 |
 | B5 🟢 | **Protocolo de calibração** (frente 3 Fullsix) — o 1º lote mede a taxa real de aprovação/retoque e **define o tier/preço do contrato**. Vale para os dois; a métrica de convergência (regens até aprovar) já é a telemetria disso | 🟢 |
 | B6 🟡 | **Worten = mesmo caso do Hering** (visual de produto fidedigno em escala, retail). Reaproveitar o fluxo "Duelo de Fidelidade" já montado; disputa direta com o Fullsix/Havas | 🟡 |
@@ -187,13 +187,13 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 
 | # | Gap | Evidência | Tamanho |
 |---|---|---|---|
-| **C1 🔴** | **Background functions sem autenticação** | 13 functions com `SUPABASE_SERVICE_KEY` e **nenhuma checagem de auth** (`clipping-workspace-background`, `trends-workspace-background`, `brand-distill-background`, `diagnostico-concorrentes-workspace-background`, `studio-poll-background`, crons…). São endpoints HTTP públicos: qualquer um que saiba o caminho dispara trabalho pago no nosso provedor. O próprio código já anota "sem JWT — hardening = backlog". **Fix:** segredo compartilhado (`INTERNAL_SECRET`) no header, validado no worker | 🟢 ~1 dia |
-| **C2 🟠** | **Webhook do Studio com segredo opcional** | `studio-webhook.js`: `if (secret && ...)` — se `STUDIO_WEBHOOK_SECRET` não estiver no env, **a checagem simplesmente não acontece**. Soft-fail vira porta aberta. **Fix:** exigir o segredo (sem env = 500, não 200) | 🟢 horas |
+| ~~**C1**~~ ✅ **24/ago** | ~~Background functions sem autenticação~~ | **ENTREGUE** — porteiro (`_interno.js`) nas 15 background functions. Aceita as DUAS provas legítimas: Bearer do browser OU segredo interno do servidor; recusa a ausência das duas. O segredo é **derivado da service key** (proteção que depende de lembrar de configurar variável nasce desligada). Teste de cobertura: background nova nasce protegida ou fica vermelha | ✅ |
+| ~~**C2**~~ ✅ **24/ago** | ~~Webhook do Studio com segredo opcional~~ | **ENTREGUE** — sem `STUDIO_WEBHOOK_SECRET` o webhook responde 500, não 200. Soft-fail deixou de ser porta aberta | ✅ |
 | C3 🟠 | **Zero headers de segurança** | `netlify.toml` não tem `[[headers]]`: sem HSTS, CSP, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options`. App de cliente enterprise leva isso em due diligence | 🟢 |
 | C4 🟡 | **CORS `*` em 18 functions** | com o domínio próprio por tenant, dá para restringir a `*.br4ndcode.com` em vez de liberar geral | 🟢-🟡 |
 | C5 🟡 | **Compliance §7 — pendências desde 14/jul** | **opt-out de treino na conta VOYAGE** (o padrão deles PERMITE treinar com o que enviamos — é o mais urgente), confirmar tier da fal, **região do Supabase/R2** (hoje `us-west-2`; com Worten europeia, a pergunta "onde moram os dados" vira contratual) | 🟢 cada · dossiê em [`compliance.md`](compliance.md) |
 | **C6 🟡** | **LGPD/ToS/Privacidade (Gap 3)** | inexistentes no repo. Pré-requisito do 1º envio de material a cliente grande — e a Worten puxa GDPR junto | 🟡 (+ jurídico) |
-| C7 🟢 | **Isolamento entre tenants — teste explícito** | o RLS por `workspace_id` é o perímetro real (subdomínio é só resolução). Falta um teste que PROVE: usuário da marca A tentando ler dado da marca B tem que falhar. Vira material de due diligence | 🟢 |
+| ~~C7~~ ✅ **24/ago** | ~~Isolamento entre tenants — teste explícito~~ | **ENTREGUE** — `npm run guarda:isolamento`. Foi ele que achou o S0: sete tabelas de cliente sem o bypass do operador | ✅ |
 
 ### Em seguida · H0 — Código, segurança profunda e performance
 
@@ -264,8 +264,10 @@ O código está à frente do comercial — as próximas jogadas não são featur
 > · ⑤ rodar clipping na mão depois de cadastrar concorrente — o cron só roda segunda
 > · ⑥ olhar `/admin` → **Saúde** depois de cada setup.
 >
-> **Pendências que afetam os três:** o `cron-monitor` está morrendo desde 10/08 (regenera diagnóstico de todas as
-> marcas toda segunda — investigar antes que os três estejam dentro) e o header de Diagnósticos segue quebrado.
+> **Pendências que afetam os três:** ~~o `cron-monitor` está morrendo desde 10/08~~ ✅ **26/ago** — a causa era
+> `"${empresa}"` interpolando o objeto `{ nome, dominio }`: o modelo recebia `"[object Object]"` e devolvia 0/10.
+> Estava gravando por cima do topo dos Relatórios de toda marca ativa, toda segunda. O header de Diagnósticos
+> segue quebrado.
 
 
 | Item | O quê | Tamanho / gatilho |
@@ -573,6 +575,8 @@ Nurturing emails (D+2…D+15) · F07b Search Listening (busca orgânica) · atua
 ---
 
 ## ✅ Entregue (resumo — história completa no changelog v6.0 do specs.md)
+
+**24–26/ago/2026, "quem pode o quê":** release de **gestão de usuários por tenant** (migration 052 — papel + capacidades, CHECK, `for all` fechado, último dono protegido, campos comerciais em lista-branca) · **segundo fator no operador** (MfaGate + claim `aal` conferida no servidor; opcional para o cliente) · **porteiro nas 15 background functions** e no webhook do Studio (C1/C2) · duas auditorias novas (`auditoria:escuta`, `guarda:isolamento` — foi ela que achou o S0) · os três fixes da **Zétona** (o cron se identifica, o diagnóstico aceita chamada de servidor, o workspace não nasce mais sem dono em silêncio) · dois HIGH pegos pelo **security gate na véspera** (refill infinito por `creditos_ciclo_reset`, chave da fal viajando para host de terceiro) · as sínteses aceitando o cron · **F11** (a extração grava em `strategy`, com escrita mesclada) · `cron-monitor` mandando `"[object Object]"` ao modelo — o 0/10 da Worten · `?tenant=` local para o operador · **lei 6 do núcleo: a menor alteração que resolve**. Deploy + 052 em produção em 26/ago, 09h50, com dump pré-migration no R2. Detalhe no changelog v8.4 do `produto.md`.
 
 **19/ago/2026, "o piloto na prática":** reunião Worten (setup + diagnóstico validado em `worten.pt`) · primeiro teste de fluxo real da Hering com o brief do KH6V · **método de bake-off** (mesmo alvo, N caminhos, mesmo juiz, repetição para medir consistência — `arquivo/hering-bakeoff.mjs`) que elegeu o **seedream 4.5** e desmentiu duas recomendações minhas em sequência · **FLUX Virtual Try-On integrado** (aceita prompt, o FASHN não — foi o que matou a fenda lateral que vazava do casting) · nó **"Imagem"** com prévia inline e `genId` consertado · diagnóstico passa a **LER o site** com `web_fetch` e a declarar `base_de_evidencia` em vez de desistir quando o material é escasso (caso costclarity.com) · `separarAlvo()` no campo único do admin. Custo do piloto medido: US$ 6,08 em 146 gerações.
 
