@@ -397,6 +397,18 @@ const MUTACOES = [
     arq: 'supabase/migrations/052_papeis_por_tenant.sql',
     de: "array['nome', 'dominio', 'setor', 'porte', 'dados_alertas']",
     para: "array['nome', 'dominio', 'setor', 'porte', 'dados_alertas', 'creditos_ciclo_reset']" },
+
+  // O mesmo defeito do diagnóstico (25/08), dois passos adiante na trilha:
+  // sobreviveu ao próprio conserto porque olhamos um arquivo, não a etapa.
+  { nome: 'a síntese de mercado volta a recusar o cron em silêncio',
+    arq: 'netlify/functions/market-sintese-background.js',
+    de: '  if (!porteiro.interno) {',
+    para: "  const token = event.headers.authorization?.replace('Bearer ', '')\n  if (!token) return { statusCode: 401 }\n  if (!porteiro.interno) {" },
+
+  { nome: 'os insights voltam a recusar o cron em silêncio',
+    arq: 'netlify/functions/insights-gerar-background.js',
+    de: '  if (!porteiro.interno) {',
+    para: "  const token = event.headers.authorization?.replace('Bearer ', '')\n  if (!token) return { statusCode: 401 }\n  if (!porteiro.interno) {" },
 ]
 
 let pegos = 0

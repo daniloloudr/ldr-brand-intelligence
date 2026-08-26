@@ -84,21 +84,27 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 
 ## 👥 RELEASE — GESTÃO DE USUÁRIOS POR TENANT (24/ago/2026)
 
-> ### ✅ FECHADA — aprovada para deploy na janela fora do horário comercial
+> ### ✅ NO AR — deploy e migration `052` aplicados em 26/08/2026, 09h50 BRT
 >
-> | Portão | Resultado |
+> | Portão | Resultado (na subida) |
 > |---|---|
-> | Testes | **443 passando**, 3 skipped, 28 arquivos |
-> | Quality gate (`npm run guarda`) | **54/54** defeitos reintroduzidos detectados |
-> | RLS gate (`npm run guarda:rls`) | **15/15** em Postgres local descartável |
-> | Build | `dist` íntegro, 45 assets, fallback do SPA presente |
-> | Security gate (`/security-review`) | **0 High · 0 Medium** · 1 Low residual documentado |
+> | Testes | **487 passando**, 3 skipped, 30 arquivos |
+> | Quality gate (`npm run guarda`) | **68/68** defeitos reintroduzidos detectados |
+> | RLS gate (`npm run guarda:rls`) | **19/19** em Postgres local descartável |
+> | Build | `dist` íntegro, 47 assets, fallback do SPA presente |
+> | Security gate | **2 HIGH achados e corrigidos antes de subir** (ver abaixo) |
 >
-> **Telas validadas em localhost contra o banco AINDA SEM a 052** — que é o estado em que a produção recebe o código: Minha conta, Gestão de time, Criar acesso, Editar acesso, Admin → Membros, Redefinir senha.
+> **Ordem executada:** código primeiro (`dev`→`main`, deploy `ready`, bundle conferido em produção), migration depois, com dump pré-migration no R2 (`db_20260826_125019_pre-migration.dump`, 5,6M). A ordem importa: o código tem fallback de esquema e aguenta o banco velho; o contrário não — a 052 fecha o INSERT de `workspace_members`, do qual o código anterior dependia para o convite.
 >
-> **Falta só:** autorização do Danilo para aplicar a `052` na janela. Depois de aplicar: conferir a contagem de papéis em produção e revalidar as telas com o esquema novo.
+> **Estado depois da migration (conferido):** 6 owners e 11 members, **zero** papéis fora do CHECK, **zero** owners sem as duas capacidades, e todo workspace com membro tem exatamente um dono.
 >
-> **Pendência de transição:** convites emitidos ANTES deste deploy não têm `app_metadata.convite_workspace_id` e darão 403 no aceite. Conferir se há convite pendente; se houver, gravar o campo ou reenviar.
+> **A pendência de convites não se aplicava:** as 6 contas que nunca logaram foram criadas com senha temporária (passam pelo `ForcePassword`), não são convites em aberto pelo `workspace-join`.
+>
+> 🔴 **ABERTO — dois workspaces ativos com ZERO membros:** **Zétona** e **Escola da Inteligência**. Ninguém consegue entrar neles ("Sem acesso a esta marca"), e a migration não alcança workspace sem membro — o bloco de órfãos só promove onde já existe gente. Depois da 052 o INSERT em `workspace_members` é só do owner, então a correção passa obrigatoriamente pelo servidor: `/admin` → Membros. **Decisão do Danilo:** quem vira dono de cada um.
+>
+> **Os dois achados HIGH do security gate, corrigidos antes de subir** (commit `ead3d8b`) — nenhum era regressão; os dois eram conserto pela metade, e a produção anterior estava pior nos dois casos:
+> - **A guarda de campos comerciais enumerava proibidos e esqueceu `creditos_ciclo_reset`** — a data do refill preguiçoso do `debit_credits`. Membro comum zerava a data pelo browser e recompunha o pool mensal inteiro na geração seguinte, com a transação gravada como `refill/ciclo`. Virou **lista-branca** (`nome`, `dominio`, `setor`, `porte`, `dados_alertas`), comparando o resto da linha em jsonb: coluna comercial nova nasce protegida.
+> - **A chave da fal viajava para host de terceiro** — `studio-poll-background` lia `status_url`/`response_url` do corpo e os fetch levam `Authorization: Key <FAL_KEY>`. Agora a URL é validada onde a chave entra no fetch (`urlDeJobDoFal`) e o endpoint exige chamada interna.
 
 **Gatilho:** os acessos do time da Hering. Criar o primeiro acesso expôs que o tenant não gerencia o próprio time, e que quem entra manda em todo mundo.
 
