@@ -1,0 +1,49 @@
+# ════════════════════════════════════════════════════════════════════
+# _headers — cabeçalhos de segurança (C3 do bloco "receber cliente").
+#
+# POR QUE AQUI E NÃO NO netlify.toml
+# Mesma razão do `_redirects`: o que mora no toml o `netlify dev` interpreta de
+# um jeito e a produção de outro. Regra da casa desde 17/08 — o arquivo mora em
+# public/, e o build o copia para o dist.
+#
+# O QUE ESTAVA FALTANDO (levantado em 17/08, ainda aberto em 27/08)
+# Nenhum cabeçalho de segurança existia. Sem HSTS, sem X-Frame-Options, sem
+# nosniff, sem Referrer-Policy. Isso aparece na primeira varredura de
+# procurement de cliente enterprise — e a Worten é conta europeia (Sonae), onde
+# a pergunta vem com GDPR junto.
+#
+# A CSP VAI EM Report-Only DE PROPÓSITO
+# Uma CSP errada não degrada: quebra a tela inteira, em silêncio, e só no
+# browser do cliente. As origens que o app usa vêm de variável de ambiente
+# (Supabase por workspace), de provedor (fal, para as imagens geradas) e de
+# terceiros (Sentry, Google Fonts) — enumerar isso de cabeça é o jeito de
+# descobrir a origem que faltava no dia do onboarding da Hering.
+# Report-Only reporta e não bloqueia: roda uma semana, lê-se o que ela acusaria,
+# e só então vira `Content-Security-Policy`. Trocar o nome do cabeçalho é a
+# alteração inteira.
+# ════════════════════════════════════════════════════════════════════
+
+/*
+  # HTTPS obrigatório por 2 anos, subdomínios inclusive — cada marca tem o seu
+  # (nomedamarca.br4ndcode.com), então sem includeSubDomains o tenant fica fora.
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  # Ninguém embute o app num iframe. Não temos caso de uso de embed, e sem isto
+  # o clickjacking em cima da tela de aprovação é trivial: um clique "aprovar"
+  # que o usuário acha que é outra coisa.
+  X-Frame-Options: DENY
+
+  # O browser para de adivinhar o tipo do arquivo. Vale para o storage: um PDF
+  # de manual servido como text/html seria script na nossa origem.
+  X-Content-Type-Options: nosniff
+
+  # O caminho da URL não vaza para terceiros. Importa aqui porque a URL carrega
+  # o subdomínio da marca — o Referer contaria ao provedor de imagem qual
+  # cliente está gerando o quê.
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Nada disto é usado pelo produto. Negar é mais barato que auditar depois.
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+  # Só reporta. Ver o cabeçalho do arquivo antes de promover a bloqueante.
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https: wss:; frame-src 'self' blob: https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
