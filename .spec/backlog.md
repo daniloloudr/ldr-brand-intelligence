@@ -7,37 +7,46 @@
 >
 > **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
-> Atualizado: 2026-08-26
+> Atualizado: 2026-08-27
 
 ---
 
 ## 🩺 BLOCO 1 — RISCO VIVO (levantado 24/ago, com os números reais)
 
-> Cinco itens que o Danilo mandou fechar. **Estado em 26/ago: 4 de 5 fechados** — sobra o 1.3 (decisão de produto) e o S0 dentro do 1.1. Três terminaram em **descoberta**, não em código: dois já estavam entregues e um é muito maior do que estava escrito.
+> Cinco itens que o Danilo mandou fechar. **Estado em 27/ago: 5 de 5 fechados** — sobra só o S0, dentro do 1.1. Quatro terminaram em **descoberta**, não em código: dois já estavam entregues, um é muito maior do que estava escrito, e o último (1.3) encolheu até virar decisão de uma linha quando alguém finalmente mediu.
 
 | # | Item | O que se descobriu ao medir |
 |---|---|---|
 | **1.1** | **Duas identidades + MFA** (S1/S2) | 🟡 **MFA ✅ 24/ago** (S2 entregue e validado ponta a ponta). Resta o S1, e ele **tem pré-requisito**: sete tabelas de cliente não têm o bypass do operador — `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias` e `ai_usage`. Se o operador sair das participações hoje, a impersonação abre **vazia** nessas telas. É o **S0** da release do super admin |
 | **1.2** | **Opt-out de treino na Voyage** | ✅ **FEITO pelo Danilo, 24/ago.** Aberto desde 14/jul |
-| **1.3** | **Escuta contaminada** | ✅ **LIMPO 24/ago** — 52 snapshots e 6 sinais não-consumidos apagados; 24 consumidos preservados (inertes). `auditoria:escuta` devolve limpo. **Fica aberto** o que a limpeza não desfaz: a percepção que já virou memória em `brand_intelligence` — decisão de produto, detalhe abaixo |
+| **1.3** | **Escuta contaminada** | ✅ **FECHADO 27/ago.** A limpeza de 24/ago resolveu o banco (`auditoria:escuta` devolve limpo). O que restava — a percepção que virou memória em `brand_intelligence` — foi **medido em 27/ago e atinge só LOUDR, Escola e PES**. Decisão do Danilo: *"essas 3 marcas não são um problema, não vamos voltar nela."* Nada foi escrito. Medição abaixo |
 | **1.4** | **C7 — isolamento entre tenants** | ✅ **ENTREGUE** — `npm run guarda:isolamento` |
 | **1.5** | **B3 — extração de manual (413)** | ✅ **JÁ ESTAVA ENTREGUE** — o backlog estava velho. A function migrou para a **Files API** (teto de 500 MB, `TETO_MB` 400, guarda de 50 MB no front); o caso da PES (100 pág / 36,5 MB) está documentado no cabeçalho como causa raiz, e o erro de limite de páginas é humanizado |
 
-### 1.3 · o estrago da escuta, medido
+### 1.3 · o estrago da escuta, medido — e por que fechou sem código
 
-`npm run auditoria:escuta` — somente leitura, roda quando quiser. O invariante: um snapshot é agregado dos eventos do ciclo e **nunca** pode declarar mais menções do que existem eventos com URL naquele dia.
+A auditoria de 24/ago mediu **snapshot × evento**. Ela não conseguia responder a pergunta que importava, porque os snapshots contaminados foram apagados na própria limpeza. Em 27/ago a pergunta foi refeita no nível do **sinal** — mesmo invariante, aplicado ao que sobreviveu: um `listening_sentiment` não pode declarar mais menções do que existem eventos com URL no mesmo dia e workspace.
 
-| marca | snapshots contaminados | menções fantasma | sinais já consumidos |
+**Sobraram 7 sinais fantasma, todos já consumidos, todos de julho:**
+
+| marca | dias | menções declaradas | eventos com URL |
 |---|---|---|---|
-| PES English | 16 (todos de 18/08) | 34 | **15** |
-| Escola da Inteligência | 16 | 105 | 4 |
-| LOUDR | 15 | 76 | 4 |
-| Hering | 4 (21/07) | 10 | 1 |
-| scolex | 1 | 6 | 0 |
+| LOUDR | 01, 02, 03, 05/07 | 27 | **0** |
+| Escola da Inteligência | 02, 03, 08/07 | 56 | **0** |
 
-**Worten e Pixel Retail estão limpas.** Todo snapshot de 24/08 é consistente — a correção de 18/08 funciona; o que sobrou é passivo.
+**Tudo de 18/08 em diante bate.** PES e Pixel, no dia 18/08, declararam *menos* do que coletaram — a correção da escuta funciona, e o passivo é só de julho.
 
-**Por que não é um DELETE e pronto:** a destilação lê *versão atual + sinais novos*, então a versão seguinte é construída EM CIMA da anterior. Os 24 sinais consumidos já viraram memória da marca em PES, Escola, LOUDR e Hering. Limpar de verdade exige decidir o que fazer com as versões de `brand_intelligence` dessas marcas — e isso é decisão de produto, não de banco. **Aguarda o Danilo.**
+**O que virou memória de marca: um fato, numa marca só.**
+
+- **LOUDR** — a v3 consumiu 4 sinais fantasma e **não gerou fato de sentimento nenhum**. v3/v4/v5 limpas.
+- **PES English** — a v2 consumiu 15 sinais de 18/08 e também não gerou fato de sentimento; o fato da v3 vem do sinal legítimo de 24/08.
+- **Escola da Inteligência** — o fato *"78 positivos, 17 neutros, 6 negativos (18 menções)"* nasceu na v2 (do sinal de 08/07: 18 declaradas, zero eventos) e atravessou v3→v6, com a confiança decaindo 0,48 → 0,44 → 0,40 → 0,35 → **0,28**. Na v6, que é a vigente, ele virou base de comparação: *"aumento de negativos e neutros em relação ao ciclo anterior (era 78/17/6 há 11 dias) — sinal de volatilidade"*. A leitura de 24/08 é legítima; a conclusão é tirada contra um número que nunca existiu.
+
+**Detalhe que muda a urgência:** `compileIntelligence` (em `_brain.js` e `src/lib/brandIntel.js`) só manda ao modelo fatos com `confianca >= 0.5`. Em 0,28, o fato fantasma **não entra em geração**. Ele só aparece na página do Cérebro, que lista os fatos sem filtro (`BrandIntelligence.jsx:308`).
+
+**DECISÃO (Danilo, 27/ago): fechado sem tocar no banco.** LOUDR, Escola e PES não são marcas de cliente em operação — o dado falso não chega a ninguém, não entra em peça gerada, e o custo de operar `brand_intelligence` na mão é maior que o dano. *"Essas 3 marcas não são um problema. Não vamos voltar nela."*
+
+**O que fica de aprendizado, e vale mais que a limpeza:** a auditoria tinha o invariante certo e o **alvo errado** — media o agregado, que é justamente o que a limpeza apaga. Medir o sinal, que sobrevive, respondia em minutos uma pergunta que ficou três dias como "decisão de produto". Quando uma auditoria não consegue responder depois da correção, o alvo dela está no artefato errado.
 
 ---
 
@@ -61,11 +70,12 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 
 | # | O quê | Por quê / Tamanho |
 |---|---|---|
-| **S0 🔴** | **PRÉ-REQUISITO do S1, achado em 24/ago:** sete tabelas de cliente **não têm o bypass do operador** — `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias`, `ai_usage`. Hoje o operador só as enxerga porque é MEMBRO. Tirá-lo das participações sem estender o bypass abre a impersonação **vazia** em Tendências, Insights, Mercado, Clipping de concorrente, Diagnósticos de concorrentes e Peças. Achado por `npm run guarda:isolamento` | 🟢 · **antes do S1** |
-| **S1** | **Duas identidades para a mesma pessoa** — conta de operação (membro dos tenants) ≠ conta de super admin (só `platform_admins`, **nunca** membro de workspace). O operador sai da lista de membros e passa a enxergar só pelo bypass — que cobre `workspaces`/`workspace_members` (provado em `guarda:rls`), mas **ainda não cobre as sete do S0** | zero código · **depois do S0** |
+| ~~**S0**~~ ✅ **27/ago** | **PRÉ-REQUISITO do S1.** Eram **seis**, não sete: `concorrente_clipping`, `consumer_insights`, `diagnosticos_concorrentes`, `market_sinteses`, `pecas_escritas`, `tendencias`. **`ai_usage` saiu da lista** — ela tem RLS ligada e policy **nenhuma** (039), então ninguém a lê com token de usuário, nem o operador quando era membro; é visão interna por service key. A auditoria de isolamento a listou por procurar "tabela com workspace_id sem bypass": falso positivo. As seis entraram **já na forma nova** (sessão), na migration `053` | ✅ |
+| **S1 🔴** | **Duas identidades para a mesma pessoa** — conta de operação (membro dos tenants) ≠ conta de super admin (só `platform_admins`, **nunca** membro de workspace). **Agora é só operação de dado:** com a 053 no ar, o operador sai de `workspace_members` e passa a enxergar exclusivamente pela sessão declarada. O ensaio de RLS já roda com ele FORA das participações (`053-retrato.sql`), então o estado-alvo está provado antes de existir. ⚠️ Fazer **depois** de a 053 estar aplicada em produção e da impersonação conferida ao vivo — na ordem inversa, o operador perde acesso a tudo | 🟢 · zero código · **depois da 053 em prod** |
 | ~~**S2**~~ ✅ **24/ago** | **MFA (TOTP) no operador** — TOTP habilitado no projeto pelo Danilo, **mais o que o console não entrega**: `MfaGate` (o `/admin` não monta sem aal2; inscrição por QR na primeira vez) e `_mfa.js` (os 5 endpoints de operador conferem a claim `aal` do token, depois de validar a assinatura). Gate de tela não protege contra token roubado — quem tem o token chama a function direto. **MFA é OPCIONAL para o cliente** (decisão do Danilo, 24/ago): ele liga em Minha conta se quiser, e quem liga passa a ser verificado no login — sem isso o "Limit duration of AAL1 sessions" derrubaria a sessão dele a cada 15 min. Obrigatório só na conta de operador. **Fator inscrito e validado ponta a ponta em 24/ago** (localhost): login com código funciona, e `admin-list-members` — que agora exige aal2 — respondeu 200. Isso prova a claim `aal` chegando ao servidor no formato esperado; era o maior risco de integração da camada. ⚠️ *"Limit duration of AAL1 sessions" está ON no console: depois da primeira inscrição, confirmar que não derruba usuário SEM fator — senão todo cliente cai a cada 15 min* | ✅ |
-| **S3 🔴** | **Bypass com validade, não permanente** — `platform_admin_sessions(user_id, workspace_id, expira_em, motivo)`; `is_platform_admin()` passa a exigir sessão aberta **para aquele workspace**. Fora dela o operador não enxerga dado de cliente nenhum. Transforma "acesso permanente a tudo" em "acesso declarado, por tenant, por tempo". **É o item que muda o risco de verdade.** Toca as 13 policies + as inline + as 27 functions | 🟡 · o maior |
-| S4 | **Trilha de auditoria** — quem entrou em qual tenant, quando, com que motivo. Pergunta de due diligence da Worten (GDPR), não higiene só nossa. Nasce de graça junto do S3: a sessão de suporte JÁ é o registro | 🟢 · junto do S3 |
+| **S3 ✅ pronta, aguardando deploy** | **O bloqueio da revisão de 27/ago foi resolvido.** O que se achou: o `/admin` lia dado de cliente com o token do operador **fora** da impersonação, onde não existe sessão — Histórico de diagnósticos, Custos e Cérebros abririam vazios (e o deploy é à noite: ninguém veria até de manhã). Escapou porque o primeiro `grep` procurou `from('tabela')` só com **aspas simples**, e essas chamadas usam duplas. Dois consertos, de naturezas diferentes: **(a)** panorama cross-tenant não cabe numa sessão de um tenant só → `admin-panorama.js` lê pelo servidor (service key + `aal2`), como `admin-list-members`; **(b)** `diagnosticos` sem `workspace_id` é lead do funil, não cliente → segue com o operador, por `case when workspace_id is null`. Guarda nova varre **as 24 tabelas fechadas** e fica vermelha se qualquer uma voltar ao browser do operador | ✅ |
+| ~~**S3**~~ (o conteúdo da migration) | **Bypass com validade, não permanente** — migration `053`. `platform_admin_sessions(admin_user_id, workspace_id, motivo, expira_em, encerrada_em, origem)` + `operador_pode(ws)`, que exige sessão **aberta, não vencida e daquele workspace**, de quem ainda está em `platform_admins`. **Uma decisão de desenho a revisar:** `is_platform_admin()` ficou INTACTA e continua valendo para `workspaces`, `workspace_members`, `cron_runs` e `cron_alerts` — o `/admin` lê as duas primeiras do browser, e sem elas não há de onde ESCOLHER o tenant para abrir sessão. Todo o resto (conteúdo do cliente) passou a exigir sessão. Se a leitura for que nem a lista de tenants deve ser visível sem declarar, `workspaces` desce e o `/admin` passa a ler pelo servidor | ✅ |
+| ~~**S4**~~ ✅ **27/ago** | **Trilha de auditoria** — nasceu junto, como previsto: a linha de `platform_admin_sessions` É o registro (quem, qual tenant, quando, por quanto tempo, por quê). `motivo` é `not null` com CHECK de 3 caracteres, e o endpoint recusa antes de gravar. **Ainda não tem tela** — a trilha existe no banco e ninguém a lê no `/admin`; é o próximo tijolo, e é o que se mostra em due diligence | ✅ · falta a tela |
 | S5 | **`admin.br4ndcode.com` dedicado** — o admin deixa de ser servido no mesmo host do `/app` de impersonação; vira lugar limpo para CSP mais dura, allowlist de IP e exigência de MFA. É **embalagem** do S1–S4, não substituto | 🟢 · depois |
 
 ### Decisões já tomadas
@@ -100,7 +110,7 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 >
 > **A pendência de convites não se aplicava:** as 6 contas que nunca logaram foram criadas com senha temporária (passam pelo `ForcePassword`), não são convites em aberto pelo `workspace-join`.
 >
-> 🔴 **ABERTO — dois workspaces ativos com ZERO membros:** **Zétona** e **Escola da Inteligência**. Ninguém consegue entrar neles ("Sem acesso a esta marca"), e a migration não alcança workspace sem membro — o bloco de órfãos só promove onde já existe gente. Depois da 052 o INSERT em `workspace_members` é só do owner, então a correção passa obrigatoriamente pelo servidor: `/admin` → Membros. **Decisão do Danilo:** quem vira dono de cada um.
+> ✅ **RESOLVIDO 27/ago — os dois workspaces órfãos.** **Zétona** ganhou dono: `lucas@zetona.com.br` como `owner`, com `mavidomarketing@zetona.com.br` como member. **Escola da Inteligência fica sem dono por decisão do Danilo** (27/ago) — não é marca em operação; quando for, entra pelo `/admin` → Membros, que é o único caminho depois da 052 (o INSERT em `workspace_members` passou a ser só do owner).
 >
 > **Os dois achados HIGH do security gate, corrigidos antes de subir** (commit `ead3d8b`) — nenhum era regressão; os dois eram conserto pela metade, e a produção anterior estava pior nos dois casos:
 > - **A guarda de campos comerciais enumerava proibidos e esqueceu `creditos_ciclo_reset`** — a data do refill preguiçoso do `debit_credits`. Membro comum zerava a data pelo browser e recompunha o pool mensal inteiro na geração seguinte, com a transação gravada como `refill/ciclo`. Virou **lista-branca** (`nome`, `dominio`, `setor`, `porte`, `dados_alertas`), comparando o resto da linha em jsonb: coluna comercial nova nasce protegida.
@@ -189,7 +199,7 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 |---|---|---|---|
 | ~~**C1**~~ ✅ **24/ago** | ~~Background functions sem autenticação~~ | **ENTREGUE** — porteiro (`_interno.js`) nas 15 background functions. Aceita as DUAS provas legítimas: Bearer do browser OU segredo interno do servidor; recusa a ausência das duas. O segredo é **derivado da service key** (proteção que depende de lembrar de configurar variável nasce desligada). Teste de cobertura: background nova nasce protegida ou fica vermelha | ✅ |
 | ~~**C2**~~ ✅ **24/ago** | ~~Webhook do Studio com segredo opcional~~ | **ENTREGUE** — sem `STUDIO_WEBHOOK_SECRET` o webhook responde 500, não 200. Soft-fail deixou de ser porta aberta | ✅ |
-| C3 🟠 | **Zero headers de segurança** | `netlify.toml` não tem `[[headers]]`: sem HSTS, CSP, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options`. App de cliente enterprise leva isso em due diligence | 🟢 |
+| ~~C3~~ ✅ **27/ago** | ~~Zero headers de segurança~~ | **ENTREGUE** — `public/_headers` (não no `netlify.toml`: mesma razão do `_redirects`, o `netlify dev` interpreta o toml diferente da produção). HSTS com `includeSubDomains` (cada marca tem o seu subdomínio), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`. ⚠️ **A CSP subiu em `Report-Only` de propósito:** as origens vêm de env (Supabase), de provedor (fal) e de terceiros (Sentry, Google Fonts) — enumerar de cabeça é como se descobre a origem que faltava no dia do onboarding. Rodar ~1 semana, ler os relatos, então trocar o nome do cabeçalho. Guarda no `tests/guarda/dist.mjs`, porque a ausência dele **não quebra nada visível** | ✅ · CSP a promover |
 | C4 🟡 | **CORS `*` em 18 functions** | com o domínio próprio por tenant, dá para restringir a `*.br4ndcode.com` em vez de liberar geral | 🟢-🟡 |
 | C5 🟡 | **Compliance §7 — pendências desde 14/jul** | **opt-out de treino na conta VOYAGE** (o padrão deles PERMITE treinar com o que enviamos — é o mais urgente), confirmar tier da fal, **região do Supabase/R2** (hoje `us-west-2`; com Worten europeia, a pergunta "onde moram os dados" vira contratual) | 🟢 cada · dossiê em [`compliance.md`](compliance.md) |
 | **C6 🟡** | **LGPD/ToS/Privacidade (Gap 3)** | inexistentes no repo. Pré-requisito do 1º envio de material a cliente grande — e a Worten puxa GDPR junto | 🟡 (+ jurídico) |
