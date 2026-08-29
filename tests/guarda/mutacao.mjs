@@ -446,6 +446,76 @@ const MUTACOES = [
     arq: 'netlify/functions/cron-monitor.js',
     de: '${alvoDoDiagnostico(empresa)}',
     para: '${empresa}' },
+
+  // ── Sessão de suporte (release de 27/08 — S0+S3+S4) ───────────────
+  // A RLS é exercitada no ensaio (`npm run guarda:rls`, 66 asserções em
+  // Postgres descartável), mas esta varredura roda só o vitest. Sem as
+  // mutações abaixo, apagar a validade da sessão passa despercebido aqui — e
+  // esta varredura é o que roda no pre-commit.
+  { nome: 'a sessão de suporte volta a não expirar (bypass permanente)',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: '       and s.expira_em > now()', para: '' },
+
+  { nome: 'sessão encerrada volta a dar acesso',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: '       and s.encerrada_em is null', para: '' },
+
+  { nome: 'a sessão perde o escopo de tenant (uma abre todas)',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: '       and s.workspace_id  = ws', para: '' },
+
+  { nome: 'quem saiu de platform_admins mantém a sessão que tinha',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: '      join platform_admins p on p.user_id = s.admin_user_id', para: '' },
+
+  { nome: 'o browser volta a abrir a própria sessão de suporte',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: '  for select to authenticated\n  using (admin_user_id = auth.uid());',
+    para: '  for all to authenticated\n  using (admin_user_id = auth.uid());' },
+
+  { nome: 'S0: tendencias volta a ficar sem o bypass (tela vazia)',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: `create policy "acessa tendencias" on tendencias
+  for all
+  using      (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id))`,
+    para: `create policy "acessa tendencias" on tendencias
+  for all
+  using      (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()))` },
+
+  { nome: 'abrir sessão deixa de exigir o segundo fator',
+    arq: 'netlify/functions/admin-support-session.js',
+    de: '  const semFator = exigirSegundoFator(token, cabecalhos)\n  if (semFator) return semFator',
+    para: '' },
+
+  { nome: 'a sessão volta a ser aberta sem motivo declarado (sem trilha)',
+    arq: 'netlify/functions/admin-support-session.js',
+    de: '  if (motivoLimpo.length < 3) return erro(400,',
+    para: '  if (false) return erro(400,' },
+
+  { nome: 'o prazo pedido deixa de ter teto (sessão de 30 dias)',
+    arq: 'netlify/functions/admin-support-session.js',
+    de: 'const duracao = Math.max(5, Math.min(pedidos, MINUTOS_TETO))',
+    para: 'const duracao = pedidos' },
+
+  { nome: 'o painel Cérebros volta a ler cliente pelo browser (abre vazio)',
+    arq: 'src/pages/AppInterno.jsx',
+    de: '    const res = await fetch("/.netlify/functions/admin-panorama?vista=cerebros", {',
+    para: '    await supabase.from("brand_intelligence").select("brand_id");\n    const res = await fetch("/.netlify/functions/admin-panorama?vista=cerebros", {' },
+
+  { nome: 'o panorama do /admin deixa de exigir o segundo fator',
+    arq: 'netlify/functions/admin-panorama.js',
+    de: '  const semFator = exigirSegundoFator(token, cabecalhos)\n  if (semFator) return semFator',
+    para: '' },
+
+  { nome: 'o diagnóstico de LEAD deixa de ser exceção (Histórico abre vazio)',
+    arq: 'supabase/migrations/053_sessao_de_suporte.sql',
+    de: '    case when workspace_id is null then is_platform_admin()\n         else public.operador_pode(workspace_id) end\n  )\n  with check (',
+    para: '    public.operador_pode(workspace_id)\n  )\n  with check (' },
+
+  { nome: 'entrar no cliente volta a pular a sessão (o /app abre vazio)',
+    arq: 'src/pages/AppInterno.jsx',
+    de: '      const sessao = await abrirSessaoSuporte(entrar.ws.id, entrar.motivo, { minutos: entrar.minutos });\n      onImpersonate?.({ workspaceId: entrar.ws.id, workspaceName: entrar.ws.nome, sessao });',
+    para: '      onImpersonate?.({ workspaceId: entrar.ws.id, workspaceName: entrar.ws.nome });' },
 ]
 
 let pegos = 0

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
 import { getTenantSlug, ehAmbienteLocal } from './helpers'
+import { abrirSessaoSuporte, sessaoSuporteViva } from './sessaoSuporte'
 
 const WorkspaceContext = createContext(null)
 
@@ -99,6 +100,29 @@ export function WorkspaceProvider({ user, onLogout, children, overrideWorkspaceI
           : { data: null }
 
         if (ws) {
+          // A 053 fechou o conteúdo do cliente para quem não declarou a
+          // intenção. Sem abrir a sessão aqui, `?tenant=` passa a montar o app
+          // inteiro e VAZIO — o pior resultado possível, porque parece perda de
+          // dado do cliente e não falta de permissão.
+          //
+          // Consulta antes de abrir: `load()` roda de novo a cada reload de
+          // rotina (saldo de crédito, polling do canvas), e abrir a cada vez
+          // encheria a trilha de auditoria de linhas que não são acessos novos.
+          const viva = await sessaoSuporteViva(ws.id)
+          const sessao = viva || await abrirSessaoSuporte(ws.id, 'operação local pelo atalho ?tenant=', {
+            minutos: 60, origem: 'tenant-local',
+          }).catch(() => null)
+
+          // Sem sessão, NÃO montar o app. A tentação é seguir e deixar a tela
+          // explicar sozinha — mas o que ela explica é "este cliente não tem
+          // dado", porque toda consulta volta vazia. Preferir o "sem acesso",
+          // que é verdade, ao app inteiro em branco, que é mentira.
+          if (!sessao) {
+            setWorkspace(null); setDenied(true)
+            carregouRef.current = true; setLoading(false)
+            return
+          }
+
           // Mesmo tratamento da impersonação: para fins de suporte, o operador
           // é dono. Papel de tela, não de banco — ele não entra em
           // workspace_members.
