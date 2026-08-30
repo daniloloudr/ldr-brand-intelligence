@@ -7,7 +7,15 @@
 
 **Changelog v8.5 (27–29/ago/2026) — ACESSO DECLARADO: o bypass do operador ganha validade, e a revisão pega o defeito na véspera pela terceira vez.**
 
-⚠️ **NADA DESTA VERSÃO ESTÁ EM PRODUÇÃO.** A release está pronta e nos portões; o deploy e a migration `053` aguardam a janela fora do horário comercial e o OK do Danilo. Escrito aqui porque o trabalho existe, não porque subiu.
+✅ **NO AR — deploy e migration `053` aplicados em 30/08/2026, 15h15 BRT** (sábado, fora do horário comercial). Dois dumps no R2: `db_20260830_150637_pre-release-053.dump` e `db_20260830_151550_pre-migration.dump`.
+
+> **Ordem executada:** dump → **código** (`dev`→`main`, deploy `ready`, cabeçalhos e functions conferidos em produção) → **migration** → verificação ao vivo. A ordem importa: o código novo aguenta o banco velho (o `admin-panorama` lê com service key de qualquer jeito); o contrário não.
+>
+> **Conferido no banco depois:** tabela e as 4 funções criadas · **zero** sobra de bypass permanente · **30/30** tabelas fechadas com a regra de sessão · as 5 que o `/admin` depende mantendo o bypass por identidade · 124 diagnósticos de lead intactos · 60 policies (+1).
+>
+> **Conferido na RLS VIVA**, assumindo a identidade de um operador que **não** é membro da Worten: existem 59 ativos, 56 chunks do brand book, 1 brand book e 30 design tokens da marca — e ele enxerga **0 de cada um** sem sessão aberta. A proteção funciona em produção, não só no ensaio.
+>
+> 🔴 **O QUE ISSO AINDA NÃO PROTEGE, e é importante ser exato:** a conta do Danilo continua vendo tudo — **por ser MEMBRO**, não pelo bypass. A 053 tirou o acesso permanente do *operador*; a participação nos workspaces é outra porta, e é o **S1** que a fecha. Até lá, o ganho real é a trilha e o fim do bypass para operador não-membro; a exposição da conta dele segue igual.
 
 **A RELEASE: S0, S3 e S4 numa migration só.** Estavam separados no backlog e a separação não sobreviveu ao contato com o código: o S0 é "dar o bypass a seis tabelas que ficaram de fora" e o S3 é "trocar o que o bypass significa". Fazer o S0 com a semântica velha para reescrever as mesmas seis policies horas depois é retrabalho puro, e o S4 não é trabalho nenhum — é a tabela de sessões existir. Nasce `platform_admin_sessions` e `operador_pode(ws)`: o operador declara em qual tenant vai operar, por quê e até quando; fora disso não enxerga conteúdo de cliente nenhum. **`is_platform_admin()` fica INTACTA** e segue valendo para `workspaces`, `workspace_members` e a infra de cron — o `/admin` lê as duas primeiras do browser, e sem elas não há de onde ESCOLHER o tenant para abrir sessão. Essa linha é decisão de produto e está marcada para revisão.
 
