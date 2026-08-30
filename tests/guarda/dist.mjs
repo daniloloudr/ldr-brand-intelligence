@@ -35,7 +35,23 @@ if (existsSync('dist/_redirects')) {
     'dist/_redirects existe mas não tem a regra de fallback do SPA (/*  /index.html  200)')
 }
 
-// 3. Os bundles saíram de fato (dist parcial de um build interrompido).
+// 3. Os cabeçalhos de segurança (C3, 27/08). Mesma família do `_redirects`: um
+// arquivo em public/ que o build copia, e cuja ausência NÃO quebra nada visível
+// — o app funciona igual sem HSTS. Por isso a guarda: defeito que não aparece
+// na tela some do radar até a varredura de procurement do cliente.
+exige(existsSync('dist/_headers'), 'dist/_headers não foi gerado: o app subiria sem HSTS, X-Frame-Options nem nosniff (o arquivo mora em public/_headers)')
+if (existsSync('dist/_headers')) {
+  const h = readFileSync('dist/_headers', 'utf8')
+  for (const cab of ['Strict-Transport-Security', 'X-Frame-Options', 'X-Content-Type-Options', 'Referrer-Policy']) {
+    exige(h.includes(cab), `dist/_headers saiu sem ${cab}`)
+  }
+  // A CSP entrou em Report-Only de propósito (ver o cabeçalho de public/_headers).
+  // Se um dia virar bloqueante, é aqui que se troca — e o comentário de lá
+  // explica o que conferir antes.
+  exige(/Content-Security-Policy(-Report-Only)?:/.test(h), 'dist/_headers saiu sem nenhuma CSP')
+}
+
+// 4. Os bundles saíram de fato (dist parcial de um build interrompido).
 const assets = existsSync('dist/assets') ? readdirSync('dist/assets') : []
 exige(assets.some(f => f.endsWith('.js')), 'dist/assets saiu sem nenhum .js — build interrompido no meio')
 

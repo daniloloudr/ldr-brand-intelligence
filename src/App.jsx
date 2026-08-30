@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import {} from "./lib/constants";
 import { getRoute, navigate, getTenantSlug, tenantUrl, ROOT_DOMAIN } from "./lib/helpers";
+import { encerrarSessaoSuporte } from "./lib/sessaoSuporte";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitePage } from "./pages/auth/Invite";
 import { ForcePasswordPage } from "./pages/auth/ForcePassword";
@@ -183,8 +184,16 @@ export default function App() {
       <AppShell
         user={user}
         impersonating={impersonating}
-        onStopImpersonating={() => { setImpersonating(null); navigate('/admin'); }}
+        onStopImpersonating={async () => {
+          // Encerrar é higiene, não garantia — quem garante é o `expira_em` da
+          // sessão. Por isso o `await` não bloqueia a saída: se a chamada falhar,
+          // o operador sai da tela do mesmo jeito e o prazo fecha o resto.
+          if (impersonating?.workspaceId) await encerrarSessaoSuporte(impersonating.workspaceId);
+          setImpersonating(null);
+          navigate('/admin');
+        }}
         onLogout={async () => {
+          if (impersonating?.workspaceId) await encerrarSessaoSuporte(impersonating.workspaceId);
           await supabase.auth.signOut();
           setUser(null);
           setImpersonating(null);

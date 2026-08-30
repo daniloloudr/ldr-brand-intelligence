@@ -12,6 +12,7 @@
     "guarda": "vitest run && node tests/guarda/mutacao.mjs",
     "guarda:ao-vivo": "EVAL_AO_VIVO=1 vitest run tests/guarda/eval-ao-vivo.test.js",
     "guarda:rls": "node tests/guarda/rls/rodar.mjs",
+    "guarda:esquema": "node tests/guarda/rls/ensaio-esquema-real.mjs",
     "guarda:instalar": "node tests/guarda/nucleo.mjs --instalar",
     "nucleo": "node tests/guarda/nucleo.mjs",
     "auditoria:escuta": "node scripts/auditoria-escuta.mjs",

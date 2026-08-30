@@ -15,6 +15,7 @@ import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
 import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual, novaSenha } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
+import { abrirSessaoSuporte } from "../lib/sessaoSuporte";
 import { RelatorioCompleto } from "../components/RelatorioCompleto";
 import { NovoDiagnosticoDialog } from "./NovoManual";
 import { DashboardHistorico } from "./DashboardHistorico";
@@ -801,12 +802,15 @@ function CustosAdmin() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [g, w] = await Promise.all([
-        supabase.from("studio_generations").select("workspace_id,provider,media_type,status,created_at").limit(5000),
-        supabase.from("workspaces").select("id,nome,plano,creditos_saldo"),
-      ]);
-      const m = {}; (w.data || []).forEach(x => { m[x.id] = x; });
-      setGens(g.data || []); setWsMap(m); setLoading(false);
+      // Mesmo motivo do painel Cérebros: consumo de TODOS os workspaces é
+      // panorama de plataforma, e vem do servidor (admin-panorama.js).
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/.netlify/functions/admin-panorama?vista=custos", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      const p = res.ok ? await res.json() : { gens: [], workspaces: [] };
+      const m = {}; (p.workspaces || []).forEach(x => { m[x.id] = x; });
+      setGens(p.gens || []); setWsMap(m); setLoading(false);
     })();
   }, []);
 
@@ -924,25 +928,28 @@ function CerebrosAdmin() {
 
   async function load() {
     setLoading(true);
-    const [b, w, bi, sig, ds, votes] = await Promise.all([
-      supabase.from("brands").select("id,nome,workspace_id"),
-      supabase.from("workspaces").select("id,nome,plano"),
-      supabase.from("brand_intelligence").select("brand_id,versao,confianca_media,created_at").order("versao", { ascending: true }),
-      supabase.from("brand_signals").select("brand_id,consumido_em").limit(10000),
-      supabase.from("brand_dataset").select("brand_id").limit(10000),
-      supabase.from("studio_generations").select("brand_id,feedback").not("feedback", "is", null).limit(10000),
-    ]);
+    // Panorama de plataforma vem do SERVIDOR, não do browser. Estas seis
+    // tabelas são conteúdo de cliente, e a migration 053 tirou o bypass
+    // permanente do operador: uma visão que atravessa TODOS os tenants não
+    // cabe numa sessão de suporte, que é por definição de um tenant só.
+    // Ver netlify/functions/admin-panorama.js.
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/.netlify/functions/admin-panorama?vista=cerebros", {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    if (!res.ok) { setRows([]); setLoading(false); return; }
+    const p = await res.json();
 
-    const wsMap = {}; (w.data || []).forEach(x => { wsMap[x.id] = x; });
+    const wsMap = {}; (p.workspaces || []).forEach(x => { wsMap[x.id] = x; });
 
     const porMarca = {};
-    (b.data || []).forEach(x => {
+    (p.brands || []).forEach(x => {
       porMarca[x.id] = { brand: x, ws: wsMap[x.workspace_id], versoes: [], sinais: 0, pendentes: 0, dataset: 0, up: 0, votos: 0 };
     });
-    (bi.data  || []).forEach(v => porMarca[v.brand_id]?.versoes.push(v));
-    (sig.data || []).forEach(s => { const m = porMarca[s.brand_id]; if (m) { m.sinais++; if (!s.consumido_em) m.pendentes++; } });
-    (ds.data  || []).forEach(d => { if (porMarca[d.brand_id]) porMarca[d.brand_id].dataset++; });
-    (votes.data || []).forEach(v => { const m = porMarca[v.brand_id]; if (m) { m.votos++; if (v.feedback === "up") m.up++; } });
+    (p.intel   || []).forEach(v => porMarca[v.brand_id]?.versoes.push(v));
+    (p.sinais  || []).forEach(s => { const m = porMarca[s.brand_id]; if (m) { m.sinais++; if (!s.consumido_em) m.pendentes++; } });
+    (p.dataset || []).forEach(d => { if (porMarca[d.brand_id]) porMarca[d.brand_id].dataset++; });
+    (p.votos   || []).forEach(v => { const m = porMarca[v.brand_id]; if (m) { m.votos++; if (v.feedback === "up") m.up++; } });
 
     const list = Object.values(porMarca).map(m => {
       const atual = m.versoes[m.versoes.length - 1] || null;
@@ -1174,6 +1181,8 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   const [onbUploading, setOnbUploading]   = useState(false);
   const [resetSenha, setResetSenha]       = useState(null);   // membro com a redefinição aberta
   const [resetando, setResetando]         = useState(false);
+  const [entrar, setEntrar]               = useState(null);   // { ws, motivo, minutos } — sessão de suporte a abrir
+  const [entrando, setEntrando]           = useState(false);
 
   useEffect(() => { fetchWorkspaces(); }, []);
 
@@ -1222,6 +1231,26 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   async function getToken() {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
+  }
+
+  // Abre a sessão de suporte ANTES de entrar. A ordem importa: sem a linha no
+  // banco, a 053 fecha todas as telas do cliente e a impersonação abre vazia —
+  // e o operador conclui que o cliente perdeu os dados, que foi exatamente a
+  // forma da falha da Zétona (25/08). Por isso o erro aqui INTERROMPE a
+  // entrada, em vez de seguir e deixar a tela explicar sozinha.
+  async function confirmarEntrada(e) {
+    e?.preventDefault?.();
+    if (!entrar) return;
+    setEntrando(true); setError('');
+    try {
+      const sessao = await abrirSessaoSuporte(entrar.ws.id, entrar.motivo, { minutos: entrar.minutos });
+      onImpersonate?.({ workspaceId: entrar.ws.id, workspaceName: entrar.ws.nome, sessao });
+      setEntrar(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEntrando(false);
+    }
   }
 
   async function onboardCall(wsId, action, extra = {}) {
@@ -1553,7 +1582,8 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                 >
                   {inativo ? 'Reativar' : 'Inativar'}
                 </Button>
-                <Button size="small" variant="contained" color="secondary" onClick={() => onImpersonate?.({ workspaceId: ws.id, workspaceName: ws.nome })}>
+                <Button size="small" variant="contained" color="secondary"
+                  onClick={() => { setEntrar({ ws, motivo: '', minutos: 60 }); setError(''); }}>
                   Entrar →
                 </Button>
               </Box>
@@ -1773,6 +1803,50 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
               <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <Button type="button" size="small" variant="outlined" onClick={() => { setShowConfig(null); setError(''); }}>Cancelar</Button>
                 <Button type="submit" size="small" variant="contained" disabled={savingConfig}>{savingConfig ? 'Salvando...' : 'Salvar'}</Button>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* ── Modal entrar no ambiente do cliente (sessão de suporte, migration 053) ──
+          Depois da 053 o operador não enxerga conteúdo de cliente sem uma sessão
+          aberta para AQUELE workspace. O motivo não é burocracia: é a trilha que
+          a Worten pede em due diligence, e é o que separa "acesso declarado" de
+          "acesso permanente com um formulário na frente". */}
+      {entrar && (
+        <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', padding: '28px', width: '100%', maxWidth: 440 }}>
+            <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>
+              Entrar no ambiente · {entrar.ws.nome}
+            </Box>
+            <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>
+              O acesso fica registrado com o motivo e vale pelo tempo escolhido. Terminado o prazo,
+              as telas do cliente fecham sozinhas.
+            </Box>
+            {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico, fontSize: 12 }}>{error}</Box>}
+            <Box component="form" onSubmit={confirmarEntrada} sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <TextField size="small" autoFocus required placeholder="Motivo do acesso *"
+                helperText="Ex.: conferir a preparação do ambiente · investigar peça reprovada"
+                value={entrar.motivo}
+                onChange={e => setEntrar(x => ({ ...x, motivo: e.target.value }))} />
+              {/* `shrink` explícito: com select NATIVO o MUI não encolhe a label
+                  sozinho, e ela fica por cima do valor. É a mesma família dos
+                  cinco defeitos visuais de 18/08 — a suíte não renderiza nada. */}
+              <TextField size="small" select label="Validade" value={entrar.minutos}
+                onChange={e => setEntrar(x => ({ ...x, minutos: Number(e.target.value) }))}
+                InputLabelProps={{ shrink: true }}
+                SelectProps={{ native: true }}>
+                <option value={30}>30 minutos</option>
+                <option value={60}>1 hora</option>
+                <option value={240}>4 horas</option>
+                <option value={480}>8 horas (máximo)</option>
+              </TextField>
+              <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <Button type="button" size="small" variant="outlined" onClick={() => { setEntrar(null); setError(''); }}>Cancelar</Button>
+                <Button type="submit" size="small" variant="contained" color="secondary" disabled={entrando}>
+                  {entrando ? 'Abrindo…' : 'Entrar →'}
+                </Button>
               </Box>
             </Box>
           </Box>

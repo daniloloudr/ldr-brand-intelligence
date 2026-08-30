@@ -55,6 +55,7 @@ const ReportsPage     = lazy(() => import('./IntelligencePages').then(m => ({ de
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { Wordmark } from '../../components/Wordmark'
 import { PALETTE } from '../../lib/theme'
+import { horaDeExpiracao } from '../../lib/sessaoSuporte'
 
 
 const USER_MENU = [
@@ -276,7 +277,15 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
       px: 2, py: 1, fontSize: 13, fontWeight: 700,
     }}>
-      <Typography component="span">Você está no ambiente de <strong>{impersonating.workspaceName}</strong></Typography>
+      <Typography component="span">
+        Você está no ambiente de <strong>{impersonating.workspaceName}</strong>
+        {/* A validade não é enfeite: quando o prazo vence, as telas do cliente
+            fecham sozinhas (migration 053). Sem mostrar até quando, o operador
+            lê o esvaziamento como perda de dado do cliente. */}
+        {horaDeExpiracao(impersonating.sessao) && (
+          <> · sessão de suporte até <strong>{horaDeExpiracao(impersonating.sessao)}</strong></>
+        )}
+      </Typography>
       <Box component="button" onClick={onStopImpersonating} sx={{
         bgcolor: PALETTE.neutral[900], color: PALETTE.data.atencao, border: 'none', borderRadius: 0.5,
         px: 1.5, py: 0.5, fontWeight: 800, fontSize: 12, cursor: 'pointer',
