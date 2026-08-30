@@ -61,6 +61,20 @@ select caso('LEAD: operador reprocessa o diagnóstico de lead (retry)',
 select caso('SEM sessão: operador não lê diagnóstico DE CLIENTE',
   (select count(*) from diagnosticos where workspace_id is not null) = 0);
 
+-- ── 1c. As SEIS que escreviam o bypass à mão ────────────────────────
+-- Achadas em 29/08 pelo ensaio contra o esquema real, com a migration já
+-- escrita e commitada. `brand_book_chunks` é o brand book EMBEDDADO — o cérebro
+-- em texto —, e `brand_assets` é a biblioteca de referências do cliente. Eram
+-- as duas tabelas mais sensíveis do banco, e seguiam abertas em caráter
+-- permanente porque a busca procurou `is_platform_admin` e elas escrevem
+-- `exists (select 1 from platform_admins …)`.
+select caso('SEM sessão: operador não lê brand_assets',      (select count(*) from brand_assets)      = 0);
+select caso('SEM sessão: operador não lê brand_book_chunks', (select count(*) from brand_book_chunks) = 0);
+select caso('SEM sessão: operador não lê brand_manual_jobs', (select count(*) from brand_manual_jobs) = 0);
+select caso('SEM sessão: operador não lê design_tokens',     (select count(*) from design_tokens)     = 0);
+select caso('SEM sessão: operador não lê content_hub_analyses', (select count(*) from content_hub_analyses) = 0);
+select caso('SEM sessão: operador não lê listening_terms',   (select count(*) from listening_terms)   = 0);
+
 -- As encadeadas — é onde um join escrito errado abriria o acesso sem ninguém ver.
 select caso('SEM sessão: operador não lê brand_books', (select count(*) from brand_books) = 0);
 select caso('SEM sessão: operador não lê messages',    (select count(*) from messages)    = 0);
@@ -112,6 +126,15 @@ select caso('COM sessão: operador lê brand_book_history', (select count(*) fro
 select caso('COM sessão: operador lê campaigns',          (select count(*) from campaigns)          = 1);
 select caso('COM sessão: operador lê conversations',      (select count(*) from conversations)      = 1);
 select caso('COM sessão: operador lê messages',           (select count(*) from messages)           = 1);
+
+-- E as seis voltam a aparecer com a sessão aberta — fechar demais nelas
+-- esvaziaria a Biblioteca, os Ativos e o Copiloto na impersonação.
+select caso('COM sessão: operador lê brand_assets',         (select count(*) from brand_assets)      = 1);
+select caso('COM sessão: operador lê brand_book_chunks',    (select count(*) from brand_book_chunks) = 1);
+select caso('COM sessão: operador lê brand_manual_jobs',    (select count(*) from brand_manual_jobs) = 1);
+select caso('COM sessão: operador lê design_tokens',        (select count(*) from design_tokens)     = 1);
+select caso('COM sessão: operador lê content_hub_analyses', (select count(*) from content_hub_analyses) = 1);
+select caso('COM sessão: operador lê listening_terms',      (select count(*) from listening_terms)   = 1);
 
 -- Suporte que só lê não conserta nada: a impersonação precisa escrever.
 select caso('COM sessão: operador escreve em brand_signals',

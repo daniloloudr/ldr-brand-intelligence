@@ -283,6 +283,12 @@ describe('o /admin não lê conteúdo de cliente pelo browser', () => {
     'brand_dataset', 'credit_transactions', 'studio_workflows', 'studio_generations',
     'studio_campaigns', 'tendencias', 'consumer_insights', 'market_sinteses',
     'concorrente_clipping', 'pecas_escritas', 'diagnosticos_concorrentes',
+    // As seis achadas em 29/08 pelo ensaio contra o esquema real: escrevem o
+    // bypass à mão (`exists (select 1 from platform_admins …)`) em vez de
+    // chamar `is_platform_admin()`, e por isso não apareceram na consulta que
+    // montou a lista original.
+    'brand_assets', 'brand_book_chunks', 'brand_manual_jobs', 'design_tokens',
+    'content_hub_analyses', 'listening_terms',
   ]
 
   it('nenhuma tabela fechada pela 053 é lida direto do /admin', () => {

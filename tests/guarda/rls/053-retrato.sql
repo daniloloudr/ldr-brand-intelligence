@@ -141,6 +141,50 @@ create policy "workspace acessa messages" on messages for all using (
                       join workspace_members wm on wm.workspace_id = b.workspace_id where wm.user_id = auth.uid()));
 create policy "platform_admin acessa messages" on messages for all using (is_platform_admin());
 
+-- ── As SEIS que escrevem o bypass à mão ─────────────────────────────
+-- Estas não chamam `is_platform_admin()`: repetem `exists (select 1 from
+-- platform_admins …)` dentro da policy do membro. Mesmo efeito, texto
+-- diferente — e foi por isso que a consulta que montou a lista da 053 não as
+-- viu. O retrato reproduz a grafia à mão de propósito: se ele usasse a função,
+-- o ensaio não exercitaria o caso que quase passou.
+do $$
+declare t text;
+begin
+  -- pendem de brand_id
+  foreach t in array array['brand_assets','brand_book_chunks','brand_manual_jobs','design_tokens'] loop
+    execute format(
+      'create table %I (id uuid primary key default gen_random_uuid(),
+                        brand_id uuid references brands(id) on delete cascade,
+                        conteudo text)', t);
+    execute format('alter table %I enable row level security', t);
+    execute format('grant select, insert, update, delete on %I to authenticated', t);
+    execute format(
+      'create policy "workspace acessa %s" on %I for all
+         using      (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()))
+                     or exists (select 1 from platform_admins where user_id = auth.uid()))
+         with check (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()))
+                     or exists (select 1 from platform_admins where user_id = auth.uid()))', t, t);
+  end loop;
+
+  -- pendem de workspace_id
+  foreach t in array array['content_hub_analyses','listening_terms'] loop
+    execute format(
+      'create table %I (id uuid primary key default gen_random_uuid(),
+                        workspace_id uuid references workspaces(id) on delete cascade,
+                        conteudo text)', t);
+    execute format('alter table %I enable row level security', t);
+    execute format('grant select, insert, update, delete on %I to authenticated', t);
+    execute format(
+      'create policy "acessa %s" on %I for all
+         using      (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())
+                     or exists (select 1 from platform_admins where user_id = auth.uid()))
+         with check (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())
+                     or exists (select 1 from platform_admins where user_id = auth.uid()))', t, t);
+  end loop;
+end $$;
+-- As linhas destas seis entram no fim do arquivo: as que pendem de `brand_id`
+-- precisam da marca com id fixo, e essa fixação só acontece lá embaixo.
+
 -- ── O estado que a release persegue (S1) ────────────────────────────
 -- O operador sai das participações. É a razão de a 053 existir: a partir daqui
 -- ele não enxerga NADA por ser membro, só pela sessão declarada. Sem tirá-lo
@@ -187,3 +231,17 @@ insert into conversations (id, brand_id) values
   ('dddddddd-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001');
 insert into messages (conversation_id, content) values
   ('dddddddd-0000-0000-0000-000000000001', 'conversa do cliente com o Copiloto');
+
+-- ── Uma linha em cada uma das SEIS ──────────────────────────────────
+-- Aqui embaixo porque as quatro que pendem de `brand_id` precisam da marca com
+-- o id fixo, e a fixação acontece logo acima.
+do $$
+declare t text;
+begin
+  foreach t in array array['brand_assets','brand_book_chunks','brand_manual_jobs','design_tokens'] loop
+    execute format('insert into %I (brand_id, conteudo) values (''bbbbbbbb-0000-0000-0000-000000000001'', ''conteudo da Hering'')', t);
+  end loop;
+  foreach t in array array['content_hub_analyses','listening_terms'] loop
+    execute format('insert into %I (workspace_id, conteudo) values (''aaaaaaaa-0000-0000-0000-000000000001'', ''conteudo da Hering'')', t);
+  end loop;
+end $$;

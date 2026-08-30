@@ -366,3 +366,61 @@ create policy "workspace acessa diagnosticos_concorrentes" on diagnosticos_conco
   for all
   using      (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id))
   with check (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id));
+
+-- ── 7. As SEIS que o primeiro levantamento não viu ──────────────────
+-- Achadas no ensaio contra o esquema REAL (29/08), depois de a migration já
+-- estar escrita, testada e commitada.
+--
+-- POR QUE ESCAPARAM, e vale mais que o conserto: a busca que montou a lista
+-- procurava `is_platform_admin` no `pg_policies`. Estas seis escrevem o mesmo
+-- bypass À MÃO — `exists (select 1 from platform_admins where user_id =
+-- auth.uid())` — em vez de chamar a função. Mesmo efeito, texto diferente, e a
+-- consulta não as viu. O backlog até dizia ("mais listening_terms e
+-- content_hub_analyses inline nas 010–013") e eu montei a lista da consulta, não
+-- do texto.
+--
+-- Sem este bloco a release AFIRMARIA que o operador não vê conteúdo de cliente
+-- enquanto seis tabelas seguiam abertas em caráter permanente — entre elas a
+-- biblioteca de ativos e o brand book EMBEDDADO, que é o cérebro em texto, o
+-- dado mais sensível que guardamos.
+--
+-- A lição, terceira vez em três dias: busca incompleta não devolve "quase
+-- tudo", devolve "nada a corrigir".
+drop policy if exists "workspace acessa brand_assets" on brand_assets;
+create policy "workspace acessa brand_assets" on brand_assets
+  for all
+  using      (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)))
+  with check (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)));
+
+drop policy if exists "workspace acessa brand_book_chunks" on brand_book_chunks;
+create policy "workspace acessa brand_book_chunks" on brand_book_chunks
+  for all
+  using      (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)))
+  with check (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)));
+
+drop policy if exists "workspace acessa brand_manual_jobs" on brand_manual_jobs;
+create policy "workspace acessa brand_manual_jobs" on brand_manual_jobs
+  for all
+  using      (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)))
+  with check (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)));
+
+drop policy if exists "workspace acessa design_tokens" on design_tokens;
+create policy "workspace acessa design_tokens" on design_tokens
+  for all
+  using      (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)))
+  with check (brand_id in (select br.id from brands br where br.workspace_id in (select workspace_id from workspace_members where user_id = auth.uid())) or public.operador_pode(public.ws_da_brand(brand_id)));
+
+drop policy if exists "acessa content_hub_analyses" on content_hub_analyses;
+create policy "acessa content_hub_analyses" on content_hub_analyses
+  for all
+  using      (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id))
+  with check (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id));
+
+-- `listening_terms` tem DUAS policies e só uma carrega o bypass. A segunda
+-- ("membro acessa listening_terms") é só participação e fica como está — mexer
+-- nela seria alterar o acesso do cliente, que não é o assunto desta migration.
+drop policy if exists "acessa listening_terms" on listening_terms;
+create policy "acessa listening_terms" on listening_terms
+  for all
+  using      (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id))
+  with check (workspace_id in (select workspace_id from workspace_members where user_id = auth.uid()) or public.operador_pode(workspace_id));

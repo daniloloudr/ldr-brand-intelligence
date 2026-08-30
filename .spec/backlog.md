@@ -53,6 +53,8 @@ A auditoria de 24/ago mediu **snapshot × evento**. Ela não conseguia responder
 ## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (próxima)
 
 > **Regra de release (Danilo, 24/ago):** objetivo declarado → testes → quality gate (`npm run guarda`) → security gate (`/security-review`) → só então aprovada. Deploy em prod **sempre no fim do dia, fora do horário comercial**. Migration que toca RLS passa também por `npm run guarda:rls`.
+>
+> ➕ **`npm run guarda:esquema` (29/ago), e ele é obrigatório para migration de RLS.** Baixa o esquema REAL de produção (só DDL, nenhuma linha de dado), aplica a migration em cima num banco descartável e confere o catálogo de policies depois. Existe porque o `guarda:rls` prova o que as policies FAZEM num retrato escrito à mão — ele não pode provar que os NOMES batem com os do banco real, e `drop policy if exists "nome errado"` **não falha, não faz nada**: a policy velha fica de pé ao lado da nova, elas são OR, e a proteção vira zero com a migration aplicada sem um erro e o ensaio verde. Na estreia ele achou **seis tabelas** que a 053 deixaria abertas.
 
 **Objetivo:** que o comprometimento de uma conta deixe de valer a plataforma inteira. Hoje uma credencial concentra super admin + participação nos workspaces dos clientes.
 
