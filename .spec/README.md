@@ -19,7 +19,7 @@
 | Spec | Cobre |
 |---|---|
 | [brand-intelligence.md](features/brand-intelligence.md) | O cérebro: sinais, destilação, modelo vivo, dataset, RAG |
-| [studio.md](features/studio.md) | Estúdio: imagem, vídeo, fluxos/canvas, créditos por geração |
+| [estudio.md](features/estudio.md) | ⭐ **v2 (31/08/2026) — canônica.** O Estúdio: peça/versão, execução, juiz, fluxos versionados, agentes e o Copiloto como camada. Substitui a v1, que desceu para `arquivo/studio-v1-2026-08-31.md` |
 | [nova-arquitetura.md](features/nova-arquitetura.md) | Árvore Strategy·Intelligence·Studio·Copilot — de-para e decisões |
 | [diagnostico.md](features/diagnostico.md) | Diagnóstico de marca (próprio e de concorrentes) |
 | [mcp-cerebro.md](features/mcp-cerebro.md) | Plano MCP (Figma/Canva) — aprovado, aguardando "vai" |

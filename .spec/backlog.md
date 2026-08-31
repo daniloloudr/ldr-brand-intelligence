@@ -7,7 +7,7 @@
 >
 > **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
-> Atualizado: 2026-08-27
+> Atualizado: 2026-08-31
 
 ---
 
@@ -50,7 +50,97 @@ A auditoria de 24/ago mediu **snapshot × evento**. Ela não conseguia responder
 
 ---
 
-## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (próxima)
+## 🎨 PROGRAMA — ESTÚDIO v2 (priorizado 31/ago/2026) — a re-arquitetura do módulo
+
+> **Spec canônica:** [`features/estudio.md`](features/estudio.md) (v2). A v1 desceu para
+> [`arquivo/studio-v1-2026-08-31.md`](arquivo/studio-v1-2026-08-31.md).
+> O de-para com o banco real e a classificação por risco estão no **§12** da spec.
+>
+> **Decisão do Danilo (31/ago): cada bloco do §12 é UMA release.** Não é um projeto
+> grande que sobe de uma vez — é uma sequência de releases pequenas, cada uma com seus
+> portões. **Tudo se ensaia local antes, inclusive a migration. Deu problema, não sobe.**
+
+**O que é:** a re-arquitetura do Estúdio — peça/versão, execução como entidade,
+parecer persistido, fluxo versionado com três camadas de variável, papéis que decidem
+quem treina o cérebro, agentes e o Copiloto como camada. Não é feature: muda o modelo
+de dados central do módulo.
+
+**Por que agora:** o que a Hering aprovou não foi uma peça, foi um **processo**. Enquanto
+o processo viver como prompt colado num campo, não escala, não se audita e não aprende.
+E hoje, quando alguém pergunta de onde veio uma peça, a resposta exige reconstruir o
+grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sapato sumido.
+
+### O protocolo desta release (Danilo, 31/ago)
+
+1. **Um bloco = uma release.** Nada de subir duas faixas juntas.
+2. **Ensaio local obrigatório, migration inclusive.** `guarda:rls` (Postgres descartável)
+   + `guarda:esquema` (esquema REAL de produção, migration aplicada em cima).
+3. **Deu problema no ensaio, não sobe.** Sem exceção e sem "sobe e conserta depois".
+4. Portões de sempre por cima: testes → `npm run guarda` → `/security-review` → build.
+5. Migration em produção só com **dump pré-migration** no R2, e deploy fora do horário
+   comercial.
+
+> ⚠️ **FERRAMENTA QUE FALTA — pré-requisito de E3 em diante.** `guarda:esquema` roda
+> `pg_dump --schema-only`: **sem uma linha de dado**. Ele prova que a migration APLICA e
+> que o catálogo de policies fica certo — **não prova que um backfill está CERTO**, porque
+> não há linha para transformar. E E3, E4 e E5 são todos backfill sobre dado de cliente
+> vivo. Falta um **ensaio de backfill sobre restore do dump diário** (o dump já existe no
+> R2 e o `backup.md` documenta o restore). Sem isso, o item 2 do protocolo é meia
+> verificação. 🟢 · construir junto do E1.
+
+### As releases, na ordem por custo de reversão
+
+| # | Release | Faixa | Migration | Estado |
+|---|---|---|---|---|
+| **E0** | `custo_estimado` gravado · menu novo (Criar·Campanhas·Fluxos·Biblioteca, Agentes fora, Copiloto invocável) · parecer com veredito+texto de 300 · os 4 eixos fixos do juiz · Copiloto contextual | **A** | ❌ nenhuma | 🟡 **a próxima** |
+| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟡 |
+| **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
+| **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
+| **E4** | campanha como escopo | **D** | ✅ substituição | 🔴 |
+| **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🔴 |
+| **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
+| **E7** | editor | — | — | ⏸️ o doc adia e manda revisitar |
+
+**E0 é metade da percepção de mudança e não custa uma migration.** O menu novo e o
+Copiloto contextual são o que o cliente vê primeiro, e nenhum dos dois depende do modelo
+de dados. `custo_estimado` é o caso mais barato do documento inteiro: **a coluna já existe
+em `studio_generations` e nunca é escrita** — o teto de crédito do agente depende dela.
+
+### Duas inversões em relação ao §10 da spec, e as duas por segurança de dado
+
+- **Os pesos de julgamento sobem para junto do batch, não depois dele.** Batch aprovando
+  em lote sem a coluna `modo` envenena o cérebro no primeiro uso — e não se desfaz
+  apagando linha, porque a destilação já incorporou. **Este repo já foi envenenado assim**
+  (escuta, jul/2026: 122 eventos inventados, ainda na memória de 3 marcas).
+- **E3 é uma release, não três.** Peça/versão sem estado novo, ou estado novo sem
+  julgamento, deixa metade do módulo lendo um modelo e metade lendo o outro.
+
+### O que JÁ está de pé (≈40% da fundação)
+
+O juiz existe (`art-review.js`, com critério customizado e modo fidelidade) · papéis dono
+× utilizador existem desde a 052 (`pode_aprovar_pecas`, `pode_aprovar_aprendizado`) ·
+sinal → destilação → dataset com pesos · débito e refund de crédito por geração ·
+biblioteca com pastas e tags · Copiloto com tools e portão de confirmação · fan-out de
+lote no modo `adapt`.
+
+### As lacunas do documento (§12.7) — decisão antes de código
+
+1. **Geração em andamento e geração que falhou** não têm estado no §5. Em pico de lote é
+   parte relevante das linhas. Entra no E2.
+2. **Falha do juiz.** Se o parecer é obrigatório (D6), o que acontece no timeout, 429 ou
+   saldo? Hoje o juiz é opcional, então falhar é inofensivo; obrigatório, vira caminho
+   crítico.
+3. **Custo e latência do juiz obrigatório** — uma chamada multimodal por peça, síncrona.
+   Num lote de 200, são 200 chamadas extras. **Medir antes de prometer** (aprovado pelo
+   Danilo em 31/ago, junto de `custo_estimado`).
+4. **Áudio não existe no código** — sem provedor, TTS, storage ou player. D11 o lista como
+   par de imagem, vídeo e texto.
+5. Os "quatro formatos do mesmo objeto" moram hoje em **três lugares diferentes**
+   (`studio_generations` com `media_type`, `pecas_escritas`, e nada para áudio).
+
+---
+
+## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (parada no S1 — decisão do Danilo, não código)
 
 > **Regra de release (Danilo, 24/ago):** objetivo declarado → testes → quality gate (`npm run guarda`) → security gate (`/security-review`) → só então aprovada. Deploy em prod **sempre no fim do dia, fora do horário comercial**. Migration que toca RLS passa também por `npm run guarda:rls`.
 >
@@ -247,7 +337,7 @@ Custo projetado da meta: 30 × (consumo×R$0,33 + fair-use R$50–150 + infra fi
 
 ## 🎯 Em cima da mesa agora
 
-> ⬆️ **A semana corrente está na seção do relançamento, acima.** Esta seção guarda as jogadas de médio prazo — o GTM (item 2) foi absorvido pelo lançamento do brandcode, e Hering/Worten (itens 5 e 6) viraram o Bloco B.
+> ⬆️ **O que está na mão agora é o [Programa Estúdio v2](#-programa--estúdio-v2-priorizado-31ago2026--a-re-arquitetura-do-módulo)** (priorizado 31/ago). A semana corrente antiga está na seção do relançamento, acima. Esta seção guarda as jogadas de médio prazo — o GTM (item 2) foi absorvido pelo lançamento do brandcode, e Hering/Worten (itens 5 e 6) viraram o Bloco B.
 
 O código está à frente do comercial — as próximas jogadas não são features:
 
