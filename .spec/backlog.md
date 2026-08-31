@@ -92,7 +92,9 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 
 | # | Release | Faixa | Migration | Estado |
 |---|---|---|---|---|
-| **E0** | `custo_estimado` gravado · menu novo (Criar·Campanhas·Fluxos·Biblioteca, Agentes fora, Copiloto invocável) · parecer com veredito+texto de 300 · os 4 eixos fixos do juiz · Copiloto contextual | **A** | ❌ nenhuma | 🟡 **a próxima** |
+| **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares | **A** | ❌ | 🟡 **a próxima** |
+| **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | 🟡 |
+| **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | 🟡 |
 | **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟡 |
 | **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
 | **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
@@ -101,10 +103,43 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
 | **E7** | editor | — | — | ⏸️ o doc adia e manda revisitar |
 
-**E0 é metade da percepção de mudança e não custa uma migration.** O menu novo e o
-Copiloto contextual são o que o cliente vê primeiro, e nenhum dos dois depende do modelo
-de dados. `custo_estimado` é o caso mais barato do documento inteiro: **a coluna já existe
-em `studio_generations` e nunca é escrita** — o teto de crédito do agente depende dela.
+**O E0 virou três (31/ago), por tamanho e por uma dependência de ordem que a spec não
+menciona: o menu só pode tirar o Copiloto depois que ele for invocável** — senão some o
+único caminho até ele.
+
+**Ordem decidida pelo Danilo (31/ago): E0c → E0a juntos numa janela, E0b depois, sozinho.**
+Três razões, dele:
+
+1. **A dependência é assimétrica.** E0c destrava E0a; E0b não destrava nada. Começar pelo
+   mais contido adianta uma peça isolada e deixa o gargalo intacto.
+2. **E0b antes cria duas mexidas onde cabe uma.** A troca de contrato do parecer toca o
+   `BrandAssistant`. Com o Copiloto ainda em forma de página, mexe-se nele agora para o
+   parecer e de novo depois para a invocação. Fazendo E0c primeiro, a troca pega o
+   componente **já na forma final**.
+3. **A janela de leitura dupla fica menor.** Os sinais `art_review` gravados têm o
+   vocabulário antigo; código de compatibilidade tende a virar permanente. Quanto mais
+   tarde a troca entrar, menos payload antigo acumulado.
+
+**E navegação e contrato não sobem na mesma janela** — se quebrar, não se sabe qual foi.
+Por isso E0b sai sozinho.
+
+> ⚠️ **E0a é maior do que "🟡" sugere** (Danilo, 31/ago). Fundir `StudioImage`,
+> `StudioVideo` e `StudioWriting` numa entrada única não é mover item de menu: é
+> **escrever a bancada nova de Criar**, com os três caminhos de entrada (§3.4) e o formato
+> como escolha (D10). Essa é a maior peça do E0a, e a estimativa está otimista.
+
+> ✅ **Verificado antes de planejar o E0b (31/ago): nada RAMIFICA no
+> `aprovada_com_ressalvas`.** Todo o comportamento pende de `reprovada` — três pontos:
+> `StudioCanvas.jsx:650` (`veredito !== 'reprovada'` deixa passar), `studioNodes.jsx:707`
+> (tarja "fluxo interrompido aqui") e `BrandAssistant.jsx:231`. O valor do meio só aparece
+> em enum de validação, mapas de exibição e texto de prompt. **A leitura dupla precisa
+> cobrir comportamento em um valor só; o resto é vocabulário.**
+
+**O que E0 deixou de ter:** `custo_estimado`. **Decisão do Danilo (31/ago): custo não se
+trata aqui — o sistema mantém a visão de CRÉDITO, e o custo é visto em outro lugar.**
+A coluna segue existindo e vazia; o teto do agente (D25) será expresso em crédito, não em
+dólar. ⚠️ Consequência a registrar: o campo `custo` da execução (§6.1) e o "custo
+acumulado" da página do agente (§8.5) precisam ser relidos como crédito na spec.
 
 ### Duas inversões em relação ao §10 da spec, e as duas por segurança de dado
 
@@ -590,6 +625,19 @@ Ou seja: hoje o produto impõe o mesmo 5 ao Seedream, ao Nano Banana e ao GPT Im
 - ✅ **Bônus — `reference_upload` ligado** (item "Ativos como referência" do piloto Hering, parte a): upload em Biblioteca > Referências da marca emite sinal peso 2.5 ("isto É a marca"); destilador trata como ensino curatorial de altíssimo peso p/ preferencias_visuais. **Falta (parte b):** referências aprovadas entrarem nos hints visuais da geração (brandVisualHints) — design pendente de qual geração recebe refs automáticas.
 
 ### 💰 Custos & créditos — pivô de modelo (2026-07-12)
+
+> 🔴 **UNDERCHARGE no `openai/gpt-image-2` — achado 31/ago/2026, fora de escopo do Estúdio v2, a tratar depois** (decisão do Danilo: *"defeito de dinheiro não é um problema desse escopo"*).
+>
+> O modelo está em **"Mais usados"** do seletor e **não existe no mapa `IMAGE_CREDITS`** — cai no `?? 1` do `creditsForImage`. Cobra **1 crédito**.
+>
+> O fal cobra **$0,211** por imagem 1024² na qualidade `high`, **que é o default deles**. Pela regra da casa (`créditos = ⌈18 × custo_USD⌉`, escrita no cabeçalho do `_credits.js`), o devido é **4 créditos**. Em 4K a doc do fal marca $0,401 → **8 créditos**.
+>
+> **Perde-se dinheiro em toda geração nesse modelo, em silêncio** — e o silêncio dura até alguém somar a fatura, o que hoje não dá para fazer porque `custo_estimado` nunca é gravado.
+>
+> Conserto: uma linha em `_credits.js` **e** em `src/lib/credits.js` (a guarda `credits.parity.test.js` já obriga os dois a andarem juntos). ⚠️ **Muda o que o cliente paga** — é decisão comercial, não conserto de bug.
+>
+> Vale rodar a mesma conferência no catálogo inteiro: **10 dos 22 modelos não têm custo apurado** em lugar nenhum (`flux-2-pro`, `seedream v4/v4.5`, `flux-pro/v1.1-ultra`, `flux-pro/kontext`, `flux/schnell`, `qwen-image`, `ideogram/v3`), então pode haver mais de um. 🟢 · a conferência é uma tarde
+
 Decisão: SEM SaaS self-service; crédito = REPASSE de custo (baliza **1 cr = R$0,33**; regra ×18 intacta, cobre câmbio até R$5,94). Ganho = contrato/inteligência. Entregue: página "Créditos & Consumo" (sem planos/upgrade), baliza visível, `ai_usage` (migration 039) rastreando LLM com tag por operação. **Pendências:**
 - [ ] Painel admin "custo por workspace/mês" (fal + LLM + fixos) — os dados já gravam 🟢
 - [ ] Hook do Voyage no ai_usage (embeddings ~$0,06/M — barato mas cego) 🟢

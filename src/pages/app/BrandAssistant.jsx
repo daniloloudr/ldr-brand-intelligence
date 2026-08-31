@@ -9,9 +9,11 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import HistoryIcon from '@mui/icons-material/History'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
-import { fmtDate, navigate } from '../../lib/helpers'
+import { fmtDate, navigate, getRoute, getBrandSection, getCampaignId, getWorkflowId } from '../../lib/helpers'
+import { contextoDoLugar, blocoDeContexto } from '../../lib/copiloto'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -32,6 +34,11 @@ const SUGESTOES = [
 
 const _arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
 const _join = x => _arr(x).map(o => typeof o === 'object' ? (o.hex || o.valor || o.nome || o.termo || '') : o).filter(Boolean).join(', ')
+
+// O bloco de contexto do lugar (§9 da spec do Estúdio) entra no FIM do system
+// prompt, por recência: é o último enquadramento que o modelo lê antes da
+// pergunta. Nível 'marca' devolve vazio — é o Copiloto de antes da camada.
+const _blocoLugar = ctx => { const b = blocoDeContexto(ctx); return b ? `\n\n${b}` : '' }
 
 // ── Copiloto com mãos · A1: ferramentas de LEITURA (client-side) ──────
 // As tools rodam NO CLIENTE via supabase autenticado — o RLS é o perímetro:
@@ -261,7 +268,7 @@ async function execCreateTool(name, input, { brandId }) {
   }
 }
 
-function buildSystemPrompt(brand, book, ragChunks, intelligence) {
+function buildSystemPrompt(brand, book, ragChunks, intelligence, ctx) {
   const v  = book?.verbal_identity || {}
   const vi = book?.visual_identity || {}
   // fallback legado (brand books antigos)
@@ -291,7 +298,7 @@ function buildSystemPrompt(brand, book, ragChunks, intelligence) {
 
   if (!hasContent) {
     return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma BR4NDCODE.
-Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
+Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.` + _blocoLugar(ctx)
   }
 
   let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma BR4NDCODE.
@@ -341,6 +348,7 @@ REGRA INVIOLÁVEL DE SALVAMENTO: TODO pedido de salvar/guardar/registrar DEVE re
   }
 
   prompt += compileIntel(intelligence?.modelo, intelligence?.versao)
+  prompt += _blocoLugar(ctx)
 
   return prompt
 }
@@ -613,7 +621,11 @@ function ChatBubble({ msg, question, onTeach }) {
   )
 }
 
-export function BrandAssistant({ brandId }) {
+// `modo`: 'pagina' é o Copiloto de sempre (rota /assistant); 'painel' é a
+// CAMADA (§9) — o mesmo componente montado ao lado da tela em uso. A diferença
+// é só de moldura: some o cabeçalho de página e a coluna de conversas, entra a
+// barra de contexto. O motor (prompt, tools, streaming) é o mesmo, de propósito.
+export function BrandAssistant({ brandId, modo = 'pagina', onFechar }) {
   const { workspace, user } = useWorkspace()
   const [brand, setBrand]           = useState(null)
   const [book, setBook]             = useState(null)
@@ -635,6 +647,25 @@ export function BrandAssistant({ brandId }) {
   const [intelligence, setIntelligence] = useState(null)   // modelo vivo destilado (Camada de Inteligência)
 
   const bottomRef = useRef(null)
+
+  // ── Copiloto como camada (§9): o contexto é o LUGAR de onde foi invocado ──
+  // Deriva-se da rota, não de prop: quem invoca não precisa saber declarar o
+  // contexto — o lugar já diz. Enquanto o Copiloto for a PÁGINA
+  // ('brands-assistant', que não está no mapa de LUGARES), isto cai no nível
+  // 'marca' e o prompt sai idêntico ao de antes desta camada existir.
+  // `nivel` é o que o §9.3 chama de "contexto editável": o usuário reduz.
+  const [nivel, setNivel] = useState('lugar')
+  const _ondeEstou = {
+    route: getRoute(),
+    section: getBrandSection(),
+    brandNome: brand?.nome,
+    campaignId: getCampaignId(),
+    workflowId: getWorkflowId(),
+  }
+  const ctx = contextoDoLugar({ ..._ondeEstou, nivel })
+  // Há o que reduzir? Só onde o lugar TEM contexto próprio. Numa tela fora do
+  // mapa, oferecer "só a marca" é oferecer o estado em que já se está.
+  const temLugar = contextoDoLugar({ ..._ondeEstou, nivel: 'lugar' }).nivel === 'lugar'
 
   useEffect(() => {
     if (!brandId) return
@@ -801,7 +832,7 @@ export function BrandAssistant({ brandId }) {
       }
     } catch { /* RAG failure não bloqueia o assistente */ }
 
-    const systemPrompt = buildSystemPrompt(brand, book, ragChunks, intelligence)
+    const systemPrompt = buildSystemPrompt(brand, book, ragChunks, intelligence, ctx)
     const history = [...messages, userMsg]
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }))
@@ -897,7 +928,7 @@ export function BrandAssistant({ brandId }) {
     })
   }
 
-  const systemPrompt = buildSystemPrompt(brand, book, [], intelligence)
+  const systemPrompt = buildSystemPrompt(brand, book, [], intelligence, ctx)
 
   if (loading) {
     return (
@@ -907,8 +938,11 @@ export function BrandAssistant({ brandId }) {
     )
   }
 
+  const painel = modo === 'painel'
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {!painel && (
       <PageHeader
         title={`${brand?.nome || ''} — Copiloto`}
         subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
@@ -918,9 +952,12 @@ export function BrandAssistant({ brandId }) {
           </Button>
         }
       />
+      )}
     <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-      {/* ── Esquerda: histórico de conversas ── */}
+      {/* ── Esquerda: histórico de conversas (só na página: no painel de 420px
+             a coluna comeria o chat; "nova conversa" migra p/ a barra) ── */}
+      {!painel && (
       <Box sx={{
         width: 220, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -965,12 +1002,67 @@ export function BrandAssistant({ brandId }) {
           )}
         </Box>
       </Box>
+      )}
 
       {/* ── Centro: chat ── */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
+        {/* ── Contexto declarado e editável (§9.3) ──────────────────────
+            O chip mostra o MESMO rótulo que vai no system prompt (os dois saem
+            de `ctx`). Reduzir para 'marca' é o usuário dizendo "esquece onde eu
+            estou" — e o bloco de lugar some do prompt junto com o chip. */}
+        {painel && (
+          <Box sx={{
+            px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider',
+            display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0,
+          }}>
+            <Tooltip title={`O que ele tem em mãos aqui: ${ctx.sabe.join(', ')}.`} placement="bottom-start">
+              <Chip
+                size="small"
+                icon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                label={ctx.rotulo}
+                sx={{ fontWeight: 700, fontSize: 11, maxWidth: 260, bgcolor: 'action.hover' }}
+              />
+            </Tooltip>
+            <Box sx={{ flex: 1 }} />
+            {temLugar && (
+              <Tooltip title={nivel === 'lugar'
+                ? 'Falar só pela marca, ignorando esta tela'
+                : 'Voltar a considerar o que esta tela tem em mãos'}>
+                <Button
+                  size="small"
+                  onClick={() => setNivel(n => (n === 'lugar' ? 'marca' : 'lugar'))}
+                  sx={{ minWidth: 0, px: 1, fontSize: 11, fontWeight: 700, color: 'text.secondary' }}
+                >
+                  {nivel === 'lugar' ? 'só a marca' : 'este lugar'}
+                </Button>
+              </Tooltip>
+            )}
+            {/* O painel não lista conversas — em 420px a coluna comeria o chat.
+                O histórico fica na PÁGINA, que a partir daqui é arquivo: é o
+                único caminho até ele depois que o E0a tirar o Copiloto do menu.
+                Fecha o painel ao ir, senão a mesma conversa fica em dois lugares. */}
+            <Tooltip title="Conversas anteriores">
+              <IconButton
+                size="small"
+                onClick={() => { navigate(`#/app/brands/${brandId}/assistant`); onFechar?.() }}
+              >
+                <HistoryIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Nova conversa">
+              <IconButton size="small" onClick={newConversation}><AddIcon fontSize="small" /></IconButton>
+            </Tooltip>
+            {onFechar && (
+              <Tooltip title="Fechar o Copiloto (Esc)">
+                <IconButton size="small" onClick={onFechar}><CloseIcon fontSize="small" /></IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        )}
+
         {/* Mensagens */}
-        <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+        <Box sx={{ flex: 1, overflowY: 'auto', p: painel ? 2 : 3 }}>
           {messages.length === 0 && !streaming && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1.5 }}>
               <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 36, mb: 1 }} />

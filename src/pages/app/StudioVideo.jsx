@@ -27,7 +27,7 @@ import { PALETTE } from '../../lib/theme'
 const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico, AMBER = PALETTE.data.atencao
 const ARMAP = { '16:9': '16 / 9', '9:16': '9 / 16', '1:1': '1 / 1', '4:5': '4 / 5' }
 
-export function StudioVideo({ brandId }) {
+export function StudioVideo({ brandId, cabecalho = true }) {
   const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [modelKey, setModelKey] = useState(DEFAULT_VIDEO_MODEL)
@@ -228,7 +228,7 @@ export function StudioVideo({ brandId }) {
 
   return (
     <Box>
-      <PageHeader title="Estúdio" subtitle="Geração de vídeo" />
+      {cabecalho && <PageHeader title="Estúdio" subtitle="Geração de vídeo" />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>

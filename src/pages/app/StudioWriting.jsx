@@ -184,7 +184,7 @@ function renderMarkdown(text) {
   })
 }
 
-export function StudioWriting({ brandId }) {
+export function StudioWriting({ brandId, cabecalho = true }) {
   const [brand, setBrand]         = useState(null)
   const [book, setBook]           = useState(null)
   const [intel, setIntel]         = useState(null)
@@ -371,7 +371,7 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
 
   return (
     <Box>
-      <PageHeader title="Estúdio" subtitle="Redação — copy no tom da marca" />
+      {cabecalho && <PageHeader title="Estúdio" subtitle="Redação — copy no tom da marca" />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
       {intel?.versao && (

@@ -39,7 +39,7 @@ const APP_ACTIONS = [
   { op: 'variation', label: 'Variação',      Icon: AutoAwesomeMotionOutlinedIcon },
 ]
 
-export function StudioImage({ brandId }) {
+export function StudioImage({ brandId, cabecalho = true }) {
   const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState(DEFAULT_IMAGE_MODEL)
@@ -294,7 +294,7 @@ export function StudioImage({ brandId }) {
 
   return (
     <Box>
-      <PageHeader title="Estúdio" subtitle="Geração de imagem" />
+      {cabecalho && <PageHeader title="Estúdio" subtitle="Geração de imagem" />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
