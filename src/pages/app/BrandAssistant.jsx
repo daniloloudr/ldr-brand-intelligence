@@ -14,6 +14,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, navigate, getRoute, getBrandSection, getCampaignId, getWorkflowId } from '../../lib/helpers'
 import { contextoDoLugar, blocoDeContexto } from '../../lib/copiloto'
+import { VEREDITOS, TEXTO_MAX, reprovou } from '../../lib/parecer'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -80,9 +81,9 @@ const REVIEW_TOOL = {
   name: 'registrar_parecer',
   description: 'REGISTRA o veredito do seu parecer de diretor de arte sobre uma imagem enviada pelo usuário. Chame SEMPRE que avaliar uma peça (antes do parecer completo em texto). Não pede confirmação.',
   input_schema: { type: 'object', properties: {
-    veredito: { type: 'string', enum: ['aprovada', 'aprovada_com_ressalvas', 'reprovada'] },
-    resumo:   { type: 'string', description: 'O parecer em 1 frase' },
-  }, required: ['veredito', 'resumo'] },
+    veredito: { type: 'string', enum: VEREDITOS },
+    texto:    { type: 'string', description: `O parecer escrito, até ${TEXTO_MAX} caracteres: qual eixo falhou e o conserto` },
+  }, required: ['veredito', 'texto'] },
 }
 
 // Casa do Conteúdo: peça escrita produzida no chat ganha endereço na Biblioteca.
@@ -225,7 +226,7 @@ async function execCreateTool(name, input, { brandId }) {
           // REGRA (Danilo 2026-07-12): não se entrega peça sem o próprio juiz
           // assinar — toda geração passa pelo diretor de arte ANTES de chegar
           // ao usuário. Reprovada não é descartada: é entregue COM o parecer
-          // e a oferta de regerar com os ajustes (novo crédito = nova confirmação).
+          // e a oferta de regerar com o conserto do parecer (novo crédito = nova confirmação).
           let parecer = null
           try {
             const rev = await fetch('/.netlify/functions/art-review', { method: 'POST', headers: auth,
@@ -235,8 +236,8 @@ async function execCreateTool(name, input, { brandId }) {
           return JSON.stringify({
             status: 'pronta', image_url: g.image_url, parecer,
             instrucao: parecer
-              ? (parecer.veredito === 'reprovada'
-                ? 'ATENÇÃO: o diretor de arte REPROVOU esta peça. Mostre a imagem, seja transparente sobre o veredito e os motivos, e OFEREÇA regerar já incorporando os ajustes (nova geração = novo crédito, com confirmação). Não finja que ficou boa.'
+              ? (reprovou(parecer.veredito)
+                ? 'ATENÇÃO: o diretor de arte REPROVOU esta peça. Mostre a imagem, seja transparente sobre o veredito e o motivo, e OFEREÇA regerar já incorporando o conserto que o parecer aponta (nova geração = novo crédito, com confirmação). Não finja que ficou boa.'
                 : `O diretor de arte deu veredito "${parecer.veredito}". Mostre a imagem (URL na resposta) e o parecer em 1-2 linhas.`)
               : 'Inclua a URL da imagem na resposta para o usuário vê-la.',
           })
@@ -337,7 +338,7 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
 
   prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
 Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame.
-REGRA INVIOLÁVEL DE QUALIDADE: você NUNCA gera uma peça que você mesmo reprovaria como diretor de arte. ANTES de chamar gerar_imagem, confronte o conceito com os padrões que a marca REPROVA e com a paleta/estética aprendidas (estão no seu contexto) — e escreva o prompt já em conformidade (cores EXATAS da paleta, ancoragem da marca, nada dos padrões reprovados). Se o próprio pedido do usuário violar um padrão reprovado, diga isso e proponha o conceito ajustado antes de gerar. Toda peça gerada passa automaticamente pelo diretor de arte antes de chegar ao usuário — seja transparente com o veredito. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovada / Aprovada com ressalvas / Reprovada) · **O que sustenta a marca** · **O que foge** · **Ajustes concretos** (lista acionável). Seja específico e franco — cite cores, composição e elementos reais da imagem.
+REGRA INVIOLÁVEL DE QUALIDADE: você NUNCA gera uma peça que você mesmo reprovaria como diretor de arte. ANTES de chamar gerar_imagem, confronte o conceito com os padrões que a marca REPROVA e com a paleta/estética aprendidas (estão no seu contexto) — e escreva o prompt já em conformidade (cores EXATAS da paleta, ancoragem da marca, nada dos padrões reprovados). Se o próprio pedido do usuário violar um padrão reprovado, diga isso e proponha o conceito ajustado antes de gerar. Toda peça gerada passa automaticamente pelo diretor de arte antes de chegar ao usuário — seja transparente com o veredito. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovado / Rechecar / Reprovado) · **O que sustenta a marca** · **O que foge** · **O conserto concreto**. Seja específico e franco — cite cores, composição e elementos reais da imagem.
 Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).
 Você também tem ferramentas para PERSISTIR resultados (nada de créditos): salvar_estrategia grava PERSONAS e OBJETIVOS/KPIs no Brand Book (Negócio) — use quando concluírem/pedirem para salvar personas ou objetivos; salvar_peca_escrita grava textos prontos (copy, roteiro, jornada, mapa de conteúdo, arquitetura de site) na Biblioteca. Ao salvar, chame a ferramenta com o conteúdo ESTRUTURADO e completo, depois confirme ao usuário o que ficou salvo e onde (com o link retornado).
 REGRA INVIOLÁVEL DE SALVAMENTO: TODO pedido de salvar/guardar/registrar DEVE resultar numa chamada de ferramenta na MESMA resposta — persona ou objetivo/KPI → salvar_estrategia; QUALQUER outro conteúdo (jornada, mapa de conteúdo, arquitetura, análise, documento) → salvar_peca_escrita (destino padrão). Nunca deixe um pedido de "salvar" sem persistir de fato. E NUNCA afirme que salvou sem ter chamado a ferramenta e recebido ok. Só é aceitável não salvar se for tecnicamente impossível — e aí explique por quê e o que dá pra fazer.`
@@ -891,9 +892,9 @@ export function BrandAssistant({ brandId, modo = 'pagina', onFechar }) {
           const { error } = await supabase.from('brand_signals').insert({
             brand_id: brand?.id, workspace_id: workspace?.id,
             tipo: 'art_review', fonte: 'copiloto', ref_id: conv.id, peso: 0.8,
-            payload: { veredito: inp?.veredito || null, resumo: (inp?.resumo || '').slice(0, 400), image_url: ultimaImagemRef.current },
+            payload: { veredito: inp?.veredito || null, texto: (inp?.texto || '').slice(0, TEXTO_MAX), image_url: ultimaImagemRef.current },
           })
-          return JSON.stringify(error ? { erro: error.message } : { ok: true, instrucao: 'Parecer registrado. Agora escreva o parecer completo: VEREDITO · o que sustenta a marca · o que foge · ajustes concretos.' })
+          return JSON.stringify(error ? { erro: error.message } : { ok: true, instrucao: 'Parecer registrado. Agora escreva o parecer completo: VEREDITO · o que sustenta a marca · o que foge · o conserto concreto.' })
         }
         if (!CREATE_NAMES.has(name)) return execReadTool(name, inp, workspace?.id)
         // criação: pausa o loop e espera a confirmação humana (portão de crédito)

@@ -33,6 +33,7 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { FocoPendencia } from '../../components/shell/FocoPendencia'
 import { PALETTE } from '../../lib/theme'
+import { normalizarVeredito, VEREDITO_ROTULO } from '../../lib/parecer'
 
 const TEAL = PALETTE.data.positivo
 
@@ -826,15 +827,23 @@ export function StudioLibrary({ brandId }) {
                     {certSignals.map((s, i) => {
                       const p = s.payload || {}
                       const humano = s.tipo === 'image_vote'
-                      const aprovado = humano ? p.voto === 'like' || p.voto === 'up' : (p.veredito || '').toLowerCase().includes('aprov')
+                      // Era `includes('aprov')` — e "aprovada_com_ressalvas"
+                      // contém "aprov", então a certidão marcava como APROVADA
+                      // uma peça que exigia olho humano. O de-para resolve os
+                      // dois vocabulários e não confunde os dois estados.
+                      const v = humano ? null : normalizarVeredito(p.veredito)
+                      const aprovado = humano ? p.voto === 'like' || p.voto === 'up' : v === 'aprovado'
                       return (
                         <Paper key={i} variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
-                          <Stack direction="row" spacing={1} alignItems="center" mb={p.resumo || p.ajustes?.length ? 0.5 : 0}>
-                            <Chip size="small" label={humano ? (aprovado ? 'Aprovada pelo time' : 'Reprovada pelo time') : `Diretor de Arte · ${p.veredito || 'parecer'}${p.modo === 'fidelidade' ? ' · fidelidade' : ''}`}
+                          <Stack direction="row" spacing={1} alignItems="center" mb={p.texto || p.resumo || p.ajustes?.length ? 0.5 : 0}>
+                            <Chip size="small" label={humano ? (aprovado ? 'Aprovada pelo time' : 'Reprovada pelo time') : `Diretor de Arte · ${VEREDITO_ROTULO[v] || p.veredito || 'parecer'}${p.modo === 'fidelidade' ? ' · fidelidade' : ''}`}
                               sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: aprovado ? PALETTE.neutral[0] : PALETTE.neutral[0], color: aprovado ? PALETTE.data.positivoDim : PALETTE.neutral[800] }} />
                             <Typography variant="caption" color="text.disabled">{new Date(s.created_at).toLocaleString('pt-BR')}</Typography>
                           </Stack>
-                          {p.resumo && <Typography variant="caption" sx={{ lineHeight: 1.5 }}>{p.resumo}</Typography>}
+                          {/* `texto` desde o E0b; `resumo` e `ajustes` seguem
+                              exibidos porque a certidão é o acervo — sinal
+                              gravado antes da troca não pode virar linha muda. */}
+                          {(p.texto || p.resumo) && <Typography variant="caption" sx={{ lineHeight: 1.5 }}>{p.texto || p.resumo}</Typography>}
                           {Array.isArray(p.ajustes) && p.ajustes.length > 0 && (
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25 }}>Ajustes: {p.ajustes.join(' · ')}</Typography>
                           )}

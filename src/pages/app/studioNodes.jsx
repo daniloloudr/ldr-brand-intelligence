@@ -31,6 +31,7 @@ import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, planoDeRefs, com
 import { creditsForImage, creditsForVideo } from '../../lib/credits'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 import { PALETTE } from '../../lib/theme'
+import { normalizarVeredito } from '../../lib/parecer'
 
 const PURPLE = PALETTE.data.neutro, TEAL = PALETTE.data.positivo, GRAY = PALETTE.neutral[400], CORAL = PALETTE.data.critico, INDIGO = PALETTE.neutral[500], AMBER = PALETTE.data.atencao
 const isVideoUrl = u => /\.(mp4|webm|mov)(\?|$)/i.test(u || '')
@@ -685,8 +686,11 @@ const VideoGenNode = memo(({ id, data, selected }) => {
 // Portão do Diretor de Arte (F2): recebe a peça do fluxo, julga contra o
 // cérebro e SÓ deixa passar o que sustenta a marca. Reprovada = fluxo para ali,
 // com o parecer e os ajustes na cara do nó.
-const GATE_COR = { aprovada: TEAL, aprovada_com_ressalvas: AMBER, reprovada: CORAL }
-const GATE_LABEL = { aprovada: 'Aprovada', aprovada_com_ressalvas: 'Com ressalvas', reprovada: 'Reprovada' }
+// Chaveados pelo vocabulário NOVO; `normalizarVeredito` traduz o antigo que
+// ainda esteja em nó salvo de fluxo. Sem isso a tarja sairia sem cor e o rótulo
+// mostraria o valor cru.
+const GATE_COR = { aprovado: TEAL, rechecar: AMBER, reprovado: CORAL }
+const GATE_LABEL = { aprovado: 'Aprovado', rechecar: 'Rechecar', reprovado: 'Reprovado' }
 const ArtGateNode = memo(({ id, data, selected }) => (
   <NodeShell id={id} color={PURPLE} title="Diretor de Arte" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRegen={data.onRegen} onResize={data.onResize} selected={selected}>
     <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -697,14 +701,16 @@ const ArtGateNode = memo(({ id, data, selected }) => (
         </Stack>
       ) : data.veredito ? (
         <>
-          <Box sx={{ alignSelf: 'flex-start', px: 0.75, py: 0.1, borderRadius: 1, fontSize: 10, fontWeight: 800, color: '#fff', bgcolor: GATE_COR[data.veredito] || GRAY }}>
-            {GATE_LABEL[data.veredito] || data.veredito}
+          {(() => { const v = normalizarVeredito(data.veredito); return (<>
+          <Box sx={{ alignSelf: 'flex-start', px: 0.75, py: 0.1, borderRadius: 1, fontSize: 10, fontWeight: 800, color: '#fff', bgcolor: GATE_COR[v] || GRAY }}>
+            {GATE_LABEL[v] || data.veredito}
           </Box>
-          {data.resumo && <Typography sx={{ fontSize: 10.5, color: 'text.secondary', lineHeight: 1.35 }}>{data.resumo}</Typography>}
-          {(data.ajustes || []).slice(0, 3).map((a, i) => (
-            <Typography key={i} sx={{ fontSize: 10, color: 'text.disabled', lineHeight: 1.3 }}>• {a}</Typography>
-          ))}
-          {data.veredito === 'reprovada' && <Typography sx={{ fontSize: 9.5, color: CORAL, fontWeight: 700 }}>fluxo interrompido aqui</Typography>}
+          {/* `texto` é o parecer inteiro desde o E0b — os bullets de `ajustes`
+              morreram com o contrato; o conserto agora vem dentro do texto.
+              `resumo` segue lido para nó de fluxo salvo antes da troca. */}
+          {(data.texto || data.resumo) && <Typography sx={{ fontSize: 10.5, color: 'text.secondary', lineHeight: 1.35 }}>{data.texto || data.resumo}</Typography>}
+          {v === 'reprovado' && <Typography sx={{ fontSize: 9.5, color: CORAL, fontWeight: 700 }}>fluxo interrompido aqui</Typography>}
+          </>) })()}
         </>
       ) : data.error ? (
         <Typography sx={{ fontSize: 10.5, color: CORAL }}>{data.error}</Typography>

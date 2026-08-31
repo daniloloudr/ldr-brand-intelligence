@@ -92,9 +92,9 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 
 | # | Release | Faixa | Migration | Estado |
 |---|---|---|---|---|
-| **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares | **A** | ❌ | 🟡 **a próxima** |
-| **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | 🟡 |
-| **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | 🟡 |
+| **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) · falta o §3.4 |
+| **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | 🟡 **a próxima** |
+| **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) |
 | **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟡 |
 | **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
 | **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
@@ -127,6 +127,30 @@ Por isso E0b sai sozinho.
 > `StudioVideo` e `StudioWriting` numa entrada única não é mover item de menu: é
 > **escrever a bancada nova de Criar**, com os três caminhos de entrada (§3.4) e o formato
 > como escolha (D10). Essa é a maior peça do E0a, e a estimativa está otimista.
+>
+> **O aviso estava certo, e o E0a saiu partido em dois** (`1dac534`, `a7a4378`).
+> O que entregou: menu em 4 itens e o D10 — **o formato ficou na URL**, então
+> `/studio/video` e `/studio/writing` seguem vivos e caem na bancada com o formato já
+> escolhido. Link antigo não quebra, e o Copiloto continua dizendo "Criar · vídeo" em vez
+> de só "Criar", porque o contexto dele é derivado da rota.
+> Os três geradores **não foram reescritos**: ganharam `cabecalho={false}` e a bancada
+> carrega o cabeçalho com o seletor — é a Faixa A da spec, "UI sobre o que já gera".
+> **Ainda falta o §3.4** (Do produto · Da ideia · Do fluxo), que é trabalho de UI nova, não
+> de fusão. Tem onde morar: uma faixa acima de ATALHOS no `Compositor`.
+> "Agentes fora dos pilares" era **no-op** — não existe página de Agentes hoje; entra no E6.
+
+> 📐 **Um padrão saiu do E0a que não estava previsto: `src/components/estudio/Compositor.jsx`.**
+> As três telas de Criar não pareciam o mesmo produto, e a causa não era o formato — era
+> ninguém ter escrito o esqueleto uma vez. Agora é um só: **atalhos → pedido → insumos →
+> ajustes → ação**, e faixa sem conteúdo não aparece. Texto usa três das cinco, imagem usa
+> as cinco. Quem for construir o §3.4 preenche uma faixa, não desenha uma tela.
+
+> 🗄️ **Decisão do Danilo (31/ago), pré-requisito que o resto do E0 precisa honrar: a página
+> `/assistant` SOBREVIVE como arquivo das conversas.** O painel do Copiloto não lista
+> conversas — em 420px a coluna comeria o chat — e quem aponta para o arquivo é o botão de
+> histórico na barra de contexto. Sem isso, tirar o Copiloto do menu deixaria o histórico
+> órfão. A página ainda **se apresenta como Copiloto** (título, subtítulo e o "voltar ao
+> Brand Book"); reescrevê-la como arquivo é dívida em aberto.
 
 > ✅ **Verificado antes de planejar o E0b (31/ago): nada RAMIFICA no
 > `aprovada_com_ressalvas`.** Todo o comportamento pende de `reprovada` — três pontos:
