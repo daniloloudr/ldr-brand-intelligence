@@ -23,11 +23,14 @@ import { PageHeader } from '../../components/shell/PageHeader'
 import { CreditBadge } from '../../components/CreditBadge'
 import { creditsForImage } from '../../lib/credits'
 import { useWorkspace } from '../../lib/WorkspaceContext'
-import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES } from '../../lib/studioModels'
+import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, IMAGE_MODEL_GROUPS, resolveModel, FORMATOS, PROMPT_TEMPLATES,
+  MAX_REFS_CANVAS, planoDeRefs, comoLeAsRefs } from '../../lib/studioModels'
 import { PALETTE } from '../../lib/theme'
 
 const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico
-const MAX_REFS = 5   // até 5 referências p/ ajudar composições e banners
+// Mesmo teto do canvas — eram duas constantes de 5 em telas diferentes, e
+// consertar só uma deixaria a página Imagem cortando onde o Fluxo não corta.
+const MAX_REFS = MAX_REFS_CANVAS
 
 // Ações inline pós-geração (reaproveitam studio-edit.js)
 const APP_ACTIONS = [
@@ -380,6 +383,21 @@ export function StudioImage({ brandId }) {
                 : `Opcional — até ${MAX_REFS} imagens p/ compor cenas e banners (melhor com Nano Banana)`}
             </Typography>
           </Stack>
+
+          {/* O aviso que faltava nesta tela. O nó do Fluxo passou a dizer como
+              cada modelo lê as referências (31/ago); aqui não dizia nada, e um
+              modelo de referência única descartava da 2ª em diante em silêncio —
+              o mesmo defeito do "sapato não pegou", na outra superfície. */}
+          {refUrls.length > 0 && (() => {
+            const plano = planoDeRefs(model, refUrls.length, MAX_REFS)
+            return (
+              <Typography sx={{ fontSize: 11.5, mb: 2, lineHeight: 1.5, color: plano.ignoradas ? 'error.main' : 'text.secondary' }}>
+                {comoLeAsRefs(model)}
+                {plano.ignoradas > 0 && ` Das ${refUrls.length} conectadas, ${plano.usadas} ${plano.usadas > 1 ? 'chegam' : 'chega'} ao modelo — ${plano.ignoradas} ${plano.ignoradas > 1 ? 'são ignoradas' : 'é ignorada'}.`}
+                {plano.faltam > 0 && ` Faltam ${plano.faltam}: este modelo exige ${plano.exatas}.`}
+              </Typography>
+            )
+          })()}
 
           {/* Formato + nº + marca */}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>

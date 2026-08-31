@@ -129,3 +129,173 @@ com `criterio` de fidelidade: *"compare com a foto original (referência); repro
 texto, cor ou modelagem divergirem"* — o parâmetro `criterio` já existe no `art-review.js`.
 Falta: o portão receber DUAS imagens (original + gerada) para comparação direta — evolução
 pequena do art-review (aceitar `reference_url`).
+
+---
+
+## F4 — os 7 ajustes da reunião (31/ago/2026)
+
+Lista trazida pelo Danilo depois da reunião com a Hering, triada contra o código
+no mesmo dia. A fila e os tamanhos estão no `backlog.md` § Piloto Hering; aqui
+fica o que se mediu, para não se remedir.
+
+### 4 + 6 são o mesmo defeito — e o 6 é o instrumento que teria mostrado o 4
+
+O pedido 4 ("o sapato não pegou") e o pedido 6 ("ver o que entra em cada nó")
+chegaram como coisas diferentes. São o mesmo lugar:
+
+```js
+// src/pages/app/studioNodes.jsx:513
+const MAX_REF = 5
+
+// src/pages/app/StudioCanvas.jsx:469
+const references = imageUpstreamsOf(g.id).flatMap(u => toUrls(outputs[u.id])).slice(0, MAX_REF)
+```
+
+O `.slice(0, MAX_REF)` **não avisa**. Passou de cinco, o excedente some entre o
+canvas e o fal, e a geração acontece normalmente — sem erro, sem tarja, sem nada
+no nó. A conta do brief do KH6V já fecha o teto: base de casting + still frente +
+still costas + bolsa + calçado = **5**. O processo de 4 etapas (F0.6) soma
+referência de pose e a imagem já aprovada da modelo: **7**.
+
+E a ordem das referências é a **ordem das conexões** (`imageUpstreamsOf`, corrigido
+em 14/jul justamente porque antes era a ordem do array de nós). Ordem de conexão é
+histórico de edição: não aparece em lugar nenhum da tela. Então o acessório
+conectado por último é o primeiro a cair, e é invisível que caiu.
+
+O nó Imagem hoje mostra **modelo, custo em créditos e a saída** (`GenerateNode`,
+`studioNodes.jsx:156`). Não mostra: quais referências entraram, em que ordem,
+se a marca está ligada, o que o nó Contexto acrescentou, nem o prompt que foi
+realmente enviado — ele é composto no servidor (`studio-generate.js`: prefixo do
+cérebro + `[PEDIDO]` + `[CONTEXTO ADICIONAL]` + `[FORMATO]`), gravado em
+`studio_generations.prompt_final` e **nunca devolvido à tela**.
+
+> A lição é a mesma da auditoria da escuta: *o dado existia e ninguém estava
+> olhando para ele*. `prompt_final` e a lista de referências já estão gravados por
+> geração. O trabalho do 6 é mostrar, não coletar.
+
+**O limite é NOSSO, e é inventado.** `MAX_REF = 5` é constante nossa, aplicada
+igual para todo modelo. Não existe teto por modelo em lugar nenhum do código: o
+catálogo (`src/lib/studioModels.js`) só sabe `refs: true|false` — se o modelo
+aceita referência, não quantas. Hoje impomos o mesmo 5 ao Seedream, ao Nano
+Banana e ao GPT Image 2, que têm tetos diferentes e maiores.
+
+⚠️ **Mas subir a constante não é o conserto sozinho.** Os tetos reais precisam ser
+conferidos na doc do fal, modelo a modelo, e virar dado do catálogo (`maxRefs` por
+linha) — senão troca-se truncamento silencioso por 422 do provedor. E, com teto
+certo ou errado, **o excedente tem que virar aviso no nó**: o que mordeu a Hering
+não foi o número 5, foi o silêncio.
+
+### 5 — o delete que não deleta: uma prop, e ela é de teclado
+
+**Meu primeiro diagnóstico estava errado, e vale registrar por quê.** Ao ler
+"delete de contexto" fui procurar exclusão de contexto de marca, achei que
+`BrandIntelligence.jsx` não tem nenhum caminho de exclusão, e reportei isso. O
+Danilo corrigiu com o que a cliente de fato fez: **clicou num nó, tentou apagar a
+linha que liga dois nós, e não conseguiu — no Windows.**
+
+Achado é outro, e é de uma linha:
+
+```jsx
+// src/pages/app/StudioCanvas.jsx:927 — a prop deleteKeyCode nunca é passada
+<ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} ... fitView />
+```
+
+Sem a prop, vale o default do `@xyflow/react@12.11.1`: **`deleteKeyCode = 'Backspace'`**,
+e só ele. Daí a assimetria exata do relato:
+
+| | tecla que o usuário aperta | o que ela emite | resultado |
+|---|---|---|---|
+| Mac (Danilo) | a tecla grande, **rotulada `delete`** | `Backspace` | ✅ apaga |
+| Windows (a cliente) | a tecla **`Delete`**, que é separada | `Delete` | ❌ nada |
+
+No Mac a tecla que diz "delete" emite Backspace, então funciona por coincidência
+de rótulo. No Windows existem as duas teclas, e a que diz `Delete` é a que a
+pessoa aperta primeiro.
+
+**E não há saída pelo mouse.** Nó tem botão de excluir no `NodeToolbar`
+(`studioNodes.jsx:53`); **conexão não tem nada** — sem `onEdgeClick`, sem
+`onEdgeContextMenu`, sem botão na aresta. Então no Windows não existe caminho
+nenhum para apagar uma linha: nem teclado, nem mouse. Não é "complicado de
+achar", é ausente.
+
+O conserto é `deleteKeyCode={['Backspace', 'Delete']}`. A afordância de mouse na
+aresta é a pergunta seguinte, e é maior — mas o desbloqueio da cliente é a prop.
+
+> **O que fica de aprendizado:** um relato de cliente chega traduzido, e a
+> tradução ("delete de contexto") apontou para o lugar errado. O que localizou o
+> defeito não foi ler mais código — foi a frase *"ela usa Windows, pra mim
+> funciona"*. Assimetria de ambiente entre quem relata e quem testa é o dado mais
+> informativo do relato, e foi o que eu não pedi.
+
+**A outra coisa segue aberta, e não é esta.** `brand_intelligence` realmente não
+tem caminho de exclusão na interface — é o § "o que a limpeza NÃO desfaz" do
+`nucleo-ia.md`, decisão aberta desde 24/ago. Continua valendo; só não é o que a
+Hering pediu.
+
+### 2 + 3 — cor e detalhe construtivo: uma hipótese a medir antes de mexer
+
+O processo de 21/ago já responde boa parte por **escolha de modelo** (Seedream 5
+Pro leu a peça com fidelidade que 4.5, nano banana e flux não tiveram). O que o
+código acrescenta, e ainda não foi medido:
+
+Com foto de produto conectada, `use_brand` **continua ligado por padrão**
+(`studio-generate.js`: `body.use_brand !== false`) e a faceta visual injeta a
+paleta e a estética da marca no prompt, à frente do pedido. É instrução de paleta
+de marca competindo com a cor real da peça que está na referência.
+
+**Isto é hipótese, não achado.** O ensaio que decide é barato: mesma peça, mesmo
+modelo, mesmas referências, `use_brand` ligado × desligado — e comparar contra a
+foto original com o `art-review` em `modo: 'fidelidade'`, que já existe e já foi
+validado. Se confirmar, a regra provável é *referência de produto conectada ⇒ a
+faceta visual sai do prompt*, e não uma frase nova mandando obedecer a cor.
+
+Vale lembrar o que o KH6V já ensinou e vale igual aqui: **modelo de imagem não
+obedece negação.** "Não altere a cor" injeta o conceito de alterar cor. Se o
+conserto for por prompt, é por remoção de instrução concorrente, não por adição.
+
+### 7 — linha infantil: o portão vem antes do produto
+
+Eu tinha escrito que este era o item estrutural — falta de dimensão de linha no
+cérebro. **Isso é verdade e continua verdade, mas é o segundo problema.** O
+Danilo levantou o primeiro (31/ago): geração de imagem de criança pode estar
+barrada antes de ser feature, por dois motivos que não se resolvem com código.
+
+**(a) Política de provedor.** Provedores de imagem tratam pessoa menor de idade
+como categoria sensível, e a política é do provedor **e** de cada modelo por
+baixo dele — não é uma só. O nosso catálogo é aberto (`_image.js`: "o model id
+vem por request"), então a resposta pode ser diferente por modelo do seletor. Um
+modelo que recusa é o caso bom; o caso ruim é o que **não recusa e degrada** —
+gera algo com proporção de adulto reduzida, que é exatamente o defeito que a
+Hering relatou, e que a gente leria como bug de fidelidade em vez de limite de
+política.
+
+**(b) Publicidade infantil.** Peça de linha infantil é publicidade dirigida a
+criança, e isso é território regulado no Brasil — com regra própria de
+autorregulamentação publicitária, e mais atrito ainda quando a imagem da criança
+é **sintética**. Não é matéria que eu resolva lendo código, e não é detalhe de
+implementação: muda se o produto pode gerar, o que precisa estar declarado, e de
+quem é a responsabilidade pela peça.
+
+**Portão antes de qualquer código — três respostas:**
+
+1. o que a política do fal e a de cada modelo do nosso catálogo dizem sobre
+   geração de menores (e qual o comportamento real: recusa ou degrada);
+2. o que a regulação de publicidade infantil exige de peça com criança, inclusive
+   sintética — pergunta de jurídico, não de engenharia;
+3. o que a **Hering já pratica hoje** na linha infantil: eles usam modelo
+   infantil real, ilustração, só still de produto? A resposta deles pode dispensar
+   a pergunta inteira — still de peça infantil sem criança na imagem não tem nada
+   disso.
+
+**Só depois disso** o problema volta a ser o que eu tinha achado: não existe
+dimensão de categoria de produto no modelo de dados. `brands` tem `setor` e
+`porte` (`005_setup_completo.sql`); `resolveBrandIntelligence` corta o contexto
+por **faceta** (`verbal` / `visual`), nunca por linha. O cérebro aprende de toda
+peça aprovada do workspace e devolve a mesma memória para adulto e infantil, e
+por isso "não aplicar padrões aprendidos com peças adultas" não tem hoje por onde
+ser dito — não é regra faltando no prompt, é coluna faltando no aprendizado. Isso
+vale para toda marca com mais de uma linha, não só a Hering.
+
+**A ordem importa:** se o portão (3) disser "still de produto, sem criança", o
+item encolhe para a dimensão de linha no cérebro e perde o risco todo. Medir a
+pergunta certa antes de construir é o mesmo aprendizado da auditoria da escuta.
