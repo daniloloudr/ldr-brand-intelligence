@@ -46,3 +46,6 @@ backups/
 
 # Scripts descartáveis de diagnóstico — nunca versionar
 .tmp-*
+
+# banco de dev efêmero (scripts/branch.mjs)
+.env.branch
