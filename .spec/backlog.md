@@ -95,7 +95,7 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares · **+ os três caminhos de entrada (§3.4)** | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`, `a7a4378`) |
 | **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | ✅ **entregue 31/ago** (`bfef561` + `f7dceb1` núcleo) · eixo ESCOPO cego até o E1 |
 | **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) |
-| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟡 **a próxima** |
+| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟠 **1ª fatia escrita** (migration 054: `parecer` + escopo da campanha) · **NÃO APLICADA** · faltam `execucao`, `agente` e as colunas de fluxo |
 | **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
 | **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
 | **E4** | campanha como escopo | **D** | ✅ substituição | 🔴 |

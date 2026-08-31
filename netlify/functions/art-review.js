@@ -104,6 +104,40 @@ export const handler = async (event) => {
     texto: String(out.texto || '').slice(0, TEXTO_MAX),
   }
 
+  // ── O parecer GANHA LUGAR (migration 054) ─────────────────────────
+  // Antes disto o veredito existia por segundos na tela e sumia: o juiz
+  // devolvia e emitia sinal, sem `insert`. A §2.2 diz que a função real do juiz
+  // é ORDENAR A FILA — e não havia fila, porque não havia de onde ler.
+  //
+  // `eixos` registra o que era VERIFICÁVEL, não o que o modelo disse (o
+  // contrato é {veredito, texto}, sem campo por eixo). Isso é conhecimento do
+  // servidor e vale guardar: seis meses depois dá para saber se a fidelidade
+  // chegou a ser checada, ou se não havia material de entrada.
+  //
+  // Não-fatal, e isso É uma escolha: a peça não pode deixar de ser entregue
+  // porque o banco soluçou. Quando o D6 (não existe geração sem parecer) entrar,
+  // esta gravação vira caminho crítico e o tratamento muda junto.
+  try {
+    const { error: errParecer } = await supabase.from('parecer').insert({
+      workspace_id: brand.workspace_id,
+      brand_id,
+      generation_id: generation_id || null,
+      image_url,
+      veredito: parecer.veredito,
+      texto: parecer.texto,
+      eixos: {
+        fidelidade: !!reference_url,   // sem material de entrada, não há o que comparar
+        marca: !fidelidade,            // o modo fidelidade IGNORA a estética da marca, de propósito
+        escopo: false,                 // ⚠️ cego até o E1 ligar objetivo/direcional da campanha
+        execucao: true,
+      },
+      modo: fidelidade ? 'fidelidade' : 'marca',
+      criterio: criterio ? String(criterio).slice(0, 400) : null,
+      fonte: 'workflow',
+    })
+    if (errParecer) console.error('[art-review] parecer não gravado (não-fatal):', errParecer.message)
+  } catch (e) { console.error('[art-review] parecer não gravado (não-fatal):', e.message) }
+
   // Parecer vira sinal (peso 0.8 — julgamento de IA, não humano). Não-fatal.
   try {
     await emitSignal(supabase, {
