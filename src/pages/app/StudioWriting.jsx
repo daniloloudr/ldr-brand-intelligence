@@ -18,6 +18,7 @@ import { compileIntel } from '../../lib/brandIntel'
 import { WRITING_FRAMEWORKS } from '../../lib/writingFrameworks'
 import { compileWritingWorkflow, DERIVE_RULES } from '../../lib/writingToWorkflow'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { Compositor, Faixa } from '../../components/estudio/Compositor'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PALETTE } from '../../lib/theme'
 
@@ -374,54 +375,59 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
       {cabecalho && <PageHeader title="Estúdio" subtitle="Redação — copy no tom da marca" />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
-      {intel?.versao && (
-        <Chip size="small" icon={<PsychologyOutlinedIcon sx={{ fontSize: '15px !important' }} />}
-          label={`Escrevendo com a inteligência da marca (v${intel.versao})`}
-          sx={{ mb: 2, fontWeight: 700, bgcolor: 'rgba(127,119,221,0.12)', color: PURPLE }} />
-      )}
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, gap: 2.5, alignItems: 'start' }}>
-        {/* Coluna esquerda: frameworks + campos */}
-        <Stack spacing={1.25}>
-          {WRITING_FRAMEWORKS.map(f => {
-            const on = fw?.key === f.key
-            return (
-              <Paper key={f.key} variant="outlined" onClick={() => { setFw(f); setCampos({}); setText(''); setError('') }}
-                sx={{ p: 1.75, borderRadius: 2, cursor: 'pointer',
-                  borderColor: on ? TEAL : 'divider', bgcolor: on ? 'rgba(13,158,122,0.06)' : 'background.paper',
-                  '&:hover': { borderColor: TEAL } }}>
-                <Typography variant="subtitle2">{f.label}</Typography>
-                <Typography variant="caption" color="text.secondary">{f.desc}</Typography>
-              </Paper>
-            )
-          })}
-
-          {fw && (
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Stack spacing={1.5}>
-                {fw.campos.map(c => (
-                  <TextField key={c.id} size="small" fullWidth multiline={!!c.multiline} minRows={c.multiline ? 2 : 1}
-                    label={c.label + (c.required ? ' *' : '')} placeholder={c.placeholder}
-                    value={campos[c.id] || ''} onChange={e => setCampos(p => ({ ...p, [c.id]: e.target.value }))} />
+      <Compositor
+        atalhos={
+          <Faixa rotulo="Framework">
+            <>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                {WRITING_FRAMEWORKS.map(f => (
+                  <Chip key={f.key} label={f.label} size="small" clickable disabled={streaming}
+                    onClick={() => { setFw(f); setCampos({}); setText(''); setError('') }}
+                    variant={fw?.key === f.key ? 'filled' : 'outlined'}
+                    sx={{ fontWeight: 700, ...(fw?.key === f.key && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
                 ))}
-                <Button variant="contained" disabled={streaming} onClick={gerar}
-                  startIcon={streaming ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
-                  sx={{ fontWeight: 800, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}>
-                  {streaming ? 'Escrevendo…' : 'Escrever no tom da marca'}
-                </Button>
-                {error && <Typography variant="caption" color="error">{error}</Typography>}
               </Stack>
-            </Paper>
-          )}
-        </Stack>
+              {/* A descrição do framework era o corpo do card. Como chip ela não
+                  cabe — então aparece só a do escolhido, que é a única que a
+                  pessoa precisa ler depois de escolher. */}
+              {fw && <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mt: 1 }}>{fw.desc}</Typography>}
+            </>
+          </Faixa>
+        }
+        pedido={fw && (
+          <Faixa rotulo="O pedido">
+            <Stack spacing={1.5}>
+              {fw.campos.map(c => (
+                <TextField key={c.id} size="small" fullWidth multiline={!!c.multiline} minRows={c.multiline ? 2 : 1}
+                  label={c.label + (c.required ? ' *' : '')} placeholder={c.placeholder}
+                  value={campos[c.id] || ''} onChange={e => setCampos(p => ({ ...p, [c.id]: e.target.value }))} />
+              ))}
+            </Stack>
+          </Faixa>
+        )}
+        assinatura={intel?.versao ? (
+          <Chip size="small" icon={<PsychologyOutlinedIcon sx={{ fontSize: '15px !important' }} />}
+            label={`Inteligência da marca v${intel.versao}`}
+            sx={{ fontWeight: 700, bgcolor: 'rgba(127,119,221,0.12)', color: PURPLE }} />
+        ) : null}
+        aviso={error ? <Typography sx={{ fontSize: 12.5 }} color="error">{error}</Typography> : null}
+        acao={
+          <Button variant="contained" disabled={streaming || !fw} onClick={gerar}
+            startIcon={streaming ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
+            sx={{ fontWeight: 800, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}>
+            {streaming ? 'Escrevendo…' : 'Escrever no tom da marca'}
+          </Button>
+        }
+      />
 
-        {/* Coluna direita: a peça */}
+        {/* A peça, largura cheia — antes era a coluna direita de um grid de
+            360px + resto, e o texto longo lia mal num terço da tela. */}
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, minHeight: 320 }}>
-          {!fw && !text ? (
+          {!text && !streaming ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Typography variant="subtitle1" mb={0.5}>Escolha um formato ao lado</Typography>
+              <Typography variant="subtitle1" mb={0.5}>A peça aparece aqui</Typography>
               <Typography variant="body2" color="text.secondary">
-                Cada framework já vem com a estrutura que funciona — você só dá o tema.<br />
+                Escolha um framework acima e dê o tema — a estrutura já vem pronta.<br />
                 A voz, o território e os temas vêm do que a marca aprendeu.
               </Typography>
             </Box>
@@ -516,7 +522,6 @@ Reescreva APENAS a seção "${b.header}" — uma alternativa nova, coerente com 
             <Box>{renderMarkdown(text)}</Box>
           )}
         </Paper>
-      </Box>
       </Box>
     </Box>
   )

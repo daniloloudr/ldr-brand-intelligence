@@ -20,6 +20,7 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { Compositor, Faixa } from '../../components/estudio/Compositor'
 import { CreditBadge } from '../../components/CreditBadge'
 import { creditsForImage } from '../../lib/credits'
 import { useWorkspace } from '../../lib/WorkspaceContext'
@@ -297,147 +298,155 @@ export function StudioImage({ brandId, cabecalho = true }) {
       {cabecalho && <PageHeader title="Estúdio" subtitle="Geração de imagem" />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
-        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-          {/* Modelo (ou modelos, no duelo) */}
-          <Box sx={{ mb: 2 }}>
-            <Stack direction="row" alignItems="center" sx={{ mb: 0.5 }}>
-              <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>
-                {duelMode ? 'Modelos em duelo (2–3)' : 'Modelo'}
+        <Compositor
+          atalhos={
+            <Faixa rotulo="Templates">
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
+                {PROMPT_TEMPLATES.map(t => (
+                  <Chip key={t.label} label={t.label} size="small" clickable disabled={generating}
+                    onClick={() => aplicarTemplate(t)} variant="outlined" sx={{ fontWeight: 600 }} />
+                ))}
+              </Stack>
+            </Faixa>
+          }
+          pedido={
+            <Faixa rotulo="Prompt" acao={
+              <Button size="small" startIcon={improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 16 }} />}
+                onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>
+                {improving ? 'Melhorando…' : 'Melhorar o Prompt'}
+              </Button>
+            }>
+              <TextField value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Descreva a imagem…" multiline minRows={2} maxRows={6} fullWidth disabled={generating} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }} />
+            </Faixa>
+          }
+          insumos={
+            <Faixa rotulo="Referências">
+              <>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+              <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { uploadRefs(e.target.files); e.target.value = '' }} />
+              {refUrls.map((url, i) => (
+                <Box key={url} sx={{ position: 'relative', width: 56, height: 56, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                  <Box component="img" src={url} alt={`ref ${i + 1}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <IconButton size="small" onClick={() => setRefUrls(prev => prev.filter(u => u !== url))}
+                    sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+                    <CloseIcon sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Box>
+              ))}
+              {refUrls.length < MAX_REFS && (
+                <Tooltip title={refUrls.length ? 'Adicionar referência' : 'Imagens de referência'}>
+                  <Box onClick={() => !generating && !refUploading && fileRef.current?.click()}
+                    sx={{ width: 56, height: 56, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: generating || refUploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}>
+                    {refUploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />}
+                  </Box>
+                </Tooltip>
+              )}
+              <Typography sx={{ fontSize: 11, color: 'text.disabled', ml: 0.5 }}>
+                {refUrls.length
+                  ? `${refUrls.length}/${MAX_REFS} referência${refUrls.length > 1 ? 's' : ''} (image-to-image)`
+                  : `Opcional — até ${MAX_REFS} imagens p/ compor cenas e banners (melhor com Nano Banana)`}
               </Typography>
-              <Box sx={{ flex: 1 }} />
-              <Chip label="⚔️ Duelo de modelos" size="small" clickable disabled={generating}
-                onClick={() => setDuelMode(v => !v)} variant={duelMode ? 'filled' : 'outlined'}
-                sx={{ fontWeight: 700, fontSize: 11.5, ...(duelMode && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
             </Stack>
-            {duelMode ? (<>
-              <Select multiple value={duelModels}
-                onChange={e => { const v = e.target.value; if (v.length >= 1 && v.length <= 3) setDuelModels(v) }}
-                renderValue={sel => sel.map(id => IMAGE_MODELS.find(m => m.id === id)?.label || id).join('  ⚔️  ')}
-                fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
+
+            {/* O aviso que faltava nesta tela. O nó do Fluxo passou a dizer como
+                cada modelo lê as referências (31/ago); aqui não dizia nada, e um
+                modelo de referência única descartava da 2ª em diante em silêncio —
+                o mesmo defeito do "sapato não pegou", na outra superfície. */}
+            {refUrls.length > 0 && (() => {
+              const plano = planoDeRefs(model, refUrls.length, MAX_REFS)
+              return (
+                <Typography sx={{ fontSize: 11.5, mb: 2, lineHeight: 1.5, color: plano.ignoradas ? 'error.main' : 'text.secondary' }}>
+                  {comoLeAsRefs(model)}
+                  {plano.ignoradas > 0 && ` Das ${refUrls.length} conectadas, ${plano.usadas} ${plano.usadas > 1 ? 'chegam' : 'chega'} ao modelo — ${plano.ignoradas} ${plano.ignoradas > 1 ? 'são ignoradas' : 'é ignorada'}.`}
+                  {plano.faltam > 0 && ` Faltam ${plano.faltam}: este modelo exige ${plano.exatas}.`}
+                </Typography>
+              )
+            })()}
+
+              </>
+            </Faixa>
+          }
+          ajustes={
+            <>
+              <Faixa rotulo={duelMode ? 'Modelos em duelo (2–3)' : 'Modelo'} acao={
+                  <Chip label="⚔️ Duelo de modelos" size="small" clickable disabled={generating}
+                    onClick={() => setDuelMode(v => !v)} variant={duelMode ? 'filled' : 'outlined'}
+                    sx={{ fontWeight: 700, fontSize: 11.5, ...(duelMode && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
+              }>
+              {duelMode ? (<>
+                <Select multiple value={duelModels}
+                  onChange={e => { const v = e.target.value; if (v.length >= 1 && v.length <= 3) setDuelModels(v) }}
+                  renderValue={sel => sel.map(id => IMAGE_MODELS.find(m => m.id === id)?.label || id).join('  ⚔️  ')}
+                  fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
+                  {IMAGE_MODEL_GROUPS.flatMap(g => [
+                    <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
+                    ...IMAGE_MODELS.filter(m => m.group === g && !/fashn\/tryon/.test(m.id)).map(m => (
+                      <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>{m.label}</MenuItem>
+                    )),
+                  ])}
+                </Select>
+                <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.5 }}>
+                  A mesma peça é gerada em todos — você escolhe a vencedora e a marca aprende qual modelo funciona melhor pra ela.
+                </Typography>
+              </>) : (
+              <Select value={model} onChange={e => setModel(e.target.value)} fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
                 {IMAGE_MODEL_GROUPS.flatMap(g => [
                   <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
-                  ...IMAGE_MODELS.filter(m => m.group === g && !/fashn\/tryon/.test(m.id)).map(m => (
+                  ...IMAGE_MODELS.filter(m => m.group === g).map(m => (
                     <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>{m.label}</MenuItem>
                   )),
                 ])}
               </Select>
-              <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.5 }}>
-                A mesma peça é gerada em todos — você escolhe a vencedora e a marca aprende qual modelo funciona melhor pra ela.
-              </Typography>
-            </>) : (
-            <Select value={model} onChange={e => setModel(e.target.value)} fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
-              {IMAGE_MODEL_GROUPS.flatMap(g => [
-                <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
-                ...IMAGE_MODELS.filter(m => m.group === g).map(m => (
-                  <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>{m.label}</MenuItem>
-                )),
-              ])}
-            </Select>
-            )}
-          </Box>
-
-          {/* Templates */}
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 1.5 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mr: 0.5 }}>Templates</Typography>
-            {PROMPT_TEMPLATES.map(t => (
-              <Chip key={t.label} label={t.label} size="small" clickable disabled={generating}
-                onClick={() => aplicarTemplate(t)} variant="outlined" sx={{ fontWeight: 600 }} />
-            ))}
-          </Stack>
-
-          {/* Prompt */}
-          <Stack direction="row" alignItems="center" sx={{ mb: 0.5 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>Prompt</Typography>
-            <Box sx={{ flex: 1 }} />
-            <Button size="small" startIcon={improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 16 }} />}
-              onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>
-              {improving ? 'Melhorando…' : 'Melhorar o Prompt'}
-            </Button>
-          </Stack>
-          <TextField value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Descreva a imagem…" multiline minRows={2} maxRows={6} fullWidth disabled={generating} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }} />
-
-          {/* Referências (upload) — até MAX_REFS p/ compor cenas/banners */}
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { uploadRefs(e.target.files); e.target.value = '' }} />
-            {refUrls.map((url, i) => (
-              <Box key={url} sx={{ position: 'relative', width: 56, height: 56, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                <Box component="img" src={url} alt={`ref ${i + 1}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <IconButton size="small" onClick={() => setRefUrls(prev => prev.filter(u => u !== url))}
-                  sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
-                  <CloseIcon sx={{ fontSize: 13 }} />
-                </IconButton>
-              </Box>
-            ))}
-            {refUrls.length < MAX_REFS && (
-              <Tooltip title={refUrls.length ? 'Adicionar referência' : 'Imagens de referência'}>
-                <Box onClick={() => !generating && !refUploading && fileRef.current?.click()}
-                  sx={{ width: 56, height: 56, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: generating || refUploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}>
-                  {refUploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />}
-                </Box>
-              </Tooltip>
-            )}
-            <Typography sx={{ fontSize: 11, color: 'text.disabled', ml: 0.5 }}>
-              {refUrls.length
-                ? `${refUrls.length}/${MAX_REFS} referência${refUrls.length > 1 ? 's' : ''} (image-to-image)`
-                : `Opcional — até ${MAX_REFS} imagens p/ compor cenas e banners (melhor com Nano Banana)`}
-            </Typography>
-          </Stack>
-
-          {/* O aviso que faltava nesta tela. O nó do Fluxo passou a dizer como
-              cada modelo lê as referências (31/ago); aqui não dizia nada, e um
-              modelo de referência única descartava da 2ª em diante em silêncio —
-              o mesmo defeito do "sapato não pegou", na outra superfície. */}
-          {refUrls.length > 0 && (() => {
-            const plano = planoDeRefs(model, refUrls.length, MAX_REFS)
-            return (
-              <Typography sx={{ fontSize: 11.5, mb: 2, lineHeight: 1.5, color: plano.ignoradas ? 'error.main' : 'text.secondary' }}>
-                {comoLeAsRefs(model)}
-                {plano.ignoradas > 0 && ` Das ${refUrls.length} conectadas, ${plano.usadas} ${plano.usadas > 1 ? 'chegam' : 'chega'} ao modelo — ${plano.ignoradas} ${plano.ignoradas > 1 ? 'são ignoradas' : 'é ignorada'}.`}
-                {plano.faltam > 0 && ` Faltam ${plano.faltam}: este modelo exige ${plano.exatas}.`}
-              </Typography>
-            )
-          })()}
-
-          {/* Formato + nº + marca */}
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>
-            {FORMATOS.map(f => (
-              <Chip key={f.v} label={f.label} clickable disabled={generating} onClick={() => setFormato(f.v)}
-                variant={formato === f.v ? 'filled' : 'outlined'}
-                sx={{ fontWeight: 700, ...(formato === f.v && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
-            ))}
-            <Box sx={{ flex: 1 }} />
-            {!duelMode && (<>
-              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Imagens:</Typography>
-              {[1, 2, 4].map(n => (
-                <Chip key={n} label={n} clickable disabled={generating} onClick={() => setCount(n)} size="small"
-                  variant={count === n ? 'filled' : 'outlined'}
-                  sx={{ fontWeight: 700, ...(count === n && { bgcolor: 'primary.main', color: '#fff' }) }} />
+              )}
+              </Faixa>
+              <Faixa rotulo="Formato e quantidade">
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>
+              {FORMATOS.map(f => (
+                <Chip key={f.v} label={f.label} clickable disabled={generating} onClick={() => setFormato(f.v)}
+                  variant={formato === f.v ? 'filled' : 'outlined'}
+                  sx={{ fontWeight: 700, ...(formato === f.v && { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }) }} />
               ))}
-            </>)}
-          </Stack>
+              <Box sx={{ flex: 1 }} />
+              {!duelMode && (<>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Imagens:</Typography>
+                {[1, 2, 4].map(n => (
+                  <Chip key={n} label={n} clickable disabled={generating} onClick={() => setCount(n)} size="small"
+                    variant={count === n ? 'filled' : 'outlined'}
+                    sx={{ fontWeight: 700, ...(count === n && { bgcolor: 'primary.main', color: '#fff' }) }} />
+                ))}
+              </>)}
+            </Stack>
 
-          <Stack direction="row" spacing={2} alignItems="center">
-            <FormControlLabel
-              control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
-              label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
-            <Box sx={{ flex: 1 }} />
-            {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
-            <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 700 }}>
-              {(() => {
-                const c = duelMode
-                  ? duelModels.reduce((acc, m) => acc + creditsForImage(resolveModel(m) || undefined), 0)
-                  : creditsForImage(resolveModel(model) || undefined) * count
-                return `esta rodada: ${c} crédito${c > 1 ? 's' : ''}`
-              })()}
-            </Typography>
-            <CreditBadge />
-            <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              onClick={gerar} disabled={generating} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
-              {generating ? 'Gerando…' : duelMode ? 'Gerar duelo' : 'Gerar'}
-            </Button>
-          </Stack>
-        </Paper>
+              </Faixa>
+            </>
+          }
+          assinatura={
+              <FormControlLabel
+                control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
+                label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
+          }
+          aviso={msg ? <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography> : null}
+          medidor={
+            <>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 700 }}>
+                {(() => {
+                  const c = duelMode
+                    ? duelModels.reduce((acc, m) => acc + creditsForImage(resolveModel(m) || undefined), 0)
+                    : creditsForImage(resolveModel(model) || undefined) * count
+                  return `esta rodada: ${c} crédito${c > 1 ? 's' : ''}`
+                })()}
+              </Typography>
+              <CreditBadge />
+            </>
+          }
+          acao={
+              <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
+                onClick={gerar} disabled={generating} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
+                {generating ? 'Gerando…' : duelMode ? 'Gerar duelo' : 'Gerar'}
+              </Button>
+          }
+        />
 
         {/* ⚔️ Arena do duelo — lado a lado, voto único na vencedora */}
         {duel && (
