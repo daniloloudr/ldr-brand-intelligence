@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Box, ToggleButton, ToggleButtonGroup, CircularProgress, Tooltip } from '@mui/material'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
@@ -6,10 +6,12 @@ import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined'
 import GraphicEqOutlinedIcon from '@mui/icons-material/GraphicEqOutlined'
 import { navigate } from '../../lib/helpers'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { SeletorDeCaminho, EscolherProduto } from '../../components/estudio/CaminhoDeEntrada'
 
 const StudioImage   = lazy(() => import('./StudioImage').then(m => ({ default: m.StudioImage })))
 const StudioVideo   = lazy(() => import('./StudioVideo').then(m => ({ default: m.StudioVideo })))
 const StudioWriting = lazy(() => import('./StudioWriting').then(m => ({ default: m.StudioWriting })))
+const StudioWorkflows = lazy(() => import('./StudioWorkflows').then(m => ({ default: m.StudioWorkflows })))
 
 // ════════════════════════════════════════════════════════════════════
 // Criar — a bancada. §3.4 da spec do Estúdio, e o D10: "formato é escolha
@@ -38,6 +40,14 @@ const FORMATOS = [
 
 export function StudioCreate({ brandId, formato = 'imagem' }) {
   const atual = FORMATOS.find(f => f.id === formato) || FORMATOS[0]
+
+  // §3.4 — por onde a pessoa começou. Não troca de tela: troca o que já vem
+  // preenchido. `produto` some quando o formato não aceita referência de
+  // imagem: escolher um produto para uma peça de TEXTO não quer dizer nada.
+  const [caminho, setCaminho] = useState('ideia')
+  const [produto, setProduto] = useState(null)
+  const caminhoVale = atual.id === 'imagem' || caminho !== 'produto'
+  const cam = caminhoVale ? caminho : 'ideia'
 
   const trocar = (_, novo) => {
     if (!novo || novo === atual.id) return   // ToggleButtonGroup devolve null ao reclicar
@@ -70,10 +80,25 @@ export function StudioCreate({ brandId, formato = 'imagem' }) {
         }
       />
 
+      <Box sx={{ p: { xs: 2, md: 3 }, pb: 0, maxWidth: 1200, width: '100%', mx: 'auto' }}>
+        <SeletorDeCaminho valor={cam} onEscolher={c => { setCaminho(c); setProduto(null) }} />
+        {cam === 'produto' && !produto && (
+          <EscolherProduto brandId={brandId} onEscolher={setProduto} />
+        )}
+      </Box>
+
       <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>}>
-        {atual.id === 'imagem' && <StudioImage   brandId={brandId} cabecalho={false} />}
-        {atual.id === 'video'  && <StudioVideo   brandId={brandId} cabecalho={false} />}
-        {atual.id === 'texto'  && <StudioWriting brandId={brandId} cabecalho={false} />}
+        {/* Do fluxo: a lista dos fluxos salvos, DENTRO de Criar — "já sei o
+            jeito de fazer, quero rodar de novo" é um começo, não outro lugar. */}
+        {cam === 'fluxo' ? (
+          <StudioWorkflows brandId={brandId} cabecalho={false} />
+        ) : cam === 'produto' && !produto ? null : (<>
+          {/* `key` remonta a bancada quando o produto muda: a referência inicial
+              é estado de partida, e sem isso o segundo produto não entraria. */}
+          {atual.id === 'imagem' && <StudioImage key={produto?.id || 'sem-produto'} brandId={brandId} cabecalho={false} refsIniciais={produto ? [produto.valor] : undefined} />}
+          {atual.id === 'video'  && <StudioVideo   brandId={brandId} cabecalho={false} />}
+          {atual.id === 'texto'  && <StudioWriting brandId={brandId} cabecalho={false} />}
+        </>)}
       </Suspense>
     </Box>
   )

@@ -92,10 +92,10 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 
 | # | Release | Faixa | Migration | Estado |
 |---|---|---|---|---|
-| **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) · falta o §3.4 |
-| **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | 🟡 **a próxima** |
+| **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares · **+ os três caminhos de entrada (§3.4)** | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`, `a7a4378`) |
+| **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | ✅ **entregue 31/ago** (`bfef561` + `f7dceb1` núcleo) · eixo ESCOPO cego até o E1 |
 | **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) |
-| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟡 |
+| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | 🟡 **a próxima** |
 | **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
 | **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
 | **E4** | campanha como escopo | **D** | ✅ substituição | 🔴 |
@@ -135,8 +135,17 @@ Por isso E0b sai sozinho.
 > de só "Criar", porque o contexto dele é derivado da rota.
 > Os três geradores **não foram reescritos**: ganharam `cabecalho={false}` e a bancada
 > carrega o cabeçalho com o seletor — é a Faixa A da spec, "UI sobre o que já gera".
-> **Ainda falta o §3.4** (Do produto · Da ideia · Do fluxo), que é trabalho de UI nova, não
-> de fusão. Tem onde morar: uma faixa acima de ATALHOS no `Compositor`.
+> **O §3.4 entrou** (`a7a4378`): faixa "Por onde começar" acima de ATALHOS, com a frase de
+> intenção de cada caminho. **Da ideia** é o padrão (o comportamento de sempre); **Do fluxo**
+> traz a lista de fluxos salvos para dentro de Criar; **Do produto** parte de uma imagem do
+> acervo, que entra já como referência da geração.
+>
+> ⚠️ **"Do produto" está REDUZIDO, e isso é lacuna de DADO, não de UI.** A §7.2 descreve as
+> variáveis do produto vindas do CATÁLOGO, preenchendo sozinhas por SKU (still, categoria,
+> cor, material, dimensões). Nada disso existe: não há catálogo no modelo, `brand_assets.tipo`
+> é `logo|cor|tipografia|icone|padrao|outro` (+`foto`) e **não tem `produto`**, e a coluna
+> `variaveis_produto` nasce no E1. O caminho parte do que existe; o preenchimento por SKU
+> entra com o catálogo. Prometer SKU numa tela sem catálogo seria mentir no primeiro clique.
 > "Agentes fora dos pilares" era **no-op** — não existe página de Agentes hoje; entra no E6.
 
 > 📐 **Um padrão saiu do E0a que não estava previsto: `src/components/estudio/Compositor.jsx`.**
@@ -158,6 +167,22 @@ Por isso E0b sai sozinho.
 > (tarja "fluxo interrompido aqui") e `BrandAssistant.jsx:231`. O valor do meio só aparece
 > em enum de validação, mapas de exibição e texto de prompt. **A leitura dupla precisa
 > cobrir comportamento em um valor só; o resto é vocabulário.**
+
+> ✅ **E0b entregue (31/ago)**, em dois commits por regra do núcleo: `bfef561` (contrato) e
+> `f7dceb1` (`_brain.js` — a destilação lendo os dois vocabulários). `ajustes[]` morreu:
+> decisão do Danilo de seguir a §2.2 ao pé da letra, com o conserto dito dentro dos 300
+> caracteres. O de-para vive em `_parecer.js` + `parecer.js`, no padrão de paridade do
+> `credits.js`.
+>
+> 🐛 **Achado no caminho:** o `StudioLibrary` decidia aprovação por
+> `veredito.includes('aprov')` — e `aprovada_com_ressalvas` contém "aprov". A certidão da
+> peça marcava como APROVADA exatamente o caso que a §2.2 define como "exige olho". Há teste
+> ancorado nisso.
+>
+> ⚠️ **O eixo ESCOPO entrou nomeado mas CEGO.** Ele depende de objetivo e direcional da
+> campanha; a migration 018 mostra que `studio_campaigns` só tem `conceito`. As colunas
+> nascem no E1 — até lá o eixo é verificado contra o escopo da marca. **É a primeira coisa
+> que o E1 destrava.**
 
 **O que E0 deixou de ter:** `custo_estimado`. **Decisão do Danilo (31/ago): custo não se
 trata aqui — o sistema mantém a visão de CRÉDITO, e o custo é visto em outro lugar.**

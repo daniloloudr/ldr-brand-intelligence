@@ -40,7 +40,7 @@ const APP_ACTIONS = [
   { op: 'variation', label: 'Variação',      Icon: AutoAwesomeMotionOutlinedIcon },
 ]
 
-export function StudioImage({ brandId, cabecalho = true }) {
+export function StudioImage({ brandId, cabecalho = true, refsIniciais }) {
   const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState(DEFAULT_IMAGE_MODEL)
@@ -54,7 +54,9 @@ export function StudioImage({ brandId, cabecalho = true }) {
   const [generating, setGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
-  const [refUrls, setRefUrls] = useState([])      // referências (upload) — até MAX_REFS
+  // `refsIniciais` vem do caminho "Do produto" (§3.4): a imagem do produto já
+  // entra como referência, e a pessoa só descreve o contexto.
+  const [refUrls, setRefUrls] = useState(refsIniciais || [])   // referências — até MAX_REFS
   const [refUploading, setRefUploading] = useState(false)
   const [improving, setImproving] = useState(false)
   const [voting, setVoting] = useState({})        // id -> bool

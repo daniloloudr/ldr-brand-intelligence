@@ -27,7 +27,7 @@ function relativeTime(iso) {
   return `${d} d atrás`
 }
 
-export function StudioWorkflows({ brandId }) {
+export function StudioWorkflows({ brandId, cabecalho = true }) {
   const { workspace } = useWorkspace()
   const [workflows, setWorkflows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -162,7 +162,7 @@ export function StudioWorkflows({ brandId }) {
 
   return (
     <Box>
-      <PageHeader
+      {cabecalho && <PageHeader
         title="Fluxos"
         subtitle="Pipelines nodais de geração — construa em pedaços"
         action={
@@ -171,7 +171,7 @@ export function StudioWorkflows({ brandId }) {
             Novo workflow
           </Button>
         }
-      />
+      />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         {/* Duas áreas: os fluxos de trabalho e a coleção de templates (que cresce
