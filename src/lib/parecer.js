@@ -51,3 +51,43 @@ export function normalizarVeredito(v) {
 export function reprovou(v) {
   return normalizarVeredito(v) === 'reprovado'
 }
+
+/**
+ * Encaixa o texto do parecer no limite SEM cortar no meio da palavra.
+ *
+ * O corte cru (`slice(300)`) produziu, no primeiro parecer real: "...LOUDR
+ * (#F7127A, #0D9376, #011F3E, #072A45, #0E3549, #134050, #1B4A54, #DC" — o
+ * leitor vê um texto que parece defeito de software, não um parecer.
+ *
+ * A ordem tenta preservar sentido: última frase inteira que couber; se nem uma
+ * frase couber, a última palavra inteira, com reticência. O limite continua
+ * sendo o da §2.2 — o que muda é onde o corte cai.
+ *
+ * Endurecer o prompt não substitui isto: modelo não conta caractere de forma
+ * confiável, e o limite precisa valer mesmo quando ele passa.
+ */
+export function encaixarTexto(t, max = TEXTO_MAX) {
+  const s = String(t ?? '').trim()
+  if (s.length <= max) return s
+
+  const cru = s.slice(0, max)
+
+  // 1) última frase inteira — mas SÓ se ela cobrir a maior parte do limite.
+  //    Fechar numa frase é o melhor final possível; fechar na PRIMEIRA frase de
+  //    um parecer longo joga fora o resto do que o juiz achou. Com o corte em
+  //    30% do limite, por exemplo, perde-se 70% do parecer para ganhar um
+  //    ponto final — e o leitor prefere o conteúdo com reticência.
+  const frase = Math.max(cru.lastIndexOf('. '), cru.lastIndexOf('! '), cru.lastIndexOf('? '))
+  if (frase >= max * 0.6) return cru.slice(0, frase + 1)
+
+  // 2) última palavra inteira, com reticência — e a MESMA ressalva: só vale se
+  //    sobrar texto. Com um bloco longo sem espaço (uma lista de hex colada,
+  //    uma URL), a última fronteira de palavra fica lá no começo e o resultado
+  //    encolhe para uma palavra só — pior que o corte cru que isto veio
+  //    consertar. Nesse caso corta no limite mesmo: perder meia palavra é menos
+  //    grave que perder o parecer inteiro.
+  //    A reticência entra DENTRO do limite, senão o conserto estoura o teto.
+  const palavra = cru.slice(0, max - 1).lastIndexOf(' ')
+  const base = palavra >= (max - 1) * 0.6 ? cru.slice(0, palavra) : cru.slice(0, max - 1)
+  return base.replace(/[\s.,;:—-]+$/, '') + '…'
+}

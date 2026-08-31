@@ -14,7 +14,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { callAI, MODELS, isDev, extractJSON } from './_ai.js'
 import { resolveBrandIntelligence, emitSignal } from './_brain.js'
-import { VEREDITOS, TEXTO_MAX } from './_parecer.js'
+import { VEREDITOS, TEXTO_MAX, encaixarTexto } from './_parecer.js'
 
 const headers = {
   'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export const handler = async (event) => {
 
   const parecer = {
     veredito: out.veredito,
-    texto: String(out.texto || '').slice(0, TEXTO_MAX),
+    texto: encaixarTexto(out.texto),   // corta na frase/palavra, nunca no meio do hex
   }
 
   // ── O parecer GANHA LUGAR (migration 054) ─────────────────────────
