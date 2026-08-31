@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
-  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link, Checkbox,
+  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link, Checkbox, Tabs, Tab,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
@@ -189,6 +189,12 @@ export function StudioLibrary({ brandId }) {
   const [certGen, setCertGen] = useState(null)
   const [certSignals, setCertSignals] = useState([])
   const [certLoading, setCertLoading] = useState(false)
+  // A certidão responde DUAS perguntas de públicos diferentes: "de onde veio e o
+  // que foi processado" (procurement e jurídico — compliance §4/§6) e "a marca
+  // aprovou?" (quem opera a marca). Empilhadas, uma esconde a outra: quem abre
+  // para auditar rola por cima dos pareceres, e quem abre para ver o veredito
+  // rola por cima do prompt. Abas separam sem esconder.
+  const [certAba, setCertAba] = useState('procedencia')
 
   useEffect(() => { if (brandId) load() }, [brandId])
 
@@ -478,6 +484,7 @@ export function StudioLibrary({ brandId }) {
 
   // Certidão do asset: trilha auditável da peça (compliance.md §4)
   async function abrirCert(a) {
+    setCertAba('procedencia')   // reabrir sempre começa pela trilha
     const genId = a.metadata?.generation_id
     if (!genId) return
     setCert(a); setCertGen(null); setCertSignals([]); setCertLoading(true)
@@ -798,6 +805,22 @@ export function StudioLibrary({ brandId }) {
             <Typography variant="body2" color="text.secondary">Trilha de geração não encontrada para esta peça.</Typography>
           ) : (
             <Stack spacing={1.75} mt={0.5}>
+              {/* DUAS AUDITORIAS, não auditoria e opinião. Uma responde a
+                  jurídico/procurement (que dado saiu daqui, para qual fornecedor
+                  de IA, quando); a outra responde a quem opera a marca (quem
+                  julgou, o que decidiu). Públicos diferentes, perguntas
+                  diferentes, e cada uma é o ruído da outra quando empilhadas. */}
+              <Tabs value={certAba} onChange={(_, v) => setCertAba(v)} sx={{ minHeight: 36, mb: 0.5, borderBottom: 1, borderColor: 'divider' }}>
+                <Tab value="procedencia" label="Auditoria de dados" sx={{ minHeight: 36, fontWeight: 800, fontSize: 12 }} />
+                <Tab value="julgamento"  label={`Auditoria de marca${certSignals.length ? ` · ${certSignals.length}` : ''}`} sx={{ minHeight: 36, fontWeight: 800, fontSize: 12 }} />
+              </Tabs>
+              <Typography variant="caption" color="text.disabled">
+                {certAba === 'procedencia'
+                  ? 'Que dado saiu daqui, para qual fornecedor de IA e quando — compliance §4 (rastreabilidade) e §6 (LGPD).'
+                  : 'Quem julgou esta peça e o que decidiu — parecer do juiz e voto humano.'}
+              </Typography>
+
+              {certAba === 'procedencia' && (<>
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 {isUrl(cert?.valor) && !isVideo(cert || {}) && (
                   <Box component="img" src={cert.valor} alt="" sx={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }} />
@@ -816,10 +839,10 @@ export function StudioLibrary({ brandId }) {
                   ))}
                 </Box>
               </Stack>
+              </>)}
+
+              {certAba === 'julgamento' && (
               <Box>
-                <Typography variant="overline" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
-                  Julgamentos ({certSignals.length})
-                </Typography>
                 {certSignals.length === 0 ? (
                   <Typography variant="caption" color="text.secondary">Nenhum julgamento registrado para esta peça ainda.</Typography>
                 ) : (
@@ -853,9 +876,15 @@ export function StudioLibrary({ brandId }) {
                   </Stack>
                 )}
               </Box>
+              )}
+
+              {certAba === 'procedencia' && (<>
               <Box>
                 <Typography variant="overline" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
                   Prompt final enviado
+                </Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5 }}>
+                  O texto exato que saiu daqui para o fornecedor de IA.
                 </Typography>
                 <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, maxHeight: 160, overflow: 'auto', bgcolor: 'background.default' }}>
                   <Typography component="pre" sx={{ fontSize: 10.5, fontFamily: 'ui-monospace, monospace', whiteSpace: 'pre-wrap', m: 0, lineHeight: 1.5 }}>
@@ -866,6 +895,7 @@ export function StudioLibrary({ brandId }) {
               <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'ui-monospace, monospace' }}>
                 geração {certGen.id}{certGen.provider_request_id ? ` · job ${certGen.provider_request_id}` : ''} — trilha auditável (compliance §4)
               </Typography>
+              </>)}
             </Stack>
           )}
         </DialogContent>
