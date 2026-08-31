@@ -1,9 +1,61 @@
 # brandcode — Especificação Completa do Produto
-**Versão:** 8.5
+**Versão:** 8.6
 **Data:** Agosto 2026
 **Status:** Documento vivo — atualizar a cada entrega
 **Owner:** Danilo Silva · LOUDR
 **Nomes:** o produto é o **brandcode** (`br4ndcode.com` — o "4" existe só no domínio). **LOUDR é a empresa/agência** e permanece como tal: assina o relatório público de diagnóstico, o framework Smart Branding e os contratos. Dentro do app logado, nada mais se chama LOUDR.
+
+**Changelog v8.6 (31/ago/2026) — O NÓ PASSA A DIZER O QUE ENTRA: a release dos ajustes da Hering, e três sumiços silenciosos empilhados.**
+
+🟡 **PRONTA, AGUARDANDO A JANELA.** Portões cumpridos (abaixo); deploy no fim do dia, fora do horário comercial. **Sem migration, sem RLS, sem policy** — frontend mais um endpoint que já existia. Reversão é `git revert` + redeploy, sem tocar no banco.
+
+Origem: reunião com a Hering (31/ago), 7 ajustes, triados contra o código no mesmo dia. A triagem **mudou duas vezes** quando o Danilo corrigiu o relato — o registro de que pedido de cliente chega traduzido, e de que a tradução aponta para o lugar errado.
+
+### O que subiu
+
+**O painel Entradas — o nó passa a dizer o que entra.** O nó Imagem mostrava modelo, custo e saída; nada do que ENTRAVA. Agora um ícone de ajustes no topo abre a lista **ordenada** das referências com miniatura, ↑↓ para reordenar, ✕ para desconectar, o papel de cada posição quando o modelo tem um (*1ª = modelo · 2ª = peça*), e o corte declarado **com a culpa nomeada** — limite do modelo (reordene ou troque) ou teto do canvas (desconecte algo). A ordem deixou de ser histórico de conexões e virou `refOrder`, persistido; conexão nova entra no fim, sem embaralhar o que já foi ordenado.
+
+**Três sumiços silenciosos, achados em camadas.** (a) `MAX_REF = 5` era constante nossa, inventada, com `.slice()` mudo. (b) Pior e independente do teto: modelos de **endpoint singular** (`field: 'image_url'` — Kontext, Qwen, FLUX dev/Pro 1.1/Ultra, Ideogram v2, Recraft) recebem `references[0]` e descartam o resto sem erro. (c) **O pior, e era meu:** a primeira versão do painel contava **nós**, não imagens — e o Danilo achou isso gerando de verdade. No KH6U eram 5 entradas e **7 imagens** (bolsa e calçado com 2 fotos cada); o painel dizia "5 refs", ícone cinza, sem alerta, enquanto as duas do calçado eram descartadas. O aviso existia e mentia, que é pior do que não existir.
+
+**O teto foi de 5 para 10** — o **piso dos grandes**, levantado na doc do fal: família Seedream inteira (v4, v4.5, v5 lite, v5 pro) = 10 · Nano Banana Pro = 14 (mas só 6 em alta fidelidade de objeto) · GPT Image 2 = 16 · Nano Banana = não declarado. Um teste impede subir de 10 sem antes fazer teto por modelo, e o motivo está nele: acima de 10 o Seedream fica com as **últimas** 10 — corta pela FRENTE, ao contrário do nosso slice, e a primeira a sumir passaria a ser a base de casting.
+
+**O "delete que não deleta" era uma prop.** A cliente clicou num nó e tentou apagar a **linha** entre dois nós, no Windows. O canvas nunca passava `deleteKeyCode`, então valia o default do xyflow: `'Backspace'` e só ele. No Mac a tecla grande é rotulada *delete* e emite Backspace — funcionava aqui por coincidência de rótulo. E aresta não tinha afordância de mouse nenhuma. O que localizou o defeito não foi ler mais código: foi a frase *"ela usa Windows, pra mim funciona"*. **Assimetria de ambiente entre quem relata e quem testa é o dado mais informativo do relato.**
+
+**Atalhos de teclado** (pedido do Danilo: *"eu mesmo caio nisso"*): Cmd/Ctrl+S salva (inclusive escrevendo, que é quando o reflexo vem), Cmd/Ctrl+Z desfaz, +Shift refaz. O histórico usa a MESMA projeção que vai ao banco (`serializableNodes`), então guarda o que VOCÊ fez e não o progresso de uma geração; consolida com 600ms de atraso, então digitar uma frase é um passo, não um por tecla. E o Ctrl+Z do grafo **não age dentro de campo de texto** — se agisse, escrever um briefing e apertar Cmd+Z apagaria o parágrafo inteiro.
+
+**Editor grande no Prompt e no Contexto.** O nó tem 250×250: dá para conferir, não para escrever. Ícone no topo abre o mesmo texto em diálogo largo; o campo inline continua para ajuste rápido.
+
+**A página Imagem alinhada ao Fluxo.** Tinha a própria constante de 5 e **nenhum** aviso sobre modelo de referência única. Mesmo teto agora, e diz como o modelo escolhido lê as referências.
+
+**O nó Vídeo entrou no painel** — ele usa `toUrls(...)[0]`, a 1ª URL do 1º produtor, e conectar mais era silêncio. Terceira ocorrência da mesma família.
+
+**Base de casting** — template novo na página Imagem (etapa 0 do processo de catálogo), ancorado no KH6V: peça lisa colada ao corpo, *"malha lisa e uniforme, sem ponto, sem relevo, sem trama visível"* literal porque foi o reforço medido que corrigiu o piquê, e preservação de traços porque a base é gerada e deriva.
+
+**O "Melhorar prompt" virou revisor.** A causa não era alucinação espontânea: o system mandava *"MELHORAR... vívido e específico... **enriqueça**"*, e o modelo obedecia. E o teto era opcional — só o canvas passava `max_chars`; Imagem e Vídeo chamavam sem limite. Agora: **300 caracteres por padrão no servidor**, proibido acrescentar elemento/objeto/pessoa/cenário/ação/clima/história, *texto curto ⇒ resposta curta*, termos **positivos** (a lei da negação do piloto), e marca muda COMO descrever, nunca O QUE está na cena. Modelo padrão passou a **Haiku 4.5**: o trabalho virou restringir, e quem segura a invenção é a instrução mais o corte duro, não a capacidade do modelo.
+
+**`/admin` → Acessos: a trilha da 053 ganhou tela.** A migration criou `platform_admin_sessions` e a policy de leitura; a trilha ficou só no banco. Agora tem tela — tenant, motivo, início, duração, origem e estado, com alerta no topo para sessões abertas. A distinção **encerrada** (fechada de propósito) × **vencida** (morreu sozinha no prazo) importa: a segunda é a garantia real, porque não depende de ninguém lembrar de fechar. ⚠️ A policy é `admin_user_id = auth.uid()` — cada operador lê as PRÓPRIAS sessões; com um operador é a trilha inteira, multi-operador exigiria policy nova ou leitura pelo servidor.
+
+**R8 conferido (frente Fullsix/Worten, *table stakes* de varejo):** Remover fundo devolve PNG de 4 canais com alfa `min=0` — **transparência real**, não fundo branco disfarçado. Ampliar leva 2816×1584 a **5632×3168**, passa de 4K com folga. E o trecho NOSSO também: o nó Recortar (`sharp` → webp q92) **preserva o alfa** — se tivesse morrido ali, o cliente veria fundo preto no e-commerce e nós descobriríamos em teste técnico do procurement.
+
+### Portões (31/ago)
+
+| Portão | Resultado |
+|---|---|
+| Testes | **570 passando**, 3 skipped, 36 arquivos |
+| `npm run guarda` | **100/100** mutações detectadas · zero "PASSOU DESPERCEBIDA" |
+| Build | `dist` íntegro, 47 assets, fallback do SPA presente |
+| Security gate | **sem achados** |
+| `guarda:rls` / `guarda:esquema` | não se aplicam — release sem migration |
+
+**Onze mutações novas**, pela lei 2 (defeito que chegou ao cliente vira mutação): o teto, o modelo singular, o corte silencioso, o painel contando nós, a ordem do painel, o Backspace-só, o Ctrl+Z invadindo campo de texto, o histórico guardando execução, a trilha voltando a escrever, o teto de prompt opcional e a ordem de enriquecer.
+
+**Uma guarda de segurança foi ESTREITADA, não afrouxada.** O teste `o browser NUNCA insere em platform_admin_sessions` reprovou a tela de auditoria: o nome e o comentário falavam em *inserir* (risco: token roubado abrindo a própria sessão), mas a asserção proibia QUALQUER menção à tabela — mais larga que a própria intenção, e barrava justamente a leitura que a 053 desenhou (policy de select + `grant select`). Agora ela afere o VERBO (`insert|update|upsert|delete`), e ganhou o par: a trilha tem que existir e tem que ser `select`.
+
+### O que NÃO entrou, e por quê
+
+**Cor e costura (itens 2 e 3)** é **ensaio antes de código**: a hipótese é que `use_brand` segue ligado com foto de produto conectada e a faceta visual injeta a paleta da marca competindo com a cor real da peça; mede-se com `use_brand` on × off julgado pelo `art-review` em modo fidelidade. **Batch por SKU (item 1)** está parado por decisão do Danilo — está especificado em três lugares com três nomes (`F2 — escala`, `F3` do Studio, `R4`), e volta como **unificação das specs**, não como implementação. **Linha infantil (item 7)** tem portão antes de código: política de provedor sobre menores, regulação de publicidade infantil, e o que a Hering já pratica hoje — se for still de produto sem criança, o risco todo desaparece.
+
+**Anotado, não feito:** o skill da API da Anthropic aponta `claude-haiku-4-5` (sem sufixo de data) como id atual; o repo usa `claude-haiku-4-5-20251001`, que já roda em produção pelo caminho do canvas. Trocar string de modelo na véspera do deploy não é conserto, é risco novo — vira item de backlog.
 
 **Changelog v8.5 (27–29/ago/2026) — ACESSO DECLARADO: o bypass do operador ganha validade, e a revisão pega o defeito na véspera pela terceira vez.**
 

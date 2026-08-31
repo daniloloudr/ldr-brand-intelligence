@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { navigate } from '../../lib/helpers';
 import {
   ReactFlow, Background, Controls, MiniMap, NodeToolbar, NodeResizer,
@@ -38,7 +38,7 @@ import { supabase } from '../../lib/supabase'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { CreditBadge } from '../../components/CreditBadge'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel } from '../../lib/studioModels'
+import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel, ordenarPorRefOrder } from '../../lib/studioModels'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 import { PALETTE } from '../../lib/theme'
 import {
@@ -83,6 +83,19 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   const updateNodeData = useCallback((id, patch) => {
     setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
+    setDirty(true)
+  }, [])
+
+  // Painel "Entradas" do nó de geração (reunião Hering, 31/ago) ────────
+  // Reordenar grava a ordem explícita; desconectar apaga a aresta. É por aqui
+  // que existe caminho de MOUSE para soltar uma conexão — o teclado sozinho
+  // deixou uma cliente no Windows sem saída (ver deleteKeyCode abaixo).
+  const reordenarRefs = useCallback((nodeId, ordem) => {
+    updateNodeData(nodeId, { refOrder: ordem })
+  }, [updateNodeData])
+
+  const desconectar = useCallback((targetId, sourceId) => {
+    setEdges(es => es.filter(e => !(e.target === targetId && e.source === sourceId)))
     setDirty(true)
   }, [])
 
@@ -395,6 +408,84 @@ export function StudioCanvas({ brandId, workflowId }) {
     setMsg('Salvo ✓')
   }
 
+  // ── Desfazer / refazer / salvar pelo teclado ────────────────────────
+  // Pedido do Danilo (31/ago): "eu mesmo caio nisso". Ctrl/Cmd+Z e Ctrl/Cmd+S
+  // são reflexo — num canvas que salva só por botão, o reflexo vira perda.
+  //
+  // O QUE ENTRA NO HISTÓRICO é a decisão que faz isto prestar ou atrapalhar:
+  // o instantâneo usa a MESMA projeção que vai para o banco (`serializableNodes`),
+  // que já tira funções, estado transitório (loading/uploading/elapsed) e
+  // normaliza 'running' → 'idle'. Assim o histórico guarda o que VOCÊ fez, e não
+  // o progresso de uma geração — sem isso, desfazer competiria com o fal e
+  // "voltar um passo" às vezes só desfaria um spinner.
+  const LIMITE_HISTORICO = 50
+  const historicoRef   = useRef([])
+  const futuroRef      = useRef([])
+  const consolidadoRef = useRef(null)
+  const restaurandoRef = useRef(false)
+
+  const instantaneo = useCallback(
+    () => JSON.stringify({ n: serializableNodes(), e: edges }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodes, edges])
+
+  // Consolida com atraso: digitar uma frase no Prompt é UM passo de desfazer,
+  // não um por tecla. Enquanto as mudanças chegam, o timer é reiniciado e o
+  // estado ANTERIOR à rajada é o que fica guardado.
+  useEffect(() => {
+    const atual = instantaneo()
+    if (restaurandoRef.current) { restaurandoRef.current = false; consolidadoRef.current = atual; return }
+    if (consolidadoRef.current === null) { consolidadoRef.current = atual; return }
+    if (atual === consolidadoRef.current) return          // mexeu, mas nada mudou de verdade
+    const t = setTimeout(() => {
+      historicoRef.current.push(consolidadoRef.current)
+      if (historicoRef.current.length > LIMITE_HISTORICO) historicoRef.current.shift()
+      futuroRef.current = []                              // ramo novo mata o "refazer"
+      consolidadoRef.current = atual
+    }, 600)
+    return () => clearTimeout(t)
+  }, [instantaneo])
+
+  const aplicarInstantaneo = useCallback((json) => {
+    const { n, e } = JSON.parse(json)
+    restaurandoRef.current = true
+    setNodes(n.map(x => attachHandlersRef.current(x)))     // religa os callbacks
+    setEdges(e)
+    setDirty(true)
+  }, [])
+
+  const desfazer = useCallback(() => {
+    const anterior = historicoRef.current.pop()
+    if (!anterior) { setMsg('Nada para desfazer'); return }
+    futuroRef.current.push(instantaneo())
+    aplicarInstantaneo(anterior)
+    setMsg('Desfeito ↩')
+  }, [instantaneo, aplicarInstantaneo])
+
+  const refazer = useCallback(() => {
+    const proximo = futuroRef.current.pop()
+    if (!proximo) { setMsg('Nada para refazer'); return }
+    historicoRef.current.push(instantaneo())
+    aplicarInstantaneo(proximo)
+    setMsg('Refeito ↪')
+  }, [instantaneo, aplicarInstantaneo])
+
+  useEffect(() => {
+    const escrevendo = el => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const k = (e.key || '').toLowerCase()
+      // Salvar vale em qualquer lugar — inclusive escrevendo, que é justamente
+      // quando o reflexo aparece.
+      if (k === 's') { e.preventDefault(); saveRef.current?.(); return }
+      // Desfazer DENTRO de um campo de texto é do navegador (desfaz a digitação).
+      // Roubar isso aqui apagaria o parágrafo inteiro em vez de uma palavra.
+      if (k === 'z' && !escrevendo(e.target)) { e.preventDefault(); e.shiftKey ? refazer() : desfazer() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [desfazer, refazer])
+
   // Resolve os inputs conectados a um nó Generate (marca é opcional: só injeta
   // se houver um nó de marca conectado).
   function inputsFor(genId) {
@@ -439,7 +530,13 @@ export function StudioCanvas({ brandId, workflowId }) {
     // Ordem das EDGES (1ª conexão = 1ª referência), não do array de nós —
     // a convenção do try-on (1ª = modelo, 2ª = peça) depende disso.
     const inIds = [...new Set(edges.filter(e => e.target === nodeId).map(e => e.source))]
-    return inIds.map(id => nodes.find(n => n.id === id)).filter(n => n && PRODUCES_IMAGE.has(n.type))
+    const produtores = inIds.map(id => nodes.find(n => n.id === id)).filter(n => n && PRODUCES_IMAGE.has(n.type))
+    // ...mas a ordem ESCOLHIDA no painel Entradas vence a ordem das conexões.
+    // Ordem de conexão é histórico de edição: ninguém a vê e ninguém a controla
+    // sem refazer as ligações. `refOrder` é o mesmo dado, explícito e editável.
+    // Quem não está na lista salva entra no fim (sort estável), então conexão
+    // nova nasce por último em vez de embaralhar o que já foi ordenado.
+    return ordenarPorRefOrder(produtores, nodes.find(n => n.id === nodeId)?.data?.refOrder)
   }
   // Fecho a jusante de um nó (ele + tudo que descende dele) — p/ run seletivo
   function downstreamClosure(rootId) {
@@ -834,6 +931,47 @@ export function StudioCanvas({ brandId, workflowId }) {
   regenRef.current = regenNode
   saveRef.current = save
 
+  // ── O que entra em cada nó de geração (painel Entradas) ────────────
+  // DERIVADO, nunca guardado: `entradas` é função de nodes+edges, então não
+  // entra em `serializableNodes()` e não pode ficar velho no banco. O rótulo e
+  // a miniatura saem do próprio nó de origem — é o que o cliente vê na tela.
+  const rotuloDaOrigem = n =>
+    n.type === 'imageInput'   ? 'Imagem (upload)'
+    : n.type === 'generate'   ? 'Imagem gerada'
+    : n.type === 'app'        ? (n.data?.label || 'Edição')
+    : n.type === 'artGate'    ? 'Diretor de Arte'
+    : n.type === 'preview'    ? 'Prévia'
+    : n.type === 'prompt'     ? ((n.data?.text || '').trim().slice(0, 60) || 'vazio')
+    : n.type === 'context'    ? ((n.data?.text || '').trim().slice(0, 60) || 'vazio')
+    : n.type === 'formato'    ? (n.data?.formato || '1:1')
+    : n.type === 'brandContext' ? (n.data?.title || 'Marca')
+    : n.type
+  const miniaturaDoNo = n => n.data?.outputUrl || n.data?.imageUrl || n.data?.url || n.data?.urls?.[0] || null
+
+  const nodesComEntradas = useMemo(() => nodes.map(n => {
+    // Vídeo entra junto: ele também consome imagem de montante, e também em
+    // silêncio — usa a 1ª URL do 1º produtor e descarta o resto (REGRA_VIDEO).
+    if (n.type !== 'generate' && n.type !== 'videoGen') return n
+    // O que o dispatcher corta é a lista de URLs, NÃO a de nós — um nó Imagem
+    // sozinho carrega até MAX_REF imagens. Contar nó aqui foi o defeito que o
+    // Danilo achou no KH6U (31/ago): bolsa e calçado com 2 fotos cada davam 7
+    // URLs em 5 nós, e o painel dizia "5 refs", sem alerta, enquanto as duas do
+    // calçado eram descartadas. O painel repetia o silêncio que veio matar.
+    let pos = 0
+    const refs = imageUpstreamsOf(n.id).map(u => {
+      const urls = u.type === 'imageInput' ? imgUrls(u.data) : toUrls(miniaturaDoNo(u))
+      const de = pos; pos += urls.length
+      return { id: u.id, label: rotuloDaOrigem(u), url: urls[0] || null, urls: urls.length, de }
+    })
+    const totalUrls = pos
+    const refIds = new Set(refs.map(r => r.id))
+    const outros = edges.filter(e => e.target === n.id).map(e => nodes.find(x => x.id === e.source))
+      .filter(x => x && !refIds.has(x.id))
+      .map(x => ({ id: x.id, tipo: x.type, label: rotuloDaOrigem(x) }))
+    return { ...n, data: { ...n.data, entradas: { refs, outros, totalUrls }, onReordenarRefs: reordenarRefs, onDesconectar: desconectar } }
+  }), [nodes, edges, reordenarRefs, desconectar])
+
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <PageHeader
@@ -924,10 +1062,15 @@ export function StudioCanvas({ brandId, workflowId }) {
           anchorPosition={connectMenu ? { top: connectMenu.top, left: connectMenu.left } : undefined}>
           {NODE_TEMPLATES.map((t, i) => <MenuItem key={i} onClick={() => addNodeFromConnect(t)} sx={{ fontSize: 13 }}>{t.label}</MenuItem>)}
         </Menu>
+        {/* deleteKeyCode: o default do xyflow é 'Backspace' e SÓ ele. No teclado
+            Mac a tecla grande é rotulada "delete" e emite Backspace — por isso
+            funcionava aqui e não no Windows, onde 'Delete' é tecla separada, e
+            foi a que a cliente da Hering apertou (31/ago/2026). */}
         <ReactFlow
-          nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+          nodes={nodesComEntradas} edges={edges} nodeTypes={nodeTypes}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
           onConnectStart={onConnectStart} onConnectEnd={onConnectEnd} onInit={inst => { rfRef.current = inst }}
+          deleteKeyCode={['Backspace', 'Delete']}
           fitView proOptions={{ hideAttribution: true }}
         >
           <Background gap={16} color={PALETTE.neutral[100]} />

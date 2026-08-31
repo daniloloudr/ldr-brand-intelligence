@@ -4,7 +4,8 @@ import { memo, useState } from 'react'
 import { Handle, Position, NodeResizer, NodeToolbar } from '@xyflow/react'
 import {
   Box, Button, Typography, TextField, MenuItem, Select, ListSubheader, Paper,
-  Stack, CircularProgress, Tooltip, IconButton, Chip, Menu,
+  Stack, CircularProgress, Tooltip, IconButton, Chip, Menu, Popover, Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ReplayIcon from '@mui/icons-material/Replay'
@@ -21,7 +22,12 @@ import CloseIcon from '@mui/icons-material/Close'
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import WorkspacesOutlinedIcon from '@mui/icons-material/WorkspacesOutlined'
-import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL } from '../../lib/studioModels'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
+import LinkOffOutlinedIcon from '@mui/icons-material/LinkOffOutlined'
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
+import OpenInFullIcon from '@mui/icons-material/OpenInFull'
+import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, planoDeRefs, comoLeAsRefs, MAX_REFS_CANVAS, REGRA_VIDEO } from '../../lib/studioModels'
 import { creditsForImage, creditsForVideo } from '../../lib/credits'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 import { PALETTE } from '../../lib/theme'
@@ -40,7 +46,7 @@ const FORMATOS = [
 // "Não é fiel ao produto" é a telemetria do juiz de fidelidade do piloto Hering.
 const REGEN_MOTIVOS = ['Fora da marca', 'Não é fiel ao produto', 'Qualidade baixa', 'Composição ruim']
 
-function NodeShell({ id, color, title, children, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected, regenMenu = false }) {
+function NodeShell({ id, color, title, children, acao, inputs = true, output = true, onDelete, onDuplicate, onRun, onRegen, onResize, selected, regenMenu = false }) {
   const [regenAnchor, setRegenAnchor] = useState(null)
   return (
     <Paper elevation={0} sx={{
@@ -70,13 +76,60 @@ function NodeShell({ id, color, title, children, inputs = true, output = true, o
       )}
       {inputs && <Handle type="target" position={Position.Left} style={{ background: color, width: 9, height: 9 }} />}
       <Box sx={{ px: 1.5, py: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color, flexShrink: 0 }}>
-          {title}
-        </Typography>
+        {/* Linha do título: rótulo à esquerda, ação do nó à direita. A `acao`
+            fica aqui — e não no corpo — porque o corpo é onde o cliente
+            trabalha; ícone de controle roubando altura do bloco de escrita foi
+            exatamente a reclamação (Danilo, 31/ago). */}
+        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+          <Typography noWrap sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color, flex: 1, minWidth: 0 }}>
+            {title}
+          </Typography>
+          {acao}
+        </Stack>
         <Box sx={{ mt: 0.75, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
       </Box>
       {output && <Handle type="source" position={Position.Right} style={{ background: color, width: 9, height: 9 }} />}
     </Paper>
+  )
+}
+
+// ── Editor grande de texto do nó ─────────────────────────────────────
+// O nó tem 250×250: dá para conferir o que está escrito, não para escrever.
+// "Fica muito ruim escrever ali naquele bloco" (Danilo, 31/ago) — então o
+// campo inline continua para ajuste rápido, e o ícone do topo abre o mesmo
+// texto em tela cheia. É a MESMA fonte de dado: o que se digita aqui já está
+// no nó, sem salvar nem cancelar.
+//
+// A tecla de apagar do canvas não morde aqui: o xyflow lê `deleteKeyCode` com
+// `actInsideInputWithModifier: false`, ou seja, não age dentro de campo de
+// texto. Sem isso, escrever e apagar uma letra apagaria o nó.
+function BotaoEditorGrande({ titulo, valor, placeholder, onChange, rodape }) {
+  const [aberto, setAberto] = useState(false)
+  return (
+    <>
+      <Tooltip title="Abrir maior">
+        <IconButton size="small" className="nodrag"
+          onClick={e => { e.stopPropagation(); setAberto(true) }}
+          sx={{ p: 0.25, color: 'text.disabled' }}>
+          <OpenInFullIcon sx={{ fontSize: 13 }} />
+        </IconButton>
+      </Tooltip>
+      <Dialog open={aberto} onClose={() => setAberto(false)} maxWidth="md" fullWidth className="nodrag">
+        <DialogTitle sx={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>
+          {titulo}
+        </DialogTitle>
+        <DialogContent>
+          <TextField autoFocus multiline minRows={16} maxRows={28} fullWidth
+            value={valor || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+            sx={{ '& textarea': { fontSize: 14, lineHeight: 1.6 } }} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          {rodape}
+          <Box sx={{ flex: 1 }} />
+          <Button onClick={() => setAberto(false)} variant="contained" sx={{ fontWeight: 700 }}>Concluir</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   )
 }
 
@@ -88,7 +141,14 @@ const BrandContextNode = memo(({ id, data, selected }) => (
 ))
 
 const PromptNode = memo(({ id, data, selected }) => (
-  <NodeShell id={id} color={GRAY} title="Prompt" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
+  <NodeShell id={id} color={GRAY} title="Prompt" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}
+    acao={<BotaoEditorGrande titulo="Prompt" valor={data.text} placeholder="O que criar…"
+      onChange={v => data.onChange(id, { text: v })}
+      rodape={<Button size="small" disabled={data.improving || !(data.text || '').trim()}
+        startIcon={data.improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 15 }} />}
+        onClick={() => data.onImprove?.(id)} sx={{ fontWeight: 700 }}>
+        {data.improving ? 'Melhorando…' : 'Melhorar'}
+      </Button>} />}>
     <Stack spacing={0.25} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
       <TextField
         value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
@@ -114,7 +174,10 @@ const PromptNode = memo(({ id, data, selected }) => (
 // Contexto — texto longo livre que complementa o prompt (tema, briefing, referências
 // conceituais). Conectado a um Gerar/Vídeo, entra como [CONTEXTO ADICIONAL] no prompt.
 const ContextNode = memo(({ id, data, selected }) => (
-  <NodeShell id={id} color={AMBER} title="Contexto" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}>
+  <NodeShell id={id} color={AMBER} title="Contexto" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onResize={data.onResize} selected={selected}
+    acao={<BotaoEditorGrande titulo="Contexto" valor={data.text}
+      placeholder="Contexto extra para compor o prompt: tema, briefing, público, restrições, referências conceituais…"
+      onChange={v => data.onChange(id, { text: v })} />}>
     <TextField
       value={data.text || ''} onChange={e => data.onChange(id, { text: e.target.value })}
       placeholder="Contexto extra para compor o prompt: tema, briefing, público, restrições, referências conceituais…"
@@ -153,10 +216,157 @@ const FormatoNode = memo(({ id, data, selected }) => (
 // Geração de IMAGEM. Mostra o resultado NO PRÓPRIO NÓ, como o de Vídeo — pedido
 // do Danilo (19/08) durante o piloto Hering: com 6 saídas no canvas, abrir a
 // prévia de cada uma para conferir era o gargalo da revisão.
+// ── Entradas de um nó de geração — o que entra, em que ordem ─────────
+// Nasceu do "o sapato não pegou" (reunião Hering, 31/ago/2026). O nó mostrava
+// modelo, custo e saída — nada do que ENTRAVA. E a ordem das referências, que
+// muda o resultado (e em alguns modelos É o resultado), era a ordem em que as
+// conexões foram feitas: histórico de edição, invisível na tela.
+//
+// Aqui a ordem vira dado editável (`data.refOrder`, persistido no workflow) e o
+// que some passa a ser dito: por teto nosso ou por limite do modelo.
+const ROTULO_ENTRADA = {
+  prompt: 'Prompt', context: 'Contexto', formato: 'Formato',
+  brandContext: 'Marca', imageInput: 'Imagem', generate: 'Imagem gerada',
+  app: 'Edição', preview: 'Prévia', artGate: 'Diretor de Arte',
+}
+
+function LinhaDeRef({ n, papel, entram, primeira, ultima, onSobe, onDesce, onSolta }) {
+  // Uma linha é um NÓ, mas ele pode carregar VÁRIAS imagens — então a posição é
+  // uma faixa ("4–5"), e o corte pode partir a linha ao meio.
+  const ignorada = entram === 0
+  const parcial  = entram > 0 && entram < n.urls
+  const faixa = n.urls > 1 ? `${n.de + 1}–${n.de + n.urls}` : `${n.de + 1}`
+  const cor = ignorada ? 'text.disabled' : parcial ? CORAL : TEAL
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.75}
+      sx={{ py: 0.4, opacity: ignorada ? 0.45 : 1 }}>
+      <Typography sx={{ fontSize: 11, fontWeight: 800, minWidth: 26, textAlign: 'right', color: cor }}>
+        {faixa}
+      </Typography>
+      <Box sx={{ width: 30, height: 30, flexShrink: 0, borderRadius: 0.75, overflow: 'hidden', bgcolor: 'action.hover', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {n.url
+          ? <Box component="img" src={n.url} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <Typography sx={{ fontSize: 8, color: 'text.disabled' }}>—</Typography>}
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography noWrap sx={{ fontSize: 11, fontWeight: 600, textDecoration: ignorada ? 'line-through' : 'none' }}>
+          {n.label}{n.urls > 1 ? ` · ${n.urls} imagens` : ''}
+        </Typography>
+        <Typography noWrap sx={{ fontSize: 9.5, color: (ignorada || parcial) ? CORAL : 'text.disabled' }}>
+          {ignorada ? 'ignorada nesta geração'
+            : parcial ? `só ${entram} de ${n.urls} entram`
+            : (papel || 'referência')}
+        </Typography>
+      </Box>
+      <Tooltip title="Subir"><Typography component="span"><IconButton size="small" disabled={primeira} onClick={onSobe} sx={{ p: 0.25 }}>
+        <ArrowUpwardIcon sx={{ fontSize: 13 }} /></IconButton></Typography></Tooltip>
+      <Tooltip title="Descer"><Typography component="span"><IconButton size="small" disabled={ultima} onClick={onDesce} sx={{ p: 0.25 }}>
+        <ArrowDownwardIcon sx={{ fontSize: 13 }} /></IconButton></Typography></Tooltip>
+      <Tooltip title="Desconectar"><IconButton size="small" onClick={onSolta} sx={{ p: 0.25 }}>
+        <LinkOffOutlinedIcon sx={{ fontSize: 13, color: CORAL }} /></IconButton></Tooltip>
+    </Stack>
+  )
+}
+
+const EntradasDoNo = memo(({ id, data, modelo, regra = null }) => {
+  const [anchor, setAnchor] = useState(null)
+  const refs   = data.entradas?.refs   || []
+  const outros = data.entradas?.outros || []
+  // O teto morde URLs, não nós — ver o comentário em StudioCanvas.
+  const totalUrls = data.entradas?.totalUrls ?? refs.length
+  const plano  = planoDeRefs(modelo, totalUrls, MAX_REFS_CANVAS, regra)
+
+  const mover = (de, para) => {
+    if (para < 0 || para >= refs.length) return
+    const ordem = refs.map(r => r.id)
+    const [x] = ordem.splice(de, 1); ordem.splice(para, 0, x)
+    data.onReordenarRefs?.(id, ordem)
+  }
+
+  const alerta = plano.ignoradas > 0 || plano.faltam > 0
+  const resumo = [
+    totalUrls ? `${totalUrls} imagem${totalUrls > 1 ? 'ns' : ''}` : 'sem referência',
+    outros.some(o => o.tipo === 'brandContext') ? 'marca ✓' : null,
+    outros.some(o => o.tipo === 'context') ? 'contexto ✓' : null,
+  ].filter(Boolean).join(' · ')
+  const aviso = plano.faltam > 0
+    ? `faltam ${plano.faltam} referências`
+    : `${plano.ignoradas} imagem${plano.ignoradas > 1 ? 'ns' : ''} não ${plano.ignoradas > 1 ? 'chegam' : 'chega'} ao modelo`
+
+  // Só o ícone, no topo à direita (Danilo, 31/ago). O estado inteiro cabe na
+  // COR — vermelho quando algo está sendo cortado — e o detalhe no tooltip;
+  // o corpo do nó fica livre para a imagem.
+  return (
+    <>
+      <Tooltip title={alerta ? `Entradas — ${aviso}` : `Entradas — ${resumo}`}>
+        <IconButton size="small" className="nodrag"
+          onClick={e => { e.stopPropagation(); setAnchor(e.currentTarget) }}
+          sx={{ p: 0.25, color: alerta ? CORAL : 'text.disabled' }}>
+          {alerta ? <WarningAmberOutlinedIcon sx={{ fontSize: 15 }} /> : <TuneOutlinedIcon sx={{ fontSize: 15 }} />}
+        </IconButton>
+      </Tooltip>
+
+      <Popover open={!!anchor} anchorEl={anchor} onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { width: 330, p: 1.25, borderRadius: 2 } } }}>
+        <Typography sx={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.disabled' }}>
+          Entradas deste nó
+        </Typography>
+        <Typography sx={{ fontSize: 10.5, color: 'text.secondary', mt: 0.5, lineHeight: 1.4 }}>
+          {comoLeAsRefs(modelo, regra)}
+        </Typography>
+
+        {refs.length > 0 && (
+          <Box sx={{ mt: 1 }}>
+            {refs.map((n, i) => (
+              <LinhaDeRef key={n.id} n={n}
+                papel={plano.papeis?.[n.de]}
+                entram={Math.max(0, Math.min(plano.usadas - n.de, n.urls))}
+                primeira={i === 0} ultima={i === refs.length - 1}
+                onSobe={() => mover(i, i - 1)} onDesce={() => mover(i, i + 1)}
+                onSolta={() => data.onDesconectar?.(id, n.id)} />
+            ))}
+          </Box>
+        )}
+
+        {plano.ignoradas > 0 && (
+          <Typography sx={{ fontSize: 10, color: CORAL, mt: 0.75, lineHeight: 1.4 }}>
+            {plano.porQue === 'modelo'
+              ? `Este modelo lê ${plano.limite === 1 ? 'uma referência só' : `${plano.limite} referências`}. Reordene para deixar em cima a que importa, ou troque de modelo.`
+              : `O canvas envia no máximo ${MAX_REFS_CANVAS} referências. Desconecte o que não for essencial ou reordene.`}
+          </Typography>
+        )}
+        {plano.faltam > 0 && (
+          <Typography sx={{ fontSize: 10, color: CORAL, mt: 0.75, lineHeight: 1.4 }}>
+            Este modelo exige {plano.exatas} referências na ordem acima — conecte mais {plano.faltam}.
+          </Typography>
+        )}
+
+        {outros.length > 0 && <Divider sx={{ my: 1 }} />}
+        {outros.map(o => (
+          <Stack key={o.id} direction="row" alignItems="center" spacing={0.75} sx={{ py: 0.3 }}>
+            <Chip label={ROTULO_ENTRADA[o.tipo] || o.tipo} size="small"
+              sx={{ height: 17, fontSize: 9, fontWeight: 700 }} />
+            <Typography noWrap sx={{ fontSize: 10.5, color: 'text.secondary', flex: 1, minWidth: 0 }}>{o.label}</Typography>
+            <Tooltip title="Desconectar"><IconButton size="small" onClick={() => data.onDesconectar?.(id, o.id)} sx={{ p: 0.25 }}>
+              <LinkOffOutlinedIcon sx={{ fontSize: 13, color: CORAL }} /></IconButton></Tooltip>
+          </Stack>
+        ))}
+
+        {!refs.length && !outros.length && (
+          <Typography sx={{ fontSize: 10.5, color: 'text.disabled', mt: 1 }}>
+            Nada conectado ainda. Ligue um Prompt, referências de imagem e o contexto da marca.
+          </Typography>
+        )}
+      </Popover>
+    </>
+  )
+})
+
 const GenerateNode = memo(({ id, data, selected }) => {
   const modelo = (data.model && data.model !== 'auto' && data.model !== 'custom') ? data.model : DEFAULT_IMAGE_MODEL
   return (
-    <NodeShell id={id} color={TEAL} title="Imagem" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
+    <NodeShell id={id} color={TEAL} title="Imagem" acao={<EntradasDoNo id={id} data={data} modelo={modelo} />} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
       <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
         <Select value={modelo} onChange={e => data.onChange(id, { model: e.target.value })} size="small" fullWidth sx={{ fontSize: 11, flexShrink: 0 }}>
           {IMAGE_MODEL_GROUPS.flatMap(g => [
@@ -391,7 +601,8 @@ const VideoGenNode = memo(({ id, data, selected }) => {
   const [adjOpen, setAdjOpen] = useState(false)
   const adjusting = data.status === 'running'
   return (
-    <NodeShell id={id} color={INDIGO} title="Vídeo" onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
+    <NodeShell id={id} color={INDIGO} title="Vídeo"
+      acao={<EntradasDoNo id={id} data={data} regra={REGRA_VIDEO} />} onDelete={data.onDelete} onDuplicate={data.onDuplicate} onRun={data.onRun} onRegen={data.onRegen} onResize={data.onResize} regenMenu={data.regenMenu} selected={selected}>
       <Stack spacing={0.5} className="nodrag" sx={{ flex: 1, minHeight: 0 }}>
         <Select value={mk} onChange={e => data.onChange(id, { model: e.target.value, duration: videoModelByKey(e.target.value)?.defaultDuration })}
           size="small" fullWidth sx={{ fontSize: 11 }}>
@@ -510,7 +721,11 @@ const nodeTypes = { artGate: ArtGateNode, brandContext: BrandContextNode, prompt
 
 // Nós que produzem imagem (podem alimentar apps/generates a jusante)
 const PRODUCES_IMAGE = new Set(['generate', 'app', 'imageInput', 'preview', 'artGate'])
-const MAX_REF = 5
+// O teto do canvas mora em studioModels.js, junto de `planoDeRefs` — que é
+// quem AVISA sobre o corte. Duas constantes de 5 em arquivos diferentes
+// significavam: subir uma e esquecer a outra faz o nó prometer um número e
+// o canvas cortar noutro. O aviso passaria a mentir.
+const MAX_REF = MAX_REFS_CANVAS
 const DEFAULT_NODE = 250   // tamanho padrão uniforme dos nós (px)
 // Formato e Gerar têm pouco conteúdo → altura fixa compacta p/ não ficar feio
 // generate cresceu: agora mostra a imagem gerada dentro do nó.

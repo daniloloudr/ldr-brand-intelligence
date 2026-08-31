@@ -10,6 +10,7 @@ import WorkspacesOutlinedIcon from "@mui/icons-material/WorkspacesOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
@@ -392,6 +393,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     { id: "custos",       label: "Custos",           Icon: PaidOutlinedIcon },
     { id: "cerebros",     label: "Cérebros",         Icon: PsychologyOutlinedIcon },
     { id: "saude",        label: "Saúde",            Icon: MonitorHeartOutlinedIcon },
+    { id: "acessos",      label: "Acessos",          Icon: HistoryOutlinedIcon },
   ];
 
   const pendentesList = solicitacoes.filter(s => s.status === "pendente");
@@ -406,6 +408,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     todos:        { title: "Todos os diagnósticos",   sub: `Lista completa — ${historico.length} item${historico.length !== 1 ? "ns" : ""} (${doneCount} concluído${doneCount !== 1 ? "s" : ""}).` },
     custos:       { title: "Custos de geração",       sub: "Consumo e custo estimado da borda (Studio) por modelo e por conta." },
     cerebros:     { title: "Cérebros de marca",       sub: "A inteligência de cada tenant: versão, confiança, sinais, dataset — e destilação sob demanda." },
+    acessos:      { title: "Trilha de acessos",       sub: "Toda sessão de suporte aberta em workspace de cliente: qual tenant, quando, por quanto tempo e por quê." },
   };
 
   // Conteúdo do sino — agora servido pelo AppLayout (um shell só p/ app e admin)
@@ -660,6 +663,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
             {page === "custos" && <CustosAdmin />}
             {page === "cerebros" && <CerebrosAdmin />}
             {page === "saude" && <SaudeAdmin />}
+            {page === "acessos" && <AcessosAdmin />}
           </Box>
       </AppLayout>
 
@@ -674,6 +678,116 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
       />
 
     </ThemeProvider>
+  );
+}
+
+/* ─── AcessosAdmin — a trilha que existia e ninguém lia ───────────── */
+// A migration 053 (S3/S4) fez o operador declarar tenant, motivo e prazo antes
+// de ver conteúdo de cliente, e cada declaração vira uma linha em
+// `platform_admin_sessions`. A trilha nasceu junto com a proteção — mas ficou
+// só no banco. Trilha que ninguém lê é a mesma figura do alerta que ninguém vê
+// (ver SaudeAdmin logo abaixo, e o cron-monitor morto por uma semana).
+//
+// É esta a tela que se mostra em due diligence: não "confie que o operador se
+// comporta", e sim "toda entrada em dado de cliente está registrada, com motivo".
+//
+// ⚠️ ESCOPO: a policy da 053 é `admin_user_id = auth.uid()` — cada operador lê
+// AS PRÓPRIAS sessões. Com um operador, é a trilha inteira. Quando houver mais
+// de um, ver a trilha completa exige policy nova (migration) ou leitura pelo
+// servidor, como o `admin-panorama` já faz.
+function AcessosAdmin() {
+  const [sessoes, setSessoes] = useState([]);
+  const [wsNomes, setWsNomes] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: ss } = await supabase
+        .from('platform_admin_sessions')
+        .select('id, workspace_id, motivo, criada_em, expira_em, encerrada_em, origem')
+        .order('criada_em', { ascending: false })
+        .limit(200);
+      const { data: ws } = await supabase.from('workspaces').select('id, nome, slug');
+      setWsNomes(Object.fromEntries((ws || []).map(w => [w.id, w.nome || w.slug || w.id.slice(0, 8)])));
+      setSessoes(ss || []); setLoading(false);
+    })();
+  }, []);
+
+  // Três estados, e a diferença importa na leitura: ENCERRADA foi fechada de
+  // propósito; VENCIDA morreu sozinha no prazo — que é a garantia real, porque
+  // não depende de ninguém lembrar de fechar.
+  const estado = (s) => {
+    if (s.encerrada_em) return { rot: 'encerrada', cor: 'default' };
+    if (new Date(s.expira_em) <= new Date()) return { rot: 'vencida', cor: 'default' };
+    return { rot: 'ABERTA', cor: 'warning' };
+  };
+  const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const dur = (s) => {
+    const fim = s.encerrada_em ? new Date(s.encerrada_em) : new Date(s.expira_em);
+    const min = Math.max(0, Math.round((fim - new Date(s.criada_em)) / 60000));
+    return min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`;
+  };
+
+  const abertas = sessoes.filter(s => estado(s).rot === 'ABERTA');
+
+  if (loading) return <Box sx={{ textAlign: 'center', p: 6, color: 'text.disabled' }}>Carregando...</Box>;
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {abertas.length > 0 && (
+        <Alert severity="warning" variant="outlined">
+          {abertas.length === 1 ? 'Há 1 sessão ABERTA agora' : `Há ${abertas.length} sessões ABERTAS agora`}
+          {' '}— enquanto ela durar, o conteúdo desse cliente está visível para o operador.
+        </Alert>
+      )}
+
+      <Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          As 200 sessões mais recentes. Cada linha é uma entrada declarada em dado de cliente:
+          nenhuma é possível sem motivo, e todas expiram sozinhas.
+        </Typography>
+
+        {sessoes.length === 0 ? (
+          <Alert severity="info" variant="outlined">
+            Nenhuma sessão de suporte registrada — ninguém abriu conteúdo de cliente desde a migration 053.
+          </Alert>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800 }}>Tenant</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Motivo declarado</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Início</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Duração</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Origem</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sessoes.map(s => {
+                  const e = estado(s);
+                  return (
+                    <TableRow key={s.id} hover>
+                      <TableCell sx={{ fontWeight: 700 }}>{wsNomes[s.workspace_id] || s.workspace_id.slice(0, 8)}</TableCell>
+                      <TableCell sx={{ maxWidth: 320 }}>{s.motivo}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{dt(s.criada_em)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{dur(s)}</TableCell>
+                      <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{s.origem || '—'}</TableCell>
+                      <TableCell>
+                        <Chip size="small" label={e.rot} color={e.cor}
+                          variant={e.rot === 'ABERTA' ? 'filled' : 'outlined'}
+                          sx={{ fontWeight: 800, fontSize: 10, height: 19 }} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Box>
+    </Box>
   );
 }
 

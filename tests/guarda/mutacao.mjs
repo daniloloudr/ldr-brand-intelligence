@@ -516,6 +516,66 @@ const MUTACOES = [
     arq: 'src/pages/AppInterno.jsx',
     de: '      const sessao = await abrirSessaoSuporte(entrar.ws.id, entrar.motivo, { minutos: entrar.minutos });\n      onImpersonate?.({ workspaceId: entrar.ws.id, workspaceName: entrar.ws.nome, sessao });',
     para: '      onImpersonate?.({ workspaceId: entrar.ws.id, workspaceName: entrar.ws.nome });' },
+
+  // ── Studio: o que entra no nó (reunião Hering, 31/08/2026) ─────────
+  // "O sapato não pegou" eram DOIS sumiços silenciosos empilhados — o teto do
+  // canvas e os modelos de endpoint singular — e o nó não mostrava nem um nem
+  // outro. Chegou ao cliente; por isso está aqui.
+  { nome: 'o nó volta a mentir que todo modelo lê várias referências',
+    arq: 'src/lib/studioModels.js',
+    de: "export const refsDoModelo = id => REFS_POR_MODELO[id] || { modo: 'varias' }",
+    para: 'export const refsDoModelo = () => ({ modo: "varias" })' },
+
+  { nome: 'o limite do MODELO some da conta (5 refs no Kontext viram 5 usadas)',
+    arq: 'src/lib/studioModels.js',
+    de: "const limiteModelo = r.modo === 'uma' ? 1 : (r.exatas || r.max || Infinity)",
+    para: 'const limiteModelo = Infinity' },
+
+  { nome: 'o corte de referências volta a ser silencioso (ignoradas = 0)',
+    arq: 'src/lib/studioModels.js',
+    de: 'ignoradas: Math.max(0, conectadas - usadas),',
+    para: 'ignoradas: 0,' },
+
+  { nome: 'a ordem escolhida no painel Entradas para de valer',
+    arq: 'src/lib/studioModels.js',
+    de: 'if (!Array.isArray(refOrder) || !refOrder.length) return produtores',
+    para: 'if (true) return produtores' },
+
+  { nome: 'a conexão volta a só apagar com Backspace (trava a cliente no Windows)',
+    arq: 'src/pages/app/StudioCanvas.jsx',
+    de: "deleteKeyCode={['Backspace', 'Delete']}",
+    para: "deleteKeyCode={['Backspace']}" },
+
+  { nome: 'o painel volta a contar NÓS em vez de imagens (nó com 2 fotos some calado)',
+    arq: 'src/pages/app/studioNodes.jsx',
+    de: 'planoDeRefs(modelo, totalUrls, MAX_REFS_CANVAS, regra)',
+    para: 'planoDeRefs(modelo, refs.length, MAX_REFS_CANVAS, regra)' },
+
+  // ── Atalhos do canvas (31/08/2026) ────────────────────────────────
+  { nome: 'o Ctrl+Z do grafo passa a agir dentro do campo de texto (apaga o parágrafo)',
+    arq: 'src/pages/app/StudioCanvas.jsx',
+    de: "if (k === 'z' && !escrevendo(e.target))",
+    para: "if (k === 'z')" },
+
+  { nome: 'o histórico volta a guardar estado de execução (desfazer vira spinner)',
+    arq: 'src/pages/app/StudioCanvas.jsx',
+    de: 'JSON.stringify({ n: serializableNodes(), e: edges })',
+    para: 'JSON.stringify({ n: nodes, e: edges })' },
+
+  { nome: 'a tela da trilha volta a ESCREVER na tabela de sessões (token roubado abre a própria)',
+    arq: 'src/pages/AppInterno.jsx',
+    de: "from('platform_admin_sessions')\n        .select('id, workspace_id, motivo, criada_em, expira_em, encerrada_em, origem')",
+    para: "from('platform_admin_sessions')\n        .insert({ motivo: 'x' })\n        .select('id, workspace_id, motivo, criada_em, expira_em, encerrada_em, origem')" },
+
+  // ── Motor do "Melhorar prompt" (31/08/2026) ───────────────────────
+  { nome: 'o teto do prompt volta a ser opcional (Imagem e Vídeo sem limite)',
+    arq: 'netlify/functions/studio-prompt.js',
+    de: ': LIMITE_PADRAO', para: ': null' },
+
+  { nome: 'o refinador volta a receber ordem de ENRIQUECER (inventa cena)',
+    arq: 'netlify/functions/studio-prompt.js',
+    de: 'Não acrescente elemento',
+    para: 'Enriqueça com detalhe vívido e acrescente elemento' },
 ]
 
 let pegos = 0

@@ -231,14 +231,32 @@ describe('a tela não contorna o banco', () => {
   const admin  = readFileSync('src/pages/AppInterno.jsx', 'utf8')
   const modulo = readFileSync('src/lib/sessaoSuporte.js', 'utf8')
 
-  it('o browser NUNCA insere em platform_admin_sessions', () => {
-    // Se inserisse, um token roubado abriria a própria sessão. A tabela não tem
+  it('o browser NUNCA ESCREVE em platform_admin_sessions', () => {
+    // Se escrevesse, um token roubado abriria a própria sessão. A tabela não tem
     // policy de INSERT para `authenticated` (053) — este teste segura o outro
     // lado: ninguém tentar e concluir que "não funciona no client".
+    //
+    // LER é permitido, e de propósito: a 053 criou a policy
+    // "operador le as proprias sessoes" (select, admin_user_id = auth.uid())
+    // MAIS o `grant select to authenticated`, justamente para a trilha ter tela.
+    // A versão anterior deste teste proibia QUALQUER menção à tabela — mais
+    // largo que a própria intenção declarada no nome ("insere"), e teria
+    // barrado a tela de auditoria que a 053 desenhou. Agora ele afere o VERBO.
+    const ESCRITAS = /\.(insert|update|upsert|delete)\s*\(/
     for (const [nome, src] of [['WorkspaceContext', ctx], ['AppInterno', admin], ['sessaoSuporte', modulo]]) {
-      expect(src, `${nome} escreve direto na tabela de sessões`)
-        .not.toMatch(/from\(['"]platform_admin_sessions['"]\)/)
+      const partes = src.split(/from\(['"]platform_admin_sessions['"]\)/).slice(1)
+      for (const depois of partes) {
+        expect(ESCRITAS.test(depois.slice(0, 240)), `${nome} escreve direto na tabela de sessões`).toBe(false)
+      }
     }
+  })
+
+  it('a trilha só LÊ — e a tela existe', () => {
+    // O par do teste acima: a leitura tem que estar lá (trilha sem tela é o
+    // mesmo nada do alerta que ninguém vê), e tem que ser select.
+    expect(admin, 'a tela da trilha sumiu do /admin').toMatch(/from\('platform_admin_sessions'\)/)
+    const trecho = admin.slice(admin.indexOf("from('platform_admin_sessions')"))
+    expect(trecho.slice(0, 240)).toMatch(/\.select\(/)
   })
 
   it('entrar no ambiente do cliente passa por abrir sessão', () => {
