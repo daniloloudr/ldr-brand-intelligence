@@ -15,6 +15,7 @@
 // Spec: .spec/features/brand-intelligence.md
 // ════════════════════════════════════════════════════════════════════
 import { callAI, MODELS, isDev, extractJSON } from './_ai.js'
+import { normalizarVeredito } from './_parecer.js'
 import { voyageEmbed, embedIntelChunks } from './_embed.js'
 
 // ── Contexto (read) ──────────────────────────────────────────────────
@@ -263,7 +264,20 @@ function fmtSignalBody(s) {
   if (s.tipo === 'writing_edit')
     return `[COPY REESCRITA PELO TIME — ensino de voz] seção="${p.secao || '?'}" formato=${p.formato || '?'} · a IA escreveu: "${(p.original || '').slice(0, 300)}" · o time preferiu: "${(p.edicao || '').slice(0, 400)}"`
   if (s.tipo === 'art_review')
-    return `[PARECER DO DIRETOR DE ARTE (IA) sobre peça enviada] veredito=${p.veredito || '?'} "${(p.resumo || '').slice(0, 300)}"`
+    // Leitura dupla (E0b, 31/ago/2026). O acervo de `art_review` tem DOIS
+    // vocabulários: os sinais anteriores gravaram aprovada/
+    // aprovada_com_ressalvas/reprovada em `resumo`; os novos gravam
+    // aprovado/rechecar/reprovado em `texto`.
+    //
+    // Por que normalizar AQUI e não deixar passar cru: o que entra na
+    // destilação é permanente. Dois vocabulários no mesmo corpus ensinam o
+    // modelo que são coisas diferentes, e "aprovada_com_ressalvas" lido como
+    // parente de "aprovada" empurra para aprovação o caso que a §2.2 define
+    // como "exige olho". O estrago não se desfaz apagando linha.
+    //
+    // Desconhecido vira '?' e não some: sinal ilegível precisa aparecer como
+    // ilegível, nunca ser silenciosamente descartado nem chutado.
+    return `[PARECER DO DIRETOR DE ARTE (IA) sobre peça enviada] veredito=${normalizarVeredito(p.veredito) || '?'} "${(p.texto || p.resumo || '').slice(0, 300)}"`
   if (s.tipo === 'image_regen')
     return `[REGENERADO — reprovação implícita] provider=${p.provider || '?'} formato=${p.formato || '?'} tipo=${p.media_type || 'image'}${p.motivo ? ` · MOTIVO declarado: "${p.motivo}"` : ''}${p.ajuste ? ` · o usuário pediu para ajustar: "${p.ajuste}"` : ''} prompt="${(p.prompt || '').slice(0, 300)}" (ref:${s.ref_id})`
   if (s.tipo === 'reference_upload')
@@ -299,7 +313,7 @@ const SYSTEM = [
   '- conteudo: derive de content_used e campanhas aprovadas — os TEMAS, formatos e ângulos de conteúdo que o time realmente adota. Se não houver sinal de conteúdo, deixe as listas vazias.',
   '- assistant_correction é ENSINO HUMANO EXPLÍCITO (o time corrigindo o Brand Assistant) — trate como sinal de ALTÍSSIMA prioridade e confiança para voz, posicionamento, do_dont e fatos; sobrepõe inferências mais fracas e vence empates de recência.',
   '- content_used = o time ADOTOU um conteúdo/briefing gerado (copiou pra usar). Aprenda com ele os TEMAS, formatos e ângulos de conteúdo que a marca realmente usa — alimenta voz, do_dont e fatos de território de conteúdo.',
-  '- art_review = parecer do DIRETOR DE ARTE IA sobre peça enviada (interna ou externa). É julgamento da máquina, não do humano — pese MENOS que voto/ensino humano; use para reforçar padrões visuais quando corroborado.',
+  '- art_review = parecer do DIRETOR DE ARTE IA sobre peça enviada (interna ou externa). Veredito: aprovado (sustenta), rechecar (exige olho humano — NÃO é aprovação), reprovado. É julgamento da máquina, não do humano — pese MENOS que voto/ensino humano; use para reforçar padrões visuais quando corroborado.',
   '- trend = tendências do SETOR (radar de mercado, não a marca). Use como contexto leve: pode alimentar "conteudo" (temas/ângulos em ascensão que combinam com a marca) e "fatos" de mercado. Peso baixo — nunca deixe tendência sobrepor ensino humano ou votos.',
   '- competitive descreve CONCORRENTES e o mercado (NÃO a sua marca). Use para AFIAR A DIFERENCIAÇÃO: registre em "fatos" onde cada concorrente se posiciona e quais territórios ele reivindica; em "do_dont" derive movimentos de diferenciação (ex.: não reforçar um território já dominado por concorrente; ocupar espaço livre que nenhum concorrente reivindica); pode calibrar "posicionamento" para o que diferencia. NUNCA atribua atributos/territórios do concorrente à própria marca.',
   '- NÃO invente: baseie tudo nos sinais + no brand book. Seja conciso e de alto sinal. Preserve conhecimento anterior ainda válido (com sua confiança recalibrada).',
