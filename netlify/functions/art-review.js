@@ -35,7 +35,7 @@ export const handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body || '{}') } catch { return { statusCode: 400, headers } }
-  const { brand_id, image_url, generation_id = null, criterio = null, reference_url = null, modo = null } = body
+  const { brand_id, image_url, generation_id = null, criterio = null, reference_url = null, modo = null, campaign_id = null } = body
   if (!brand_id || !image_url) return { statusCode: 400, headers, body: JSON.stringify({ error: 'brand_id e image_url obrigatórios' }) }
 
   const { data: brand } = await supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single()
@@ -47,6 +47,43 @@ export const handler = async (event) => {
   if (!member && !platformAdmin) return { statusCode: 403, headers }
 
   const { prefix: brandCtx } = await resolveBrandIntelligence(supabase, brand_id, brand.nome)
+
+  // ── O EIXO ESCOPO (§2.3) deixa de ser cego ────────────────────────
+  // A campanha não vem do chamador: vem da PEÇA. `studio_generations` já
+  // carrega `campaign_id`, então nenhum caller precisa mudar — e uma peça
+  // julgada de novo, meses depois, é julgada contra o escopo em que NASCEU.
+  //
+  // `select('*')` de propósito, não a lista de colunas: `objetivo`,
+  // `proposta_valor` e `direcional` só existem depois da migration 054, e pedir
+  // coluna que não existe faz o PostgREST devolver erro. Assim esta função roda
+  // igual antes e depois de a migration ser aplicada — que é o estado em que
+  // ela vai viver enquanto o deploy não acontece.
+  let escopo = null
+  try {
+    let cid = campaign_id
+    if (!cid && generation_id) {
+      const { data: g } = await supabase.from('studio_generations').select('campaign_id').eq('id', generation_id).maybeSingle()
+      cid = g?.campaign_id || null
+    }
+    if (cid) {
+      const { data: c } = await supabase.from('studio_campaigns').select('*').eq('id', cid).maybeSingle()
+      // Só conta como escopo se houver o que verificar. Campanha com nome e
+      // nada mais não dá ao juiz nenhum critério — e dizer que o eixo foi
+      // checado quando não havia o que checar é pior que dizer que não foi.
+      if (c && (c.objetivo || c.direcional || c.proposta_valor || c.conceito)) escopo = c
+    }
+  } catch (e) { console.error('[art-review] escopo da campanha indisponível (não-fatal):', e.message) }
+
+  const blocoEscopo = escopo ? [
+    `\n[ESCOPO DA PEÇA — campanha "${escopo.nome || 'sem nome'}"]`,
+    escopo.objetivo       ? `Objetivo: ${String(escopo.objetivo).slice(0, 300)}`             : '',
+    escopo.proposta_valor ? `Proposta de valor: ${String(escopo.proposta_valor).slice(0, 300)}` : '',
+    escopo.direcional     ? `Direcional visual: ${String(escopo.direcional).slice(0, 300)}`  : '',
+    !escopo.objetivo && escopo.conceito ? `Brief: ${String(escopo.conceito).slice(0, 300)}`  : '',
+    // §3.3 — "alinhamento, não uniformidade": a campanha PODE divergir da
+    // estética da marca. O que não pode divergir é a informação.
+    'A campanha pode ter direcional visual próprio — divergir da estética da marca NÃO é erro. O que precisa estar alinhado é a informação: objetivo, proposta de valor e mensagem.',
+  ].filter(Boolean).join('\n') : ''
 
   // Modo FIDELIDADE (piloto Hering): julga a peça contra o PRODUTO DE REFERÊNCIA
   // (estampa/texto/cor/modelagem idênticos), IGNORANDO a estética da marca do
@@ -69,8 +106,9 @@ export const handler = async (event) => {
     `\nVERIFIQUE OS QUATRO EIXOS, nesta ordem:
 1. FIDELIDADE — o que foi inserido continua igual? ${reference_url ? 'Compare com a imagem de referência.' : 'SEM material de entrada nesta peça: diga que não é verificável e não invente divergência.'}
 2. MARCA — atende ao que a marca já aprendeu com aprovações e recusas anteriores?
-3. ESCOPO — atende ao direcional e ao objetivo do escopo em que a peça nasceu?
+3. ESCOPO — atende ao direcional e ao objetivo do escopo em que a peça nasceu? ${escopo ? 'O escopo está declarado abaixo.' : 'Esta peça NÃO pertence a campanha nenhuma: o escopo é a própria marca. Não invente objetivo de campanha.'}
 4. EXECUÇÃO — o que foi pedido foi feito?`,
+    blocoEscopo,
     criterio ? `\nCRITÉRIO ADICIONAL DESTE PORTÃO (soma aos quatro eixos, nunca os substitui): ${String(criterio).slice(0, 400)}` : '',
     `\nVEREDITO: "aprovado" = os quatro eixos sustentam; "rechecar" = o núcleo sustenta mas há desvio que exige olho humano; "reprovado" = foge da paleta/estética/do-dont da marca, ou tem texto/logo indevidos.`,
     `TEXTO: no máximo ${TEXTO_MAX} caracteres. Diga qual eixo falhou e qual é o conserto concreto — cite cores, composição e elementos reais da imagem. Sem nota, sem score.`,
@@ -128,7 +166,7 @@ export const handler = async (event) => {
       eixos: {
         fidelidade: !!reference_url,   // sem material de entrada, não há o que comparar
         marca: !fidelidade,            // o modo fidelidade IGNORA a estética da marca, de propósito
-        escopo: false,                 // ⚠️ cego até o E1 ligar objetivo/direcional da campanha
+        escopo: !!escopo,              // só verdadeiro quando a campanha tinha o que verificar
         execucao: true,
       },
       modo: fidelidade ? 'fidelidade' : 'marca',
