@@ -33,7 +33,10 @@ export const handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'email e workspace_id obrigatórios' }) }
   }
 
-  const appUrl = process.env.VITE_APP_URL || 'https://loudr.netlify.app'
+  // O domínio do produto depois do relançamento como BR4NDCODE. O fallback
+  // antigo ('loudr.netlify.app') e o valor que estava na env ('app.loudr.com.br')
+  // apontavam para endereços mortos — quem recebia convite clicava em nada.
+  const appUrl = process.env.VITE_APP_URL || 'https://app.br4ndcode.com'
 
   const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
     data: { workspace_id, workspace_name },
