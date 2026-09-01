@@ -73,8 +73,13 @@ export function navigate(to, { replace = false } = {}) {
 // caminho atual da rota (sem query) — substitui as leituras de location.hash
 export const currentPath = () => window.location.pathname || '/';
 
-export function getRoute() {
-  const p = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+// `caminho` opcional: sem ele resolve a rota ATUAL (o uso de sempre); com ele
+// resolve um caminho qualquer, sem tocar em window. É o que permite descobrir
+// para onde um link aponta antes de clicar — usado para rotular links que o
+// Copiloto devolve (ver rotuloDoLink em copiloto.js).
+export function getRoute(caminho) {
+  const bruto = caminho != null ? String(caminho).replace(/^#/, '') : (window.location.pathname || '/');
+  const p = bruto.split('?')[0].replace(/\/+$/, '') || '/';
   if (p === '/')                     return 'login';
   if (p === '/metodologia')          return 'metodologia';
   if (p.startsWith('/relatorio/'))   return 'relatorio-publico';

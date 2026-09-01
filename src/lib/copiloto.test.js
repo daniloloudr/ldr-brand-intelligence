@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { contextoDoLugar, blocoDeContexto } from './copiloto.js'
+import { contextoDoLugar, blocoDeContexto, rotuloDoLink } from './copiloto.js'
 import { getRoute } from './helpers.js'
 
 // A garantia que estes testes existem para dar: o painel e o system prompt saem
@@ -103,5 +103,28 @@ describe('o mapa de lugares fala a mesma língua do roteador', () => {
       expect(getRoute()).toBe(esperada)
       expect(contextoDoLugar({ route: esperada, brandNome: 'Hering' }).nivel).toBe('lugar')
     } finally { delete global.window }
+  })
+})
+
+describe('rotuloDoLink — o link diz para onde leva', () => {
+  // O defeito: todo link interno recebia "abrir no Estúdio →", fixo. O Copiloto
+  // salvava a missão no Brand Book e o link dizia Estúdio.
+  const casos = [
+    ['#/app/brands/b1/negocio',                'Estratégia'],
+    ['#/app/brands/b1/studio/biblioteca',      'Biblioteca'],
+    ['#/app/brands/b1/studio/workflow/w1',     'Fluxos'],
+    ['#/app/brands/b1/studio/campanhas',       'Campanhas'],
+    ['#/app/reports',                          'Relatórios'],
+  ]
+  it.each(casos)('%s → nomeia %s', (href, nome) => {
+    expect(rotuloDoLink(href)).toBe(`abrir em ${nome} →`)
+  })
+
+  it('destino fora do mapa não inventa nome', () => {
+    expect(rotuloDoLink('#/app/conta')).toBe('abrir →')
+  })
+
+  it('nunca mais devolve "Estúdio" para um link do Brand Book', () => {
+    expect(rotuloDoLink('#/app/brands/b1/negocio')).not.toMatch(/Estúdio/)
   })
 })

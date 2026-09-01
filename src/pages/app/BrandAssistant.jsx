@@ -9,11 +9,13 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import CheckIcon from '@mui/icons-material/Check'
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined'
 import HistoryIcon from '@mui/icons-material/History'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, navigate, getRoute, getBrandSection, getCampaignId, getWorkflowId } from '../../lib/helpers'
-import { contextoDoLugar, blocoDeContexto } from '../../lib/copiloto'
+import { contextoDoLugar, blocoDeContexto, rotuloDoLink } from '../../lib/copiloto'
 import { VEREDITOS, TEXTO_MAX, reprovou } from '../../lib/parecer'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
@@ -470,7 +472,10 @@ function mdInline(str, keyBase) {
 
 // URLs/imagens/links internos + inline markdown no que sobra
 function inlineParts(text, keyBase) {
-  const parts = String(text).split(/(https?:\/\/[^\s)]+|#\/app\/[^\s)]+)/g)
+  // A pontuação da frase NÃO faz parte do link. Sem o negative lookbehind o
+  // ponto final grudava na URL (".../negocio.") e o link levava a uma seção que
+  // não existe — descoberto em 01/set, junto com o rótulo errado.
+  const parts = String(text).split(/(https?:\/\/[^\s)]+[^\s).,;:!?]|#\/app\/[^\s)]+[^\s).,;:!?]|https?:\/\/[^\s)]|#\/app\/[^\s)])/g)
   return parts.map((part, i) => {
     if (IMG_URL.test(part) && /^https?:\/\//.test(part))
       return (
@@ -481,7 +486,9 @@ function inlineParts(text, keyBase) {
     if (/^https?:\/\//.test(part))
       return <Link key={`${keyBase}-a${i}`} href={part} target="_blank" rel="noopener noreferrer">{part}</Link>
     if (part.startsWith('#/app/'))
-      return <Link key={`${keyBase}-e${i}`} href={part} sx={{ fontWeight: 700 }}>abrir no Estúdio →</Link>
+      // O rótulo sai do DESTINO, não é fixo: link para o Brand Book dizia
+      // "abrir no Estúdio", que é mentira sobre para onde leva.
+      return <Link key={`${keyBase}-e${i}`} href={part} sx={{ fontWeight: 700 }}>{rotuloDoLink(part)}</Link>
     return <Typography component="span" key={`${keyBase}-t${i}`}>{mdInline(part, `${keyBase}-${i}`)}</Typography>
   })
 }
@@ -547,13 +554,25 @@ function renderRich(text) {
   return out
 }
 
-function ChatBubble({ msg, question, onTeach }) {
+function ChatBubble({ msg, question, onTeach, onSalvar }) {
   const isUser = msg.role === 'user'
   const [teaching, setTeaching] = useState(false)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
   const canTeach = !isUser && onTeach && !String(msg.content || '').startsWith('Erro')
+  const [salvando, setSalvando] = useState(false)
+  const [salvo, setSalvo] = useState(false)
+  // Só o que tem cara de entregável. Resposta curta é conversa, não peça — e
+  // oferecer salvar em tudo transformaria o botão em ruído que se ignora.
+  const podeSalvar = !isUser && onSalvar && (msg.content || '').length > 400 && !String(msg.content || '').startsWith('Erro')
+
+  async function salvar() {
+    setSalvando(true)
+    const id = await onSalvar({ conteudo: msg.content, titulo: question })
+    setSalvando(false)
+    if (id) setSalvo(true)
+  }
 
   async function submit() {
     if (!text.trim()) return
@@ -603,12 +622,29 @@ function ChatBubble({ msg, question, onTeach }) {
                 </Stack>
               </Stack>
             ) : (
-              <Tooltip title="Corrija ou ensine algo — a marca aprende com isso">
-                <Button size="small" startIcon={<SchoolOutlinedIcon sx={{ fontSize: 15 }} />} onClick={() => setTeaching(true)}
-                  sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', px: 0.75, minWidth: 0 }}>
-                  Ensinar a marca
-                </Button>
-              </Tooltip>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Tooltip title="Corrija ou ensine algo — a marca aprende com isso">
+                  <Button size="small" startIcon={<SchoolOutlinedIcon sx={{ fontSize: 15 }} />} onClick={() => setTeaching(true)}
+                    sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', px: 0.75, minWidth: 0 }}>
+                    Ensinar a marca
+                  </Button>
+                </Tooltip>
+                {/* Salvar é OUTRA coisa que ensinar: ensinar alimenta o que a
+                    marca aprende, salvar guarda o entregável. Ficam lado a lado
+                    porque a decisão é a mesma — o que fazer com esta resposta —
+                    mas nunca se confundem no rótulo. */}
+                {podeSalvar && (
+                  <Tooltip title={salvo ? 'Está na Biblioteca → Textos' : 'Guarda esta resposta como peça na Biblioteca'}>
+                    <span>
+                      <Button size="small" disabled={salvando || salvo} onClick={salvar}
+                        startIcon={salvando ? <CircularProgress size={12} /> : salvo ? <CheckIcon sx={{ fontSize: 15 }} /> : <BookmarkAddOutlinedIcon sx={{ fontSize: 15 }} />}
+                        sx={{ fontSize: 11, color: salvo ? 'primary.main' : 'text.secondary', textTransform: 'none', px: 0.75, minWidth: 0 }}>
+                        {salvando ? 'Salvando…' : salvo ? 'Salvo na Biblioteca' : 'Salvar como peça'}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+              </Stack>
             )}
           </Box>
         )}
@@ -722,6 +758,53 @@ export function BrandAssistant({ brandId, modo = 'pagina', onFechar }) {
   async function selectConv(conv) {
     setActiveConv(conv)
     await loadMessages(conv.id)
+  }
+
+  // Salvar uma resposta como PEÇA. Só acontece a pedido (decisão do Danilo,
+  // 01/set): "não precisa capturar tudo, apenas o que for solicitado".
+  //
+  // Por que isto existe: o Copiloto produziu 76 entregáveis — posts, artigos,
+  // cronogramas, com mediana de 3.580 caracteres — e ZERO viraram peça, contra
+  // 6 da bancada de Redação. A ferramenta `salvar_peca_escrita` já existia, mas
+  // exigia pedir POR ESCRITO ao modelo. Ninguém pediu, 76 vezes. Faltava o
+  // clique, não a capacidade.
+  //
+  // O título sai da PERGUNTA que gerou a resposta: é o que a pessoa reconhece
+  // na Biblioteca depois. Título tirado do corpo seria a primeira linha do
+  // markdown, que costuma ser um "##" genérico.
+  async function salvarComoPeca({ conteudo, titulo, formato }) {
+    if (!brand?.id || !workspace?.id || !conteudo?.trim()) return null
+    const { data, error } = await supabase.from('pecas_escritas').insert({
+      workspace_id: workspace.id, brand_id: brand.id,
+      titulo: (titulo || 'Peça do Copiloto').slice(0, 140),
+      formato: formato || null,
+      conteudo, origem: 'copiloto',
+    }).select('id').single()
+    return error ? null : data?.id
+  }
+
+  // Salvar a CONVERSA inteira — o outro caminho que o Danilo pediu ("a conversa
+  // ou o bloco específico"). São artefatos diferentes: o bloco é a peça pronta;
+  // a conversa é o raciocínio que levou até ela, e às vezes é o que vale.
+  //
+  // O papel vai marcado no texto porque sem isso a conversa vira um monólogo
+  // ilegível seis meses depois — quem perguntou o quê é metade do valor.
+  const [salvandoConversa, setSalvandoConversa] = useState(false)
+  const [conversaSalva, setConversaSalva] = useState(false)
+  async function salvarConversa() {
+    if (!messages.length) return
+    setSalvandoConversa(true)
+    const corpo = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => `${m.role === 'user' ? '**Você**' : '**Copiloto**'}\n\n${m.content}`)
+      .join('\n\n---\n\n')
+    const id = await salvarComoPeca({
+      conteudo: corpo,
+      titulo: activeConv?.titulo || messages.find(m => m.role === 'user')?.content,
+      formato: 'conversa',
+    })
+    setSalvandoConversa(false)
+    if (id) setConversaSalva(true)
   }
 
   // "Ensinar a marca" — correção humana vira sinal (assistant_correction) de alto
@@ -1051,6 +1134,15 @@ export function BrandAssistant({ brandId, modo = 'pagina', onFechar }) {
                 <HistoryIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            {messages.length > 0 && (
+              <Tooltip title={conversaSalva ? 'Conversa na Biblioteca → Textos' : 'Salvar a conversa inteira na Biblioteca'}>
+                <span>
+                  <IconButton size="small" disabled={salvandoConversa || conversaSalva} onClick={salvarConversa}>
+                    {salvandoConversa ? <CircularProgress size={14} /> : conversaSalva ? <CheckIcon fontSize="small" sx={{ color: 'primary.main' }} /> : <BookmarkAddOutlinedIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
             <Tooltip title="Nova conversa">
               <IconButton size="small" onClick={newConversation}><AddIcon fontSize="small" /></IconButton>
             </Tooltip>
@@ -1095,7 +1187,8 @@ export function BrandAssistant({ brandId, modo = 'pagina', onFechar }) {
           {messages.map((msg, i) => (
             <ChatBubble key={i} msg={msg}
               question={messages[i - 1]?.role === 'user' ? messages[i - 1].content : ''}
-              onTeach={msg.role === 'assistant' ? ensinarMarca : undefined} />
+              onTeach={msg.role === 'assistant' ? ensinarMarca : undefined}
+              onSalvar={msg.role === 'assistant' ? salvarComoPeca : undefined} />
           ))}
 
           {streaming && streamText && (

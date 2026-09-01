@@ -14,6 +14,7 @@
 //   'lugar' — o padrão: marca + o que a tela em foco carrega
 //   'marca' — o usuário REDUZIU: só a marca, ignorando onde está
 // ════════════════════════════════════════════════════════════════════
+import { getRoute } from './helpers'
 
 // Cada lugar declara o que sabe. Espelha a tabela do §9.2 da spec — quando um
 // lugar ganhar dado novo, ele entra aqui, não espalhado pelo componente.
@@ -80,4 +81,20 @@ export function blocoDeContexto(ctx) {
     `O que você tem em mãos aqui: ${ctx.sabe.join(', ')}.`,
     'Responda ao que está em foco neste lugar. Se o usuário perguntar algo de outro lugar do produto, responda mesmo assim — mas diga que está saindo do contexto em foco.',
   ].join('\n')
+}
+
+/**
+ * O rótulo de um link que o Copiloto devolve, derivado do DESTINO.
+ *
+ * Antes todo link interno recebia "abrir no Estúdio →", fixo. Quando o Copiloto
+ * salvava a missão no Brand Book, o link dizia Estúdio — e o usuário perguntou,
+ * com razão, por que aquilo aparecia ali (01/set).
+ *
+ * Reusa o mesmo mapa de LUGARES que dá contexto ao Copiloto: se este módulo já
+ * sabe chamar cada tela pelo nome para o modelo, deve chamá-las pelo mesmo nome
+ * para a pessoa. Um nome só por tela, nos dois lados.
+ */
+export function rotuloDoLink(href) {
+  const l = LUGARES[getRoute(href)]
+  return l ? `abrir em ${l.nome} →` : 'abrir →'
 }
