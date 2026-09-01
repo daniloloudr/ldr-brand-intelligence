@@ -7,7 +7,7 @@
 >
 > **Organização:** o topo é a **semana corrente** (o que está na mão agora); abaixo, os horizontes da visão (H0 saúde → H1 provar → H2 rede de cérebros → H3 categoria). Cada item tem tamanho (🟢 dias · 🟡 ~1 semana · 🔴 semanas+) e gatilho quando não é "já".
 > Estratégia: `arquivo/plano-de-melhoria-2026-07-06.md` · Visão: `visao.md` · História do entregue: `produto.md` (changelog v8.1)
-> Atualizado: 2026-08-27
+> Atualizado: 2026-08-31
 
 ---
 
@@ -50,7 +50,212 @@ A auditoria de 24/ago mediu **snapshot × evento**. Ela não conseguia responder
 
 ---
 
-## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (próxima)
+## 🎨 PROGRAMA — ESTÚDIO v2 (priorizado 31/ago/2026) — a re-arquitetura do módulo
+
+> **Spec canônica:** [`features/estudio.md`](features/estudio.md) (v2). A v1 desceu para
+> [`arquivo/studio-v1-2026-08-31.md`](arquivo/studio-v1-2026-08-31.md).
+> O de-para com o banco real e a classificação por risco estão no **§12** da spec.
+>
+> **Decisão do Danilo (31/ago): cada bloco do §12 é UMA release.** Não é um projeto
+> grande que sobe de uma vez — é uma sequência de releases pequenas, cada uma com seus
+> portões. **Tudo se ensaia local antes, inclusive a migration. Deu problema, não sobe.**
+
+**O que é:** a re-arquitetura do Estúdio — peça/versão, execução como entidade,
+parecer persistido, fluxo versionado com três camadas de variável, papéis que decidem
+quem treina o cérebro, agentes e o Copiloto como camada. Não é feature: muda o modelo
+de dados central do módulo.
+
+**Por que agora:** o que a Hering aprovou não foi uma peça, foi um **processo**. Enquanto
+o processo viver como prompt colado num campo, não escala, não se audita e não aprende.
+E hoje, quando alguém pergunta de onde veio uma peça, a resposta exige reconstruir o
+grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sapato sumido.
+
+### O protocolo desta release (Danilo, 31/ago)
+
+1. **Um bloco = uma release.** Nada de subir duas faixas juntas.
+2. **Ensaio local obrigatório, migration inclusive.** `guarda:rls` (Postgres descartável)
+   + `guarda:esquema` (esquema REAL de produção, migration aplicada em cima).
+3. **Deu problema no ensaio, não sobe.** Sem exceção e sem "sobe e conserta depois".
+4. Portões de sempre por cima: testes → `npm run guarda` → `/security-review` → build.
+5. Migration em produção só com **dump pré-migration** no R2, e deploy fora do horário
+   comercial.
+
+> ⚠️ **FERRAMENTA QUE FALTA — pré-requisito de E3 em diante.** `guarda:esquema` roda
+> `pg_dump --schema-only`: **sem uma linha de dado**. Ele prova que a migration APLICA e
+> que o catálogo de policies fica certo — **não prova que um backfill está CERTO**, porque
+> não há linha para transformar. E E3, E4 e E5 são todos backfill sobre dado de cliente
+> vivo. Falta um **ensaio de backfill sobre restore do dump diário** (o dump já existe no
+> R2 e o `backup.md` documenta o restore). Sem isso, o item 2 do protocolo é meia
+> verificação. 🟢 · construir junto do E1.
+
+### As releases, na ordem por custo de reversão
+
+| # | Release | Faixa | Migration | Estado |
+|---|---|---|---|---|
+| **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares · **+ os três caminhos de entrada (§3.4)** | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`, `a7a4378`) |
+| **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | ✅ **entregue 31/ago** (`bfef561` + `f7dceb1` núcleo) · eixo ESCOPO cego até o E1 |
+| **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) |
+| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | ✅ **escrito e ensaiado 31/ago** (054 + 055) · **NÃO APLICADO EM PRODUÇÃO** — validado no branch de dev |
+> ✅ **E1 escrito em duas migrations (31/ago), e VALIDADO NUM BANCO DE DEV DE VERDADE** —
+> o primeiro da história deste projeto. `054` (parecer + escopo da campanha) e `055`
+> (execução, agente, três camadas de variável). 118 asserções de RLS, nenhuma falha.
+> As duas foram aplicadas no branch de preview do Supabase e conferidas ao vivo; a
+> produção segue sem elas. **Aplicar é decisão de deploy.**
+>
+> 💰 **`custo` virou `creditos`, e isso é a sua decisão de 31/ago virando esquema.** O §6.1
+> diz "custo" na execução e o §8.5 fala em "custo acumulado" do agente. Como o sistema
+> mantém a visão de CRÉDITO, as colunas são `execucao.creditos` e
+> `agente.teto_creditos_ciclo`. Nomear de `custo` seria convidar alguém a gravar dólar
+> nelas em seis meses. Há asserção provando que não existe coluna `custo`.
+>
+> ⚠️ **`variaveis_produto` nasce sem catálogo para preenchê-la** — mesma lacuna que
+> reduziu o "Do produto" do §3.4. A coluna existe porque a receita precisa DECLARAR o que
+> espera do produto; preencher por SKU entra com o catálogo.
+>
+> 🚫 **O que NÃO entrou, de propósito:** suspensão automática por degradação (§8.3 manda
+> alertar, nunca suspender), critério de elegibilidade para promover fluxo a agente (§8.2:
+> "o botão está sempre habilitado; o histórico é informação, nunca condição") e
+> idempotência de gatilho capturado (§8.4 — é pré-requisito do E6).
+
+| **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
+| **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
+| **E4** | campanha como escopo | **D** | ✅ substituição | 🔴 |
+| **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🔴 |
+| **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
+| **E7** | editor | — | — | ⏸️ o doc adia e manda revisitar |
+
+**O E0 virou três (31/ago), por tamanho e por uma dependência de ordem que a spec não
+menciona: o menu só pode tirar o Copiloto depois que ele for invocável** — senão some o
+único caminho até ele.
+
+**Ordem decidida pelo Danilo (31/ago): E0c → E0a juntos numa janela, E0b depois, sozinho.**
+Três razões, dele:
+
+1. **A dependência é assimétrica.** E0c destrava E0a; E0b não destrava nada. Começar pelo
+   mais contido adianta uma peça isolada e deixa o gargalo intacto.
+2. **E0b antes cria duas mexidas onde cabe uma.** A troca de contrato do parecer toca o
+   `BrandAssistant`. Com o Copiloto ainda em forma de página, mexe-se nele agora para o
+   parecer e de novo depois para a invocação. Fazendo E0c primeiro, a troca pega o
+   componente **já na forma final**.
+3. **A janela de leitura dupla fica menor.** Os sinais `art_review` gravados têm o
+   vocabulário antigo; código de compatibilidade tende a virar permanente. Quanto mais
+   tarde a troca entrar, menos payload antigo acumulado.
+
+**E navegação e contrato não sobem na mesma janela** — se quebrar, não se sabe qual foi.
+Por isso E0b sai sozinho.
+
+> ⚠️ **E0a é maior do que "🟡" sugere** (Danilo, 31/ago). Fundir `StudioImage`,
+> `StudioVideo` e `StudioWriting` numa entrada única não é mover item de menu: é
+> **escrever a bancada nova de Criar**, com os três caminhos de entrada (§3.4) e o formato
+> como escolha (D10). Essa é a maior peça do E0a, e a estimativa está otimista.
+>
+> **O aviso estava certo, e o E0a saiu partido em dois** (`1dac534`, `a7a4378`).
+> O que entregou: menu em 4 itens e o D10 — **o formato ficou na URL**, então
+> `/studio/video` e `/studio/writing` seguem vivos e caem na bancada com o formato já
+> escolhido. Link antigo não quebra, e o Copiloto continua dizendo "Criar · vídeo" em vez
+> de só "Criar", porque o contexto dele é derivado da rota.
+> Os três geradores **não foram reescritos**: ganharam `cabecalho={false}` e a bancada
+> carrega o cabeçalho com o seletor — é a Faixa A da spec, "UI sobre o que já gera".
+> ⛔ **O §3.4 foi DESLIGADO em 01/set, depois de testar com pessoas** (Danilo: *"não ficou
+> bom esses blocos, não faz sentido agora pra operação"*). A bancada já resolve; a faixa a
+> mais só somava um passo antes de fazer a coisa. Desligado por bandeira
+> (`CAMINHOS_DE_ENTRADA = false` em `StudioCreate.jsx`), **não apagado** — o código segue
+> inteiro em `components/estudio/CaminhoDeEntrada.jsx`. Religar é trocar um `false`.
+>
+> **Quando revisitar:** quando o catálogo de produto existir. É ele que dá sentido ao
+> caminho "Do produto" — hoje reduzido a escolher uma imagem do acervo, que é pouco
+> diferente de anexar uma referência.
+
+> **O §3.4 entrou** (`a7a4378`): faixa "Por onde começar" acima de ATALHOS, com a frase de
+> intenção de cada caminho. **Da ideia** é o padrão (o comportamento de sempre); **Do fluxo**
+> traz a lista de fluxos salvos para dentro de Criar; **Do produto** parte de uma imagem do
+> acervo, que entra já como referência da geração.
+>
+> ⚠️ **"Do produto" está REDUZIDO, e isso é lacuna de DADO, não de UI.** A §7.2 descreve as
+> variáveis do produto vindas do CATÁLOGO, preenchendo sozinhas por SKU (still, categoria,
+> cor, material, dimensões). Nada disso existe: não há catálogo no modelo, `brand_assets.tipo`
+> é `logo|cor|tipografia|icone|padrao|outro` (+`foto`) e **não tem `produto`**, e a coluna
+> `variaveis_produto` nasce no E1. O caminho parte do que existe; o preenchimento por SKU
+> entra com o catálogo. Prometer SKU numa tela sem catálogo seria mentir no primeiro clique.
+> "Agentes fora dos pilares" era **no-op** — não existe página de Agentes hoje; entra no E6.
+
+> 📐 **Um padrão saiu do E0a que não estava previsto: `src/components/estudio/Compositor.jsx`.**
+> As três telas de Criar não pareciam o mesmo produto, e a causa não era o formato — era
+> ninguém ter escrito o esqueleto uma vez. Agora é um só: **atalhos → pedido → insumos →
+> ajustes → ação**, e faixa sem conteúdo não aparece. Texto usa três das cinco, imagem usa
+> as cinco. Quem for construir o §3.4 preenche uma faixa, não desenha uma tela.
+
+> 🗄️ **Decisão do Danilo (31/ago), pré-requisito que o resto do E0 precisa honrar: a página
+> `/assistant` SOBREVIVE como arquivo das conversas.** O painel do Copiloto não lista
+> conversas — em 420px a coluna comeria o chat — e quem aponta para o arquivo é o botão de
+> histórico na barra de contexto. Sem isso, tirar o Copiloto do menu deixaria o histórico
+> órfão. A página ainda **se apresenta como Copiloto** (título, subtítulo e o "voltar ao
+> Brand Book"); reescrevê-la como arquivo é dívida em aberto.
+
+> ✅ **Verificado antes de planejar o E0b (31/ago): nada RAMIFICA no
+> `aprovada_com_ressalvas`.** Todo o comportamento pende de `reprovada` — três pontos:
+> `StudioCanvas.jsx:650` (`veredito !== 'reprovada'` deixa passar), `studioNodes.jsx:707`
+> (tarja "fluxo interrompido aqui") e `BrandAssistant.jsx:231`. O valor do meio só aparece
+> em enum de validação, mapas de exibição e texto de prompt. **A leitura dupla precisa
+> cobrir comportamento em um valor só; o resto é vocabulário.**
+
+> ✅ **E0b entregue (31/ago)**, em dois commits por regra do núcleo: `bfef561` (contrato) e
+> `f7dceb1` (`_brain.js` — a destilação lendo os dois vocabulários). `ajustes[]` morreu:
+> decisão do Danilo de seguir a §2.2 ao pé da letra, com o conserto dito dentro dos 300
+> caracteres. O de-para vive em `_parecer.js` + `parecer.js`, no padrão de paridade do
+> `credits.js`.
+>
+> 🐛 **Achado no caminho:** o `StudioLibrary` decidia aprovação por
+> `veredito.includes('aprov')` — e `aprovada_com_ressalvas` contém "aprov". A certidão da
+> peça marcava como APROVADA exatamente o caso que a §2.2 define como "exige olho". Há teste
+> ancorado nisso.
+>
+> ⚠️ **O eixo ESCOPO entrou nomeado mas CEGO.** Ele depende de objetivo e direcional da
+> campanha; a migration 018 mostra que `studio_campaigns` só tem `conceito`. As colunas
+> nascem no E1 — até lá o eixo é verificado contra o escopo da marca. **É a primeira coisa
+> que o E1 destrava.**
+
+**O que E0 deixou de ter:** `custo_estimado`. **Decisão do Danilo (31/ago): custo não se
+trata aqui — o sistema mantém a visão de CRÉDITO, e o custo é visto em outro lugar.**
+A coluna segue existindo e vazia; o teto do agente (D25) será expresso em crédito, não em
+dólar. ⚠️ Consequência a registrar: o campo `custo` da execução (§6.1) e o "custo
+acumulado" da página do agente (§8.5) precisam ser relidos como crédito na spec.
+
+### Duas inversões em relação ao §10 da spec, e as duas por segurança de dado
+
+- **Os pesos de julgamento sobem para junto do batch, não depois dele.** Batch aprovando
+  em lote sem a coluna `modo` envenena o cérebro no primeiro uso — e não se desfaz
+  apagando linha, porque a destilação já incorporou. **Este repo já foi envenenado assim**
+  (escuta, jul/2026: 122 eventos inventados, ainda na memória de 3 marcas).
+- **E3 é uma release, não três.** Peça/versão sem estado novo, ou estado novo sem
+  julgamento, deixa metade do módulo lendo um modelo e metade lendo o outro.
+
+### O que JÁ está de pé (≈40% da fundação)
+
+O juiz existe (`art-review.js`, com critério customizado e modo fidelidade) · papéis dono
+× utilizador existem desde a 052 (`pode_aprovar_pecas`, `pode_aprovar_aprendizado`) ·
+sinal → destilação → dataset com pesos · débito e refund de crédito por geração ·
+biblioteca com pastas e tags · Copiloto com tools e portão de confirmação · fan-out de
+lote no modo `adapt`.
+
+### As lacunas do documento (§12.7) — decisão antes de código
+
+1. **Geração em andamento e geração que falhou** não têm estado no §5. Em pico de lote é
+   parte relevante das linhas. Entra no E2.
+2. **Falha do juiz.** Se o parecer é obrigatório (D6), o que acontece no timeout, 429 ou
+   saldo? Hoje o juiz é opcional, então falhar é inofensivo; obrigatório, vira caminho
+   crítico.
+3. **Custo e latência do juiz obrigatório** — uma chamada multimodal por peça, síncrona.
+   Num lote de 200, são 200 chamadas extras. **Medir antes de prometer** (aprovado pelo
+   Danilo em 31/ago, junto de `custo_estimado`).
+4. **Áudio não existe no código** — sem provedor, TTS, storage ou player. D11 o lista como
+   par de imagem, vídeo e texto.
+5. Os "quatro formatos do mesmo objeto" moram hoje em **três lugares diferentes**
+   (`studio_generations` com `media_type`, `pecas_escritas`, e nada para áudio).
+
+---
+
+## 🔑 RELEASE — SEPARAÇÃO DO SUPER ADMIN (parada no S1 — decisão do Danilo, não código)
 
 > **Regra de release (Danilo, 24/ago):** objetivo declarado → testes → quality gate (`npm run guarda`) → security gate (`/security-review`) → só então aprovada. Deploy em prod **sempre no fim do dia, fora do horário comercial**. Migration que toca RLS passa também por `npm run guarda:rls`.
 >
@@ -247,7 +452,7 @@ Custo projetado da meta: 30 × (consumo×R$0,33 + fair-use R$50–150 + infra fi
 
 ## 🎯 Em cima da mesa agora
 
-> ⬆️ **A semana corrente está na seção do relançamento, acima.** Esta seção guarda as jogadas de médio prazo — o GTM (item 2) foi absorvido pelo lançamento do brandcode, e Hering/Worten (itens 5 e 6) viraram o Bloco B.
+> ⬆️ **O que está na mão agora é o [Programa Estúdio v2](#-programa--estúdio-v2-priorizado-31ago2026--a-re-arquitetura-do-módulo)** (priorizado 31/ago). A semana corrente antiga está na seção do relançamento, acima. Esta seção guarda as jogadas de médio prazo — o GTM (item 2) foi absorvido pelo lançamento do brandcode, e Hering/Worten (itens 5 e 6) viraram o Bloco B.
 
 O código está à frente do comercial — as próximas jogadas não são features:
 
@@ -500,6 +705,19 @@ Ou seja: hoje o produto impõe o mesmo 5 ao Seedream, ao Nano Banana e ao GPT Im
 - ✅ **Bônus — `reference_upload` ligado** (item "Ativos como referência" do piloto Hering, parte a): upload em Biblioteca > Referências da marca emite sinal peso 2.5 ("isto É a marca"); destilador trata como ensino curatorial de altíssimo peso p/ preferencias_visuais. **Falta (parte b):** referências aprovadas entrarem nos hints visuais da geração (brandVisualHints) — design pendente de qual geração recebe refs automáticas.
 
 ### 💰 Custos & créditos — pivô de modelo (2026-07-12)
+
+> 🔴 **UNDERCHARGE no `openai/gpt-image-2` — achado 31/ago/2026, fora de escopo do Estúdio v2, a tratar depois** (decisão do Danilo: *"defeito de dinheiro não é um problema desse escopo"*).
+>
+> O modelo está em **"Mais usados"** do seletor e **não existe no mapa `IMAGE_CREDITS`** — cai no `?? 1` do `creditsForImage`. Cobra **1 crédito**.
+>
+> O fal cobra **$0,211** por imagem 1024² na qualidade `high`, **que é o default deles**. Pela regra da casa (`créditos = ⌈18 × custo_USD⌉`, escrita no cabeçalho do `_credits.js`), o devido é **4 créditos**. Em 4K a doc do fal marca $0,401 → **8 créditos**.
+>
+> **Perde-se dinheiro em toda geração nesse modelo, em silêncio** — e o silêncio dura até alguém somar a fatura, o que hoje não dá para fazer porque `custo_estimado` nunca é gravado.
+>
+> Conserto: uma linha em `_credits.js` **e** em `src/lib/credits.js` (a guarda `credits.parity.test.js` já obriga os dois a andarem juntos). ⚠️ **Muda o que o cliente paga** — é decisão comercial, não conserto de bug.
+>
+> Vale rodar a mesma conferência no catálogo inteiro: **10 dos 22 modelos não têm custo apurado** em lugar nenhum (`flux-2-pro`, `seedream v4/v4.5`, `flux-pro/v1.1-ultra`, `flux-pro/kontext`, `flux/schnell`, `qwen-image`, `ideogram/v3`), então pode haver mais de um. 🟢 · a conferência é uma tarde
+
 Decisão: SEM SaaS self-service; crédito = REPASSE de custo (baliza **1 cr = R$0,33**; regra ×18 intacta, cobre câmbio até R$5,94). Ganho = contrato/inteligência. Entregue: página "Créditos & Consumo" (sem planos/upgrade), baliza visível, `ai_usage` (migration 039) rastreando LLM com tag por operação. **Pendências:**
 - [ ] Painel admin "custo por workspace/mês" (fal + LLM + fixos) — os dados já gravam 🟢
 - [ ] Hook do Voyage no ai_usage (embeddings ~$0,06/M — barato mas cego) 🟢

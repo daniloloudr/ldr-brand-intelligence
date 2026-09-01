@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { navigate } from '../../lib/helpers';
 import {
   Box, Button, Typography, TextField, Paper, Stack, CircularProgress, Chip,
-  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link, Checkbox,
+  IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Breadcrumbs, Link, Checkbox, Tabs, Tab,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
@@ -33,6 +33,7 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { FocoPendencia } from '../../components/shell/FocoPendencia'
 import { PALETTE } from '../../lib/theme'
+import { normalizarVeredito, VEREDITO_ROTULO } from '../../lib/parecer'
 
 const TEAL = PALETTE.data.positivo
 
@@ -188,6 +189,12 @@ export function StudioLibrary({ brandId }) {
   const [certGen, setCertGen] = useState(null)
   const [certSignals, setCertSignals] = useState([])
   const [certLoading, setCertLoading] = useState(false)
+  // A certidão responde DUAS perguntas de públicos diferentes: "de onde veio e o
+  // que foi processado" (procurement e jurídico — compliance §4/§6) e "a marca
+  // aprovou?" (quem opera a marca). Empilhadas, uma esconde a outra: quem abre
+  // para auditar rola por cima dos pareceres, e quem abre para ver o veredito
+  // rola por cima do prompt. Abas separam sem esconder.
+  const [certAba, setCertAba] = useState('procedencia')
 
   useEffect(() => { if (brandId) load() }, [brandId])
 
@@ -477,6 +484,7 @@ export function StudioLibrary({ brandId }) {
 
   // Certidão do asset: trilha auditável da peça (compliance.md §4)
   async function abrirCert(a) {
+    setCertAba('procedencia')   // reabrir sempre começa pela trilha
     const genId = a.metadata?.generation_id
     if (!genId) return
     setCert(a); setCertGen(null); setCertSignals([]); setCertLoading(true)
@@ -797,6 +805,22 @@ export function StudioLibrary({ brandId }) {
             <Typography variant="body2" color="text.secondary">Trilha de geração não encontrada para esta peça.</Typography>
           ) : (
             <Stack spacing={1.75} mt={0.5}>
+              {/* DUAS AUDITORIAS, não auditoria e opinião. Uma responde a
+                  jurídico/procurement (que dado saiu daqui, para qual fornecedor
+                  de IA, quando); a outra responde a quem opera a marca (quem
+                  julgou, o que decidiu). Públicos diferentes, perguntas
+                  diferentes, e cada uma é o ruído da outra quando empilhadas. */}
+              <Tabs value={certAba} onChange={(_, v) => setCertAba(v)} sx={{ minHeight: 36, mb: 0.5, borderBottom: 1, borderColor: 'divider' }}>
+                <Tab value="procedencia" label="Auditoria de dados" sx={{ minHeight: 36, fontWeight: 800, fontSize: 12 }} />
+                <Tab value="julgamento"  label={`Auditoria de marca${certSignals.length ? ` · ${certSignals.length}` : ''}`} sx={{ minHeight: 36, fontWeight: 800, fontSize: 12 }} />
+              </Tabs>
+              <Typography variant="caption" color="text.disabled">
+                {certAba === 'procedencia'
+                  ? 'Que dado saiu daqui, para qual fornecedor de IA e quando — compliance §4 (rastreabilidade) e §6 (LGPD).'
+                  : 'Quem julgou esta peça e o que decidiu — parecer do juiz e voto humano.'}
+              </Typography>
+
+              {certAba === 'procedencia' && (<>
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 {isUrl(cert?.valor) && !isVideo(cert || {}) && (
                   <Box component="img" src={cert.valor} alt="" sx={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }} />
@@ -815,10 +839,10 @@ export function StudioLibrary({ brandId }) {
                   ))}
                 </Box>
               </Stack>
+              </>)}
+
+              {certAba === 'julgamento' && (
               <Box>
-                <Typography variant="overline" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
-                  Julgamentos ({certSignals.length})
-                </Typography>
                 {certSignals.length === 0 ? (
                   <Typography variant="caption" color="text.secondary">Nenhum julgamento registrado para esta peça ainda.</Typography>
                 ) : (
@@ -826,15 +850,23 @@ export function StudioLibrary({ brandId }) {
                     {certSignals.map((s, i) => {
                       const p = s.payload || {}
                       const humano = s.tipo === 'image_vote'
-                      const aprovado = humano ? p.voto === 'like' || p.voto === 'up' : (p.veredito || '').toLowerCase().includes('aprov')
+                      // Era `includes('aprov')` — e "aprovada_com_ressalvas"
+                      // contém "aprov", então a certidão marcava como APROVADA
+                      // uma peça que exigia olho humano. O de-para resolve os
+                      // dois vocabulários e não confunde os dois estados.
+                      const v = humano ? null : normalizarVeredito(p.veredito)
+                      const aprovado = humano ? p.voto === 'like' || p.voto === 'up' : v === 'aprovado'
                       return (
                         <Paper key={i} variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
-                          <Stack direction="row" spacing={1} alignItems="center" mb={p.resumo || p.ajustes?.length ? 0.5 : 0}>
-                            <Chip size="small" label={humano ? (aprovado ? 'Aprovada pelo time' : 'Reprovada pelo time') : `Diretor de Arte · ${p.veredito || 'parecer'}${p.modo === 'fidelidade' ? ' · fidelidade' : ''}`}
+                          <Stack direction="row" spacing={1} alignItems="center" mb={p.texto || p.resumo || p.ajustes?.length ? 0.5 : 0}>
+                            <Chip size="small" label={humano ? (aprovado ? 'Aprovada pelo time' : 'Reprovada pelo time') : `Diretor de Arte · ${VEREDITO_ROTULO[v] || p.veredito || 'parecer'}${p.modo === 'fidelidade' ? ' · fidelidade' : ''}`}
                               sx={{ fontSize: 10.5, fontWeight: 800, bgcolor: aprovado ? PALETTE.neutral[0] : PALETTE.neutral[0], color: aprovado ? PALETTE.data.positivoDim : PALETTE.neutral[800] }} />
                             <Typography variant="caption" color="text.disabled">{new Date(s.created_at).toLocaleString('pt-BR')}</Typography>
                           </Stack>
-                          {p.resumo && <Typography variant="caption" sx={{ lineHeight: 1.5 }}>{p.resumo}</Typography>}
+                          {/* `texto` desde o E0b; `resumo` e `ajustes` seguem
+                              exibidos porque a certidão é o acervo — sinal
+                              gravado antes da troca não pode virar linha muda. */}
+                          {(p.texto || p.resumo) && <Typography variant="caption" sx={{ lineHeight: 1.5 }}>{p.texto || p.resumo}</Typography>}
                           {Array.isArray(p.ajustes) && p.ajustes.length > 0 && (
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25 }}>Ajustes: {p.ajustes.join(' · ')}</Typography>
                           )}
@@ -844,9 +876,15 @@ export function StudioLibrary({ brandId }) {
                   </Stack>
                 )}
               </Box>
+              )}
+
+              {certAba === 'procedencia' && (<>
               <Box>
                 <Typography variant="overline" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.5 }}>
                   Prompt final enviado
+                </Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5 }}>
+                  O texto exato que saiu daqui para o fornecedor de IA.
                 </Typography>
                 <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, maxHeight: 160, overflow: 'auto', bgcolor: 'background.default' }}>
                   <Typography component="pre" sx={{ fontSize: 10.5, fontFamily: 'ui-monospace, monospace', whiteSpace: 'pre-wrap', m: 0, lineHeight: 1.5 }}>
@@ -857,6 +895,7 @@ export function StudioLibrary({ brandId }) {
               <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'ui-monospace, monospace' }}>
                 geração {certGen.id}{certGen.provider_request_id ? ` · job ${certGen.provider_request_id}` : ''} — trilha auditável (compliance §4)
               </Typography>
+              </>)}
             </Stack>
           )}
         </DialogContent>

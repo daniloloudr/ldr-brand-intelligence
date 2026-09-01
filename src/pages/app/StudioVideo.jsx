@@ -19,6 +19,7 @@ import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
+import { Compositor, Faixa } from '../../components/estudio/Compositor'
 import { CreditBadge } from '../../components/CreditBadge'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
@@ -27,7 +28,7 @@ import { PALETTE } from '../../lib/theme'
 const TEAL = PALETTE.data.positivo, CORAL = PALETTE.data.critico, AMBER = PALETTE.data.atencao
 const ARMAP = { '16:9': '16 / 9', '9:16': '9 / 16', '1:1': '1 / 1', '4:5': '4 / 5' }
 
-export function StudioVideo({ brandId }) {
+export function StudioVideo({ brandId, cabecalho = true }) {
   const { reload: reloadWorkspace } = useWorkspace()
   const [prompt, setPrompt] = useState('')
   const [modelKey, setModelKey] = useState(DEFAULT_VIDEO_MODEL)
@@ -228,112 +229,117 @@ export function StudioVideo({ brandId }) {
 
   return (
     <Box>
-      <PageHeader title="Estúdio" subtitle="Geração de vídeo" />
+      {cabecalho && <PageHeader title="Estúdio" subtitle="Geração de vídeo" />}
 
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, width: '100%', mx: 'auto' }}>
-        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-          {/* Modelo */}
-          <Box sx={{ mb: 2 }}>
-            <Typography sx={{ ...inpLabel, mb: 0.5 }}>Modelo</Typography>
-            <Select value={modelKey} onChange={e => changeModel(e.target.value)} fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
-              {VIDEO_MODEL_GROUPS.flatMap(g => [
-                <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
-                ...VIDEO_MODELS.filter(m => m.group === g).map(m => (
-                  <MenuItem key={m.key} value={m.key} sx={{ fontSize: 13 }}>
-                    {m.label}
-                    <Typography component="span" sx={{ ml: 1, fontSize: 11, color: 'text.disabled' }}>{modeLabel(m)}</Typography>
-                  </MenuItem>
-                )),
-              ])}
-            </Select>
-            {model?.nota && <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.5 }}>{model.nota}</Typography>}
-          </Box>
-
-          {/* Prompt */}
-          <Stack direction="row" alignItems="center" sx={{ mb: 0.5 }}>
-            <Typography sx={inpLabel}>Prompt</Typography>
-            <Box sx={{ flex: 1 }} />
-            <Button size="small" startIcon={improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 16 }} />}
-              onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>
-              {improving ? 'Melhorando…' : 'Melhorar o Prompt'}
-            </Button>
-          </Stack>
-          <TextField value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Descreva o movimento, a cena, a câmera…" multiline minRows={2} maxRows={6} fullWidth disabled={generating} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }} />
-
-          {/* Imagem(ns) de origem (i2v) — 1º frame, e opcionalmente o último (início→fim) */}
-          {supportsI2V && (() => {
-            const slot = (url, uploading, onPick, onClear, ref, caption) => (
-              <Stack spacing={0.5} alignItems="center">
-                {url ? (
-                  <Box sx={{ position: 'relative', width: 72, height: 72, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                    <Box component="img" src={url} alt={caption} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <IconButton size="small" onClick={onClear} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
-                      <CloseIcon sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Box>
-                ) : (
-                  <Box onClick={() => !generating && !uploading && ref.current?.click()}
-                    sx={{ width: 72, height: 72, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: generating || uploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}>
-                    {uploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
-                  </Box>
-                )}
-                {caption && <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary' }}>{caption}</Typography>}
-              </Stack>
-            )
-            return (
-              <Box sx={{ mb: 2 }}>
-                {supportsEnd && <Typography sx={{ ...inpLabel, mb: 0.75 }}>Início → Fim (avançado)</Typography>}
-                <Stack direction="row" spacing={2} alignItems="flex-start" flexWrap="wrap" useFlexGap>
-                  <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { uploadImg(e.target.files, 'src'); e.target.value = '' }} />
-                  {slot(srcUrl, srcUploading, null, () => setSrcUrl(null), fileRef, supportsEnd ? 'Primeiro frame' : null)}
-                  {supportsEnd && <>
-                    <input ref={endFileRef} type="file" accept="image/*" hidden onChange={e => { uploadImg(e.target.files, 'end'); e.target.value = '' }} />
-                    {slot(endUrl, endUploading, null, () => setEndUrl(null), endFileRef, 'Último frame (opcional)')}
-                  </>}
-                  <Typography sx={{ fontSize: 11, color: 'text.disabled', maxWidth: 220, mt: supportsEnd ? 0.5 : 2.5 }}>
-                    {supportsEnd
-                      ? 'O vídeo interpola do primeiro ao último frame. O frame final é opcional.'
-                      : i2vOnly ? 'Obrigatório — este modelo anima a partir de uma imagem.' : 'Opcional — anexe para animar uma imagem (image-to-video).'}
-                  </Typography>
+        <Compositor
+          pedido={
+            <Faixa rotulo="Prompt" acao={
+              <Button size="small" startIcon={improving ? <CircularProgress size={12} /> : <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 16 }} />}
+                onClick={melhorarPrompt} disabled={generating || improving} sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>
+                {improving ? 'Melhorando…' : 'Melhorar o Prompt'}
+              </Button>
+            }>
+              <TextField value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Descreva o movimento, a cena, a câmera…" multiline minRows={2} maxRows={6} fullWidth disabled={generating} sx={{ mb: 2, '& .MuiInputBase-input': { fontSize: 14 } }} />
+            </Faixa>
+          }
+          insumos={
+            <Faixa rotulo="Imagem de origem">
+            {supportsI2V && (() => {
+              const slot = (url, uploading, onPick, onClear, ref, caption) => (
+                <Stack spacing={0.5} alignItems="center">
+                  {url ? (
+                    <Box sx={{ position: 'relative', width: 72, height: 72, borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                      <Box component="img" src={url} alt={caption} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <IconButton size="small" onClick={onClear} sx={{ position: 'absolute', top: -2, right: -2, bgcolor: 'rgba(0,0,0,.55)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,.75)' } }}>
+                        <CloseIcon sx={{ fontSize: 13 }} />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Box onClick={() => !generating && !uploading && ref.current?.click()}
+                      sx={{ width: 72, height: 72, borderRadius: 1.5, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: generating || uploading ? 'default' : 'pointer', color: 'text.secondary', '&:hover': { borderColor: 'primary.main', color: 'primary.main' } }}>
+                      {uploading ? <CircularProgress size={16} /> : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />}
+                    </Box>
+                  )}
+                  {caption && <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary' }}>{caption}</Typography>}
                 </Stack>
-              </Box>
-            )
-          })()}
+              )
+              return (
+                <Box sx={{ mb: 2 }}>
+                  <Stack direction="row" spacing={2} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+                    <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { uploadImg(e.target.files, 'src'); e.target.value = '' }} />
+                    {slot(srcUrl, srcUploading, null, () => setSrcUrl(null), fileRef, supportsEnd ? 'Primeiro frame' : null)}
+                    {supportsEnd && <>
+                      <input ref={endFileRef} type="file" accept="image/*" hidden onChange={e => { uploadImg(e.target.files, 'end'); e.target.value = '' }} />
+                      {slot(endUrl, endUploading, null, () => setEndUrl(null), endFileRef, 'Último frame (opcional)')}
+                    </>}
+                    <Typography sx={{ fontSize: 11, color: 'text.disabled', maxWidth: 220, mt: supportsEnd ? 0.5 : 2.5 }}>
+                      {supportsEnd
+                        ? 'O vídeo interpola do primeiro ao último frame. O frame final é opcional.'
+                        : i2vOnly ? 'Obrigatório — este modelo anima a partir de uma imagem.' : 'Opcional — anexe para animar uma imagem (image-to-video).'}
+                    </Typography>
+                  </Stack>
+                </Box>
+              )
+            })()}
+            </Faixa>
+          }
+          ajustes={
+            <>
+              <Faixa rotulo="Modelo">
+                <>
+              <Select value={modelKey} onChange={e => changeModel(e.target.value)} fullWidth size="small" disabled={generating} sx={{ fontSize: 13 }}>
+                {VIDEO_MODEL_GROUPS.flatMap(g => [
+                  <ListSubheader key={g} sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', lineHeight: 2.4, bgcolor: 'background.paper' }}>{g}</ListSubheader>,
+                  ...VIDEO_MODELS.filter(m => m.group === g).map(m => (
+                    <MenuItem key={m.key} value={m.key} sx={{ fontSize: 13 }}>
+                      {m.label}
+                      <Typography component="span" sx={{ ml: 1, fontSize: 11, color: 'text.disabled' }}>{modeLabel(m)}</Typography>
+                    </MenuItem>
+                  )),
+                ])}
+              </Select>
+              {model?.nota && <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.5 }}>{model.nota}</Typography>}
+                </>
+              </Faixa>
+              <Faixa rotulo="Duração e formato">
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>
+              {model?.durations && <>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Duração:</Typography>
+                {model.durations.map(d => (
+                  <Chip key={d} label={durLabel(d)} clickable disabled={generating} onClick={() => setDuration(d)} size="small"
+                    variant={duration === d ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(duration === d && { bgcolor: 'primary.main', color: '#fff' }) }} />
+                ))}
+              </>}
+              {model?.aspects && !srcUrl && <>
+                <Box sx={{ width: 12 }} />
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Formato:</Typography>
+                {model.aspects.map(a => (
+                  <Chip key={a} label={a} clickable disabled={generating} onClick={() => setAspect(a)} size="small"
+                    variant={aspect === a ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(aspect === a && { bgcolor: 'primary.main', color: '#fff' }) }} />
+                ))}
+              </>}
+              {srcUrl && model?.aspects && <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>Formato vem da imagem de origem</Typography>}
+            </Stack>
 
-          {/* Duração + Formato */}
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>
-            {model?.durations && <>
-              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Duração:</Typography>
-              {model.durations.map(d => (
-                <Chip key={d} label={durLabel(d)} clickable disabled={generating} onClick={() => setDuration(d)} size="small"
-                  variant={duration === d ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(duration === d && { bgcolor: 'primary.main', color: '#fff' }) }} />
-              ))}
-            </>}
-            {model?.aspects && !srcUrl && <>
-              <Box sx={{ width: 12 }} />
-              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Formato:</Typography>
-              {model.aspects.map(a => (
-                <Chip key={a} label={a} clickable disabled={generating} onClick={() => setAspect(a)} size="small"
-                  variant={aspect === a ? 'filled' : 'outlined'} sx={{ fontWeight: 700, ...(aspect === a && { bgcolor: 'primary.main', color: '#fff' }) }} />
-              ))}
-            </>}
-            {srcUrl && model?.aspects && <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>Formato vem da imagem de origem</Typography>}
-          </Stack>
-
-          <Stack direction="row" spacing={2} alignItems="center">
-            <FormControlLabel
-              control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
-              label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
-            <Box sx={{ flex: 1 }} />
-            {msg && <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography>}
-            <CreditBadge />
-            <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
-              onClick={gerar} disabled={generating} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
-              {generating ? 'Enviando…' : 'Gerar vídeo'}
-            </Button>
-          </Stack>
-        </Paper>
+              </Faixa>
+            </>
+          }
+          assinatura={
+              <FormControlLabel
+                control={<Switch checked={useBrand} onChange={e => setUseBrand(e.target.checked)} disabled={generating} size="small" />}
+                label={<Typography sx={{ fontSize: 13 }}>Usar marca como referência</Typography>} />
+          }
+          aviso={msg ? <Typography sx={{ fontSize: 13, color: msg.startsWith('Prompt melhorado') ? 'text.secondary' : CORAL }}>{msg}</Typography> : null}
+          medidor={<CreditBadge />}
+          acao={
+              <Button variant="contained" startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <AutoAwesomeIcon />}
+                onClick={gerar} disabled={generating} sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}>
+                {generating ? 'Enviando…' : 'Gerar vídeo'}
+              </Button>
+          }
+        />
 
         {/* Galeria */}
         {loading ? (

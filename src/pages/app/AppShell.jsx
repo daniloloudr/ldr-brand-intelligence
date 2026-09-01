@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { Box, CircularProgress, Typography, Button, Stack, Divider } from '@mui/material'
+import { Box, CircularProgress, Typography, Button, Stack, Divider, Fab, Tooltip } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
@@ -38,12 +38,10 @@ const PlanoPage       = lazy(() => import('./WorkspacePage').then(m => ({ defaul
 const TimePage        = lazy(() => import('./WorkspacePage').then(m => ({ default: m.TimePage })))
 const AlertasPage     = lazy(() => import('./WorkspacePage').then(m => ({ default: m.AlertasPage })))
 const ContentHub      = lazy(() => import('./ContentHub').then(m => ({ default: m.ContentHub })))
-const StudioImage     = lazy(() => import('./StudioImage').then(m => ({ default: m.StudioImage })))
+const StudioCreate    = lazy(() => import('./StudioCreate').then(m => ({ default: m.StudioCreate })))
 const StudioWorkflows = lazy(() => import('./StudioWorkflows').then(m => ({ default: m.StudioWorkflows })))
 const StudioCanvas    = lazy(() => import('./StudioCanvas').then(m => ({ default: m.StudioCanvas })))
 const StudioCampaigns = lazy(() => import('./StudioCampaigns').then(m => ({ default: m.StudioCampaigns })))
-const StudioVideo     = lazy(() => import('./StudioVideo').then(m => ({ default: m.StudioVideo })))
-const StudioWriting   = lazy(() => import('./StudioWriting').then(m => ({ default: m.StudioWriting })))
 const StudioLibrary   = lazy(() => import('./StudioLibrary').then(m => ({ default: m.StudioLibrary })))
 const StudioAssets    = lazy(() => import('./StudioAssets').then(m => ({ default: m.StudioAssets })))
 const StudioApprovals = lazy(() => import('./StudioApprovals').then(m => ({ default: m.StudioApprovals })))
@@ -107,6 +105,26 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     const onHash = () => { setRoute(getRoute()); setHashTick(t => t + 1) }
     window.addEventListener('popstate', onHash)
     return () => window.removeEventListener('popstate', onHash)
+  }, [])
+
+  // ── Copiloto como camada (§9 da spec do Estúdio) ────────────────────────
+  // Vive AQUI, e não dentro de cada página, por dois motivos: a invocação tem
+  // que existir em toda tela, e o estado da conversa não pode morrer quando o
+  // usuário navega. Como o painel fica montado, trocar de rota mantém o fio da
+  // conversa — só o contexto declarado muda junto com a rota.
+  const [copiloto, setCopiloto] = useState(false)
+  // Na PÁGINA do Copiloto o painel seria o mesmo componente duas vezes na tela.
+  const copilotoNaTela = route === 'brands-assistant'
+  useEffect(() => {
+    const escrevendo = el => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    const onKey = (e) => {
+      const k = (e.key || '').toLowerCase()
+      if ((e.metaKey || e.ctrlKey) && k === 'k') { e.preventDefault(); setCopiloto(v => !v); return }
+      // Esc fecha — mas não enquanto se digita no próprio chat, onde Esc é do campo.
+      if (e.key === 'Escape' && !escrevendo(e.target)) setCopiloto(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   // Um acesso = uma marca → resolve a marca única do workspace para a nav.
@@ -218,17 +236,19 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     ] },
     { type: 'group', label: t('nav.studio'), icon: PhotoLibraryOutlinedIcon, children: [
       // Ativos saiu do menu (2026-07-14): a casa é a Biblioteca > Referências da
-      // marca; a rota /studio/assets segue viva p/ links antigos
-      { label: t('nav.studio.image'),    hash: brandLink('/studio'),          active: route === 'brands-studio' },
-      { label: t('nav.studio.video'),    hash: brandLink('/studio/video'),    active: route === 'brands-studio-video' },
-      { label: t('nav.studio.writing'),  hash: brandLink('/studio/writing'),  active: route === 'brands-studio-writing' },
-      { label: t('nav.studio.workflow'), hash: brandLink('/studio/workflow'), active: route === 'brands-studio-workflow' },
+      // marca; a rota /studio/assets segue viva p/ links antigos.
+      // E0a (2026-08-31): Imagem/Vídeo/Redação saíram — viraram FORMATO dentro
+      // de Criar (D10). As rotas seguem vivas e caem na bancada com o formato
+      // já escolhido, então link antigo não quebra. Estúdio fica em 4 itens.
+      { label: t('nav.studio.create'),   hash: brandLink('/studio'),          active: route === 'brands-studio' || route === 'brands-studio-video' || route === 'brands-studio-writing' },
       { label: t('nav.studio.campaigns'), hash: brandLink('/studio/campanhas'), active: route === 'brands-studio-campaigns' },
+      { label: t('nav.studio.workflow'), hash: brandLink('/studio/workflow'), active: route === 'brands-studio-workflow' },
       { label: t('nav.studio.library'),  hash: brandLink('/studio/biblioteca'), active: route === 'brands-studio-biblioteca' },
     ] },
-    // Copilot enxuto (decisão 2026-07-10): só o Chat — modos viraram sugestões
-    // na lateral do chat; Agents & Automações entram quando existirem de verdade.
-    { type: 'item', label: t('nav.copilot'), icon: AutoAwesomeOutlinedIcon, hash: brandLink('/assistant'), active: route === 'brands-assistant' },
+    // O Copiloto SAIU do menu (E0a): virou camada invocável de qualquer lugar
+    // (⌘K + botão no canto). A rota /assistant segue viva como ARQUIVO das
+    // conversas — decisão do Danilo, 31/ago — e quem aponta para ela agora é o
+    // botão de histórico na barra de contexto do painel.
   ]
 
   function renderPage() {
@@ -250,13 +270,13 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'brands-campaigns')      return <Campaigns brandId={getBrandId()} />
     if (route === 'brands-campaign-new')   return <CampaignNew brandId={getBrandId()} />
     if (route === 'brands-campaign-detail') return <CampaignDetail brandId={getBrandId()} campaignId={getCampaignId()} />
-    if (route === 'brands-studio')         return <StudioImage brandId={getBrandId()} />
+    if (route === 'brands-studio')         return <StudioCreate brandId={getBrandId()} formato="imagem" />
     if (route === 'brands-studio-workflow') {
       const wf = getWorkflowId()
       return wf ? <StudioCanvas brandId={getBrandId()} workflowId={wf} /> : <StudioWorkflows brandId={getBrandId()} />
     }
-    if (route === 'brands-studio-video')   return <StudioVideo brandId={getBrandId()} />
-    if (route === 'brands-studio-writing') return <StudioWriting brandId={getBrandId()} />
+    if (route === 'brands-studio-video')   return <StudioCreate brandId={getBrandId()} formato="video" />
+    if (route === 'brands-studio-writing') return <StudioCreate brandId={getBrandId()} formato="texto" />
     if (route === 'brands-studio-biblioteca') return <StudioLibrary brandId={getBrandId()} />
     if (route === 'brands-studio-assets')  return <StudioAssets brandId={getBrandId()} />
     if (route === 'brands-studio-approvals') return <StudioApprovals brandId={getBrandId()} />
@@ -311,12 +331,39 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       topBanner={topBanner}
       bellCount={processing + pendentes.length}
       bellContent={({ close }) => renderBellContent(jobs, pendentes, brandId, close)}
+      /* A marca do painel: a da ROTA quando existe, senão a única do workspace.
+         Hoje dá no mesmo ("um acesso = uma marca"), mas o Copiloto não pode ser
+         o lugar que descobre a diferença — atravessar marca é o §9.4. */
+      sidePanel={copiloto && (getBrandId() || brandId) && !copilotoNaTela ? (
+        <ErrorBoundary key="copiloto">
+          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}><CircularProgress /></Box>}>
+            {/* modo="painel": mesmo motor da página, outra moldura. O contexto
+                ele deriva sozinho da rota — que aqui é a da tela POR BAIXO,
+                que é exatamente o lugar de onde ele foi invocado. */}
+            <BrandAssistant brandId={getBrandId() || brandId} modo="painel" onFechar={() => setCopiloto(false)} />
+          </Suspense>
+        </ErrorBoundary>
+      ) : null}
     >
       <ErrorBoundary key={route}>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}><CircularProgress /></Box>}>
           {renderPage()}
         </Suspense>
       </ErrorBoundary>
+
+      {/* Botão persistente e discreto no canto (§9.3). Some quando o painel já
+          está aberto e na própria página do Copiloto. */}
+      {!copiloto && !copilotoNaTela && (getBrandId() || brandId) && (
+        <Tooltip title="Copiloto — ⌘K" placement="left">
+          <Fab
+            size="medium" color="primary" aria-label="Abrir o Copiloto"
+            onClick={() => setCopiloto(true)}
+            sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: theme => theme.zIndex.drawer + 2, boxShadow: 3 }}
+          >
+            <AutoAwesomeOutlinedIcon />
+          </Fab>
+        </Tooltip>
+      )}
     </AppLayout>
   )
 }

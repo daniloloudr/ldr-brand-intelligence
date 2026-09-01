@@ -9,9 +9,12 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import HistoryIcon from '@mui/icons-material/History'
 import { useWorkspace } from '../../lib/WorkspaceContext'
 import { supabase } from '../../lib/supabase'
-import { fmtDate, navigate } from '../../lib/helpers'
+import { fmtDate, navigate, getRoute, getBrandSection, getCampaignId, getWorkflowId } from '../../lib/helpers'
+import { contextoDoLugar, blocoDeContexto } from '../../lib/copiloto'
+import { VEREDITOS, TEXTO_MAX, reprovou } from '../../lib/parecer'
 import { compileIntel } from '../../lib/brandIntel'
 import { RATE_LIMIT_WAIT, MAX_RETRIES } from '../../lib/constants'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -32,6 +35,11 @@ const SUGESTOES = [
 
 const _arr = x => Array.isArray(x) ? x.filter(Boolean) : (x ? [x] : [])
 const _join = x => _arr(x).map(o => typeof o === 'object' ? (o.hex || o.valor || o.nome || o.termo || '') : o).filter(Boolean).join(', ')
+
+// O bloco de contexto do lugar (§9 da spec do Estúdio) entra no FIM do system
+// prompt, por recência: é o último enquadramento que o modelo lê antes da
+// pergunta. Nível 'marca' devolve vazio — é o Copiloto de antes da camada.
+const _blocoLugar = ctx => { const b = blocoDeContexto(ctx); return b ? `\n\n${b}` : '' }
 
 // ── Copiloto com mãos · A1: ferramentas de LEITURA (client-side) ──────
 // As tools rodam NO CLIENTE via supabase autenticado — o RLS é o perímetro:
@@ -73,9 +81,9 @@ const REVIEW_TOOL = {
   name: 'registrar_parecer',
   description: 'REGISTRA o veredito do seu parecer de diretor de arte sobre uma imagem enviada pelo usuário. Chame SEMPRE que avaliar uma peça (antes do parecer completo em texto). Não pede confirmação.',
   input_schema: { type: 'object', properties: {
-    veredito: { type: 'string', enum: ['aprovada', 'aprovada_com_ressalvas', 'reprovada'] },
-    resumo:   { type: 'string', description: 'O parecer em 1 frase' },
-  }, required: ['veredito', 'resumo'] },
+    veredito: { type: 'string', enum: VEREDITOS },
+    texto:    { type: 'string', description: `O parecer escrito, até ${TEXTO_MAX} caracteres: qual eixo falhou e o conserto` },
+  }, required: ['veredito', 'texto'] },
 }
 
 // Casa do Conteúdo: peça escrita produzida no chat ganha endereço na Biblioteca.
@@ -218,7 +226,7 @@ async function execCreateTool(name, input, { brandId }) {
           // REGRA (Danilo 2026-07-12): não se entrega peça sem o próprio juiz
           // assinar — toda geração passa pelo diretor de arte ANTES de chegar
           // ao usuário. Reprovada não é descartada: é entregue COM o parecer
-          // e a oferta de regerar com os ajustes (novo crédito = nova confirmação).
+          // e a oferta de regerar com o conserto do parecer (novo crédito = nova confirmação).
           let parecer = null
           try {
             const rev = await fetch('/.netlify/functions/art-review', { method: 'POST', headers: auth,
@@ -228,8 +236,8 @@ async function execCreateTool(name, input, { brandId }) {
           return JSON.stringify({
             status: 'pronta', image_url: g.image_url, parecer,
             instrucao: parecer
-              ? (parecer.veredito === 'reprovada'
-                ? 'ATENÇÃO: o diretor de arte REPROVOU esta peça. Mostre a imagem, seja transparente sobre o veredito e os motivos, e OFEREÇA regerar já incorporando os ajustes (nova geração = novo crédito, com confirmação). Não finja que ficou boa.'
+              ? (reprovou(parecer.veredito)
+                ? 'ATENÇÃO: o diretor de arte REPROVOU esta peça. Mostre a imagem, seja transparente sobre o veredito e o motivo, e OFEREÇA regerar já incorporando o conserto que o parecer aponta (nova geração = novo crédito, com confirmação). Não finja que ficou boa.'
                 : `O diretor de arte deu veredito "${parecer.veredito}". Mostre a imagem (URL na resposta) e o parecer em 1-2 linhas.`)
               : 'Inclua a URL da imagem na resposta para o usuário vê-la.',
           })
@@ -261,7 +269,7 @@ async function execCreateTool(name, input, { brandId }) {
   }
 }
 
-function buildSystemPrompt(brand, book, ragChunks, intelligence) {
+function buildSystemPrompt(brand, book, ragChunks, intelligence, ctx) {
   const v  = book?.verbal_identity || {}
   const vi = book?.visual_identity || {}
   // fallback legado (brand books antigos)
@@ -291,7 +299,7 @@ function buildSystemPrompt(brand, book, ragChunks, intelligence) {
 
   if (!hasContent) {
     return `Você é o Brand Assistant da marca "${brand?.nome || 'desconhecida'}" na plataforma BR4NDCODE.
-Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.`
+Ainda não há um brand book configurado. Oriente o usuário a preencher o brand book para habilitar respostas contextualizadas.` + _blocoLugar(ctx)
   }
 
   let prompt = `Você é o Brand Assistant da marca "${brand?.nome}" na plataforma BR4NDCODE.
@@ -330,7 +338,7 @@ Seja estratégico, direto e on-brand. Nunca invente informações que não estã
 
   prompt += `\n\nResponda sempre em português brasileiro, de forma estratégica e alinhada com o brand book acima.\n\nVocê tem FERRAMENTAS de consulta aos dados REAIS da plataforma (mercado, tendências, insights do consumidor, concorrentes). Quando a pergunta tocar nesses temas, USE a ferramenta em vez de responder de memória — e baseie a resposta nos dados retornados, citando-os.
 Você também tem ferramentas de CRIAÇÃO (gerar_imagem, criar_fluxo) — quando pedirem para PRODUZIR algo, chame a ferramenta IMEDIATAMENTE, sem pedir permissão em texto (a plataforma mostra a confirmação ao usuário; pedir duas vezes é ruim). Apresente brevemente o conceito e chame.
-REGRA INVIOLÁVEL DE QUALIDADE: você NUNCA gera uma peça que você mesmo reprovaria como diretor de arte. ANTES de chamar gerar_imagem, confronte o conceito com os padrões que a marca REPROVA e com a paleta/estética aprendidas (estão no seu contexto) — e escreva o prompt já em conformidade (cores EXATAS da paleta, ancoragem da marca, nada dos padrões reprovados). Se o próprio pedido do usuário violar um padrão reprovado, diga isso e proponha o conceito ajustado antes de gerar. Toda peça gerada passa automaticamente pelo diretor de arte antes de chegar ao usuário — seja transparente com o veredito. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovada / Aprovada com ressalvas / Reprovada) · **O que sustenta a marca** · **O que foge** · **Ajustes concretos** (lista acionável). Seja específico e franco — cite cores, composição e elementos reais da imagem.
+REGRA INVIOLÁVEL DE QUALIDADE: você NUNCA gera uma peça que você mesmo reprovaria como diretor de arte. ANTES de chamar gerar_imagem, confronte o conceito com os padrões que a marca REPROVA e com a paleta/estética aprendidas (estão no seu contexto) — e escreva o prompt já em conformidade (cores EXATAS da paleta, ancoragem da marca, nada dos padrões reprovados). Se o próprio pedido do usuário violar um padrão reprovado, diga isso e proponha o conceito ajustado antes de gerar. Toda peça gerada passa automaticamente pelo diretor de arte antes de chegar ao usuário — seja transparente com o veredito. Peças ESCRITAS (copy, post, roteiro) você escreve diretamente na resposta, terminando com um bloco "Sugestão de imagem" descrevendo a arte para a pós-produção. Quando o usuário ENVIAR UMA IMAGEM (peça criada aqui ou fora — agência, freela), atue como DIRETOR DE ARTE da marca: avalie contra o brand book e a inteligência aprendida (paleta, tipografia, estética, do/don't, padrões aprovados/reprovados, território). Primeiro chame registrar_parecer com o veredito; depois escreva o parecer completo: **VEREDITO** (Aprovado / Rechecar / Reprovado) · **O que sustenta a marca** · **O que foge** · **O conserto concreto**. Seja específico e franco — cite cores, composição e elementos reais da imagem.
 Imagens geradas NUNCA contêm texto, tipografia ou LOGO — logo só entra se o usuário PEDIR explicitamente (aí use inserir_logo: true, que compõe com o arquivo real do repositório de marca; jamais descreva/desenhe a logo no prompt).
 Você também tem ferramentas para PERSISTIR resultados (nada de créditos): salvar_estrategia grava PERSONAS e OBJETIVOS/KPIs no Brand Book (Negócio) — use quando concluírem/pedirem para salvar personas ou objetivos; salvar_peca_escrita grava textos prontos (copy, roteiro, jornada, mapa de conteúdo, arquitetura de site) na Biblioteca. Ao salvar, chame a ferramenta com o conteúdo ESTRUTURADO e completo, depois confirme ao usuário o que ficou salvo e onde (com o link retornado).
 REGRA INVIOLÁVEL DE SALVAMENTO: TODO pedido de salvar/guardar/registrar DEVE resultar numa chamada de ferramenta na MESMA resposta — persona ou objetivo/KPI → salvar_estrategia; QUALQUER outro conteúdo (jornada, mapa de conteúdo, arquitetura, análise, documento) → salvar_peca_escrita (destino padrão). Nunca deixe um pedido de "salvar" sem persistir de fato. E NUNCA afirme que salvou sem ter chamado a ferramenta e recebido ok. Só é aceitável não salvar se for tecnicamente impossível — e aí explique por quê e o que dá pra fazer.`
@@ -341,6 +349,7 @@ REGRA INVIOLÁVEL DE SALVAMENTO: TODO pedido de salvar/guardar/registrar DEVE re
   }
 
   prompt += compileIntel(intelligence?.modelo, intelligence?.versao)
+  prompt += _blocoLugar(ctx)
 
   return prompt
 }
@@ -613,7 +622,11 @@ function ChatBubble({ msg, question, onTeach }) {
   )
 }
 
-export function BrandAssistant({ brandId }) {
+// `modo`: 'pagina' é o Copiloto de sempre (rota /assistant); 'painel' é a
+// CAMADA (§9) — o mesmo componente montado ao lado da tela em uso. A diferença
+// é só de moldura: some o cabeçalho de página e a coluna de conversas, entra a
+// barra de contexto. O motor (prompt, tools, streaming) é o mesmo, de propósito.
+export function BrandAssistant({ brandId, modo = 'pagina', onFechar }) {
   const { workspace, user } = useWorkspace()
   const [brand, setBrand]           = useState(null)
   const [book, setBook]             = useState(null)
@@ -635,6 +648,25 @@ export function BrandAssistant({ brandId }) {
   const [intelligence, setIntelligence] = useState(null)   // modelo vivo destilado (Camada de Inteligência)
 
   const bottomRef = useRef(null)
+
+  // ── Copiloto como camada (§9): o contexto é o LUGAR de onde foi invocado ──
+  // Deriva-se da rota, não de prop: quem invoca não precisa saber declarar o
+  // contexto — o lugar já diz. Enquanto o Copiloto for a PÁGINA
+  // ('brands-assistant', que não está no mapa de LUGARES), isto cai no nível
+  // 'marca' e o prompt sai idêntico ao de antes desta camada existir.
+  // `nivel` é o que o §9.3 chama de "contexto editável": o usuário reduz.
+  const [nivel, setNivel] = useState('lugar')
+  const _ondeEstou = {
+    route: getRoute(),
+    section: getBrandSection(),
+    brandNome: brand?.nome,
+    campaignId: getCampaignId(),
+    workflowId: getWorkflowId(),
+  }
+  const ctx = contextoDoLugar({ ..._ondeEstou, nivel })
+  // Há o que reduzir? Só onde o lugar TEM contexto próprio. Numa tela fora do
+  // mapa, oferecer "só a marca" é oferecer o estado em que já se está.
+  const temLugar = contextoDoLugar({ ..._ondeEstou, nivel: 'lugar' }).nivel === 'lugar'
 
   useEffect(() => {
     if (!brandId) return
@@ -801,7 +833,7 @@ export function BrandAssistant({ brandId }) {
       }
     } catch { /* RAG failure não bloqueia o assistente */ }
 
-    const systemPrompt = buildSystemPrompt(brand, book, ragChunks, intelligence)
+    const systemPrompt = buildSystemPrompt(brand, book, ragChunks, intelligence, ctx)
     const history = [...messages, userMsg]
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }))
@@ -860,9 +892,9 @@ export function BrandAssistant({ brandId }) {
           const { error } = await supabase.from('brand_signals').insert({
             brand_id: brand?.id, workspace_id: workspace?.id,
             tipo: 'art_review', fonte: 'copiloto', ref_id: conv.id, peso: 0.8,
-            payload: { veredito: inp?.veredito || null, resumo: (inp?.resumo || '').slice(0, 400), image_url: ultimaImagemRef.current },
+            payload: { veredito: inp?.veredito || null, texto: (inp?.texto || '').slice(0, TEXTO_MAX), image_url: ultimaImagemRef.current },
           })
-          return JSON.stringify(error ? { erro: error.message } : { ok: true, instrucao: 'Parecer registrado. Agora escreva o parecer completo: VEREDITO · o que sustenta a marca · o que foge · ajustes concretos.' })
+          return JSON.stringify(error ? { erro: error.message } : { ok: true, instrucao: 'Parecer registrado. Agora escreva o parecer completo: VEREDITO · o que sustenta a marca · o que foge · o conserto concreto.' })
         }
         if (!CREATE_NAMES.has(name)) return execReadTool(name, inp, workspace?.id)
         // criação: pausa o loop e espera a confirmação humana (portão de crédito)
@@ -897,7 +929,7 @@ export function BrandAssistant({ brandId }) {
     })
   }
 
-  const systemPrompt = buildSystemPrompt(brand, book, [], intelligence)
+  const systemPrompt = buildSystemPrompt(brand, book, [], intelligence, ctx)
 
   if (loading) {
     return (
@@ -907,8 +939,11 @@ export function BrandAssistant({ brandId }) {
     )
   }
 
+  const painel = modo === 'painel'
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {!painel && (
       <PageHeader
         title={`${brand?.nome || ''} — Copiloto`}
         subtitle="Estratégia, briefings, copy e orientações de marca · baseado no brand book."
@@ -918,9 +953,12 @@ export function BrandAssistant({ brandId }) {
           </Button>
         }
       />
+      )}
     <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-      {/* ── Esquerda: histórico de conversas ── */}
+      {/* ── Esquerda: histórico de conversas (só na página: no painel de 420px
+             a coluna comeria o chat; "nova conversa" migra p/ a barra) ── */}
+      {!painel && (
       <Box sx={{
         width: 220, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -965,12 +1003,67 @@ export function BrandAssistant({ brandId }) {
           )}
         </Box>
       </Box>
+      )}
 
       {/* ── Centro: chat ── */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
+        {/* ── Contexto declarado e editável (§9.3) ──────────────────────
+            O chip mostra o MESMO rótulo que vai no system prompt (os dois saem
+            de `ctx`). Reduzir para 'marca' é o usuário dizendo "esquece onde eu
+            estou" — e o bloco de lugar some do prompt junto com o chip. */}
+        {painel && (
+          <Box sx={{
+            px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider',
+            display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0,
+          }}>
+            <Tooltip title={`O que ele tem em mãos aqui: ${ctx.sabe.join(', ')}.`} placement="bottom-start">
+              <Chip
+                size="small"
+                icon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                label={ctx.rotulo}
+                sx={{ fontWeight: 700, fontSize: 11, maxWidth: 260, bgcolor: 'action.hover' }}
+              />
+            </Tooltip>
+            <Box sx={{ flex: 1 }} />
+            {temLugar && (
+              <Tooltip title={nivel === 'lugar'
+                ? 'Falar só pela marca, ignorando esta tela'
+                : 'Voltar a considerar o que esta tela tem em mãos'}>
+                <Button
+                  size="small"
+                  onClick={() => setNivel(n => (n === 'lugar' ? 'marca' : 'lugar'))}
+                  sx={{ minWidth: 0, px: 1, fontSize: 11, fontWeight: 700, color: 'text.secondary' }}
+                >
+                  {nivel === 'lugar' ? 'só a marca' : 'este lugar'}
+                </Button>
+              </Tooltip>
+            )}
+            {/* O painel não lista conversas — em 420px a coluna comeria o chat.
+                O histórico fica na PÁGINA, que a partir daqui é arquivo: é o
+                único caminho até ele depois que o E0a tirar o Copiloto do menu.
+                Fecha o painel ao ir, senão a mesma conversa fica em dois lugares. */}
+            <Tooltip title="Conversas anteriores">
+              <IconButton
+                size="small"
+                onClick={() => { navigate(`#/app/brands/${brandId}/assistant`); onFechar?.() }}
+              >
+                <HistoryIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Nova conversa">
+              <IconButton size="small" onClick={newConversation}><AddIcon fontSize="small" /></IconButton>
+            </Tooltip>
+            {onFechar && (
+              <Tooltip title="Fechar o Copiloto (Esc)">
+                <IconButton size="small" onClick={onFechar}><CloseIcon fontSize="small" /></IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        )}
+
         {/* Mensagens */}
-        <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+        <Box sx={{ flex: 1, overflowY: 'auto', p: painel ? 2 : 3 }}>
           {messages.length === 0 && !streaming && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1.5 }}>
               <AutoAwesomeIcon sx={{ color: PALETTE.data.neutro, fontSize: 36, mb: 1 }} />

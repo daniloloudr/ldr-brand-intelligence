@@ -48,6 +48,9 @@ export function AppLayout({
   onSearch, searchValue,
   bellCount, bellContent,
   brandLockup,   // { nome, logoUrl?, logoSvg? } — lockup MARCA.BR4NDCODE
+  sidePanel,     // painel lateral direito (Copiloto). NÃO é modal: entra como
+                 // coluna irmã do <main>, que encolhe — a tela em uso continua
+                 // visível e clicável, que é o ponto do §9.3 da spec do Estúdio.
   children,
 }) {
   const [bellAnchor, setBellAnchor] = useState(null);
@@ -259,6 +262,21 @@ export function AppLayout({
           {children}
         </Stack>
       </Box>
+
+      {/* ─── Painel lateral (Copiloto) ──────────────────────────── */}
+      {sidePanel && (
+        <Box sx={{
+          width: { xs: "100%", sm: 420 }, flexShrink: 0, height: "100vh",
+          display: "flex", flexDirection: "column",
+          borderLeft: 1, borderColor: "divider", bgcolor: "background.paper",
+        }}>
+          {/* mesmo espaçador do <main>: o painel começa abaixo da AppBar fixa */}
+          <Toolbar sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+            {sidePanel}
+          </Box>
+        </Box>
+      )}
 
       {/* ─── Popovers ───────────────────────────────────────────── */}
       <Popover

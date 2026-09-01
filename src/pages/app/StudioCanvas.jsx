@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { navigate } from '../../lib/helpers';
+import { reprovou } from '../../lib/parecer'
 import {
   ReactFlow, Background, Controls, MiniMap, NodeToolbar, NodeResizer,
   addEdge, applyNodeChanges, applyEdgeChanges, Handle, Position,
@@ -635,7 +636,7 @@ export function StudioCanvas({ brandId, workflowId }) {
     const referenceUrl = produtor && refNode ? toUrls(ctx.outputs[refNode.id])[0] : null
     if (!imageUrl) return false
     ctx.dispatched.add(gate.id)
-    updateNodeData(gate.id, { status: 'julgando', veredito: null, resumo: null, ajustes: null, error: null, outputUrl: null })
+    updateNodeData(gate.id, { status: 'julgando', veredito: null, texto: null, error: null, outputUrl: null })
     try {
       // generation_id: liga o parecer à geração (ref_id do sinal → certidão do asset).
       // No regen sem ctx.genIds, cai no genId do preview do produtor.
@@ -647,8 +648,8 @@ export function StudioCanvas({ brandId, workflowId }) {
           reference_url: referenceUrl || undefined, modo: gate.data?.modo || undefined }) })
       const j = await res.json()
       if (!res.ok) { updateNodeData(gate.id, { status: 'error', error: j.error || `Erro ${res.status}` }); return false }
-      const passou = j.veredito !== 'reprovada'
-      updateNodeData(gate.id, { status: 'done', veredito: j.veredito, resumo: j.resumo, ajustes: j.ajustes, outputUrl: passou ? imageUrl : null })
+      const passou = !reprovou(j.veredito)
+      updateNodeData(gate.id, { status: 'done', veredito: j.veredito, texto: j.texto, outputUrl: passou ? imageUrl : null })
       if (passou) ctx.outputs[gate.id] = imageUrl
       return passou
     } catch (e) {

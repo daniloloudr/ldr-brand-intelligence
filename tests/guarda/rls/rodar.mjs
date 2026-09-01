@@ -26,6 +26,13 @@ const PASSOS = [
   { sql:   'tests/guarda/rls/053-retrato.sql' },
   { sql:   'supabase/migrations/053_sessao_de_suporte.sql' },
   { casos: 'tests/guarda/rls/053-assercoes.sql', titulo: '053 · sessão de suporte' },
+  // A 054 não tem retrato próprio: ela chega num banco pós-053, que é como
+  // encontra a produção. Retrato novo provaria a migration num mundo que não
+  // existe — foi o mesmo raciocínio que fez a 053 herdar o da 052.
+  { sql:   'supabase/migrations/054_parecer_e_escopo_da_campanha.sql' },
+  { casos: 'tests/guarda/rls/054-assercoes.sql', titulo: '054 · parecer e escopo da campanha' },
+  { sql:   'supabase/migrations/055_execucao_agente_e_camadas_do_fluxo.sql' },
+  { casos: 'tests/guarda/rls/055-assercoes.sql', titulo: '055 · execução, agente e camadas do fluxo' },
 ]
 
 try {
