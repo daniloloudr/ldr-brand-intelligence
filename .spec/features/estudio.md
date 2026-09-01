@@ -274,28 +274,55 @@ O utilizador trabalha e opina; o cérebro só aprende quando um dono valida. Qua
 
 Os estados pertencem à **versão da peça**, não à peça. A peça é a linhagem; a versão é o arquivo.
 
+> **Reescrito em 01/set/2026 (decisão do Danilo, E2).** A versão anterior tinha cinco
+> estados e cobria só o ciclo de vida — o que o humano decide. Faltavam os dois estados
+> do MOTOR: geração em andamento e geração que falhou. Não é detalhe de implementação:
+> ao confrontar com o banco, **37 das 927 gerações estavam em `error`** e nenhuma delas
+> tinha estado válido no modelo. Peça que não existe precisa de um lugar tanto quanto
+> peça aprovada, senão o de-para inventa um.
+>
+> **A decisão foi um eixo só, com sete valores** — não dois eixos convivendo em colunas
+> separadas. Custo assumido: mistura "o motor está rodando" com "o humano aprovou" num
+> campo só. Ganho: uma pergunta, uma coluna, uma consulta — e ninguém precisa lembrar
+> qual dos dois eixos olhar para saber se a peça está pronta.
+
 ```
-   gerada  ──▶  analisada  ──┬──▶  aprovada  ──▶  arquivada
-                             │
-                             └──▶  recusada  ──▶  arquivada
+   gerando ──┬──▶ gerada ──▶ analisada ──┬──▶ aprovada ──▶ arquivada
+             │                           │
+             │                           └──▶ recusada ──▶ arquivada
+             │
+             └──▶ falhou
 ```
 
 | Estado | O que é | Quem move |
 |---|---|---|
+| **gerando** | o motor está rodando; ainda não há arquivo | sistema |
+| **falhou** | a geração não completou | sistema |
 | **gerada** | saiu do motor, ainda sem parecer | sistema |
 | **analisada** | tem parecer, está na fila humana | sistema |
 | **aprovada** | um dono julgou e liberou | dono |
 | **recusada** | um dono julgou e barrou | dono |
 | **arquivada** | fora de circulação, preservada | dono |
 
+**Os dois primeiros são do MOTOR, os cinco seguintes são do CICLO DE VIDA.** A distinção
+não desaparece por morarem na mesma coluna — ela deixa de precisar de duas colunas.
+
+**`falhou` é terminal e não é `recusada`.** Peça que não saiu não é peça que o humano
+barrou, e confundir as duas envenenaria o aprendizado: `recusada` é o sinal mais forte
+que a marca tem, e diluí-lo com erro de infraestrutura ensinaria a marca a evitar o que
+o provedor não conseguiu desenhar naquele dia.
+
 **Não existe estado "publicada".** A publicação acontece fora da plataforma: a peça sai para finalização e postagem em outro lugar. Registrar um estado que não se controla criaria dado falso.
 
 **Regras:**
 
-- `gerada` é transitória: toda peça recebe parecer.
+- `gerando` e `gerada` são transitórios: toda peça que completa recebe parecer.
+- `falhou` é terminal. Reprocessar cria **versão nova** em `gerando`, não reabre a antiga.
 - Editar cria **versão nova** em `gerada`. A versão anterior mantém seu estado e seu histórico.
 - `recusada` nunca é apagada. É o sinal mais forte de aprendizado.
 - `arquivada` tira de circulação sem apagar. Reversível.
+- **Só o ciclo de vida conta para a fila e para o aprendizado.** `gerando` e `falhou` não
+  entram na fila do §2.2 nem viram sinal para a destilação.
 
 ---
 
@@ -733,11 +760,20 @@ De-para possível:
 | `processing` | **não tem lugar no modelo do doc** |
 | `error` | **não tem lugar no modelo do doc** |
 
-⚠️ **Lacuna do documento, não do banco:** o §5 não modela geração em andamento nem
-geração que falhou. Em pico de lote isso é parte relevante das linhas, e é o que o canvas
-mostra como "gerando…" e como erro no nó. **Ou os dois eixos convivem (execução × ciclo
-de vida), ou faltam dois estados.** Precisa de decisão antes de C1 ser escrita, porque
-muda a coluna.
+✅ **DECIDIDO em 01/set (E2): um eixo só, com sete valores.** O §5 foi reescrito e passa
+a incluir `gerando` e `falhou`. O de-para fica:
+
+| Hoje | Vira |
+|---|---|
+| `processing` | `gerando` |
+| `error` | `falhou` |
+| `done` + `feedback='up'` | `aprovada` |
+| `done` + `feedback='down'` | `recusada` |
+| `done` + tem parecer | `analisada` |
+| `done` sem nada | `gerada` |
+
+Medido no banco antes de decidir: 890 `done`, 37 `error`, 0 `processing`. Os 4% em
+`error` eram exatamente as linhas sem lugar no modelo antigo.
 
 ### C3 · Julgamento como entidade
 
@@ -765,6 +801,27 @@ sobre dado real de cliente, e a Biblioteca lê as duas hoje.
 **Alternativa mais barata a considerar:** manter `pecas_escritas` e dar a ela as mesmas
 propriedades (versão, parecer, julgamento) por referência polimórfica, em vez de fundir.
 Perde-se elegância, ganha-se uma migration inteira. Decisão de produto, não de banco.
+
+⏸️ **ADIADO em 01/set (E2), com motivo medido — não é indecisão.** Antes de escolher a
+modelagem, medimos o uso do formato texto:
+
+| | |
+|---|---|
+| peças escritas salvas | **6**, todas `carrossel`, a última em 19/ago |
+| imagens no mesmo período | **800** |
+| `writing_edit` (o time reescrevendo copy) | **1** |
+
+Texto tem **0,7% do volume de imagem**, usa um framework de sete, e quase ninguém edita o
+que sai. Fundir custa a faixa mais cara do documento (migration com backfill) para dar
+versão, parecer e julgamento a um caminho que produziu seis peças em dois meses; manter
+separado com referência polimórfica duplica a lógica de julgamento **para sempre**, pelo
+mesmo motivo.
+
+**Gatilho para revisitar:** volume de texto passar de ~10% do de imagem, OU alguém pedir
+parecer sobre copy. Antes disso, a pergunta certa não é como modelar — é **por que
+Redação não pegou**: sete frameworks disponíveis, um usado.
+
+⚠️ **C4 NÃO bloqueia o C1/E3.** Quem bloqueava era o C2, e ele está decidido.
 
 ## 12.6 Faixa D — substituição de conceito, risco alto
 

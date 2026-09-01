@@ -117,8 +117,8 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 > "o botão está sempre habilitado; o histórico é informação, nunca condição") e
 > idempotência de gatilho capturado (§8.4 — é pré-requisito do E6).
 
-| **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | 🔴 **bloqueia E3** |
-| **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🔴 |
+| **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | ✅ **decidido 01/set** — §5 reescrito com 7 estados; C4 adiado com motivo medido |
+| **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🟡 **destravado** — o E2 saiu |
 | **E4** | campanha como escopo | **D** | ✅ substituição | 🔴 |
 | **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🔴 |
 | **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
@@ -220,6 +220,21 @@ trata aqui — o sistema mantém a visão de CRÉDITO, e o custo é visto em out
 A coluna segue existindo e vazia; o teto do agente (D25) será expresso em crédito, não em
 dólar. ⚠️ Consequência a registrar: o campo `custo` da execução (§6.1) e o "custo
 acumulado" da página do agente (§8.5) precisam ser relidos como crédito na spec.
+
+> ✅ **E2 fechado em 01/set — as duas decisões, com o banco medido antes.**
+>
+> **C2 · estados: UM EIXO, sete valores.** O §5 foi reescrito e ganhou `gerando` e
+> `falhou`. O que decidiu foi o dado: **37 das 927 gerações estavam em `error`** e não
+> tinham estado válido no modelo de cinco estados. Custo assumido: uma coluna mistura
+> motor e ciclo de vida. Ganho: uma pergunta em vez de duas.
+> ⚠️ `falhou` é terminal e **não** é `recusada` — confundir as duas diluiria o sinal mais
+> forte de aprendizado da marca com erro de infraestrutura do provedor.
+>
+> **C4 · `pecas_escritas`: ADIADO, com número.** Texto tem 0,7% do volume de imagem (6
+> peças contra 800), um framework de sete usado, e um único `writing_edit`. Nem fundir
+> nem duplicar se paga por esse volume. Gatilho para revisitar: texto passar de ~10% do
+> volume de imagem, ou alguém pedir parecer sobre copy.
+> **A pergunta que ficou no lugar:** por que Redação não pegou?
 
 ### Duas inversões em relação ao §10 da spec, e as duas por segurança de dado
 
