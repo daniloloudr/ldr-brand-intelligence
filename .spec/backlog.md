@@ -95,12 +95,13 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E0a** | **menu novo** — Estúdio em 4 itens (Criar · Campanhas · Fluxos · Biblioteca), Imagem/Vídeo/Redação viram escolha de formato dentro de Criar (D10), Agentes fora dos pilares · **+ os três caminhos de entrada (§3.4)** | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`, `a7a4378`) |
 | **E0b** | **o parecer** — veredito `aprovado`/`rechecar`/`reprovado` + texto de até 300 caracteres, sem score · os 4 eixos fixos (fidelidade, marca, escopo, execução) | **A** | ❌ | ✅ **entregue 31/ago** (`bfef561` + `f7dceb1` núcleo) · eixo ESCOPO cego até o E1 |
 | **E0c** | **Copiloto como camada** — invocável de qualquer lugar, painel lateral, contexto declarado e editável | **A** | ❌ | ✅ **entregue 31/ago** (`1dac534`) |
-| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | ✅ **escrito e ensaiado 31/ago** (054 + 055) · **NÃO APLICADO EM PRODUÇÃO** — validado no branch de dev |
+| **E1** | tabelas `parecer`, `execucao`, `agente` · colunas novas em `studio_workflows` (versão, 3 camadas de variável, critérios) e em campanha (objetivo, vigência, direcional) · **+ o ensaio de backfill** | **B** | ✅ aditiva | ✅ **APLICADO EM PRODUÇÃO 01/set** (054 + 055) — dump pré-migration de 6.7M no R2, validado antes no branch de dev |
 > ✅ **E1 escrito em duas migrations (31/ago), e VALIDADO NUM BANCO DE DEV DE VERDADE** —
 > o primeiro da história deste projeto. `054` (parecer + escopo da campanha) e `055`
 > (execução, agente, três camadas de variável). 118 asserções de RLS, nenhuma falha.
 > As duas foram aplicadas no branch de preview do Supabase e conferidas ao vivo; a
-> produção segue sem elas. **Aplicar é decisão de deploy.**
+> **Aplicadas em produção em 01/set** via `./scripts/migrate.sh`, com dump pré-migration
+> no R2. Dados intactos: 9 marcas, 927 gerações, 4 campanhas.
 >
 > 💰 **`custo` virou `creditos`, e isso é a sua decisão de 31/ago virando esquema.** O §6.1
 > diz "custo" na execução e o §8.5 fala em "custo acumulado" do agente. Como o sistema

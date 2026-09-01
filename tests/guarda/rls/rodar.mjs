@@ -33,6 +33,9 @@ const PASSOS = [
   { casos: 'tests/guarda/rls/054-assercoes.sql', titulo: '054 · parecer e escopo da campanha' },
   { sql:   'supabase/migrations/055_execucao_agente_e_camadas_do_fluxo.sql' },
   { casos: 'tests/guarda/rls/055-assercoes.sql', titulo: '055 · execução, agente e camadas do fluxo' },
+  { sql:   'tests/guarda/rls/056-retrato.sql' },
+  { sql:   'supabase/migrations/056_peca_versao_estado_julgamento.sql' },
+  { casos: 'tests/guarda/rls/056-assercoes.sql', titulo: '056 · peça × versão, estados e julgamento' },
 ]
 
 try {
