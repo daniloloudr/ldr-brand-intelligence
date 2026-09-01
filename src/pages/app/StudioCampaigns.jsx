@@ -108,7 +108,7 @@ export function StudioCampaigns({ brandId }) {
   async function aprovar() {
     if (!sel || aprovando) return
     setAprovando(true)
-    const { error } = await supabase.from('studio_campaigns').update({ status: 'aprovada' }).eq('id', sel.id)
+    const { error } = await supabase.from('studio_campaigns').update({ producao: 'aprovada' }).eq('id', sel.id)
     setAprovando(false)
     if (!error) { setSel(s => ({ ...s, status: 'aprovada' })); loadLista() }
   }

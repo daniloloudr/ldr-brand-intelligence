@@ -192,7 +192,7 @@ async function onGenerationSettled(supabase, gen) {
         return  // ainda não conclui — aguarda as adaptações
       }
       // hero falhou → encerra a campanha
-      await supabase.from('studio_campaigns').update({ status: 'rascunho' }).eq('id', camp.id)
+      await supabase.from('studio_campaigns').update({ producao: 'rascunho' }).eq('id', camp.id)
       return
     }
   }
@@ -204,7 +204,7 @@ async function onGenerationSettled(supabase, gen) {
   if ((count || 0) === 0) {
     // adapt: só conclui depois que o fan-out das adaptações começou
     if (camp.mode === 'adapt' && !camp.adapt_started) return
-    await supabase.from('studio_campaigns').update({ status: 'concluida' }).eq('id', camp.id)
+    await supabase.from('studio_campaigns').update({ producao: 'concluida' }).eq('id', camp.id)
   }
 }
 

@@ -27,8 +27,10 @@ export function StudioApprovals({ brandId }) {
           .eq('brand_id', brandId).eq('status', 'done').is('feedback', null)
           .not('image_url', 'is', null)
           .order('created_at', { ascending: false }).limit(40),
-        supabase.from('studio_campaigns').select('id, nome, conceito, status, created_at')
-          .eq('brand_id', brandId).eq('status', 'concluida').order('created_at', { ascending: false }),
+        // `producao`, não `status`: aqui se pergunta "a produção terminou?", e
+        // desde a 057 o `status` responde outra coisa — a vigência do escopo.
+        supabase.from('studio_campaigns').select('id, nome, conceito, producao, status, created_at')
+          .eq('brand_id', brandId).eq('producao', 'concluida').order('created_at', { ascending: false }),
       ])
       if (!on) return
       setPecas(gens || [])
@@ -49,7 +51,7 @@ export function StudioApprovals({ brandId }) {
 
   async function aprovarCampanha(c) {
     setActing(a => ({ ...a, [c.id]: true }))
-    const { error } = await supabase.from('studio_campaigns').update({ status: 'aprovada' }).eq('id', c.id)
+    const { error } = await supabase.from('studio_campaigns').update({ producao: 'aprovada' }).eq('id', c.id)
     setActing(a => ({ ...a, [c.id]: false }))
     if (!error) setCamps(prev => prev.filter(x => x.id !== c.id))
   }

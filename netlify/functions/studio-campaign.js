@@ -73,7 +73,10 @@ export const handler = async (event) => {
     conceito,
     formatos,
     mode,
-    status:   'gerando',
+    // A campanha NASCE como escopo em rascunho, e a produção dela começa
+    // em 'gerando'. São dois eixos desde a 057.
+    status:   'rascunho',
+    producao: 'gerando',
   }).select().single()
   if (campErr) return { statusCode: 500, headers, body: JSON.stringify({ error: campErr.message }) }
 
@@ -107,7 +110,7 @@ export const handler = async (event) => {
   // Nenhuma peça submetida → estorna o crédito e marca a campanha como erro
   if (!generations.length) {
     if (!platformAdmin) await refundCredits(supabase, { workspace_id, amount, operacao: 'campaign' })
-    await supabase.from('studio_campaigns').update({ status: 'rascunho' }).eq('id', campaign.id)
+    await supabase.from('studio_campaigns').update({ producao: 'rascunho' }).eq('id', campaign.id)
     return { statusCode: 502, headers, body: JSON.stringify({ error: 'Falha ao submeter as peças no fal' }) }
   }
 
