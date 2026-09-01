@@ -222,6 +222,25 @@ A coluna segue existindo e vazia; o teto do agente (D25) será expresso em créd
 dólar. ⚠️ Consequência a registrar: o campo `custo` da execução (§6.1) e o "custo
 acumulado" da página do agente (§8.5) precisam ser relidos como crédito na spec.
 
+> 📄 **A CASA DO DOCUMENTO — pedido do Danilo, 01/set: "precisamos salvar documentos
+> também em algum momento".** Registrado sem desenho, de propósito: o que "documento"
+> significa aqui ainda não está decidido, e inventar a resposta agora seria pior que
+> deixar a pergunta aberta.
+>
+> **De onde nasceu:** o botão "salvar como peça" no Copiloto (`bda9202`) resolveu o texto
+> que a conversa produz — 76 entregáveis que se perdiam. Mas ele grava em
+> `pecas_escritas`, que é peça de marca: post, roteiro, copy. Documento é outra coisa.
+>
+> **As leituras possíveis, e elas levam a lugares diferentes:**
+> · **arquivo que ENTRA** — briefing, manual da agência, PDF do cliente. Vira insumo, e
+>   provavelmente material para o cérebro da marca. Encosta em `brand_assets` e no RAG.
+> · **peça que SAI em formato de documento** — exportar o que foi escrito como .docx/.pdf
+>   para circular fora da plataforma. É entrega, não armazenamento.
+> · **o dossiê de uma campanha** — objetivo, direcional, peças e pareceres num artefato
+>   só, para apresentar ao cliente.
+>
+> As três são úteis; são projetos distintos. 🟡 · decidir qual antes de estimar.
+
 > ✅ **E2 fechado em 01/set — as duas decisões, com o banco medido antes.**
 >
 > **C2 · estados: UM EIXO, sete valores.** O §5 foi reescrito e ganhou `gerando` e
