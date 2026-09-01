@@ -93,20 +93,31 @@ if (verbo === 'status') {
   }
 
   const d = JSON.parse(sb(['branches', 'get', BRANCH, '-o', 'json'], true))
+
+  // As chaves LEGADAS (eyJ…) que o `branches get` devolve podem estar
+  // desabilitadas no projeto-pai — foi o que aconteceu em 01/set, e o branch
+  // nasceu respondendo 401 em tudo. `SUPABASE_DEFAULT_KEY` é a secret no
+  // formato novo (sb_secret_), que sobrevive a isso. Preferir a nova e cair na
+  // legada só se ela não vier.
+  const secret = /^sb_secret_/.test(String(d.SUPABASE_DEFAULT_KEY || ''))
+    ? d.SUPABASE_DEFAULT_KEY : d.SUPABASE_SERVICE_ROLE_KEY
+  const anon = d.SUPABASE_ANON_KEY
+  if (secret !== d.SUPABASE_DEFAULT_KEY) console.log('  ⚠ usando a service_role LEGADA — se o projeto desabilitou as legadas, isto vai dar 401')
+
   writeFileSync(ENVFILE, [
     `# Gerado por scripts/branch.mjs — branch "${BRANCH}". NÃO COMITAR.`,
     `# Apague junto com o branch: npm run branch:matar`,
     `VITE_SUPABASE_URL=${d.SUPABASE_URL}`,
-    `VITE_SUPABASE_KEY=${d.SUPABASE_ANON_KEY}`,
+    `VITE_SUPABASE_KEY=${anon}`,
     `SUPABASE_URL=${d.SUPABASE_URL}`,
-    `SUPABASE_KEY=${d.SUPABASE_ANON_KEY}`,
-    `SUPABASE_SERVICE_KEY=${d.SUPABASE_SERVICE_ROLE_KEY}`,
+    `SUPABASE_KEY=${anon}`,
+    `SUPABASE_SERVICE_KEY=${secret}`,
     `SUPABASE_DB_URL=${d.POSTGRES_URL_NON_POOLING}`,
     '',
   ].join('\n'))
   console.log(`\n✓ ${ENVFILE} escrito`)
   console.log(`    URL:  ${d.SUPABASE_URL}`)
-  console.log(`    anon: ${mascara(d.SUPABASE_ANON_KEY)}   service: ${mascara(d.SUPABASE_SERVICE_ROLE_KEY)}`)
+  console.log(`    anon: ${mascara(anon)}   service: ${mascara(secret)}`)
   console.log('\n  npm run dev:branch     sobe a app contra o branch')
   console.log('  npm run branch:matar   quando terminar (cobra por hora)\n')
 
