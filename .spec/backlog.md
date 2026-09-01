@@ -156,6 +156,16 @@ Por isso E0b sai sozinho.
 > de só "Criar", porque o contexto dele é derivado da rota.
 > Os três geradores **não foram reescritos**: ganharam `cabecalho={false}` e a bancada
 > carrega o cabeçalho com o seletor — é a Faixa A da spec, "UI sobre o que já gera".
+> ⛔ **O §3.4 foi DESLIGADO em 01/set, depois de testar com pessoas** (Danilo: *"não ficou
+> bom esses blocos, não faz sentido agora pra operação"*). A bancada já resolve; a faixa a
+> mais só somava um passo antes de fazer a coisa. Desligado por bandeira
+> (`CAMINHOS_DE_ENTRADA = false` em `StudioCreate.jsx`), **não apagado** — o código segue
+> inteiro em `components/estudio/CaminhoDeEntrada.jsx`. Religar é trocar um `false`.
+>
+> **Quando revisitar:** quando o catálogo de produto existir. É ele que dá sentido ao
+> caminho "Do produto" — hoje reduzido a escolher uma imagem do acervo, que é pouco
+> diferente de anexar uma referência.
+
 > **O §3.4 entrou** (`a7a4378`): faixa "Por onde começar" acima de ATALHOS, com a frase de
 > intenção de cada caminho. **Da ideia** é o padrão (o comportamento de sempre); **Do fluxo**
 > traz a lista de fluxos salvos para dentro de Criar; **Do produto** parte de uma imagem do

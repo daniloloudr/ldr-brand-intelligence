@@ -38,6 +38,19 @@ const FORMATOS = [
   { id: 'texto',  rotulo: 'Texto',  icone: NotesOutlinedIcon, caminho: '/studio/writing', legenda: 'Copy no tom da marca' },
 ]
 
+// ⛔ §3.4 DESLIGADO (01/set/2026, decisão do Danilo depois de testar com pessoas):
+// "não faz sentido agora pra operação". Os três caminhos de entrada não ajudaram
+// quem usa — a bancada já resolve, e a faixa a mais só somava um passo.
+//
+// Desligado, NÃO apagado: o código do §3.4 continua inteiro em
+// components/estudio/CaminhoDeEntrada.jsx, e religar é trocar este false por
+// true. Apagar custaria reescrever quando o catálogo de produto existir (é ele
+// que dá sentido ao caminho "Do produto", hoje reduzido).
+//
+// Com a faixa desligada, o caminho é sempre 'ideia' — que é o comportamento de
+// sempre: prompt e gera.
+const CAMINHOS_DE_ENTRADA = false
+
 export function StudioCreate({ brandId, formato = 'imagem' }) {
   const atual = FORMATOS.find(f => f.id === formato) || FORMATOS[0]
 
@@ -47,7 +60,7 @@ export function StudioCreate({ brandId, formato = 'imagem' }) {
   const [caminho, setCaminho] = useState('ideia')
   const [produto, setProduto] = useState(null)
   const caminhoVale = atual.id === 'imagem' || caminho !== 'produto'
-  const cam = caminhoVale ? caminho : 'ideia'
+  const cam = CAMINHOS_DE_ENTRADA ? (caminhoVale ? caminho : 'ideia') : 'ideia'
 
   const trocar = (_, novo) => {
     if (!novo || novo === atual.id) return   // ToggleButtonGroup devolve null ao reclicar
@@ -80,12 +93,14 @@ export function StudioCreate({ brandId, formato = 'imagem' }) {
         }
       />
 
+      {CAMINHOS_DE_ENTRADA && (
       <Box sx={{ p: { xs: 2, md: 3 }, pb: 0, maxWidth: 1200, width: '100%', mx: 'auto' }}>
         <SeletorDeCaminho valor={cam} onEscolher={c => { setCaminho(c); setProduto(null) }} />
         {cam === 'produto' && !produto && (
           <EscolherProduto brandId={brandId} onEscolher={setProduto} />
         )}
       </Box>
+      )}
 
       <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>}>
         {/* Do fluxo: a lista dos fluxos salvos, DENTRO de Criar — "já sei o
