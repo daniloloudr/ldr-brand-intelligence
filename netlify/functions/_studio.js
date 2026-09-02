@@ -181,7 +181,10 @@ async function onGenerationSettled(supabase, gen) {
         .select('image_url, status').eq('id', gen.id).single()
       if (hero?.status === 'done' && hero.image_url) {
         const { data: brand } = await supabase.from('brands').select('nome').eq('id', camp.brand_id).single()
-        const { prefix, snapshot } = await resolveBrandIntelligence(supabase, camp.brand_id, brand?.nome || '')
+        // §3.5 — a adaptação nasce DENTRO do escopo: se a campanha está ativa,
+        // o que ela já aprendeu entra no contexto das peças irmãs.
+        const { prefix, snapshot } = await resolveBrandIntelligence(
+          supabase, camp.brand_id, brand?.nome || '', undefined, { campanha_id: camp.id })
         for (const formato of (camp.formatos || []).slice(1)) {
           const promptFinal = `${prefix}\n\n[CONCEITO DA CAMPANHA]\n${camp.conceito}\n\n[ADAPTAÇÃO]\nAdapte a peça de referência para o formato ${formato}, mantendo EXATAMENTE a mesma direção de arte, composição, paleta, elementos e estética. Apenas reenquadre/recomponha para ${formato}.`
           await submitGeneration(supabase, {

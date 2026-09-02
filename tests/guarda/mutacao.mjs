@@ -576,6 +576,55 @@ const MUTACOES = [
     arq: 'netlify/functions/studio-prompt.js',
     de: 'Não acrescente elemento',
     para: 'Enriqueça com detalhe vívido e acrescente elemento' },
+
+  // ── Escopo do aprendizado — §3.5 / migration 058 (02/set/2026) ─────
+  // Cada uma destas é irreversível se escapar: aprendizado de campanha que
+  // entra no modelo da marca não sai mais de lá. É a mesma forma dos 24 sinais
+  // contaminados — quando se descobre, já virou memória.
+  { nome: 'a destilação da marca volta a engolir sinal de campanha',
+    arq: 'netlify/functions/_brain.js',
+    de: "return campanha_id ? q.eq('campanha_id', campanha_id) : q.is('campanha_id', null)",
+    para: 'return q' },
+
+  { nome: 'campanha ENCERRADA volta a alimentar peça nova',
+    arq: 'netlify/functions/_brain.js',
+    de: "return data?.status === 'ativa'",
+    para: 'return true' },
+
+  { nome: 'a versão da campanha vira "a última" do modelo da marca',
+    arq: 'netlify/functions/_brain.js',
+    de: "const q = campanha_id ? base().eq('campanha_id', campanha_id) : base().is('campanha_id', null)",
+    para: 'const q = base()' },
+
+  { nome: 'o modelo da campanha reescreve o RAG semântico da MARCA',
+    arq: 'netlify/functions/_brain.js',
+    de: '  if (!campanha_id) {\n    try {\n      const n = await embedIntelChunks(supabase, brand_id, modelo)',
+    para: '  if (true) {\n    try {\n      const n = await embedIntelChunks(supabase, brand_id, modelo)' },
+
+  { nome: 'a versão destilada perde o escopo (tudo vira modelo da marca)',
+    arq: 'netlify/functions/_brain.js',
+    de: '    ...(campanha_id ? {\n      campanha_id,',
+    para: '    ...(false ? {\n      campanha_id,' },
+
+  { nome: 'o destilador de campanha volta a achar que escreve regra de marca',
+    arq: 'netlify/functions/_brain.js',
+    de: 'sem generalizar para regra de marca',
+    para: 'e generalize para regra de marca' },
+
+  // Erro de leitura respondendo 'no_signals' é silêncio idêntico ao de uma
+  // marca sem novidade: a destilação pararia para sempre e ninguém veria.
+  { nome: 'falha ao ler sinais volta a se passar por "sem sinais novos"',
+    arq: 'netlify/functions/_brain.js',
+    de: '  if (sigErr) return',
+    para: '  if (false) return' },
+
+  // O cron contando por marca depois do escopo = trabalho eterno: os sinais de
+  // campanha entram na conta da marca, a destilação da marca não os consome, e
+  // amanhã a conta está acima do limiar de novo. Todo dia, gastando LLM à toa.
+  { nome: 'o cron volta a contar sinal por MARCA e destila em laço eterno',
+    arq: 'netlify/functions/brand-distill-cron.js',
+    de: "const chave = `${r.brand_id}|${r.campanha_id || ''}`",
+    para: 'const chave = r.brand_id' },
 ]
 
 let pegos = 0

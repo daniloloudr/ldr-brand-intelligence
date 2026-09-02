@@ -119,11 +119,53 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 > idempotência de gatilho capturado (§8.4 — é pré-requisito do E6).
 
 | **E2** | **decisões, não código:** os dois eixos de estado (execução × ciclo de vida) e o destino de `pecas_escritas` | — | — | ✅ **decidido 01/set** — §5 reescrito com 7 estados; C4 adiado com motivo medido |
-| **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | 🟡 **destravado** — o E2 saiu |
-| **E4** | campanha como escopo | **D** | ✅ substituição | 🔴 |
-| **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🔴 |
+| **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | ✅ **APLICADO EM PRODUÇÃO 01/set** (056, `462eed2`) |
+| **E4** | campanha como escopo | **D** | ✅ substituição | 🟡 **escrito e ensaiado 02/set** (057, `254918d`) — **na `dev`, NÃO subir sozinha** |
+| **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🟡 **escrito e ensaiado 02/set** (058 + núcleo) — na `dev` |
 | **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
 | **E7** | editor | — | — | ⏸️ o doc adia e manda revisitar |
+
+> 🔴 **A 057 NÃO PODE SUBIR SEM A 058, e a razão não aparece em revisão de código.**
+> A 057 tirou `concluida`/`aprovada` do `status` da campanha e os mudou para `producao`.
+> Dois gatilhos de APRENDIZADO escutavam exatamente aqueles valores naquela coluna:
+> `trg_signal_campaign_verdict` (025) e `trg_dataset_campaign` (029). Depois da 057 o
+> CHECK torna esses valores impossíveis no `status` — os dois param de disparar **sem
+> erro, sem log, sem linha a menos que alguém conte**. O veredicto de campanha é o sinal
+> de MAIOR peso do sistema (3), e sumiria calado. A 058 os reaponta para `producao`.
+>
+> ✅ **E5 — o §3.5 é uma frase, e ela decide a arquitetura:** *"o que a campanha aprendeu
+> permanece NELA (…) não sobe para a marca"*. Se o aprendizado de campanha fosse fundido
+> no modelo da marca, **encerrar não desfaria nada** — já estaria lá dentro, permanente, e
+> "reabrir reativa" não teria o que reativar. É a mesma irreversibilidade que o
+> `nucleo-ia.md` registra sobre os 24 sinais contaminados: cada versão é construída em
+> cima da anterior, e dali não sai.
+>
+> Então o escopo virou **dimensão do modelo vivo**: `brand_intelligence.campanha_id`
+> (null = a marca), uma linha de versões por escopo. O `distillBrand` lê os sinais **do
+> escopo** (nunca mistura), e o `resolveBrandIntelligence` compõe marca + campanha **só
+> se o escopo estiver `ativa`**. O portão é de LEITURA, e é por isso que reabrir reativa.
+>
+> **Vigência é proveniência, não portão.** Ela fica gravada na versão destilada (é o que
+> torna o aprendizado "datado por natureza" legível por quem consulta depois), mas quem
+> liga e desliga é o `status` — ato humano. Vigência vencida derrubando aprendizado à
+> meia-noite, sem ninguém encerrar nada, seria de novo comportamento que muda calado.
+>
+> ⚠️ **O cron precisou mudar junto, e sem isso seria trabalho eterno.** O
+> `brand-distill-cron` contava sinais não-consumidos POR MARCA. Com a destilação
+> filtrando por escopo, os sinais de campanha entrariam na conta da marca, a destilação
+> da marca não os consumiria (ela lê só `campanha_id is null`), e no dia seguinte a conta
+> estaria acima do limiar de novo — **todo dia, para sempre, gastando LLM para não
+> consumir nada**, e logando sucesso. Agora conta e dispara por (marca, escopo).
+>
+> 📏 **Medido antes de escrever:** 581 sinais (259 não-consumidos), 4 campanhas, 4
+> `campaign_verdict`, 4 exemplos de dataset com superfície `campaign`, e **ZERO gerações
+> votadas com `campaign_id`**. O escopo nasce praticamente vazio — e é exatamente por
+> isso que a hora de criá-lo é agora: quando houver sinal de campanha já fundido no
+> modelo da marca, não haverá como separar.
+>
+> **Ensaios:** 184 asserções de RLS (25 novas), 108 mutações, `guarda:replay` verde. O
+> ensaio da 058 **instala os gatilhos velhos no retrato e prova a substituição**, em vez
+> de descrever o defeito. Falta `guarda:ao-vivo` antes do deploy — o `_brain.js` é núcleo.
 
 **O E0 virou três (31/ago), por tamanho e por uma dependência de ordem que a spec não
 menciona: o menu só pode tirar o Copiloto depois que ele for invocável** — senão some o

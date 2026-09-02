@@ -101,19 +101,65 @@ function compileIntelligence(m) {
   return lines.length ? lines.join('\n') : null
 }
 
+// ── Escopo do aprendizado (§3.5 / migration 058) ─────────────────────
+// O modelo vivo tem UMA LINHA DE VERSÕES POR ESCOPO: `campanha_id` null é o
+// modelo da marca; preenchido é o que a campanha aprendeu — que fica nela e
+// NUNCA sobe para a marca. Sem essa separação, encerrar campanha não desfaria
+// nada: o aprendizado dela já estaria dentro do modelo da marca, permanente.
+//
+// O `try` não é paranoia: entre subir o código e aplicar a migration existe
+// uma janela em que `campanha_id` não existe, e pedir coluna inexistente faz o
+// PostgREST devolver erro. Nessa janela só há o escopo da marca — que é a
+// verdade, porque escopo nenhum foi destilado ainda.
+async function versaoDoEscopo(supabase, brand_id, campanha_id = null) {
+  const cols = 'versao, modelo, created_at'
+  const base = () => supabase.from('brand_intelligence').select(cols)
+    .eq('brand_id', brand_id).order('versao', { ascending: false }).limit(1)
+  const q = campanha_id ? base().eq('campanha_id', campanha_id) : base().is('campanha_id', null)
+  const { data, error } = await q.maybeSingle()
+  if (!error) return data || null
+  if (campanha_id) return null
+  const { data: semEscopo } = await base().maybeSingle()
+  return semEscopo || null
+}
+
+// §3.5 — a campanha só alimenta peça nova enquanto o ESCOPO está ativo.
+// O portão é o estado, não a data: encerrar e reabrir é ato humano, e é ele
+// que liga e desliga. Vigência vencida à meia-noite não derruba aprendizado
+// nenhum sozinha — mudança de comportamento sem ato é mudança calada.
+async function escopoAtivo(supabase, campanha_id) {
+  if (!campanha_id) return false
+  const { data } = await supabase.from('studio_campaigns')
+    .select('status').eq('id', campanha_id).maybeSingle()
+  return data?.status === 'ativa'
+}
+
 // Porta ÚNICA de contexto de marca: brand context estático + o modelo vivo
 // destilado dos brand_signals (última versão) → realimenta a geração.
 // Trocar modelo de borda nunca toca aqui. Spec: brand-intelligence.md
-export async function resolveBrandIntelligence(supabase, brand_id, brandNome, facets) {
+export async function resolveBrandIntelligence(supabase, brand_id, brandNome, facets, { campanha_id = null } = {}) {
   const base = await resolveBrandContext(supabase, brand_id, brandNome, facets)
-  const { data: bi } = await supabase.from('brand_intelligence')
-    .select('versao, modelo').eq('brand_id', brand_id)
-    .order('versao', { ascending: false }).limit(1).maybeSingle()
-  const learned = bi?.modelo ? compileIntelligence(bi.modelo) : null
-  if (!learned) return base
+
+  const [bi, ativo] = await Promise.all([
+    versaoDoEscopo(supabase, brand_id, null),
+    escopoAtivo(supabase, campanha_id),
+  ])
+  const camp = ativo ? await versaoDoEscopo(supabase, brand_id, campanha_id) : null
+
+  const learned  = bi?.modelo   ? compileIntelligence(bi.modelo)   : null
+  const doEscopo = camp?.modelo ? compileIntelligence(camp.modelo) : null
+  if (!learned && !doEscopo) return base
+
+  const blocos = [base.prefix]
+  if (learned)  blocos.push(`[INTELIGÊNCIA DA MARCA — aprendido com o uso (v${bi.versao})]\n${learned}`)
+  if (doEscopo) blocos.push(`[APRENDIZADO DESTA CAMPANHA — vale enquanto o escopo estiver ativo (v${camp.versao})]\n${doEscopo}`)
   return {
-    prefix: `${base.prefix}\n\n[INTELIGÊNCIA DA MARCA — aprendido com o uso (v${bi.versao})]\n${learned}`,
-    snapshot: { ...base.snapshot, intelligence_versao: bi.versao },
+    prefix: blocos.join('\n\n'),
+    snapshot: {
+      ...base.snapshot,
+      ...(learned  ? { intelligence_versao: bi.versao } : {}),
+      ...(doEscopo ? { campanha_id, campanha_intelligence_versao: camp.versao } : {}),
+    },
   }
 }
 
@@ -121,10 +167,10 @@ export async function resolveBrandIntelligence(supabase, brand_id, brandNome, fa
 // Porta única p/ emitir um sinal por código. Os sinais de uso (votos, verdicts,
 // diagnósticos, sentiment, edições) nascem de triggers no banco (migration 025);
 // isto cobre o que não passa por tabela com trigger (clipping, concorrentes…).
-export async function emitSignal(supabase, { brand_id, workspace_id, tipo, fonte, ref_id = null, peso = 1, payload = {} }) {
-  const { error } = await supabase.from('brand_signals').insert({
-    brand_id, workspace_id, tipo, fonte, ref_id, peso, payload,
-  })
+export async function emitSignal(supabase, { brand_id, workspace_id, tipo, fonte, ref_id = null, peso = 1, payload = {}, campanha_id = null }) {
+  const linha = { brand_id, workspace_id, tipo, fonte, ref_id, peso, payload }
+  if (campanha_id) linha.campanha_id = campanha_id   // §3.5 — escopo; ausente = aprendizado da marca
+  const { error } = await supabase.from('brand_signals').insert(linha)
   return { error }
 }
 
@@ -152,11 +198,12 @@ export async function searchBrandKnowledge(supabase, brand_id, query, limit = 5)
 // Leitura canônica dos exemplos julgados de uma marca (migration 029; a
 // captura é 100% via triggers). É o insumo do fine-tune por tenant no futuro
 // e de painéis de qualidade — nunca escreva aqui por código.
-export async function fetchDataset(supabase, brand_id, { superficie = null, limit = 200 } = {}) {
+export async function fetchDataset(supabase, brand_id, { superficie = null, campanha_id = null, limit = 200 } = {}) {
   let q = supabase.from('brand_dataset')
     .select('id, created_at, superficie, contexto, output, avaliacao, schema_versao')
     .eq('brand_id', brand_id).order('created_at', { ascending: false }).limit(limit)
   if (superficie) q = q.eq('superficie', superficie)
+  if (campanha_id) q = q.eq('campanha_id', campanha_id)
   const { data } = await q
   return data || []
 }
@@ -322,23 +369,48 @@ const SYSTEM = [
 ].join('\n')
 
 /**
- * Destila a próxima versão do modelo vivo de uma marca.
- * Lê brand_signals não-consumidos + versão atual → LLM → grava brand_intelligence
- * → marca sinais consumidos → re-deriva o RAG. Idempotente pelo consumido_em.
+ * Destila a próxima versão do modelo vivo de UM ESCOPO.
+ * Lê brand_signals não-consumidos DAQUELE ESCOPO + versão atual dele → LLM →
+ * grava brand_intelligence → marca sinais consumidos → re-deriva o RAG.
+ * Idempotente pelo consumido_em.
+ *
+ * `campanha_id` null = o modelo DA MARCA, e ele lê só os sinais sem escopo.
+ * §3.5: o que a campanha aprende fica nela e não sobe para a marca — por isso
+ * a separação é na LEITURA dos sinais, não num filtro depois. Sinal de
+ * campanha destilado junto com o da marca não teria como ser desfeito.
+ *
  * Retorna um resultado discriminado (sem HTTP — o caller mapeia):
  *   { status: 'ok', versao, sinais } | { status: 'not_found' | 'no_signals' | 'invalid' }
  *   | { status: 'llm_error' | 'insert_error', message }
  */
-export async function distillBrand(supabase, brand_id) {
-  // 1. sinais não-consumidos + versão atual + brand book (grounding)
-  const [{ data: signals }, { data: brand }, { data: atual }] = await Promise.all([
-    supabase.from('brand_signals').select('id, tipo, ref_id, payload, peso, created_at, workspace_id')
-      .eq('brand_id', brand_id).is('consumido_em', null).order('created_at', { ascending: true }).limit(MAX_SIGNALS),
+export async function distillBrand(supabase, brand_id, { campanha_id = null } = {}) {
+  // 1. sinais não-consumidos DO ESCOPO + versão atual dele + brand book (grounding)
+  const sinaisDoEscopo = () => {
+    const q = supabase.from('brand_signals').select('id, tipo, ref_id, payload, peso, created_at, workspace_id')
+      .eq('brand_id', brand_id).is('consumido_em', null)
+      .order('created_at', { ascending: true }).limit(MAX_SIGNALS)
+    return campanha_id ? q.eq('campanha_id', campanha_id) : q.is('campanha_id', null)
+  }
+  const [{ data: signals, error: sigErr }, { data: brand }, atual] = await Promise.all([
+    sinaisDoEscopo(),
     supabase.from('brands').select('id, nome, workspace_id').eq('id', brand_id).single(),
-    supabase.from('brand_intelligence').select('versao, modelo, created_at').eq('brand_id', brand_id).order('versao', { ascending: false }).limit(1).maybeSingle(),
+    versaoDoEscopo(supabase, brand_id, campanha_id),
   ])
   if (!brand) return { status: 'not_found' }
+  // Erro de leitura NÃO é "sem sinais". Sem esta separação, a coluna de escopo
+  // ainda não aplicada faria a destilação responder 'no_signals' para sempre —
+  // silêncio idêntico ao de uma marca sem novidade, e ninguém veria.
+  if (sigErr) return { status: 'llm_error', message: `leitura de sinais falhou: ${sigErr.message}` }
   if (!signals?.length) return { status: 'no_signals' }
+
+  // A vigência da campanha vai gravada na versão: é o que torna o aprendizado
+  // "datado por natureza" (§3.5) legível por quem consultar depois de encerrado.
+  let vigencia = null
+  if (campanha_id) {
+    const { data: c } = await supabase.from('studio_campaigns')
+      .select('vigencia_inicio, vigencia_fim').eq('id', campanha_id).maybeSingle()
+    vigencia = c || null
+  }
 
   const { prefix: brandBook } = await resolveBrandContext(supabase, brand_id, brand.nome)
 
@@ -350,8 +422,14 @@ export async function distillBrand(supabase, brand_id) {
     `[BRAND BOOK — base estática]\n${brandBook}`,
     `\n[MODELO ATUAL v${atual?.versao || 0}]\n${JSON.stringify(atual?.modelo || {}, null, 0)}`,
     `\n[SINAIS NOVOS — ${signals.length}, do mais antigo ao mais recente; {quando, peso} anota recência e força]\n${signals.map(s => fmtSignal(s, now)).join('\n')}`,
+    // O escopo muda o que este modelo É, e o destilador precisa saber: sem isto
+    // ele escreveria regra permanente de marca a partir de evidência de uma
+    // campanha só — que é justamente o que o §3.5 proíbe.
     '\nDestile a próxima versão do modelo (JSON estrito), aplicando recência, resolução de contradição e confiança por faceta.',
-  ].join('\n')
+    campanha_id
+      ? 'ATENÇÃO — ESCOPO: estes sinais são de UMA CAMPANHA, não da marca. O modelo que você destila vale só dentro dela e é datado: descreva o que funcionou NESTA campanha, sem generalizar para regra de marca. O brand book acima é contexto, não é o que você está atualizando.'
+      : null,
+  ].filter(Boolean).join('\n')
 
   let modelo
   try {
@@ -379,6 +457,7 @@ export async function distillBrand(supabase, brand_id) {
   try {
     let q = supabase.from('studio_generations').select('feedback')
       .eq('brand_id', brand_id).not('feedback', 'is', null)
+    if (campanha_id) q = q.eq('campaign_id', campanha_id)   // a métrica do escopo é do escopo
     if (atual?.created_at) q = q.gte('feedback_at', atual.created_at)
     const { data: votos } = await q
     const total = votos?.length || 0
@@ -396,8 +475,13 @@ export async function distillBrand(supabase, brand_id) {
   const { error: insErr } = await supabase.from('brand_intelligence').insert({
     brand_id, workspace_id: brand.workspace_id, versao, modelo,
     confianca_media: avgConfianca(modelo),
-    gerado_de: { count: signals.length, tipos, signal_ids: signalIds },
+    gerado_de: { count: signals.length, tipos, signal_ids: signalIds, campanha_id },
     metricas,
+    ...(campanha_id ? {
+      campanha_id,
+      vigencia_inicio: vigencia?.vigencia_inicio || null,
+      vigencia_fim:    vigencia?.vigencia_fim    || null,
+    } : {}),
   })
   if (insErr) { console.error('[distill] insert falhou:', insErr.message); return { status: 'insert_error', message: insErr.message } }
 
@@ -407,13 +491,19 @@ export async function distillBrand(supabase, brand_id) {
   // 5. RAG re-derivado do modelo vivo (trilho B): o Assistant passa a recuperar
   //    semanticamente o que a marca APRENDEU, não só o brand book digitado.
   //    Falha aqui não invalida a destilação já gravada.
-  try {
-    const n = await embedIntelChunks(supabase, brand_id, modelo)
-    console.log(`[distill] RAG re-derivado: ${n} chunks do modelo vivo`)
-  } catch (e) {
-    console.error('[distill] embed do modelo vivo falhou (não-fatal):', e.message)
+  // Só o escopo da MARCA re-deriva o RAG. Um modelo de campanha reescrevendo os
+  // chunks semânticos da marca seria, na prática, subir para a marca pela porta
+  // dos fundos — o oposto do que o §3.5 manda.
+  if (!campanha_id) {
+    try {
+      const n = await embedIntelChunks(supabase, brand_id, modelo)
+      console.log(`[distill] RAG re-derivado: ${n} chunks do modelo vivo`)
+    } catch (e) {
+      console.error('[distill] embed do modelo vivo falhou (não-fatal):', e.message)
+    }
   }
 
-  console.log(`[distill] marca ${brand_id} → v${versao} (${signals.length} sinais, conf ${avgConfianca(modelo)?.toFixed(2)})`)
+  const escopo = campanha_id ? `campanha ${campanha_id}` : `marca ${brand_id}`
+  console.log(`[distill] ${escopo} → v${versao} (${signals.length} sinais, conf ${avgConfianca(modelo)?.toFixed(2)})`)
   return { status: 'ok', versao, sinais: signals.length }
 }

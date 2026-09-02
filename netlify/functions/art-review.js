@@ -46,8 +46,6 @@ export const handler = async (event) => {
   ])
   if (!member && !platformAdmin) return { statusCode: 403, headers }
 
-  const { prefix: brandCtx } = await resolveBrandIntelligence(supabase, brand_id, brand.nome)
-
   // ── O EIXO ESCOPO (§2.3) deixa de ser cego ────────────────────────
   // A campanha não vem do chamador: vem da PEÇA. `studio_generations` já
   // carrega `campaign_id`, então nenhum caller precisa mudar — e uma peça
@@ -59,6 +57,7 @@ export const handler = async (event) => {
   // igual antes e depois de a migration ser aplicada — que é o estado em que
   // ela vai viver enquanto o deploy não acontece.
   let escopo = null
+  let campanhaDaPeca = null
   try {
     let cid = campaign_id
     if (!cid && generation_id) {
@@ -71,8 +70,17 @@ export const handler = async (event) => {
       // nada mais não dá ao juiz nenhum critério — e dizer que o eixo foi
       // checado quando não havia o que checar é pior que dizer que não foi.
       if (c && (c.objetivo || c.direcional || c.proposta_valor || c.conceito)) escopo = c
+      campanhaDaPeca = cid
     }
   } catch (e) { console.error('[art-review] escopo da campanha indisponível (não-fatal):', e.message) }
+
+  // §3.5 — o contexto vem DEPOIS de saber a campanha, porque o juiz de uma peça
+  // de campanha ATIVA julga também contra o que aquela campanha aprendeu. O
+  // cérebro decide se o escopo entra: encerrada, não entra. Aqui só se informa
+  // qual é — resolver o escopo antes desta linha é a única razão de ela ter
+  // descido para cá.
+  const { prefix: brandCtx } = await resolveBrandIntelligence(
+    supabase, brand_id, brand.nome, undefined, { campanha_id: campanhaDaPeca })
 
   const blocoEscopo = escopo ? [
     `\n[ESCOPO DA PEÇA — campanha "${escopo.nome || 'sem nome'}"]`,
