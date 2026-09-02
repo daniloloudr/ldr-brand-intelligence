@@ -204,6 +204,9 @@ describe('distillBrand — o escopo é portão de LEITURA DO SINAL', () => {
     const r = await distillBrand(supa(), MARCA)
     expect(r.status).not.toBe('no_signals')
     expect(r.status).not.toBe('ok')
+    // E o rótulo tem que dizer O QUE falhou: o modelo nem foi chamado. Chamar
+    // isso de `llm_error` manda quem investiga para o lugar errado.
+    expect(r.status).toBe('read_error')
     expect(r.message).toContain('campanha_id')
     expect(gravacoes.some(g => g.op === 'insert')).toBe(false)
   })

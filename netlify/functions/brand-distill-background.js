@@ -28,6 +28,7 @@ export const handler = async (event) => {
   if (r.status === 'not_found')    return { statusCode: 404 }
   if (r.status === 'no_signals')   return { statusCode: 200, body: 'sem sinais novos' }
   if (r.status === 'llm_error')    return { statusCode: 502, body: r.message }
+  if (r.status === 'read_error')   return { statusCode: 500, body: r.message }
   if (r.status === 'invalid')      return { statusCode: 502, body: 'destilação inválida' }
   if (r.status === 'insert_error') return { statusCode: 500, body: r.message }
   return { statusCode: 200, body: JSON.stringify({ versao: r.versao, sinais: r.sinais }) }

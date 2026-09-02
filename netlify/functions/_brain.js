@@ -381,7 +381,7 @@ const SYSTEM = [
  *
  * Retorna um resultado discriminado (sem HTTP — o caller mapeia):
  *   { status: 'ok', versao, sinais } | { status: 'not_found' | 'no_signals' | 'invalid' }
- *   | { status: 'llm_error' | 'insert_error', message }
+ *   | { status: 'llm_error' | 'read_error' | 'insert_error', message }
  */
 export async function distillBrand(supabase, brand_id, { campanha_id = null } = {}) {
   // 1. sinais não-consumidos DO ESCOPO + versão atual dele + brand book (grounding)
@@ -400,7 +400,10 @@ export async function distillBrand(supabase, brand_id, { campanha_id = null } = 
   // Erro de leitura NÃO é "sem sinais". Sem esta separação, a coluna de escopo
   // ainda não aplicada faria a destilação responder 'no_signals' para sempre —
   // silêncio idêntico ao de uma marca sem novidade, e ninguém veria.
-  if (sigErr) return { status: 'llm_error', message: `leitura de sinais falhou: ${sigErr.message}` }
+  // `read_error`, não `llm_error`: o modelo nem foi chamado. Rotular a falha de
+  // leitura como falha do LLM manda quem for investigar para o lugar errado —
+  // é o mesmo defeito de confundir as duas recusas do diagnóstico.
+  if (sigErr) return { status: 'read_error', message: `leitura de sinais falhou: ${sigErr.message}` }
   if (!signals?.length) return { status: 'no_signals' }
 
   // A vigência da campanha vai gravada na versão: é o que torna o aprendizado
