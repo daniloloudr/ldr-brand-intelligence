@@ -39,6 +39,9 @@ const PASSOS = [
   { sql:   'tests/guarda/rls/057-retrato.sql' },
   { sql:   'supabase/migrations/057_campanha_vira_escopo.sql' },
   { casos: 'tests/guarda/rls/057-assercoes.sql', titulo: '057 · campanha vira escopo' },
+  { sql:   'tests/guarda/rls/058-retrato.sql' },
+  { sql:   'supabase/migrations/058_escopo_e_vigencia_no_aprendizado.sql' },
+  { casos: 'tests/guarda/rls/058-assercoes.sql', titulo: '058 · escopo e vigência no aprendizado' },
 ]
 
 try {
