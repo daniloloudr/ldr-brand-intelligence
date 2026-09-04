@@ -29,7 +29,7 @@ import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
 import { creditsForImage } from '../../lib/credits'
-import { roteiroDaPeca } from '../../lib/loteExecucao'
+import { roteiroDaPeca, lerEstado } from '../../lib/loteExecucao'
 import { montarContexto } from '../../lib/loteCatalogo'
 
 const COLUNAS = ['sku', 'contexto', ...PAPEIS.map(p => p.col), 'saidas']
@@ -271,13 +271,11 @@ export function AddonCatalogo({ brandId }) {
         .select('id, status, image_url, error').in('id', ids)
       let vivos = 0
       for (const id of ids) {
-        const r = (data || []).find(x => x.id === id)
         const job = todos.find(j => j.genId === id)
-        if (!r || r.status === 'running' || r.status === 'queued') { vivos++; continue }
-        if (r.status === 'done') {
-          job.status = 'done'; job.url = r.image_url
-          saidas[job.__no] = r.image_url
-        } else { job.status = 'error'; job.error = r.error || 'falhou' }
+        const e = lerEstado((data || []).find(x => x.id === id))
+        if (e.estado === 'em_voo') { vivos++; continue }
+        if (e.estado === 'pronta') { job.status = 'done'; job.url = e.url; saidas[job.__no] = e.url }
+        else { job.status = 'error'; job.error = e.erro }
       }
       aplicar([...todos])
       if (!vivos) return todos.filter(j => ids.includes(j.genId)).every(j => j.status === 'done')

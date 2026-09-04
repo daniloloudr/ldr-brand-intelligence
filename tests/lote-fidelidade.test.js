@@ -10,7 +10,7 @@ import {
   vistasDoGrafo,
 } from '../src/lib/studioGrafo.js'
 import { resolveModel, MAX_REFS_CANVAS } from '../src/lib/studioModels.js'
-import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca } from '../src/lib/loteExecucao.js'
+import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado } from '../src/lib/loteExecucao.js'
 
 // Um recorte fiel do fluxo real da Hering: ids `eN_in_papel`, formato custom
 // 1720×2432, contexto de acabamento, e a ordem das arestas importando.
@@ -210,5 +210,24 @@ describe('⭐ o roteiro: todas as etapas, na ordem que o grafo manda', () => {
   it('⭐ o contexto da PEÇA não polui a base da modelo', () => {
     expect(r.passos.find(x => x.genId === 'e0_g1').montar({}).prompt).not.toContain('A PEÇA')
     expect(r.passos.find(x => x.genId === 'e1_g1').montar({}).prompt).toContain('A PEÇA')
+  })
+})
+
+describe('⭐ o estado de uma geração — só `error` é falha', () => {
+  it('processing ainda está em voo', () => {
+    expect(lerEstado({ status: 'processing' }).estado).toBe('em_voo')
+  })
+  it('linha ainda não visível também está em voo', () => {
+    expect(lerEstado(undefined).estado).toBe('em_voo')
+  })
+  it('done devolve a URL', () => {
+    expect(lerEstado({ status: 'done', image_url: 'u' })).toEqual({ estado: 'pronta', url: 'u' })
+  })
+  it('error é falha, e sempre com texto', () => {
+    expect(lerEstado({ status: 'error' }).erro).toBeTruthy()
+    expect(lerEstado({ status: 'error', error: 'saldo' }).erro).toBe('saldo')
+  })
+  it('⭐ estado desconhecido NÃO vira falha — a peça continua gerando', () => {
+    expect(lerEstado({ status: 'submitted' }).estado).toBe('em_voo')
   })
 })

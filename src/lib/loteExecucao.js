@@ -168,3 +168,20 @@ export function roteiroDaPeca({ nodes, edges, vistas, escolhidas, linha, brandId
     })),
   }
 }
+
+/**
+ * ⭐ O estado de uma geração, lido como o canvas lê.
+ *
+ * Os estados que o backend usa são `processing`, `done` e `error` — e SÓ eles.
+ * Tratar "qualquer coisa diferente de done" como falha marcava a peça de
+ * vermelho três segundos depois de disparar, enquanto ela gerava normalmente:
+ * a imagem chegava, e a tela já tinha desistido dela.
+ *
+ * Só `error` é falha. O resto ainda está em voo.
+ */
+export function lerEstado(row) {
+  if (!row) return { estado: 'em_voo' }
+  if (row.status === 'done')  return { estado: 'pronta', url: row.image_url }
+  if (row.status === 'error') return { estado: 'falhou', erro: row.error || 'a geração falhou' }
+  return { estado: 'em_voo' }
+}

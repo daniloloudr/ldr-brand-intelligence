@@ -25,6 +25,15 @@ const MUTACOES = [
     de: "                : /still|peca/.test(papel)  ? 'principal'",
     para: "                : false                     ? 'principal'" },
 
+  { nome: 'lote: `processing` volta a ser lido como falha (a peça é dada por perdida gerando)',
+    arq: 'src/lib/loteExecucao.js',
+    de: "  if (row.status === 'error') return { estado: 'falhou', erro: row.error || 'a geração falhou' }\n  return { estado: 'em_voo' }",
+    para: "  return { estado: 'falhou', erro: row.error || 'a geração falhou' }" },
+
+  { nome: 'lote: a contagem volta a sobrescrever a lista de vistas (Rodar não dispara nada)',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '             vistasPedidas: pedidas,', para: '             saidas: pedidas.length, vistasPedidas: undefined,' },
+
   { nome: 'lote: acessório do lote ANTERIOR sobrevive no SKU novo',
     arq: 'src/lib/loteExecucao.js',
     de: '  acessorios.forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })',
