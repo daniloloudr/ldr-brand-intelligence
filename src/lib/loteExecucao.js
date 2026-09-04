@@ -124,12 +124,18 @@ export function pedidoDaVista({ nodes, edges, vista, genId: genDireto, linha, br
   // (Danilo, 04/set) — o nó de contexto das etapas de PEÇA é conteúdo de lote
   // morando no lugar de constante. Na etapa 0 o contexto é da PESSOA e continua
   // sendo do fluxo.
-  // O contexto do usuário vale COMO ESTÁ — nada de mesclar seção do fluxo por
-  // cima. "Não era pra você substituir nada; mantenha as infos de câmera no
-  // prompt" (Danilo, 04/set): enquadramento é da POSE, e pose é prompt. Com a
-  // câmera fora do contexto, não há o que conciliar — some a classe inteira de
-  // conflito entre o que o usuário escreve e o que a etapa precisa.
-  const contexto = daPeca || inp.context
+  // ⭐ O contexto da ETAPA e o da PEÇA SOMAM — não se substituem.
+  //
+  // Cada um fala de uma coisa e nenhum sabe o do outro:
+  //   · o da etapa é constante da receita — o que trava, o que varia, como ler
+  //     a referência de pose. Vive no fluxo e não muda por SKU.
+  //   · o da peça é a roupa. Vem do usuário e muda a cada SKU.
+  //
+  // Substituir um pelo outro apagava instrução de etapa em silêncio, e foi o que
+  // custou três rodadas em 04/set. Somar só é seguro porque os contextos do
+  // fluxo deixaram de descrever a peça: enquanto descreviam, a soma produzia
+  // dois §A PEÇA no mesmo prompt e o modelo obedecia o errado.
+  const contexto = [inp.context, daPeca].filter(Boolean).join('\n\n')
 
   return {
     brand_id: brandId,

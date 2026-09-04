@@ -123,10 +123,10 @@ const MUTACOES = [
     arq: 'src/lib/zip.js',
     de: '    escrever(cab, 14, crc, 4)', para: '    escrever(cab, 14, 0, 4)' },
 
-  { nome: 'lote: o contexto do nó volta a se misturar ao do usuário',
+  { nome: 'lote: o contexto do SKU volta a APAGAR a instrução da etapa',
     arq: 'src/lib/loteExecucao.js',
-    de: '  const contexto = daPeca || inp.context',
-    para: "  const contexto = [inp.context, daPeca].filter(Boolean).join('\\n\\n')" },
+    de: "  const contexto = [inp.context, daPeca].filter(Boolean).join('\\n\\n')",
+    para: '  const contexto = daPeca || inp.context' },
 
   { nome: 'lote: contexto já completo volta a ser embrulhado (cabeçalho em cima de cabeçalho)',
     arq: 'src/lib/loteCatalogo.js',

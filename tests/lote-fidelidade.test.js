@@ -52,7 +52,7 @@ function comoOCanvasMonta(grafo) {
     .flatMap(n => n.data.urls || []).slice(0, MAX_REFS_CANVAS)
   return {
     brand_id: 'B', workflow_id: 'W', node_id: 'g1',
-    prompt: comContexto(inp.prompt, CTX_PECA || inp.context),
+    prompt: comContexto(inp.prompt, [inp.context, CTX_PECA].filter(Boolean).join('\n\n')),
     formato: inp.formato, custom_size: inp.customSize,
     use_brand: inp.hasBrand, brand_facets: inp.brandFacets,
     model, references,
@@ -78,9 +78,9 @@ describe('⭐ addon e canvas montam o MESMO pedido', () => {
     expect(addon.prompt.indexOf('FRONTAL')).toBe(0)
     expect(addon.prompt).toContain('[CONTEXTO ADICIONAL]')
   })
-  it('⭐ o contexto do usuário é o único — nada do nó se mistura', () => {
-    expect(addon.prompt).toContain('A PEÇA')
-    expect(addon.prompt).not.toContain('ACABAMENTO')
+  it('⭐ etapa e peça convivem no mesmo prompt', () => {
+    expect(addon.prompt).toContain('A PEÇA')       // do usuário
+    expect(addon.prompt).toContain('ACABAMENTO')   // da etapa
   })
   it('sem contexto do usuário, vale o do nó', () => {
     const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
@@ -240,14 +240,13 @@ describe('⭐ o estado de uma geração — só `error` é falha', () => {
   })
 })
 
-describe('⭐ o contexto do usuário vale COMO ESTÁ', () => {
-  const DO_FLUXO = '═══ A PEÇA ═══\nribana canelada'
+describe('⭐ os dois contextos SOMAM — etapa e peça falam de coisas diferentes', () => {
   const DO_USUARIO = '═══ A PEÇA ═══\npolo listrada'
-  it('quando existe, o do usuário é o único', () => {
+  it('a instrução da ETAPA sobrevive ao contexto do SKU', () => {
     const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
       resolver: v => v, contextoDaPeca: DO_USUARIO })
-    expect(p.prompt).toContain('polo listrada')
-    expect(p.prompt).not.toContain('ribana canelada')
+    expect(p.prompt).toContain('polo listrada')   // a peça
+    expect(p.prompt).toContain('ACABAMENTO')      // a etapa
   })
   it('sem o do usuário, vale o do nó', () => {
     const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
