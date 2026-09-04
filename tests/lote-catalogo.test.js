@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   lerCSV, normalizarCabecalho, montarLook, montarContexto, preflight,
-  contarSaidas, ehUrl, PAPEIS, CONTEXTO_MIN, NIVEIS,
+  contarSaidas, ehUrl, valoresDe, PAPEIS, CONTEXTO_MIN, NIVEIS,
 } from '../src/lib/loteCatalogo.js'
 
 const CTX = 'Camiseta feminina em ribana, canelado fino. '.repeat(8)   // > CONTEXTO_MIN
@@ -136,6 +136,38 @@ describe('⭐ o corte silencioso do F4, dito ANTES de gerar', () => {
   it('sem estouro, não inventa aviso', () => {
     const r = rodar([seisRefs], { modelo: 'fal-ai/nano-banana-pro', teto: 10 })
     expect(r.linhas[0].problemas.filter(p => p.campo === 'referencias')).toHaveLength(0)
+  })
+})
+
+describe('⭐ várias vistas do mesmo acessório', () => {
+  it('a célula aceita N vistas separadas por ;', () => {
+    const r = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg' }])
+    expect(r.bloqueadas).toBe(0)
+  })
+  it('conta IMAGEM, não papel — é o que o modelo recebe', () => {
+    const uma = rodar([base]).linhas[0].refs
+    const duas = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg' }]).linhas[0].refs
+    expect(duas).toBe(uma + 2)
+  })
+  it('se UMA vista não existe, o papel inteiro bloqueia', () => {
+    const r = rodar([{ ...base, bolsa: 'bolsa.jpg;fantasma.jpg' }])
+    expect(r.bloqueadas).toBe(1)
+  })
+  it('o LOOK diz quantas vistas entraram', () => {
+    expect(montarLook({ ...base, bolsa: 'a.jpg;b.jpg;c.jpg' })).toContain('3 vistas')
+  })
+  it('uma vista só não vira "1 vistas"', () => {
+    expect(montarLook(base)).not.toMatch(/1 vistas/)
+  })
+  it('⭐ o elenco continua sendo UMA pessoa', () => {
+    const r = rodar([{ ...base, elenco: 'Marina;Julia' }])
+    expect(r.bloqueadas).toBe(1)
+    expect(r.linhas[0].problemas.some(p => /só uma modelo/.test(p.texto))).toBe(true)
+  })
+  it('mais vistas empurram o corte do modelo', () => {
+    const r = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg;kh6v_costas.jpg' }],
+                    { modelo: 'fal-ai/nano-banana-pro', teto: 4 })
+    expect(r.linhas[0].problemas.some(p => p.campo === 'referencias')).toBe(true)
   })
 })
 

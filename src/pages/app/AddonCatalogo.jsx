@@ -60,7 +60,7 @@ export function AddonCatalogo({ brandId }) {
   // ── uma peça ──
   const vazia = { sku: '', contexto: '', elenco: '', saidas: SAIDAS.join(';') }
   const [peca, setPeca] = useState(vazia)
-  const [arquivos, setArquivos] = useState({})      // col → { nome, url }
+  const [arquivos, setArquivos] = useState({})      // col → [{ nome, url }] · N vistas por papel
   const [subindo, setSubindo] = useState('')
   const [novas, setNovas] = useState([])       // castings subidos agora — ainda sem base conferida
 
@@ -135,21 +135,34 @@ export function AddonCatalogo({ brandId }) {
     setSubindo('')
   }
 
-  async function subirArquivo(col, file) {
-    if (!file) return
+  // Um papel aceita VÁRIAS VISTAS do mesmo item — bolsa de frente e de lado,
+  // calçado de perfil e de cima. Elas viram uma célula com `;`, exatamente como
+  // na planilha, para que os dois modos produzam a MESMA linha.
+  async function subirArquivos(col, files) {
+    const lista = Array.from(files || [])
+    if (!lista.length) return
     setSubindo(col); setErro('')
-    const path = `${brandId}/lote/${Date.now()}-${(file.name || 'arq').replace(/[^\w.\-]/g, '_')}`
-    const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
-    if (error) { setErro(`falha ao subir ${file.name}: ${error.message}`); setSubindo(''); return }
-    const url = supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl
-    setArquivos(a => ({ ...a, [col]: { nome: file.name, url } }))
+    const novos = []
+    for (const file of lista) {
+      const path = `${brandId}/lote/${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${(file.name || 'arq').replace(/[^\w.\-]/g, '_')}`
+      const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+      if (error) { setErro(`falha ao subir ${file.name}: ${error.message}`); continue }
+      novos.push({ nome: file.name, url: supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl })
+    }
+    setArquivos(a => ({ ...a, [col]: [...(a[col] || []), ...novos] }))
     setSubindo('')
   }
+
+  const tirarVista = (col, i) =>
+    setArquivos(a => ({ ...a, [col]: (a[col] || []).filter((_, j) => j !== i) }))
 
   // A peça vira UMA LINHA — igualzinha à que a planilha produziria.
   function conferirPeca() {
     const linha = { _linha: 2, ...peca }
-    for (const p of PAPEIS) if (arquivos[p.col]) linha[p.col] = arquivos[p.col].url
+    for (const p of PAPEIS) {
+      const vistas = arquivos[p.col] || []
+      if (vistas.length) linha[p.col] = vistas.map(v => v.url).join(';')
+    }
     if (peca.elenco) linha.elenco = peca.elenco
     setCabecalho(COLUNAS); setLinhas([linha]); setOrigem(peca.sku || 'a peça')
   }
@@ -247,17 +260,29 @@ export function AddonCatalogo({ brandId }) {
 
                 <Box>
                   <Typography variant="overline" color="text.secondary">As referências</Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                    {PAPEIS.filter(p => !p.doElenco).map(p => (
-                      <Button key={p.col} component="label" size="small"
-                        variant={arquivos[p.col] ? 'outlined' : 'text'} color="inherit"
-                        disabled={subindo === p.col}
-                        startIcon={subindo === p.col ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}>
-                        {p.papel}{arquivos[p.col] ? ' ✓' : ''}
-                        <input hidden type="file" accept="image/*"
-                          onChange={e => { subirArquivo(p.col, e.target.files?.[0]); e.target.value = '' }} />
-                      </Button>
-                    ))}
+                  <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 1 }}>
+                    Cada item aceita mais de uma vista — frente, lado, de cima.
+                  </Typography>
+                  <Stack spacing={1}>
+                    {PAPEIS.filter(p => !p.doElenco).map(p => {
+                      const vistas = arquivos[p.col] || []
+                      return (
+                        <Stack key={p.col} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                          <Button component="label" size="small"
+                            variant={vistas.length ? 'outlined' : 'text'} color="inherit"
+                            disabled={subindo === p.col} sx={{ minWidth: 190, justifyContent: 'flex-start' }}
+                            startIcon={subindo === p.col ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}>
+                            {p.papel}{vistas.length ? ` · ${vistas.length}` : ''}
+                            <input hidden type="file" accept="image/*" multiple
+                              onChange={e => { subirArquivos(p.col, e.target.files); e.target.value = '' }} />
+                          </Button>
+                          {vistas.map((v, i) => (
+                            <Chip key={i} size="small" variant="outlined" label={v.nome}
+                              onDelete={() => tirarVista(p.col, i)} />
+                          ))}
+                        </Stack>
+                      )
+                    })}
                   </Stack>
                 </Box>
 
@@ -267,12 +292,21 @@ export function AddonCatalogo({ brandId }) {
                   {SAIDAS.map(s => <MenuItem key={s} value={s}>só {s}</MenuItem>)}
                 </TextField>
 
-                <Stack direction="row" spacing={1.5}>
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                   <Button variant="contained" disableElevation onClick={conferirPeca}
                     disabled={semProcesso || !peca.sku.trim()}>
                     Conferir esta peça
                   </Button>
-                  <Button color="inherit" onClick={() => { setPeca(vazia); setArquivos({}); setLinhas(null) }}>
+                  {/* Botão desabilitado sem explicação faz a pessoa achar que a
+                      tela quebrou. Aqui ele diz o que falta. */}
+                  {(semProcesso || !peca.sku.trim()) && (
+                    <Typography variant="caption" color="text.disabled">
+                      {semProcesso
+                        ? 'este lote ainda não está configurado para esta marca'
+                        : 'preencha o SKU para conferir'}
+                    </Typography>
+                  )}
+                  <Button color="inherit" onClick={() => { setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem('') }}>
                     Limpar
                   </Button>
                 </Stack>
@@ -363,10 +397,13 @@ export function AddonCatalogo({ brandId }) {
             </TableContainer>
 
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2.5 }}>
-              <Button variant="contained" disableElevation disabled>Rodar</Button>
+              <Button variant="contained" disableElevation disabled={!relatorio.podeRodar}
+                onClick={() => setErro('A execução ainda não foi construída — este é o portão que vem antes dela.')}>
+                Rodar {relatorio.prontas > 0 ? `(${relatorio.imagens} imagens · ≈${relatorio.creditos} créditos)` : ''}
+              </Button>
               <Typography variant="caption" color="text.disabled">
                 {relatorio.podeRodar
-                  ? 'A execução é a próxima peça — este é o portão que a antecede.'
+                  ? 'A execução é a próxima peça a construir.'
                   : 'Resolva os bloqueios acima antes de rodar.'}
               </Typography>
             </Stack>

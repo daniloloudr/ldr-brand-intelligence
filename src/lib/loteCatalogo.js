@@ -33,6 +33,16 @@ export const PAPEIS = [
 
 export const COLUNAS_OBRIGATORIAS = ['sku', 'contexto', ...PAPEIS.filter(p => p.obrigatorio).map(p => p.col)]
 
+// Um papel aceita VÁRIAS VISTAS do mesmo item — a bolsa de frente e de lado, o
+// calçado de perfil e de cima (pedido do Danilo, 04/set). Na planilha elas vêm
+// na MESMA célula, separadas por `;`, igual à coluna `saidas`.
+//
+// ⚠️ Isto muda a conta do teto: o que o modelo recebe são IMAGENS, não papéis.
+// Contar papel aqui seria repetir o defeito do F4 — o canvas contava NÓ e não
+// imagem, e foi assim que "o sapato não pegou".
+export const valoresDe = (linha, col) =>
+  String(linha?.[col] || '').split(';').map(v => v.trim()).filter(Boolean)
+
 // `contexto` curto demais não é contexto — é rótulo. O gabarito real tem ~4 KB;
 // abaixo disto a peça sai genérica e o juiz reprova por infidelidade.
 export const CONTEXTO_MIN = 200
@@ -95,9 +105,11 @@ export function montarLook(linha, resolvidas = {}) {
   const itens = PAPEIS
     .filter(p => p.col !== 'peca_costas')
     .map(p => {
-      const v = String(linha?.[p.col] || '').trim()
-      if (!v) return null
-      const de = p.doElenco ? `do elenco "${v}"` : `da referência de ${p.papel.toLowerCase()}`
+      const vs = valoresDe(linha, p.col)
+      if (!vs.length) return null
+      const de = p.doElenco
+        ? `do elenco "${vs[0]}"`
+        : `da referência de ${p.papel.toLowerCase()}${vs.length > 1 ? ` (${vs.length} vistas)` : ''}`
       const falta = resolvidas[p.col] === false ? '  ⚠ referência não encontrada' : ''
       return `• ${p.papel}: ${de}.${falta}`
     })
@@ -163,14 +175,19 @@ export function preflight({
     const resolvidas = {}
     let refs = 0
     for (const papel of PAPEIS) {
-      const v = String(l[papel.col] || '').trim()
-      if (!v) {
+      const vs = valoresDe(l, papel.col)
+      if (!vs.length) {
         if (papel.obrigatorio) p.push({ nivel: GRAVE, campo: papel.col, texto: `${papel.papel} é obrigatório` })
         continue
       }
-      refs++
-      const ok = papel.doElenco ? nomesElenco.has(v.toLowerCase())
-               : (ehUrl(v) || nomesAcervo.has(v.toLowerCase()))
+      // O elenco é UMA pessoa: várias vistas ali seria outra modelo por engano.
+      if (papel.doElenco && vs.length > 1) {
+        p.push({ nivel: GRAVE, campo: papel.col, texto: 'só uma modelo por peça' })
+      }
+      refs += vs.length                       // IMAGENS, não papéis
+      const v = vs[0]
+      const ok = vs.every(x => papel.doElenco ? nomesElenco.has(x.toLowerCase())
+                                              : (ehUrl(x) || nomesAcervo.has(x.toLowerCase())))
       resolvidas[papel.col] = ok
       if (!ok) {
         // Modelo só entra por upload — não dá para cadastrar por planilha, porque
