@@ -150,7 +150,10 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (!workspace?.id) { setAddonsAtivos([]); return }
     let vivo = true
     supabase.from('addon_instalacao')
-      .select('addon, brand_id')
+      .select('addon, brand_id, estado')   // `estado` é lido por `estaLigado`:
+      // filtrar no servidor e não trazer a coluna fazia a checagem do cliente
+      // receber `undefined` e descartar TUDO — o addon liberado sumia do menu
+      // sem erro nenhum.
       .eq('workspace_id', workspace.id).eq('estado', 'ativo')
       .then(({ data, error }) => {
         if (!vivo) return

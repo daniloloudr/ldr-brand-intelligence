@@ -62,3 +62,13 @@ describe('linha órfã não quebra o menu', () => {
     expect(addonsDoMenu(null, MARCA_A)).toEqual([])
   })
 })
+
+describe('⭐ o menu precisa do campo `estado`, não só do filtro no servidor', () => {
+  const slug = ADDONS[0].slug
+  it('instalação sem o campo estado é descartada — foi o bug do menu vazio', () => {
+    expect(addonsDoMenu([{ addon: slug, brand_id: null }], 'qualquer')).toHaveLength(0)
+  })
+  it('com o campo, aparece', () => {
+    expect(addonsDoMenu([{ addon: slug, brand_id: null, estado: 'ativo' }], 'qualquer')).toHaveLength(1)
+  })
+})
