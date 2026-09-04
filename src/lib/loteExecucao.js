@@ -203,6 +203,7 @@ export function roteiroDaPeca({ nodes, edges, vistas, escolhidas, linha, brandId
       const nome = (texto.split(/\r?\n/)[0] || `EXTRA ${i + 1}`).slice(0, 40).trim()
       return {
         genId: baseParaExtra.generateNodeId, nome, etapa: etapaDoNo(baseParaExtra.generateNodeId),
+        model: modeloDoNo(nodes, baseParaExtra.generateNodeId),
         entrega: true, extra: true,
         montar: (saidas) => {
           const p = pedidoDaVista({ nodes, edges, genId: baseParaExtra.generateNodeId, linha,
@@ -224,6 +225,7 @@ export function roteiroDaPeca({ nodes, edges, vistas, escolhidas, linha, brandId
     passos: [
       ...plano.map(genId => ({
         genId, nome: nome(genId), etapa: etapaDoNo(genId),
+        model: modeloDoNo(nodes, genId),
         entrega: alvos.includes(genId),
         montar: (saidas) => pedidoDaVista({ nodes, edges, genId, linha, brandId, workflowId,
                                             resolver, contextoDaPeca, saidas }),
@@ -318,3 +320,16 @@ export const erroLegivel = () => ({
   texto: 'Erro interno do servidor. Gere de novo.',
   tentarDeNovo: true,
 })
+
+/**
+ * ⭐ O custo de um roteiro, por ETAPA.
+ *
+ * Cada nó de geração tem o seu modelo — a base roda em nano banana, a peça em
+ * Seedream 5 Pro — e eles custam diferente. Multiplicar o total de gerações por
+ * UM modelo dava dois números errados ao mesmo tempo na tela: 12 no resumo e 6
+ * na barra, quando o certo era 22.
+ *
+ * `porImagem` é `creditsForImage`, injetado para manter este arquivo puro.
+ */
+export const creditosDoRoteiro = (roteiro, porImagem) =>
+  (roteiro?.passos || []).reduce((n, p) => n + (porImagem(p.model) || 0), 0)

@@ -36,7 +36,7 @@ import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS,
 import { creditsForImage } from '../../lib/credits'
 import { montarZip } from '../../lib/zip'
 import { navigate } from '../../lib/helpers'
-import { roteiroDaPeca, lerEstado, erroLegivel } from '../../lib/loteExecucao'
+import { roteiroDaPeca, lerEstado, erroLegivel, creditosDoRoteiro } from '../../lib/loteExecucao'
 import { montarContexto } from '../../lib/loteCatalogo'
 
 const COLUNAS = ['sku', 'contexto', ...PAPEIS.map(p => p.col), 'saidas']
@@ -526,7 +526,10 @@ export function AddonCatalogo({ brandId }) {
   const passo1Ok = !!peca.sku.trim() && peca.contexto.trim().length >= CONTEXTO_MIN && !!peca.elenco
   const passo2Ok = !!arquivos.peca_principal?.length && (escolhidas.length > 0 || extras.some(t => t.trim()))
   const podeConferir = !semProcesso && !!peca.sku.trim() && (escolhidas.length > 0 || extras.some(t => t.trim()))
-  const creditos = (roteiroPrevia?.total || relatorio?.imagens || 0) * creditsForImage(modelo)
+  // Soma TODAS as linhas prontas, e cada etapa com o custo do modelo DELA.
+  const creditos = (relatorio?.linhas || [])
+    .filter(l => !l.problemas.some(p => p.nivel === NIVEIS.GRAVE))
+    .reduce((n, l) => n + creditosDoRoteiro(roteiroDe(l), creditsForImage), 0)
 
   const Passo = ({ n, titulo, ok, children, acao }) => (
     <Box component="section" sx={{ display: 'grid', gridTemplateColumns: { xs: '28px 1fr', sm: '34px 1fr' },
@@ -559,7 +562,8 @@ export function AddonCatalogo({ brandId }) {
       const bloqueada = l.problemas.some(p => p.nivel === NIVEIS.GRAVE)
       return { l, bloqueada,
         entradas: l.refs, saidas: r?.entregas ?? l.nSaidas,
-        geracoes: r?.total ?? l.nSaidas, ctx: String(l.contexto || '').length }
+        geracoes: r?.total ?? l.nSaidas, creditos: creditosDoRoteiro(r, creditsForImage),
+        ctx: String(l.contexto || '').length }
     })
     const soma = (f) => linhas.filter(x => !x.bloqueada).reduce((n, x) => n + f(x), 0)
     const prontas = linhas.filter(x => !x.bloqueada).length
@@ -589,7 +593,7 @@ export function AddonCatalogo({ brandId }) {
           <Numero valor={prontas} rotulo={`peça${prontas !== 1 ? 's' : ''} pronta${prontas !== 1 ? 's' : ''}`} />
           <Numero valor={entregas} rotulo="imagens de entrega" />
           <Numero valor={geracoes} rotulo={`gerações no total${geracoes > entregas ? ` · ${geracoes - entregas} de insumo` : ''}`} />
-          <Numero valor={geracoes * creditsForImage(modelo)} rotulo="créditos" cor="primary.main" />
+          <Numero valor={soma(x => x.creditos)} rotulo="créditos" cor="primary.main" />
           <Numero valor={`~${tempo}`} rotulo="sequencial, uma etapa por vez" />
         </Stack>
         {linhas.some(x => x.bloqueada) && (
@@ -616,7 +620,7 @@ export function AddonCatalogo({ brandId }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {linhas.map(({ l, bloqueada, entradas, saidas, geracoes, ctx }) => (
+            {linhas.map(({ l, bloqueada, entradas, saidas, geracoes, creditos, ctx }) => (
               <TableRow key={l._linha} sx={bloqueada ? { opacity: .5 } : undefined}>
                 <TableCell>
                   <Typography variant="body2" fontWeight={650}>{l.sku || `linha ${l._linha}`}</Typography>
@@ -637,7 +641,7 @@ export function AddonCatalogo({ brandId }) {
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell align="right">{bloqueada ? '—' : geracoes * creditsForImage(modelo)}</TableCell>
+                <TableCell align="right">{bloqueada ? '—' : creditos}</TableCell>
               </TableRow>
             ))}
             <TableRow sx={{ '& td': { borderTop: 2, borderColor: 'divider', fontWeight: 700 } }}>
@@ -646,7 +650,7 @@ export function AddonCatalogo({ brandId }) {
               <TableCell align="right">{soma(x => x.entradas)}</TableCell>
               <TableCell align="right">{soma(x => x.saidas)}</TableCell>
               <TableCell align="right">{soma(x => x.geracoes)}</TableCell>
-              <TableCell align="right">{soma(x => x.geracoes) * creditsForImage(modelo)}</TableCell>
+              <TableCell align="right">{soma(x => x.creditos)}</TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -687,7 +691,7 @@ export function AddonCatalogo({ brandId }) {
 
       {relatorio.linhas.length > 1 && (
         <Box sx={{ mb: 3 }}>
-          <Rotulo hint="o que vai acontecer quando você clicar em Rodar">Resumo</Rotulo>
+          <Rotulo hint="o que vai acontecer quando você clicar em gerar">Resumo</Rotulo>
           <Resumo detalhe={detalheLote} aoAlternar={() => setDetalheLote(v => !v)} />
         </Box>
       )}
@@ -1056,7 +1060,7 @@ export function AddonCatalogo({ brandId }) {
           <Button variant="contained" disableElevation size="large"
             disabled={!relatorio.podeRodar || rodando} onClick={rodar}
             startIcon={rodando ? <CircularProgress size={16} color="inherit" /> : null}>
-            {rodando ? 'Gerando…' : 'Rodar'}
+            {rodando ? 'Gerando…' : 'Gerar imagens de catálogo'}
           </Button>
         </Paper>
       )}

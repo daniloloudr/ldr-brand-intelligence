@@ -89,6 +89,11 @@ const MUTACOES = [
     de: '      ...passosExtras,          // sempre por último: dependem do que a cadeia produziu',
     para: '' },
 
+  { nome: 'lote: o crédito volta a usar UM modelo para todas as etapas',
+    arq: 'src/lib/loteExecucao.js',
+    de: '  (roteiro?.passos || []).reduce((n, p) => n + (porImagem(p.model) || 0), 0)',
+    para: '  (roteiro?.passos || []).length * (porImagem(null) || 0)' },
+
   { nome: 'lote: a posição extra some da conta (cliente vê 3 e recebe 4)',
     arq: 'src/lib/loteCatalogo.js',
     de: '             nSaidas: contarSaidas(l.saidas, saidasPadrao) + nExtras,',

@@ -10,7 +10,7 @@ import {
   vistasDoGrafo,
 } from '../src/lib/studioGrafo.js'
 import { resolveModel, MAX_REFS_CANVAS } from '../src/lib/studioModels.js'
-import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado, erroLegivel } from '../src/lib/loteExecucao.js'
+import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado, erroLegivel, creditosDoRoteiro } from '../src/lib/loteExecucao.js'
 
 // Um recorte fiel do fluxo real da Hering: ids `eN_in_papel`, formato custom
 // 1720×2432, contexto de acabamento, e a ordem das arestas importando.
@@ -335,4 +335,31 @@ describe('⭐ o erro que a pessoa vê', () => {
   it('e sempre oferece gerar de novo', () => {
     expect(erroLegivel('qualquer coisa').tentarDeNovo).toBe(true)
   })
+})
+
+describe('⭐ o crédito é por ETAPA, não por um modelo só', () => {
+  const N = [
+    { id: 'e0_in_casting', type: 'imageInput', data: { urls: ['C'] } },
+    { id: 'e0_p1', type: 'prompt',   data: { text: 'BASE\n\nx' } },
+    { id: 'e0_g1', type: 'generate', data: { model: 'fal-ai/gemini-25-flash-image' } },
+    { id: 'e1_p1', type: 'prompt',   data: { text: 'FRONTAL\n\ny' } },
+    { id: 'e1_g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+  ]
+  const E = [{ source: 'e0_p1', target: 'e0_g1' }, { source: 'e0_in_casting', target: 'e0_g1' },
+             { source: 'e0_g1', target: 'e1_g1' }, { source: 'e1_p1', target: 'e1_g1' }]
+  const r = roteiroDaPeca({ nodes: N, edges: E, vistas: vistasDoGrafo(N, E),
+    escolhidas: ['FRONTAL'], linha: { sku: 'K', elenco: 'C', peca_principal: 'P' },
+    brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: '' })
+
+  it('cada passo carrega o modelo dele', () => {
+    expect(r.passos.find(p => p.genId === 'e0_g1').model).toMatch(/gemini/)
+    expect(r.passos.find(p => p.genId === 'e1_g1').model).toMatch(/seedream/)
+  })
+  it('⭐ o custo soma por etapa — nano banana 1 + Seedream 2 = 3', () => {
+    expect(creditosDoRoteiro(r, m => /seedream/.test(m || '') ? 2 : 1)).toBe(3)
+  })
+  it('multiplicar tudo por um modelo só daria outro número', () => {
+    expect(r.total * 2).not.toBe(creditosDoRoteiro(r, m => /seedream/.test(m || '') ? 2 : 1))
+  })
+  it('roteiro vazio custa zero', () => expect(creditosDoRoteiro(null, () => 2)).toBe(0))
 })
