@@ -7,9 +7,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   entradasDaGeracao, comContexto, referenciasDaGeracao, comEntradas, papelDoNo, produtoresDeImagem,
+  vistasDoGrafo,
 } from '../src/lib/studioGrafo.js'
 import { resolveModel, MAX_REFS_CANVAS } from '../src/lib/studioModels.js'
-import { pedidoDaVista, entradasDoLote, pedidosDaPeca } from '../src/lib/loteExecucao.js'
+import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca } from '../src/lib/loteExecucao.js'
 
 // Um recorte fiel do fluxo real da Hering: ids `eN_in_papel`, formato custom
 // 1720×2432, contexto de acabamento, e a ordem das arestas importando.
@@ -143,5 +144,64 @@ describe('uma peça, várias vistas', () => {
     const ps = pedidosDaPeca({ nodes, edges, vistas, escolhidas: ['FRONTAL', 'SENTADA'], linha,
       brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: '' })
     expect(ps).toHaveLength(1)
+  })
+})
+
+describe('⭐ o roteiro: todas as etapas, na ordem que o grafo manda', () => {
+  // Recorte fiel da topologia real: e1 come e0_g1; e2 come e1_g1; e4 come e1_g1 e e2_g1.
+  const N = [
+    { id: 'e0_in_casting', type: 'imageInput', data: { rotulo: 'Casting aprovado', urls: ['ORIG_cast'] } },
+    { id: 'e0_p1', type: 'prompt', data: { text: 'VISTA 0° · FRENTE\n\nbase' } },
+    { id: 'e0_g1', type: 'generate', data: { model: 'fal-ai/gemini-25-flash-image' } },
+    { id: 'e1_in_still', type: 'imageInput', data: { rotulo: 'Still · frente', urls: ['ORIG_still'] } },
+    { id: 'e1_p1', type: 'prompt', data: { text: 'FRONTAL\n\nde frente' } },
+    { id: 'e1_g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+    { id: 'e2_in_pose', type: 'imageInput', data: { rotulo: 'POSE', urls: ['POSE'] } },
+    { id: 'e2_p1', type: 'prompt', data: { text: 'CAMINHANDO\n\nanda' } },
+    { id: 'e2_g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+    { id: 'e4_p1', type: 'prompt', data: { text: 'SENTADA\n\nsenta' } },
+    { id: 'e4_g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+  ]
+  const E = [
+    { source: 'e0_in_casting', target: 'e0_g1' }, { source: 'e0_p1', target: 'e0_g1' },
+    { source: 'e0_g1', target: 'e1_g1' }, { source: 'e1_in_still', target: 'e1_g1' }, { source: 'e1_p1', target: 'e1_g1' },
+    { source: 'e1_g1', target: 'e2_g1' }, { source: 'e2_in_pose', target: 'e2_g1' }, { source: 'e2_p1', target: 'e2_g1' },
+    { source: 'e1_g1', target: 'e4_g1' }, { source: 'e2_g1', target: 'e4_g1' }, { source: 'e4_p1', target: 'e4_g1' },
+  ]
+  const vistas = vistasDoGrafo(N, E)
+  const L = { sku: 'K', elenco: 'CAST', peca_frente: 'STILL' }
+  const r = roteiroDaPeca({ nodes: N, edges: E, vistas, escolhidas: ['SENTADA'], linha: L,
+    brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: 'A PEÇA' })
+
+  it('⭐ pedir SENTADA arrasta a cadeia inteira', () => {
+    expect(r.plano).toEqual(['e0_g1', 'e1_g1', 'e2_g1', 'e4_g1'])
+  })
+  it('só uma é ENTREGA; o resto é insumo', () => {
+    expect(r.entregas).toBe(1); expect(r.total).toBe(4)
+    expect(r.passos.filter(p => p.entrega).map(p => p.nome)).toEqual(['SENTADA'])
+  })
+  it('as ondas respeitam a dependência', () => {
+    expect(r.ondas).toEqual([['e0_g1'], ['e1_g1'], ['e2_g1'], ['e4_g1']])
+  })
+  it('⭐ a etapa 1 recebe a SAÍDA da base, não o casting original', () => {
+    const p = r.passos.find(x => x.genId === 'e1_g1').montar({ e0_g1: 'BASE_LIMPA.png' })
+    expect(p.references).toContain('BASE_LIMPA.png')
+    expect(p.references).not.toContain('ORIG_cast')
+  })
+  it('⭐ sem a saída da base, a referência FALTA — é o defeito que seria calado', () => {
+    const p = r.passos.find(x => x.genId === 'e1_g1').montar({})
+    expect(p.references).toEqual(['STILL'])          // a base sumiu
+  })
+  it('a etapa 4 recebe as duas saídas de que depende', () => {
+    const p = r.passos.find(x => x.genId === 'e4_g1').montar({ e1_g1: 'F.png', e2_g1: 'C.png' })
+    expect(p.references).toEqual(expect.arrayContaining(['F.png', 'C.png']))
+  })
+  it('⭐ a base da modelo roda em nano banana; a peça em Seedream', () => {
+    expect(r.passos.find(x => x.genId === 'e0_g1').montar({}).model).toMatch(/gemini/)
+    expect(r.passos.find(x => x.genId === 'e1_g1').montar({}).model).toMatch(/seedream/)
+  })
+  it('⭐ o contexto da PEÇA não polui a base da modelo', () => {
+    expect(r.passos.find(x => x.genId === 'e0_g1').montar({}).prompt).not.toContain('A PEÇA')
+    expect(r.passos.find(x => x.genId === 'e1_g1').montar({}).prompt).toContain('A PEÇA')
   })
 })

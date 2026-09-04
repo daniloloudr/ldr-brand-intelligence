@@ -29,7 +29,7 @@ import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
 import { creditsForImage } from '../../lib/credits'
-import { pedidosDaPeca } from '../../lib/loteExecucao'
+import { roteiroDaPeca } from '../../lib/loteExecucao'
 import { montarContexto } from '../../lib/loteCatalogo'
 
 const COLUNAS = ['sku', 'contexto', ...PAPEIS.map(p => p.col), 'saidas']
@@ -190,65 +190,83 @@ export function AddonCatalogo({ brandId }) {
     setCabecalho(COLUNAS); setLinhas([linha]); setOrigem(peca.sku || 'a peça')
   }
 
-  // ── A CORRIDA ───────────────────────────────────────────────────
-  // Não monta pedido: pede ao `loteExecucao` — que injeta as URLs no GRAFO e
-  // deixa o grafo decidir ordem, formato e prompt. O teste de fidelidade prova
-  // que o pedido daqui é idêntico ao que o canvas faria.
+  // ── A CORRIDA, EM ONDAS ─────────────────────────────────────────
+  // O roteiro decide o que roda e em que ordem: escolher SENTADA arrasta a base
+  // da modelo, a FRONTAL e a CAMINHANDO junto, porque a etapa 4 come a 2, que
+  // come a 1, que come a base. Rodar só o alvo produziria uma peça SEM base — e
+  // a falta não daria erro, só uma imagem plausível e infiel.
   async function rodar() {
     if (!relatorio?.podeRodar || rodando) return
     setRodando(true); setErro(''); setJobs([])
 
     const { data: { session } } = await supabase.auth.getSession()
     const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
-
-    // Nome na Biblioteca → URL. URL passa direto.
     const porNome = new Map(acervoBruto.map(a => [String(a.nome || '').toLowerCase(), a.valor]))
     const resolver = (v) => /^https?:\/\//i.test(v) ? v : (porNome.get(String(v).toLowerCase()) || null)
 
     const prontas = relatorio.linhas.filter(l => !l.problemas.some(p => p.nivel === NIVEIS.GRAVE))
-    const novosJobs = []
+    const todos = []
+
     for (const l of prontas) {
-      const escolhidasDaLinha = String(l.saidas_lista || l.saidas || '').length
-        ? String(l.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
-        : vistas.map(v => v.nome)
-      const pedidos = pedidosDaPeca({
-        nodes: fluxo.nodes, edges: fluxo.edges, vistas,
-        escolhidas: escolhidasDaLinha, linha: l,
+      const escolhidasDaLinha = String(l.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+      const roteiro = roteiroDaPeca({
+        nodes: fluxo.nodes, edges: fluxo.edges, vistas, escolhidas: escolhidasDaLinha, linha: l,
         brandId, workflowId: fluxo.id, resolver,
         contextoDaPeca: montarContexto({ etapa: '', aPeca: l.contexto, linha: l }),
       })
-      for (const { vista, pedido } of pedidos) {
-        try {
-          const res = await fetch('/.netlify/functions/studio-generate',
-            { method: 'POST', headers: auth, body: JSON.stringify(pedido) })
-          const j = await res.json()
-          if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
-          novosJobs.push({ sku: l.sku, vista, genId: j.generation_id, status: 'running' })
-        } catch (e) {
-          novosJobs.push({ sku: l.sku, vista, genId: null, status: 'error', error: e.message })
+      const saidas = {}
+
+      for (const onda of roteiro.ondas) {
+        const daOnda = []
+        for (const genId of onda) {
+          const passo = roteiro.passos.find(p => p.genId === genId)
+          const pedido = passo.montar(saidas)
+          try {
+            const res = await fetch('/.netlify/functions/studio-generate',
+              { method: 'POST', headers: auth, body: JSON.stringify(pedido) })
+            const j = await res.json()
+            if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+            const job = { sku: l.sku, vista: passo.nome, etapa: passo.etapa, __no: genId,
+                          entrega: passo.entrega, genId: j.generation_id, status: 'running' }
+            todos.push(job); daOnda.push(job)
+          } catch (e) {
+            todos.push({ sku: l.sku, vista: passo.nome, etapa: passo.etapa,
+                         entrega: passo.entrega, genId: null, status: 'error', error: e.message })
+          }
+          setJobs([...todos])
         }
-        setJobs([...novosJobs])
+        // Espera a onda inteira: a próxima depende do que esta produziu.
+        const ids = daOnda.map(j => j.genId).filter(Boolean)
+        if (!ids.length) break
+        const ok = await esperarOnda(ids, saidas, todos, setJobs)
+        if (!ok) { setErro('Uma etapa falhou — as seguintes dependiam dela e não foram disparadas.'); break }
       }
     }
-    if (!novosJobs.some(j => j.genId)) setRodando(false)
+    setRodando(false)
   }
 
-  // Acompanha exatamente como o canvas: lendo `studio_generations` por id.
-  useEffect(() => {
-    const vivos = jobs.filter(j => j.genId && j.status === 'running').map(j => j.genId)
-    if (!vivos.length) { if (rodando && jobs.length) setRodando(false); return }
-    const t = setInterval(async () => {
+  // Aguarda um conjunto de gerações e recolhe as URLs — é o `outputs` do canvas.
+  async function esperarOnda(ids, saidas, todos, aplicar) {
+    const inicio = Date.now()
+    while (Date.now() - inicio < 600_000) {
+      await new Promise(r => setTimeout(r, 3000))
       const { data } = await supabase.from('studio_generations')
-        .select('id, status, image_url, error').in('id', vivos)
-      if (!data?.length) return
-      setJobs(js => js.map(j => {
-        const r = data.find(x => x.id === j.genId)
-        if (!r || r.status === 'running' || r.status === 'queued') return j
-        return { ...j, status: r.status === 'done' ? 'done' : 'error', url: r.image_url, error: r.error }
-      }))
-    }, 3000)
-    return () => clearInterval(t)
-  }, [jobs, rodando])
+        .select('id, status, image_url, error').in('id', ids)
+      let vivos = 0
+      for (const id of ids) {
+        const r = (data || []).find(x => x.id === id)
+        const job = todos.find(j => j.genId === id)
+        if (!r || r.status === 'running' || r.status === 'queued') { vivos++; continue }
+        if (r.status === 'done') {
+          job.status = 'done'; job.url = r.image_url
+          saidas[job.__no] = r.image_url
+        } else { job.status = 'error'; job.error = r.error || 'falhou' }
+      }
+      aplicar([...todos])
+      if (!vivos) return todos.filter(j => ids.includes(j.genId)).every(j => j.status === 'done')
+    }
+    return false
+  }
 
   async function escolherPlanilha(file) {
     setErro('')
@@ -503,7 +521,7 @@ export function AddonCatalogo({ brandId }) {
               <Button variant="contained" disableElevation
                 disabled={!relatorio.podeRodar || rodando} onClick={rodar}
                 startIcon={rodando ? <CircularProgress size={15} color="inherit" /> : null}>
-                {rodando ? 'Gerando…' : `Rodar (${relatorio.imagens} imagens · ≈${relatorio.creditos} créditos)`}
+                {rodando ? 'Gerando…' : `Rodar (${relatorio.imagens} entregas · ≈${relatorio.creditos} créditos)`}
               </Button>
               <Typography variant="caption" color="text.disabled">
                 {relatorio.podeRodar
@@ -521,7 +539,9 @@ export function AddonCatalogo({ brandId }) {
           <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: 2 }}>
             <Typography variant="overline" color="text.secondary">O que saiu</Typography>
             <Typography variant="caption" color="text.disabled">
-              {jobs.filter(j => j.status === 'done').length} de {jobs.length} prontas
+              {jobs.filter(j => j.status === 'done').length} de {jobs.length} ·
+              {' '}{jobs.filter(j => j.entrega).length} entrega{jobs.filter(j => j.entrega).length !== 1 ? 's' : ''},
+              {' '}{jobs.filter(j => !j.entrega).length} insumo{jobs.filter(j => !j.entrega).length !== 1 ? 's' : ''}
               {jobs.some(j => j.status === 'error') && ` · ${jobs.filter(j => j.status === 'error').length} com erro`}
             </Typography>
           </Stack>
@@ -540,7 +560,9 @@ export function AddonCatalogo({ brandId }) {
                 <Typography variant="caption" display="block" sx={{ mt: .5 }} noWrap title={`${j.sku} · ${j.vista}`}>
                   <b>{j.vista}</b>
                 </Typography>
-                <Typography variant="caption" color="text.disabled" noWrap>{j.sku}</Typography>
+                <Typography variant="caption" color="text.disabled" noWrap>
+                  {j.sku}{j.entrega ? '' : ' · insumo'}
+                </Typography>
               </Box>
             ))}
           </Box>

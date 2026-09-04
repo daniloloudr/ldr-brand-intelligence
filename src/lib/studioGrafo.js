@@ -143,11 +143,60 @@ export function produtoresDeImagem(nodes, edges, nodeId) {
   return [...produtores].sort((a, b) => pos(a.id) - pos(b.id))
 }
 
-/** As URLs de referência de uma geração, na ordem que o grafo determina. */
-export const referenciasDaGeracao = (nodes, edges, genId, teto = Infinity) =>
+/**
+ * As URLs de referência de uma geração, na ordem que o grafo determina.
+ *
+ * `saidas` é o mapa `{ nodeId: url }` do que JÁ foi produzido nesta rodada —
+ * exatamente o `outputs` do canvas. É por ele que a etapa 2 recebe a imagem
+ * aprovada da etapa 1: sem isso, um nó `generate` a montante entra vazio e a
+ * peça sai SEM a base da modelo, em silêncio.
+ */
+export const referenciasDaGeracao = (nodes, edges, genId, teto = Infinity, saidas = {}) =>
   produtoresDeImagem(nodes, edges, genId)
-    .flatMap(n => paraUrls(dados(n).urls || dados(n).outputUrl || dados(n).imageUrl || dados(n).url))
+    .flatMap(n => paraUrls(saidas?.[n.id] ?? (dados(n).urls || dados(n).outputUrl || dados(n).imageUrl || dados(n).url)))
     .slice(0, teto)
+
+/** Os nós `generate` a montante de um nó — as dependências dele. */
+export const dependenciasDeGeracao = (nodes, edges, genId) =>
+  produtoresDeImagem(nodes, edges, genId).filter(n => n.type === 'generate').map(n => n.id)
+
+/**
+ * ⭐ O PLANO DE EXECUÇÃO — a ordem em que as gerações precisam rodar.
+ *
+ * Dado o que se QUER (as vistas escolhidas), devolve tudo que precisa rodar
+ * antes, em ordem topológica. No processo da Hering isso é o que faz a etapa 2
+ * receber a FRONTAL aprovada e a etapa 1 receber a base da modelo — o
+ * encadeamento que a §F0.6 chama de "a saída aprovada vira entrada".
+ *
+ * Pedir só "SENTADA" (e4) arrasta e0_g1, e1_g1 e e2_g1 junto, porque sem eles
+ * a peça sairia sem base, sem look aprovado e sem pose.
+ */
+export function planoDeExecucao(nodes, edges, alvos) {
+  const ordem = []
+  const estado = new Map()          // id → 'visitando' | 'pronto'
+  const visitar = (id) => {
+    if (estado.get(id) === 'pronto') return
+    if (estado.get(id) === 'visitando') return      // ciclo: não trava, só não repete
+    estado.set(id, 'visitando')
+    for (const dep of dependenciasDeGeracao(nodes, edges, id)) visitar(dep)
+    estado.set(id, 'pronto')
+    ordem.push(id)
+  }
+  for (const a of alvos || []) if (a) visitar(a)
+  return ordem
+}
+
+/** Divide o plano em ONDAS: tudo numa onda pode rodar em paralelo. */
+export function ondasDaExecucao(nodes, edges, plano) {
+  const nivel = new Map()
+  for (const id of plano) {
+    const deps = dependenciasDeGeracao(nodes, edges, id).filter(d => nivel.has(d))
+    nivel.set(id, deps.length ? Math.max(...deps.map(d => nivel.get(d))) + 1 : 0)
+  }
+  const ondas = []
+  for (const [id, n] of nivel) (ondas[n] ||= []).push(id)
+  return ondas.filter(Boolean)
+}
 
 /**
  * Troca as URLs dos nós de imagem por um mapa `{ nodeId: [url, …] }`.

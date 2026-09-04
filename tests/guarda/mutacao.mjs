@@ -20,6 +20,21 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'grafo: a etapa deixa de puxar as dependências (peça sai SEM base, calada)',
+    arq: 'src/lib/studioGrafo.js',
+    de: '    for (const dep of dependenciasDeGeracao(nodes, edges, id)) visitar(dep)',
+    para: '    for (const dep of []) visitar(dep)' },
+
+  { nome: 'grafo: a referência ignora o que a onda anterior produziu',
+    arq: 'src/lib/studioGrafo.js',
+    de: '    .flatMap(n => paraUrls(saidas?.[n.id] ?? (dados(n).urls || dados(n).outputUrl || dados(n).imageUrl || dados(n).url)))',
+    para: '    .flatMap(n => paraUrls(dados(n).urls || dados(n).outputUrl || dados(n).imageUrl || dados(n).url))' },
+
+  { nome: 'lote: a descrição da PEÇA volta a poluir a base da modelo',
+    arq: 'src/lib/loteExecucao.js',
+    de: "  const daPeca = etapaDoNo(genId) === ETAPA_DA_BASE ? '' : contextoDaPeca",
+    para: '  const daPeca = contextoDaPeca' },
+
   { nome: 'grafo: a base da modelo (etapa 0) volta a ser vendida como peça de catálogo',
     arq: 'src/lib/studioGrafo.js',
     de: '      deCatalogo: etapa === null ? true : etapa !== ETAPA_DA_BASE,',
