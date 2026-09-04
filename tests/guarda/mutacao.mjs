@@ -20,6 +20,26 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'grafo: o canvas volta a ter leitura PRÓPRIA do prompt (diverge do addon)',
+    arq: 'src/lib/studioGrafo.js',
+    de: "  const promptNode  = ins.find(n => n.type === 'prompt')",
+    para: '  const promptNode  = null' },
+
+  { nome: 'grafo: o separador de contexto muda e a peça sai diferente do canvas',
+    arq: 'src/lib/studioGrafo.js',
+    de: '  context ? `${prompt}\n\n[CONTEXTO ADICIONAL]\n${context}` : prompt',
+    para: '  context ? `${prompt}\n${context}` : prompt' },
+
+  { nome: 'grafo: o clamp de px some e pedido absurdo chega na fal',
+    arq: 'src/lib/studioGrafo.js',
+    de: "    ? { width:  Math.min(4096, Math.max(256, fd.width  || 1080)),\n        height: Math.min(4096, Math.max(256, fd.height || 1350)) }",
+    para: '    ? { width: fd.width || 1080, height: fd.height || 1350 }' },
+
+  { nome: 'grafo: o modelo volta a vir do primeiro nó, não da geração da vista',
+    arq: 'src/lib/studioGrafo.js',
+    de: "      model: dados(gen).model === 'custom' ? dados(gen).customModel : (dados(gen).model || null),",
+    para: '      model: null,' },
+
   { nome: 'lote: as vistas voltam a ser lista fixa no código (divergem do fluxo)',
     arq: 'src/lib/loteCatalogo.js',
     de: "    if (n?.type !== 'prompt') continue", para: '    if (false) continue' },

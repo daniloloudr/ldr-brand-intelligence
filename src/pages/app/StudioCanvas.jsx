@@ -40,6 +40,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { CreditBadge } from '../../components/CreditBadge'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel, ordenarPorRefOrder } from '../../lib/studioModels'
+import { entradasDaGeracao, comContexto } from '../../lib/studioGrafo'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 import { PALETTE } from '../../lib/theme'
 import {
@@ -489,33 +490,13 @@ export function StudioCanvas({ brandId, workflowId }) {
 
   // Resolve os inputs conectados a um nó Generate (marca é opcional: só injeta
   // se houver um nó de marca conectado).
-  function inputsFor(genId) {
-    const inIds = edges.filter(e => e.target === genId).map(e => e.source)
-    const ins = nodes.filter(n => inIds.includes(n.id))
-    const promptNode  = ins.find(n => n.type === 'prompt')
-    const formatoNode = ins.find(n => n.type === 'formato')
-    const brandNodes  = ins.filter(n => n.type === 'brandContext')
-    const contextNodes = ins.filter(n => n.type === 'context')
-    const context = contextNodes.map(n => (n.data?.text || '').trim()).filter(Boolean).join('\n\n')
-    const previewNode = nodes.find(n => n.type === 'preview' && edges.some(e => e.source === genId && e.target === n.id))
-    // Faceta da marca por nó conectado (Brand Voice → verbal, Brand Visual → visual)
-    const brandFacets = []
-    if (brandNodes.some(n => /voz|voice|verbal/i.test(n.data?.title || ''))) brandFacets.push('verbal')
-    if (brandNodes.some(n => /visual/i.test(n.data?.title || ''))) brandFacets.push('visual')
-    // Formato personalizado: o nó manda px exatos (image_size na fal) em vez de proporção
-    const fd = formatoNode?.data || {}
-    const customSize = fd.formato === 'custom'
-      ? { width: Math.min(4096, Math.max(256, fd.width || 1080)), height: Math.min(4096, Math.max(256, fd.height || 1350)) }
-      : null
-    return {
-      prompt: (promptNode?.data?.text || '').trim(),
-      formato: customSize ? `${customSize.width}x${customSize.height}` : (fd.formato || '1:1'),
-      customSize,
-      hasBrand: brandNodes.length > 0, brandFacets, context, previewNodeId: previewNode?.id,
-    }
-  }
-  // Junta prompt + contexto extra (nós Contexto) num único texto para o backend
-  const withContext = (prompt, context) => context ? `${prompt}\n\n[CONTEXTO ADICIONAL]\n${context}` : prompt
+  // A leitura do grafo mora em `lib/studioGrafo.js` desde 04/set: o addon de
+  // Lote precisa da MESMA leitura, e duas implementações divergiriam no
+  // primeiro conserto feito só de um lado. Aqui só se passa o estado local.
+  const inputsFor = (genId) => entradasDaGeracao(nodes, edges, genId)
+
+  // Junta prompt + contexto extra (nós Contexto) — compartilhado com o addon.
+  const withContext = comContexto
   // Ajuste fino do vídeo: reaproveita os mesmos inputs e pede só o retoque pontual
   const withAdjust = (prompt, adjust) => adjust
     ? `${prompt}\n\n[AJUSTE FINO]\nMantenha o vídeo praticamente igual (mesma cena, composição e movimento); ajuste apenas, de forma sutil: ${adjust}`

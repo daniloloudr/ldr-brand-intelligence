@@ -16,6 +16,7 @@
 // 4+6, o "o sapato não pegou". Recriar aqui seria recriar o bug em outro lugar.
 // ════════════════════════════════════════════════════════════════════
 import { planoDeRefs, comoLeAsRefs, MAX_REFS_CANVAS } from './studioModels'
+import { vistasDoGrafo } from './studioGrafo'
 
 // ── As colunas ──────────────────────────────────────────────────────
 //
@@ -138,17 +139,11 @@ export function montarContexto({ etapa, aPeca, linha, doFluxo = '', resolvidas }
 // Ter isso fixo no código seria a divergência que o Danilo perguntou como
 // evitar: o dia em que alguém acrescentasse uma pose no canvas, o addon não
 // saberia — e ninguém veria, porque a tela continuaria mostrando as antigas.
-export function vistasDoFluxo(nodes) {
-  const vistas = []
-  for (const n of Array.isArray(nodes) ? nodes : []) {
-    if (n?.type !== 'prompt') continue
-    const texto = String(n?.data?.text || '')
-    const nome = (texto.split(/\r?\n/)[0] || '').trim()
-    if (!nome) continue
-    if (!vistas.some(v => v.nome === nome)) vistas.push({ id: n.id, nome, instrucao: texto.slice(nome.length).trim() })
-  }
-  return vistas
-}
+// Delegação, de propósito: a leitura do grafo é UMA só, em `studioGrafo.js`.
+// Manter uma cópia aqui seria a divergência que aquele módulo existe para
+// impedir — e ela apareceria justamente quando alguém acrescentasse um tipo de
+// nó, consertando só um dos lados.
+export const vistasDoFluxo = (nodes, edges) => vistasDoGrafo(nodes, edges)
 
 // ── 3 · O preflight ─────────────────────────────────────────────────
 //

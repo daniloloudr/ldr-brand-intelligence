@@ -77,7 +77,7 @@ export function AddonCatalogo({ brandId }) {
 
     const [{ data: wf }, { data: assets }] = await Promise.all([
       inst?.workflow_id
-        ? supabase.from('studio_workflows').select('id, nome, nodes').eq('id', inst.workflow_id).maybeSingle()
+        ? supabase.from('studio_workflows').select('id, nome, nodes, edges').eq('id', inst.workflow_id).maybeSingle()
         : Promise.resolve({ data: null }),
       supabase.from('brand_assets').select('nome, pasta, valor').eq('brand_id', brandId),
     ])
@@ -97,7 +97,7 @@ export function AddonCatalogo({ brandId }) {
   // As vistas são os nós de prompt do fluxo — "FRONTAL", "SENTADA",
   // "APROXIMADA". Nunca uma lista no código: pose nova no canvas tem que
   // aparecer aqui sozinha, senão a tela e o grafo divergem calados.
-  const vistas = useMemo(() => vistasDoFluxo(fluxo?.nodes), [fluxo])
+  const vistas = useMemo(() => vistasDoFluxo(fluxo?.nodes, fluxo?.edges), [fluxo])
 
   const relatorio = useMemo(() => {
     if (!linhas?.length) return null
