@@ -485,6 +485,51 @@ produção** (E3 · 056). A dependência perigosa está paga. O batch pode ser c
 3. **A fila ordenada** — reprovado → rechecar → aprovado
 4. **A aprovação em lote** — grava `modo = 'lote'`, `treina = falso` (o §7.4 já manda)
 
+### As três decisões de 04/set (anotadas pelo Danilo sobre o desenho)
+
+**1 · O elenco é uma BASE NA BIBLIOTECA, e escolher dela pula o portão.**
+
+> *"ter uma base na biblioteca com os castings aprovados, para que a pessoa escolha o
+> casting para o shooting. Ou usar um novo — se usar o novo processamos e salvamos; se
+> escolher um, pulamos o portão."*
+
+Isto **responde a pergunta que estava aberta** desde 19/ago (*"a base regerada continua
+aprovada?"*): o portão da etapa 0 não é fixo, é **condicional à origem**.
+
+```
+casting NOVO      → gera base neutra → PORTÃO (alguém confere) → salva na biblioteca
+casting DA CASA   → já foi conferido uma vez → segue direto
+```
+
+O portão passa a existir **uma vez por modelo**, não por rodada e não por SKU — e a
+"biblioteca de bases neutras" deixa de ser refinamento futuro para virar a estrutura que
+torna o lote viável. Cada base aprovada é um portão que nunca mais se paga.
+
+**2 · Prompt é padrão; CONTEXTO é onde mora o valor.**
+
+> *"adiciona still + contexto (muiiito importante). Os prompts precisam ser padrão, mas o
+> contexto da peça precisa ser foda, conforme o que fizemos no fluxo."*
+
+É a regra da §F0.6 dita do lado do produto: **CONTEXTO** = o constante (visão de câmera,
+ângulo, descrição da peça); **PROMPT** = específico por foto. A consequência para o addon
+é direta: a planilha não alimenta um prompt — alimenta o **contexto por SKU**, e é ele que
+carrega o still e a ficha. Prompt padronizado é o que faz a receita acumular; contexto
+rico é o que faz a peça sair fiel. Trocar os papéis quebra os dois.
+
+**3 · O juiz PROPÕE. O portão mostra os dois lados, e a pessoa reverte.**
+
+> *"o juiz precisa mostrar o que foi aprovado e não aprovado. O usuário pode mudar as
+> decisões."*
+
+O portão **não filtra fora da vista**: reprovado aparece junto do aprovado, e qualquer
+decisão do juiz é reversível por quem olha. Isso é a §2.1 (*parecer, não veredito*) valendo
+em lote, e corrige uma leitura que o SLIDE 08 do deck induz — *"reprovadas nem chegam a
+você"*. Chegam; só chegam **ordenadas** e já com o argumento do juiz ao lado.
+
+⚠️ E tem consequência de aprendizado: **reverter o juiz é sinal forte**. Aprovar o que ele
+reprovou, ou reprovar o que ele aprovou, é ensino direto sobre o próprio juiz — mais
+valioso que uma aprovação em lote, que a §7.4 já manda não treinar.
+
 ### ⚠️ A lacuna que a unificação encontrou
 
 **`execucao` não tem teto de crédito.** Ela grava `creditos` (o que foi gasto), mas não
