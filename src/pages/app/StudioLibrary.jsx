@@ -55,7 +55,13 @@ const ROOTS = [
   { id: 'videos',      label: 'Vídeos',               Icon: MovieOutlinedIcon,               desc: 'vídeos gerados e enviados' },
   { id: 'textos',      label: 'Textos',               Icon: ArticleOutlinedIcon,             desc: 'peças escritas (Redação e Copiloto)' },
   { id: 'referencias', label: 'Referências da marca', Icon: CollectionsBookmarkOutlinedIcon, desc: 'o que É a marca — logos, padrões e referências curadas' },
-  { id: 'campanhas',   label: 'Campanhas',            Icon: CampaignOutlinedIcon,            desc: 'dossiês de campanha' },
+  // Campanhas SAIU das pastas-raiz (2026-09-04, decisão do Danilo: "deixar
+  // vazia, e do jeito que está; depois voltamos o olhar só pra ela"). Era a
+  // última porta visível — o item do menu do Estúdio já tinha saído em 03/set.
+  // NADA foi apagado: as 7 campanhas, as 5 gerações vinculadas e os 4 sinais
+  // de veredicto continuam no banco, e a rota /studio/campanhas segue viva
+  // para deep-link antigo. O branch `root === 'campanhas'` abaixo fica de pé
+  // justamente por causa dela. Backlog: E5b, estacionado.
 ]
 
 // O que falta, dito onde dá para resolver.
