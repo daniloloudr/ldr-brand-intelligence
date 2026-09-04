@@ -242,13 +242,20 @@ export function preflight({
       if (orfas.length) p.push({ nivel: GRAVE, campo: 'saidas',
         texto: `este lote não tem a vista ${orfas.map(o => `"${o}"`).join(', ')}` })
     }
-    const saidas = contarSaidas(l.saidas, saidasPadrao)
-    return { ...l, sku, refs, resolvidas, saidas, problemas: p }
+    // ⚠️ `saidas` é a LISTA de vistas pedidas, e ela não pode ser sobrescrita
+    // pela contagem: quem roda o lote lê os NOMES daqui para achar os nós de
+    // geração. Trocar a lista pelo número fazia o roteiro procurar uma vista
+    // chamada "5", não achar nenhuma, e o botão Rodar não disparar NADA — sem
+    // erro, sem log, sem pista. Custou uma tarde.
+    return { ...l, sku, refs, resolvidas,
+             vistasPedidas: pedidas,
+             nSaidas: contarSaidas(l.saidas, saidasPadrao),
+             problemas: p }
   })
 
   const graves = avaliadas.filter(l => l.problemas.some(x => x.nivel === GRAVE))
   const prontas = avaliadas.filter(l => !l.problemas.some(x => x.nivel === GRAVE))
-  const imagens = prontas.reduce((n, l) => n + l.saidas, 0)
+  const imagens = prontas.reduce((n, l) => n + l.nSaidas, 0)
 
   return {
     linhas: avaliadas,

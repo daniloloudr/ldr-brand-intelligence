@@ -67,6 +67,7 @@ export function AddonCatalogo({ brandId }) {
   const [novas, setNovas] = useState([])       // castings subidos agora — ainda sem base conferida
   const [jobs, setJobs] = useState([])         // { vista, sku, genId, status, url, error }
   const [rodando, setRodando] = useState(false)
+  const [progresso, setProgresso] = useState(null)   // { onda, ondas, sku }
 
   const load = useCallback(async () => {
     if (!brandId) return
@@ -125,7 +126,7 @@ export function AddonCatalogo({ brandId }) {
     const resolver = (v) => /^https?:\/\//i.test(v) ? v : (porNome.get(String(v).toLowerCase()) || v)
     return roteiroDaPeca({
       nodes: fluxo.nodes, edges: fluxo.edges, vistas,
-      escolhidas: String(l.saidas || '').split(';').map(v => v.trim()).filter(Boolean),
+      escolhidas: l.vistasPedidas || [],
       linha: l, brandId, workflowId: fluxo.id, resolver,
       contextoDaPeca: montarContexto({ etapa: '', aPeca: l.contexto, linha: l }),
     })
@@ -222,7 +223,7 @@ export function AddonCatalogo({ brandId }) {
     const todos = []
 
     for (const l of prontas) {
-      const escolhidasDaLinha = String(l.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+      const escolhidasDaLinha = l.vistasPedidas || []
       const roteiro = roteiroDaPeca({
         nodes: fluxo.nodes, edges: fluxo.edges, vistas, escolhidas: escolhidasDaLinha, linha: l,
         brandId, workflowId: fluxo.id, resolver,
@@ -230,7 +231,8 @@ export function AddonCatalogo({ brandId }) {
       })
       const saidas = {}
 
-      for (const onda of roteiro.ondas) {
+      for (const [iOnda, onda] of roteiro.ondas.entries()) {
+        setProgresso({ onda: iOnda + 1, ondas: roteiro.ondas.length, sku: l.sku })
         const daOnda = []
         for (const genId of onda) {
           const passo = roteiro.passos.find(p => p.genId === genId)
@@ -256,6 +258,7 @@ export function AddonCatalogo({ brandId }) {
         if (!ok) { setErro('Uma etapa falhou — as seguintes dependiam dela e não foram disparadas.'); break }
       }
     }
+    setProgresso(null)
     setRodando(false)
   }
 
@@ -513,7 +516,7 @@ export function AddonCatalogo({ brandId }) {
                       <TableCell>{l._linha}</TableCell>
                       <TableCell><b>{l.sku || '—'}</b></TableCell>
                       <TableCell>{l.refs}</TableCell>
-                      <TableCell>{l.saidas}</TableCell>
+                      <TableCell>{l.nSaidas}</TableCell>
                       <TableCell>
                         {l.problemas.length === 0
                           ? <Typography variant="body2" color="success.main">pronta</Typography>
@@ -581,15 +584,55 @@ export function AddonCatalogo({ brandId }) {
                 startIcon={rodando ? <CircularProgress size={15} color="inherit" /> : null}>
                 {rodando ? 'Gerando…' : `Rodar (${relatorio.imagens} entregas · ≈${relatorio.creditos} créditos)`}
               </Button>
-              <Typography variant="caption" color="text.disabled">
-                {relatorio.podeRodar
-                  ? 'A execução é a próxima peça a construir.'
-                  : 'Resolva os bloqueios acima antes de rodar.'}
-              </Typography>
+              {/* Botão travado sem dizer o QUE trava faz a pessoa clicar e achar
+                  que o sistema não responde. Aqui sai a lista exata. */}
+              {!relatorio.podeRodar && (
+                <Box>
+                  <Typography variant="caption" color="error.main" display="block">
+                    <b>Não dá para rodar ainda:</b>
+                  </Typography>
+                  <Stack component="ul" sx={{ m: 0, pl: 2.5 }} spacing={0}>
+                    {relatorio.problemas.map((p, i) => (
+                      <Typography key={`c${i}`} component="li" variant="caption" color="error.main">{p.texto}</Typography>
+                    ))}
+                    {relatorio.linhas.flatMap(l => l.problemas
+                      .filter(p => p.nivel === NIVEIS.GRAVE)
+                      .map((p, j) => (
+                        <Typography key={`${l._linha}-${j}`} component="li" variant="caption" color="error.main">
+                          {l.sku || `linha ${l._linha}`} · <b>{p.campo}</b> — {p.texto}
+                        </Typography>
+                      )))}
+                    {!relatorio.prontas && !relatorio.bloqueadas && !relatorio.problemas.length && (
+                      <Typography component="li" variant="caption" color="error.main">
+                        nenhuma linha para rodar
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+              )}
             </Stack>
           </Paper>
         )}
       </Stack>
+
+      {/* ── o andamento ── */}
+      {rodando && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <CircularProgress size={20} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2">
+              {progresso
+                ? <>Etapa <b>{progresso.onda}</b> de {progresso.ondas} · {progresso.sku}</>
+                : 'Preparando…'}
+            </Typography>
+            <Typography variant="caption" color="text.disabled">
+              {jobs.filter(j => j.status === 'done').length} concluída(s) ·
+              {' '}{jobs.filter(j => j.status === 'running').length} em processamento
+              {' '}· cada etapa espera a anterior, porque depende do que ela produziu
+            </Typography>
+          </Box>
+        </Paper>
+      )}
 
       {/* ── o resultado ── */}
       {jobs.length > 0 && (

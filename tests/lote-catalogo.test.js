@@ -195,10 +195,26 @@ describe('⭐ as vistas vêm do FLUXO, não de lista fixa', () => {
   it('vista conhecida passa, sem ligar para maiúscula', () => {
     const r = rodar([{ ...base, saidas: 'frontal;Três Quartos' }], { vistas: vistasDoFluxo(nodes) })
     expect(r.bloqueadas).toBe(0)
-    expect(r.linhas[0].saidas).toBe(2)
+    expect(r.linhas[0].nSaidas).toBe(2)
   })
   it('sem vistas conhecidas, não inventa bloqueio', () => {
     expect(rodar([{ ...base, saidas: 'QUALQUER' }]).bloqueadas).toBe(0)
+  })
+})
+
+describe('⭐ a lista de vistas sobrevive ao preflight', () => {
+  it('os NOMES ficam em vistasPedidas — quem roda lê daqui', () => {
+    const r = rodar([{ ...base, saidas: 'FRONTAL;SENTADA' }])
+    expect(r.linhas[0].vistasPedidas).toEqual(['FRONTAL', 'SENTADA'])
+  })
+  it('a CONTAGEM fica em nSaidas, e não sobrescreve a lista', () => {
+    const r = rodar([{ ...base, saidas: 'FRONTAL;SENTADA' }])
+    expect(r.linhas[0].nSaidas).toBe(2)
+    expect(Array.isArray(r.linhas[0].vistasPedidas)).toBe(true)
+  })
+  it('sem vistas pedidas, a lista é vazia — não vira ["1"]', () => {
+    const r = rodar([{ ...base, saidas: '' }])
+    expect(r.linhas[0].vistasPedidas).toEqual([])
   })
 })
 
