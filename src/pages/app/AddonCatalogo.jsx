@@ -81,6 +81,7 @@ export function AddonCatalogo({ brandId }) {
   const [ultima, setUltima] = useState(null)   // { roteiro, saidas, auth } da rodada, p/ regerar
   const [regerando, setRegerando] = useState(null)
   const [lotes, setLotes] = useState([])          // histórico, do banco
+  const [contextoAberto, setContextoAberto] = useState(true)
 
   // Declarada aqui, acima de todo efeito que a usa: um `const` referenciado
   // antes da linha em que é declarado estoura na montagem do componente
@@ -241,6 +242,15 @@ export function AddonCatalogo({ brandId }) {
 
   // A pasta é por SKU e por dia: dois lotes do mesmo produto em dias
   // diferentes não se misturam, e o nome é legível na Biblioteca.
+  // Nome legível de uma referência: o arquivo, sem o caminho e sem o carimbo de
+  // tempo que o upload prefixa.
+  const nomeCurto = (u) => {
+    const t = String(u || '')
+    if (t.startsWith('‹')) return t          // "‹saída de FRONTAL›" não é caminho
+    return t.split('?')[0].split('/').pop()
+      .replace(/^\d{10,}-/, '').replace(/^[a-z0-9]{4}-/i, '') || t
+  }
+
   const pastaDoLote = (sku) => `Lote ${sku} · ${new Date().toLocaleDateString('pt-BR')}`
 
   async function baixarTudo() {
@@ -318,7 +328,7 @@ export function AddonCatalogo({ brandId }) {
     setPeca({ sku: lote.sku, contexto: lote.linha?.contexto || '',
               elenco: lote.linha?.elenco || '', saidas: (lote.linha?.vistasPedidas || []).join(';') })
     setExtras(Array.isArray(lote.extras) ? lote.extras : [])
-    setArquivos({})
+    setArquivos({}); setContextoAberto(false)
     setCabecalho(COLUNAS); setLinhas([{ ...lote.linha, _linha: 2 }]); setOrigem(lote.sku)
 
     const { data: gens } = await supabase.from('studio_generations')
@@ -487,399 +497,345 @@ export function AddonCatalogo({ brandId }) {
   // Liberado sem processo definido: a tela recusa em vez de improvisar.
   const semProcesso = !instalacao?.workflow_id || !fluxo
 
-  return (
+  // ── A VISTA ─────────────────────────────────────────────────────
+  //
+  // Três passos com estado, não quatro caixas empilhadas. A ordem é a do
+  // trabalho — descrever a peça, escolher o que gerar, conferir e rodar — e o
+  // passo diz sozinho se está resolvido.
+  //
+  // Duas decisões que vêm do uso real de hoje:
+  //  · o CONTEXTO recolhe depois de escrito. São ~4 KB; aberto, ele empurrava
+  //    vistas e botões para baixo da dobra e obrigava a rolar em toda rodada.
+  //  · o RODAR fica numa barra FIXA. É a única ação que gasta dinheiro, e era
+  //    justamente a que sumia da vista.
+  const passo1Ok = !!peca.sku.trim() && peca.contexto.trim().length >= CONTEXTO_MIN && !!peca.elenco
+  const passo2Ok = !!arquivos.peca_principal?.length && (escolhidas.length > 0 || extras.some(t => t.trim()))
+  const podeConferir = !semProcesso && !!peca.sku.trim() && (escolhidas.length > 0 || extras.some(t => t.trim()))
+  const creditos = (roteiroPrevia?.total || relatorio?.imagens || 0) * creditsForImage(modelo)
+
+  const Passo = ({ n, titulo, ok, children, acao }) => (
+    <Box component="section" sx={{ display: 'grid', gridTemplateColumns: { xs: '28px 1fr', sm: '34px 1fr' },
+      gap: { xs: 1.5, sm: 2.5 }, mb: 4 }}>
+      <Box sx={{ width: { xs: 28, sm: 34 }, height: { xs: 28, sm: 34 }, borderRadius: '50%',
+        border: 1, borderColor: ok ? 'success.main' : 'divider', color: ok ? 'success.main' : 'text.disabled',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
+        {ok ? '✓' : n}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Stack direction="row" spacing={1.5} alignItems="baseline" sx={{ mb: 1.5 }} flexWrap="wrap" useFlexGap>
+          <Typography variant="subtitle1" fontWeight={700}>{titulo}</Typography>
+          <Box sx={{ flex: 1 }} />
+          {acao}
+        </Stack>
+        {children}
+      </Box>
+    </Box>
+  )
+
+  // A conferência: o que falta por linha, e o que cada etapa vai receber.
+  // A prévia virou TABELA — antes era um <ol> de URLs truncadas por etapa, e
+  // ninguém conseguia ler justamente o que existe para ser conferido.
+  const Conferencia = () => (
     <Box>
-      <PageHeader title="Lote de Catálogo" subtitle="Imagem de catálogo em massa, no processo aprovado desta marca." />
+      {relatorio.problemas.length > 0 && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <b>Faltam colunas na planilha.</b>
+          <Box component="ul" sx={{ m: '6px 0 0', pl: 2.5 }}>
+            {relatorio.problemas.map((p, i) => <li key={i}>{p.texto}</li>)}
+          </Box>
+        </Alert>
+      )}
+
+      {relatorio.linhas.some(l => l.problemas.length > 0) && (
+        <Box sx={{ mb: 3 }}>
+          <Rotulo>O que precisa de você</Rotulo>
+          <Stack spacing={.75}>
+            {relatorio.linhas.flatMap(l => l.problemas.map((p, j) => (
+              <Typography key={`${l._linha}-${j}`} variant="body2"
+                color={p.nivel === NIVEIS.GRAVE ? 'error.main' : 'warning.main'}>
+                {relatorio.linhas.length > 1 ? <b>{l.sku || `linha ${l._linha}`} · </b> : null}
+                <b>{p.campo}</b> — {p.texto}
+              </Typography>
+            )))}
+          </Stack>
+        </Box>
+      )}
+
+      {roteiroPrevia?.passos?.length > 0 && (
+        <Box>
+          <Rotulo hint="na ordem em que o modelo vai receber">O que cada etapa recebe</Rotulo>
+          <TableContainer sx={{ overflowX: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ width: 190 }}>Etapa</TableCell>
+                  <TableCell>Referências, em ordem</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {roteiroPrevia.passos.map((p, i) => {
+                  const ped = p.montar(Object.fromEntries(
+                    roteiroPrevia.passos.slice(0, i).map(x => [x.genId, `‹saída de ${x.nome}›`])))
+                  const refs = ped?.references || []
+                  return (
+                    <TableRow key={`${p.genId}-${i}`}>
+                      <TableCell sx={{ verticalAlign: 'top' }}>
+                        <Typography variant="body2" fontWeight={650} noWrap>{p.nome}</Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          {p.entrega ? 'entrega' : 'insumo'}{ped?.model ? ` · ${ped.model.split('/').pop()}` : ''}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {refs.length
+                          ? <Stack direction="row" spacing={.5} flexWrap="wrap" useFlexGap>
+                              {refs.map((r, j) => (
+                                <Chip key={j} size="small" variant="outlined" label={`${j + 1}. ${nomeCurto(r)}`}
+                                  title={String(r)} sx={{ maxWidth: 230 }} />
+                              ))}
+                            </Stack>
+                          : <Typography variant="caption" color="error.main">
+                              nenhuma referência — a peça sairia sem base
+                            </Typography>}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
+    </Box>
+  )
+
+  const Rotulo = ({ children, hint }) => (
+    <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: .75 }} flexWrap="wrap" useFlexGap>
+      <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.4 }}>{children}</Typography>
+      {hint && <Typography variant="caption" color="text.disabled">{hint}</Typography>}
+    </Stack>
+  )
+
+  return (
+    <Box sx={{ pb: relatorio ? 11 : 0 }}>
+      <PageHeader title="Lote de Catálogo"
+        subtitle="Imagem de catálogo em massa, no processo aprovado desta marca." />
 
       {erro && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro('')}>{erro}</Alert>}
+      {semProcesso && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <b>Este lote ainda não está configurado para esta marca.</b> Fale com a gente antes de subir as peças.
+        </Alert>
+      )}
 
-      <Stack spacing={2}>
-        {/* O produto roda UM processo, fixo. Quando ele está configurado, a
-            tela não fala disso — "fluxo" e "receita" não são palavras de quem
-            está fazendo catálogo. Só aparece algo aqui quando falta algo. */}
-        {semProcesso && (
-          <Alert severity="warning">
-            <b>Este lote ainda não está configurado para esta marca.</b> Fale com a gente antes de subir as peças.
-          </Alert>
-        )}
+      <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Tab label="Uma peça" />
+        <Tab label="Em massa" />
+        <Tab label={`Lotes${lotes.length ? ` · ${lotes.length}` : ''}`} />
+      </Tabs>
 
-        <Paper variant="outlined">
-          <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <Tab label="Uma peça" />
-            <Tab label="Em massa" />
-            <Tab label={`Lotes${lotes.length ? ` (${lotes.length})` : ''}`} />
-          </Tabs>
+      {/* ═══ UMA PEÇA ═══ */}
+      {aba === 0 && (
+        <Box sx={{ maxWidth: 880 }}>
 
-          {/* ── uma peça ── */}
-          {aba === 0 && (
-            <Box sx={{ p: 2.5 }}>
-              <Stack spacing={2}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                  <TextField label="SKU" size="small" sx={{ maxWidth: 220 }}
-                    value={peca.sku} onChange={e => setPeca(p => ({ ...p, sku: e.target.value }))} />
-                  <Stack direction="row" spacing={1} alignItems="flex-start">
-                    <TextField label="Modelo" size="small" select sx={{ minWidth: 200 }}
-                      value={peca.elenco} onChange={e => setPeca(p => ({ ...p, elenco: e.target.value }))}
-                      disabled={!elenco.length}
-                      helperText={elenco.length
-                        ? 'modelos já aprovadas'
-                        : 'nenhuma modelo cadastrada ainda — suba uma ao lado'}>
-                      {elenco.map(n => (
-                        <MenuItem key={n} value={n}>
-                          {n}{novas.includes(n) ? ' · nova' : ''}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                    <Button component="label" size="small" color="inherit" sx={{ mt: .5 }}
-                      disabled={subindo === 'elenco'}
-                      startIcon={subindo === 'elenco' ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}>
-                      Subir modelo
-                      <input hidden type="file" accept="image/*"
-                        onChange={e => { subirCasting(e.target.files?.[0]); e.target.value = '' }} />
-                    </Button>
-                  </Stack>
-                </Stack>
-
-                <TextField label="A peça — descrição para fidelidade" multiline minRows={6}
-                  value={peca.contexto} onChange={e => setPeca(p => ({ ...p, contexto: e.target.value }))}
-                  helperText={`Modelagem, comprimento, manga, textura, gola, barra — e o erro que o modelo costuma cometer. ${peca.contexto.length}/${CONTEXTO_MIN} mínimo recomendado.`} />
-
-                {novas.includes(peca.elenco) && (
-                  <Alert severity="info" sx={{ py: .25 }}>
-                    <b>{peca.elenco}</b> é nova: antes de entrar na produção, a gente gera a base
-                    limpa dela e alguém confere contra a foto original. Isso acontece uma vez —
-                    nas próximas peças com essa modelo, a etapa é pulada.
-                  </Alert>
-                )}
-
-                <Box>
-                  <Typography variant="overline" color="text.secondary">As referências</Typography>
-                  <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 1 }}>
-                    A <b>peça principal</b> é a estrela: suba a vista 1 (a âncora) e, se tiver,
-                    lado e costas da <b>mesma</b> peça. Acessórios são os outros itens do look —
-                    cada um também aceita várias vistas.
-                  </Typography>
-                  <Stack spacing={1}>
-                    {PAPEIS.filter(p => !p.doElenco).map(p => {
-                      // eslint-disable-next-line
-                      const vistas = arquivos[p.col] || []
-                      return (
-                        <Stack key={p.col} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                          <Button component="label" size="small"
-                            variant={vistas.length ? 'outlined' : 'text'} color="inherit"
-                            disabled={subindo === p.col} sx={{ minWidth: 190, justifyContent: 'flex-start' }}
-                            startIcon={subindo === p.col ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}>
-                            {p.papel}{vistas.length ? ` · ${vistas.length}` : ''}
-                            <input hidden type="file" accept="image/*" multiple
-                              onChange={e => { subirArquivos(p.col, e.target.files); e.target.value = '' }} />
-                          </Button>
-                          {vistas.map((v, i) => (
-                            <Chip key={i} size="small" variant="outlined" label={v.nome}
-                              onDelete={() => tirarVista(p.col, i)} />
-                          ))}
-                        </Stack>
-                      )
-                    })}
-                  </Stack>
-                </Box>
-
-                <Box>
-                  <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap>
-                    <Typography variant="overline" color="text.secondary">As vistas</Typography>
-                    <Typography variant="caption" color="text.disabled">
-                      {vistas.length
-                        ? `${escolhidas.length} de ${vistas.length} escolhidas`
-                        : 'este lote não declara vistas'}
-                    </Typography>
-                    {vistas.length > 0 && (
-                      <Button size="small" color="inherit"
-                        onClick={() => setPeca(p => ({ ...p,
-                          saidas: escolhidas.length === vistas.length ? '' : vistas.map(v => v.nome).join(';') }))}>
-                        {escolhidas.length === vistas.length ? 'limpar' : 'todas'}
-                      </Button>
-                    )}
-                  </Stack>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1, mb: 2 }}>
-                    {vistas.map(v => (
-                      <Chip key={v.id} label={v.nome} size="small" title={v.instrucao}
-                        variant={escolhidas.includes(v.nome) ? 'filled' : 'outlined'}
-                        color={escolhidas.includes(v.nome) ? 'primary' : 'default'}
-                        onClick={() => alternarVista(v.nome)} />
-                    ))}
-                  </Stack>
-
-                  {/* Pose que o fluxo não tem, escrita na hora. Ela roda no
-                      MESMO nó da primeira vista escolhida — herda câmera,
-                      modelo e formato daquela etapa — e só troca a instrução. */}
-                  <Typography variant="overline" color="text.secondary">Posições extras</Typography>
-                  <Stack spacing={1} sx={{ mt: 1 }}>
-                    {extras.map((t, i) => (
-                      <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
-                        <TextField size="small" fullWidth multiline maxRows={3} value={t}
-                          placeholder="ex.: DE FRENTE, MEIO CORPO — busto até o quadril, crop na peça"
-                          onChange={e => setExtras(l => l.map((x, j) => j === i ? e.target.value : x))} />
-                        <IconButton size="small" onClick={() => setExtras(l => l.filter((_, j) => j !== i))}>
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    ))}
-                    <Box>
-                      <Button size="small" color="inherit" onClick={() => setExtras(l => [...l, ''])}>
-                        + posição
-                      </Button>
-                      <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
-                        herda a câmera e o modelo da primeira vista escolhida
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Box>
-
-                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Button variant="contained" disableElevation onClick={conferirPeca}
-                    disabled={semProcesso || !peca.sku.trim() || (!escolhidas.length && !extras.some(t => t.trim()))}>
-                    Conferir esta peça
-                  </Button>
-                  {/* Botão desabilitado sem explicação faz a pessoa achar que a
-                      tela quebrou. Aqui ele diz o que falta. */}
-                  {(semProcesso || !peca.sku.trim() || !escolhidas.length) && (
-                    <Typography variant="caption" color="text.disabled">
-                      {semProcesso ? 'este lote ainda não está configurado para esta marca'
-                        : !peca.sku.trim() ? 'preencha o SKU para conferir'
-                        : 'escolha ao menos uma vista'}
-                    </Typography>
-                  )}
-                  <Button color="inherit" onClick={() => { setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem(''); setExtras([]) }}>
-                    Limpar
-                  </Button>
-                </Stack>
-              </Stack>
-            </Box>
-          )}
-
-          {/* ── histórico ── */}
-          {aba === 2 && (
-            <Box sx={{ p: 2.5 }}>
-              {!lotes.length
-                ? <Typography variant="body2" color="text.disabled">Nenhum lote rodado ainda nesta marca.</Typography>
-                : (
-                  <Stack spacing={1}>
-                    {lotes.map(l => (
-                      <Paper key={l.id} variant="outlined" sx={{ p: 1.5, display: 'flex', gap: 2,
-                        alignItems: 'center', flexWrap: 'wrap' }}>
-                        <Box sx={{ flex: 1, minWidth: 200 }}>
-                          <Typography variant="body2" fontWeight={650}>{l.sku}</Typography>
-                          <Typography variant="caption" color="text.disabled">
-                            {l.pasta} · {(l.linha?.vistasPedidas || []).length} vista(s)
-                            {Array.isArray(l.extras) && l.extras.filter(Boolean).length
-                              ? ` · ${l.extras.filter(Boolean).length} extra(s)` : ''}
-                          </Typography>
-                        </Box>
-                        <Button size="small" variant="outlined" color="inherit" onClick={() => abrirLote(l)}>
-                          Abrir
-                        </Button>
-                      </Paper>
-                    ))}
-                  </Stack>
-                )}
-            </Box>
-          )}
-
-          {/* ── em massa ── */}
-          {aba === 1 && (
-            <Box sx={{ p: 2.5 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-                <Button component="label" variant="contained" disableElevation
-                  disabled={semProcesso} startIcon={<UploadFileOutlinedIcon />}>
-                  Escolher planilha
-                  <input hidden type="file" accept=".csv,text/csv"
-                    onChange={e => { escolherPlanilha(e.target.files?.[0]); e.target.value = '' }} />
-                </Button>
-                <Button color="inherit" startIcon={<DownloadOutlinedIcon />} onClick={baixarModelo}>
-                  Baixar o modelo
-                </Button>
-              </Stack>
-              <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 1.5 }}>
-                Obrigatórias: <b>{COLUNAS_OBRIGATORIAS.join(' · ')}</b>.
-                {' '}Opcionais: {COLUNAS.filter(c => !COLUNAS_OBRIGATORIAS.includes(c)).join(' · ')}.
-                {' '}Cada arquivo pode ser um nome já na Biblioteca ou uma URL.
-              </Typography>
-            </Box>
-          )}
-        </Paper>
-
-        {/* ── o portão, um só para as duas portas ── */}
-        {relatorio && (
-          <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography variant="overline" color="text.secondary">Antes de gastar · {origem}</Typography>
-
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5, mb: 2 }} flexWrap="wrap" useFlexGap>
-              <Chip label={`${relatorio.prontas} pronta${relatorio.prontas !== 1 ? 's' : ''}`}
-                color={relatorio.prontas ? 'success' : 'default'} variant="outlined" />
-              {relatorio.bloqueadas > 0 && <Chip label={`${relatorio.bloqueadas} bloqueada${relatorio.bloqueadas !== 1 ? 's' : ''}`} color="error" variant="outlined" />}
-              {relatorio.avisos > 0 && <Chip label={`${relatorio.avisos} aviso${relatorio.avisos !== 1 ? 's' : ''}`} color="warning" variant="outlined" />}
-              <Chip label={`${relatorio.imagens} entregas`} variant="outlined" />
-              {roteiroPrevia && roteiroPrevia.total > relatorio.imagens && (
-                <Chip variant="outlined"
-                  label={`+ ${roteiroPrevia.total - relatorio.imagens} insumo${roteiroPrevia.total - relatorio.imagens !== 1 ? 's' : ''}`} />
-              )}
-              <Chip variant="outlined"
-                label={`≈ ${(roteiroPrevia?.total || relatorio.imagens) * creditsForImage(modelo)} créditos`} />
+          <Passo n="1" titulo="A peça" ok={passo1Ok}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+              <TextField label="SKU" size="small" sx={{ maxWidth: { sm: 200 } }}
+                value={peca.sku} onChange={e => setPeca(p => ({ ...p, sku: e.target.value }))} />
+              <TextField label="Modelo" size="small" select sx={{ minWidth: 200, flex: 1 }}
+                value={peca.elenco} onChange={e => setPeca(p => ({ ...p, elenco: e.target.value }))}
+                disabled={!elenco.length}
+                helperText={elenco.length ? ' ' : 'nenhuma cadastrada — suba ao lado'}>
+                {elenco.map(n => <MenuItem key={n} value={n}>{n}{novas.includes(n) ? ' · nova' : ''}</MenuItem>)}
+              </TextField>
+              <Button component="label" size="small" color="inherit" sx={{ alignSelf: 'flex-start', mt: .5 }}
+                disabled={subindo === 'elenco'}
+                startIcon={subindo === 'elenco' ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}>
+                Subir modelo
+                <input hidden type="file" accept="image/*"
+                  onChange={e => { subirCasting(e.target.files?.[0]); e.target.value = '' }} />
+              </Button>
             </Stack>
 
-            {relatorio.problemas.length > 0 && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                <b>Faltam colunas na planilha.</b>
-                <ul style={{ margin: '6px 0 0', paddingLeft: '1.1em' }}>
-                  {relatorio.problemas.map((p, i) => <li key={i}>{p.texto}</li>)}
-                </ul>
+            {novas.includes(peca.elenco) && (
+              <Alert severity="info" sx={{ mb: 2, py: .25 }}>
+                <b>{peca.elenco}</b> é nova: a base limpa dela é gerada e conferida uma vez.
+                Nas próximas peças com essa modelo, a etapa é pulada.
               </Alert>
             )}
 
-            <TableContainer sx={{ overflowX: 'auto' }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Linha</TableCell><TableCell>SKU</TableCell>
-                    <TableCell>Refs</TableCell><TableCell>Saídas</TableCell>
-                    <TableCell>O que precisa de você</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {relatorio.linhas.map(l => (
-                    <TableRow key={l._linha}>
-                      <TableCell>{l._linha}</TableCell>
-                      <TableCell><b>{l.sku || '—'}</b></TableCell>
-                      <TableCell>{l.refs}</TableCell>
-                      <TableCell>{l.nSaidas}</TableCell>
-                      <TableCell>
-                        {l.problemas.length === 0
-                          ? <Typography variant="body2" color="success.main">pronta</Typography>
-                          : (
-                            <Stack spacing={.5}>
-                              {l.problemas.map((p, i) => (
-                                <Typography key={i} variant="body2"
-                                  color={p.nivel === NIVEIS.GRAVE ? 'error.main' : 'warning.main'}>
-                                  <b>{p.campo}</b> — {p.texto}
-                                </Typography>
-                              ))}
-                            </Stack>
-                          )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* ⭐ A PRÉVIA DAS REFERÊNCIAS. "as referências não estão certas" só é
-                verificável se der para VER a lista antes de gastar. Aqui sai o
-                que cada etapa vai receber, na ordem em que vai receber. */}
-            {roteiroPrevia && (
-              <Box sx={{ mt: 2.5, border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
-                <Typography variant="overline" color="text.secondary">
-                  O que cada etapa vai receber
+            <Rotulo hint={`${peca.contexto.length} caracteres · o gabarito em uso tem ~4000`}>
+              Descrição da peça
+            </Rotulo>
+            {contextoAberto || peca.contexto.length < CONTEXTO_MIN ? (
+              <TextField fullWidth multiline minRows={8} maxRows={20} value={peca.contexto}
+                onChange={e => setPeca(p => ({ ...p, contexto: e.target.value }))}
+                placeholder="Modelagem, comprimento, manga, textura, gola, barra — e o erro que o modelo costuma cometer."
+                InputProps={{ sx: { fontSize: 13.5, lineHeight: 1.5 } }} />
+            ) : (
+              <Paper variant="outlined" sx={{ p: 1.5, cursor: 'pointer', bgcolor: 'action.hover' }}
+                onClick={() => setContextoAberto(true)}>
+                <Typography variant="body2" color="text.secondary"
+                  sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {peca.contexto}
                 </Typography>
-                <Stack spacing={1.5} sx={{ mt: 1 }}>
-                  {roteiroPrevia.passos.map((p, i) => {
-                    const ped = p.montar(Object.fromEntries(
-                      roteiroPrevia.passos.slice(0, i).map(x => [x.genId, `‹saída de ${x.nome}›`])))
-                    return (
-                      <Box key={p.genId}>
-                        <Typography variant="body2">
-                          <b>{p.nome}</b>
-                          <Typography component="span" variant="caption" color="text.disabled">
-                            {' '}· etapa {p.etapa} · {p.entrega ? 'entrega' : 'insumo'}
-                            {ped?.model ? ` · ${ped.model.split('/').pop()}` : ''}
-                          </Typography>
-                        </Typography>
-                        <Stack component="ol" sx={{ m: 0, pl: 2.5 }} spacing={0}>
-                          {(ped?.references || []).map((r, j) => (
-                            <Typography key={j} component="li" variant="caption" color="text.secondary"
-                              sx={{ wordBreak: 'break-all' }}>
-                              {String(r).replace(/^https?:\/\/[^/]+\//, '…/')}
-                            </Typography>
-                          ))}
-                          {!(ped?.references || []).length && (
-                            <Typography component="li" variant="caption" color="error.main">
-                              nenhuma referência — a peça sairia sem base
-                            </Typography>
-                          )}
-                        </Stack>
-                      </Box>
-                    )
-                  })}
-                </Stack>
-              </Box>
+                <Typography variant="caption" color="primary" sx={{ mt: .5, display: 'block' }}>editar</Typography>
+              </Paper>
+            )}
+            {contextoAberto && peca.contexto.length >= CONTEXTO_MIN && (
+              <Button size="small" color="inherit" sx={{ mt: 1 }} onClick={() => setContextoAberto(false)}>
+                recolher
+              </Button>
+            )}
+          </Passo>
+
+          <Passo n="2" titulo="O que gerar" ok={passo2Ok}>
+            <Rotulo hint="a vista 1 é a âncora; cada item aceita mais de uma vista">Referências</Rotulo>
+            <Stack spacing={1} sx={{ mb: 3 }}>
+              {PAPEIS.filter(p => !p.doElenco).map(p => {
+                const vs = arquivos[p.col] || []
+                return (
+                  <Stack key={p.col} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Button component="label" size="small" color="inherit"
+                      variant={vs.length ? 'outlined' : 'text'} disabled={subindo === p.col}
+                      sx={{ minWidth: 210, justifyContent: 'flex-start', fontWeight: p.principal ? 700 : 400 }}
+                      startIcon={subindo === p.col ? <CircularProgress size={13} /> : <UploadFileOutlinedIcon />}>
+                      {p.papel}{vs.length ? ` · ${vs.length}` : ''}
+                      <input hidden type="file" accept="image/*" multiple
+                        onChange={e => { subirArquivos(p.col, e.target.files); e.target.value = '' }} />
+                    </Button>
+                    {vs.map((v, i) => (
+                      <Chip key={i} size="small" variant="outlined" label={v.nome}
+                        onDelete={() => tirarVista(p.col, i)} />
+                    ))}
+                  </Stack>
+                )
+              })}
+            </Stack>
+
+            <Rotulo hint={vistas.length ? `${escolhidas.length} de ${vistas.length}` : 'este lote não declara vistas'}>
+              Vistas
+            </Rotulo>
+            <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+              {vistas.map(v => (
+                <Chip key={v.id} label={v.nome} size="small" title={v.instrucao}
+                  variant={escolhidas.includes(v.nome) ? 'filled' : 'outlined'}
+                  color={escolhidas.includes(v.nome) ? 'primary' : 'default'}
+                  onClick={() => alternarVista(v.nome)} />
+              ))}
+            </Stack>
+            {vistas.length > 0 && (
+              <Button size="small" color="inherit" sx={{ mb: 3, ml: -1 }}
+                onClick={() => setPeca(p => ({ ...p,
+                  saidas: escolhidas.length === vistas.length ? '' : vistas.map(v => v.nome).join(';') }))}>
+                {escolhidas.length === vistas.length ? 'limpar seleção' : 'selecionar todas'}
+              </Button>
             )}
 
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2.5 }}>
-              <Button variant="contained" disableElevation
-                disabled={!relatorio.podeRodar || rodando} onClick={rodar}
-                startIcon={rodando ? <CircularProgress size={15} color="inherit" /> : null}>
-                {rodando ? 'Gerando…'
-                  : `Rodar (${relatorio.imagens} entregas · ≈${(roteiroPrevia?.total || relatorio.imagens) * creditsForImage(modelo)} créditos)`}
-              </Button>
-              {/* Botão travado sem dizer o QUE trava faz a pessoa clicar e achar
-                  que o sistema não responde. Aqui sai a lista exata. */}
-              {!relatorio.podeRodar && (
-                <Box>
-                  <Typography variant="caption" color="error.main" display="block">
-                    <b>Não dá para rodar ainda:</b>
-                  </Typography>
-                  <Stack component="ul" sx={{ m: 0, pl: 2.5 }} spacing={0}>
-                    {relatorio.problemas.map((p, i) => (
-                      <Typography key={`c${i}`} component="li" variant="caption" color="error.main">{p.texto}</Typography>
-                    ))}
-                    {relatorio.linhas.flatMap(l => l.problemas
-                      .filter(p => p.nivel === NIVEIS.GRAVE)
-                      .map((p, j) => (
-                        <Typography key={`${l._linha}-${j}`} component="li" variant="caption" color="error.main">
-                          {l.sku || `linha ${l._linha}`} · <b>{p.campo}</b> — {p.texto}
-                        </Typography>
-                      )))}
-                    {!relatorio.prontas && !relatorio.bloqueadas && !relatorio.problemas.length && (
-                      <Typography component="li" variant="caption" color="error.main">
-                        nenhuma linha para rodar
-                      </Typography>
-                    )}
-                  </Stack>
-                </Box>
-              )}
+            <Rotulo hint="herda a câmera e o modelo da primeira vista escolhida">Posições extras</Rotulo>
+            <Stack spacing={1}>
+              {extras.map((t, i) => (
+                <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
+                  <TextField size="small" fullWidth multiline maxRows={3} value={t}
+                    placeholder="ex.: closeup da manga direita, meio corpo"
+                    onChange={e => setExtras(l => l.map((x, j) => j === i ? e.target.value : x))} />
+                  <IconButton size="small" onClick={() => setExtras(l => l.filter((_, j) => j !== i))}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              ))}
+              <Box><Button size="small" color="inherit" sx={{ ml: -1 }}
+                onClick={() => setExtras(l => [...l, ''])}>+ posição</Button></Box>
             </Stack>
-          </Paper>
-        )}
-      </Stack>
+          </Passo>
 
-      {/* ── o andamento ── */}
-      {rodando && (
-        <Paper variant="outlined" sx={{ p: 2, mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-          <CircularProgress size={20} />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2">
-              {progresso
-                ? <>Etapa <b>{progresso.onda}</b> de {progresso.ondas} · {progresso.sku}</>
-                : 'Preparando…'}
-            </Typography>
-            <Typography variant="caption" color="text.disabled">
-              {jobs.filter(j => j.status === 'done').length} concluída(s) ·
-              {' '}{jobs.filter(j => j.status === 'running').length} em processamento
-              {' '}· cada etapa espera a anterior, porque depende do que ela produziu
-            </Typography>
-          </Box>
-        </Paper>
+          <Passo n="3" titulo="Conferir e gerar" ok={!!relatorio?.podeRodar}
+            acao={
+              <Stack direction="row" spacing={1} alignItems="center">
+                {!podeConferir && (
+                  <Typography variant="caption" color="text.disabled">
+                    {semProcesso ? 'lote não configurado'
+                      : !peca.sku.trim() ? 'falta o SKU' : 'escolha ao menos uma vista'}
+                  </Typography>
+                )}
+                <Button variant="outlined" color="inherit" size="small"
+                  onClick={conferirPeca} disabled={!podeConferir}>Conferir</Button>
+                <Button size="small" color="inherit" onClick={() => {
+                  setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem(''); setExtras([])
+                }}>Limpar</Button>
+              </Stack>
+            }>
+            {!relatorio
+              ? <Typography variant="body2" color="text.disabled">
+                  Confira antes de gerar: o que está faltando, o que cada etapa vai receber, e quanto custa.
+                </Typography>
+              : <Conferencia />}
+          </Passo>
+        </Box>
       )}
 
-      {/* ── o resultado ── */}
+      {/* ═══ EM MASSA ═══ */}
+      {aba === 1 && (
+        <Box sx={{ maxWidth: 880 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} sx={{ mb: 2 }}>
+            <Button component="label" variant="contained" disableElevation
+              disabled={semProcesso} startIcon={<UploadFileOutlinedIcon />}>
+              Escolher planilha
+              <input hidden type="file" accept=".csv,text/csv"
+                onChange={e => { escolherPlanilha(e.target.files?.[0]); e.target.value = '' }} />
+            </Button>
+            <Button color="inherit" startIcon={<DownloadOutlinedIcon />} onClick={baixarModelo}>
+              Baixar o modelo
+            </Button>
+          </Stack>
+          <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 3 }}>
+            Obrigatórias: <b>{COLUNAS_OBRIGATORIAS.join(' · ')}</b>. Opcionais:{' '}
+            {COLUNAS.filter(c => !COLUNAS_OBRIGATORIAS.includes(c)).join(' · ')}.
+            Cada arquivo pode ser um nome já na Biblioteca ou uma URL.
+          </Typography>
+          {relatorio && <Conferencia />}
+        </Box>
+      )}
+
+      {/* ═══ LOTES ═══ */}
+      {aba === 2 && (
+        <Box sx={{ maxWidth: 880 }}>
+          {!lotes.length
+            ? <Typography variant="body2" color="text.disabled">Nenhum lote rodado ainda nesta marca.</Typography>
+            : (
+              <Stack spacing={1}>
+                {lotes.map(l => (
+                  <Paper key={l.id} variant="outlined"
+                    sx={{ p: 1.75, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Box sx={{ flex: 1, minWidth: 200 }}>
+                      <Typography variant="body2" fontWeight={650}>{l.sku}</Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        {l.pasta} · {(l.linha?.vistasPedidas || []).length} vista(s)
+                        {Array.isArray(l.extras) && l.extras.filter(Boolean).length
+                          ? ` · ${l.extras.filter(Boolean).length} extra(s)` : ''}
+                      </Typography>
+                    </Box>
+                    <Button size="small" variant="outlined" color="inherit"
+                      onClick={() => abrirLote(l)}>Abrir</Button>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+        </Box>
+      )}
+
+      {/* ═══ O QUE SAIU ═══ */}
       {jobs.length > 0 && (
-        <Paper variant="outlined" sx={{ p: 2.5, mt: 2 }}>
+        <Box sx={{ mt: 5, maxWidth: 1100 }}>
           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-            <Typography variant="overline" color="text.secondary">O que saiu</Typography>
+            <Typography variant="subtitle1" fontWeight={700}>O que saiu</Typography>
             <Typography variant="caption" color="text.disabled">
-              {jobs.filter(j => j.status === 'done').length} de {jobs.length} ·
-              {' '}{jobs.filter(j => j.entrega).length} entrega{jobs.filter(j => j.entrega).length !== 1 ? 's' : ''},
-              {' '}{jobs.filter(j => !j.entrega).length} insumo{jobs.filter(j => !j.entrega).length !== 1 ? 's' : ''}
-              {jobs.some(j => j.status === 'error') && ` · ${jobs.filter(j => j.status === 'error').length} com erro`}
+              {jobs.filter(j => j.status === 'done').length} de {jobs.length}
+              {rodando && progresso ? ` · etapa ${progresso.onda} de ${progresso.ondas}` : ''}
+              {jobs.some(j => j.status === 'error')
+                ? ` · ${jobs.filter(j => j.status === 'error').length} com erro` : ''}
             </Typography>
+            {rodando && <CircularProgress size={15} />}
             <Box sx={{ flex: 1 }} />
             {prontasParaVer.length > 0 && (
               <Button size="small" variant="outlined" color="inherit"
@@ -889,42 +845,57 @@ export function AddonCatalogo({ brandId }) {
               </Button>
             )}
           </Stack>
-          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {jobs.map((j, i) => (
               <Box key={i}>
                 <Box onClick={() => { if (j.status === 'done' && j.url) setAberta(prontasParaVer.findIndex(x => x.genId === j.genId)) }}
                   sx={{ aspectRatio: '1720/2432', bgcolor: 'action.hover', borderRadius: 1,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                        cursor: j.status === 'done' && j.url ? 'zoom-in' : 'default',
-                        transition: 'opacity .15s', '&:hover': { opacity: j.url ? .88 : 1 } }}>
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                    cursor: j.status === 'done' && j.url ? 'zoom-in' : 'default',
+                    transition: 'opacity .15s', '&:hover': { opacity: j.url ? .88 : 1 } }}>
                   {j.status === 'done' && j.url
                     ? <Box component="img" src={j.url} alt={`${j.sku} · ${j.vista}`}
                         sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : j.status === 'error'
-                      ? <Typography variant="caption" color="error.main" sx={{ p: 1, textAlign: 'center' }}>{j.error || 'falhou'}</Typography>
-                      : <CircularProgress size={22} />}
+                      ? <Stack spacing={1} alignItems="center" sx={{ p: 1.5 }} title={j.error || ''}>
+                          <Typography variant="caption" color="error.main" sx={{ textAlign: 'center' }}>
+                            {erroLegivel(j.error).texto}
+                          </Typography>
+                          {ultima && (
+                            <Button size="small" variant="outlined" color="inherit" disabled={!!regerando}
+                              onClick={() => regerar(j)}
+                              startIcon={regerando === j.genId ? <CircularProgress size={13} /> : <RefreshIcon sx={{ fontSize: 15 }} />}>
+                              Gerar de novo
+                            </Button>
+                          )}
+                        </Stack>
+                      : <Stack alignItems="center" spacing={1}>
+                          <CircularProgress size={20} />
+                          <Typography variant="caption" color="text.disabled">gerando</Typography>
+                        </Stack>}
                 </Box>
-                <Typography variant="caption" display="block" sx={{ mt: .5 }} noWrap title={`${j.sku} · ${j.vista}`}>
-                  <b>{j.vista}</b>
-                </Typography>
-                {(j.status === 'done' || j.status === 'error') && ultima && (
-                  <Tooltip title={`gerar de novo a ${j.vista}`}>
-                    <span>
-                      <IconButton size="small" disabled={!!regerando}
-                        onClick={() => regerar(j)}
-                        sx={{ float: 'right', mt: -.25 }}>
-                        {regerando === j.genId
-                          ? <CircularProgress size={14} />
-                          : <RefreshIcon sx={{ fontSize: 15 }} />}
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                )}
+                <Stack direction="row" spacing={.5} alignItems="center" sx={{ mt: .75 }}>
+                  <Typography variant="caption" fontWeight={700} noWrap sx={{ flex: 1 }} title={j.vista}>
+                    {j.vista}
+                  </Typography>
+                  {(j.status === 'done' || j.status === 'error') && ultima && (
+                    <Tooltip title={`gerar de novo a ${j.vista}`}>
+                      <span>
+                        <IconButton size="small" disabled={!!regerando} onClick={() => regerar(j)}>
+                          {regerando === j.genId
+                            ? <CircularProgress size={13} />
+                            : <RefreshIcon sx={{ fontSize: 15 }} />}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Stack>
                 <Tooltip title="abrir a pasta deste lote na Biblioteca">
                   <Typography variant="caption" color="text.disabled" noWrap
                     onClick={() => navigate(`#/app/brands/${brandId}/studio/biblioteca?pasta=${encodeURIComponent(pastaDoLote(j.sku))}`)}
                     sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: .4,
-                          '&:hover': { color: 'text.primary', textDecoration: 'underline' } }}>
+                      '&:hover': { color: 'text.primary', textDecoration: 'underline' } }}>
                     <FolderOpenOutlinedIcon sx={{ fontSize: 13 }} />
                     {j.sku}{j.entrega ? '' : ' · insumo'}
                   </Typography>
@@ -932,10 +903,35 @@ export function AddonCatalogo({ brandId }) {
               </Box>
             ))}
           </Box>
+        </Box>
+      )}
+
+      {/* ═══ A BARRA FIXA — é a única ação que gasta dinheiro ═══ */}
+      {relatorio && (
+        <Paper elevation={8} sx={{ position: 'sticky', bottom: 0, mt: 4, p: 1.75,
+          display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap',
+          borderTop: 2, borderColor: relatorio.podeRodar ? 'success.main' : 'error.main' }}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ flex: 1 }}>
+            <Chip size="small" variant="outlined" color={relatorio.prontas ? 'success' : 'default'}
+              label={`${relatorio.prontas} pronta${relatorio.prontas !== 1 ? 's' : ''}`} />
+            {relatorio.bloqueadas > 0 &&
+              <Chip size="small" variant="outlined" color="error" label={`${relatorio.bloqueadas} bloqueada(s)`} />}
+            {relatorio.avisos > 0 &&
+              <Chip size="small" variant="outlined" color="warning" label={`${relatorio.avisos} aviso(s)`} />}
+            <Chip size="small" variant="outlined" label={`${relatorio.imagens} entregas`} />
+            {roteiroPrevia && roteiroPrevia.total > relatorio.imagens &&
+              <Chip size="small" variant="outlined" label={`+${roteiroPrevia.total - relatorio.imagens} insumo(s)`} />}
+          </Stack>
+          <Typography variant="body2" fontWeight={700}>≈ {creditos} créditos</Typography>
+          <Button variant="contained" disableElevation size="large"
+            disabled={!relatorio.podeRodar || rodando} onClick={rodar}
+            startIcon={rodando ? <CircularProgress size={16} color="inherit" /> : null}>
+            {rodando ? 'Gerando…' : 'Rodar'}
+          </Button>
         </Paper>
       )}
 
-      {/* ── a imagem grande, com setas ── */}
+      {/* ═══ A IMAGEM GRANDE ═══ */}
       <Dialog open={aberta !== null} onClose={() => setAberta(null)} maxWidth="lg"
         slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible' } } }}>
         {aberta !== null && prontasParaVer[aberta] && (
@@ -944,14 +940,13 @@ export function AddonCatalogo({ brandId }) {
               sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}>
               <ChevronLeftIcon />
             </IconButton>
-
             <Box sx={{ position: 'relative' }}>
               <Box component="img" src={prontasParaVer[aberta].url}
                 alt={`${prontasParaVer[aberta].sku} · ${prontasParaVer[aberta].vista}`}
                 sx={{ display: 'block', maxWidth: '78vw', maxHeight: '82vh', borderRadius: 1 }} />
               <Stack direction="row" spacing={1} alignItems="center"
                 sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, p: 1.5,
-                      background: 'linear-gradient(transparent, rgba(0,0,0,.66))', borderRadius: '0 0 4px 4px' }}>
+                  background: 'linear-gradient(transparent, rgba(0,0,0,.66))', borderRadius: '0 0 4px 4px' }}>
                 <Typography variant="body2" sx={{ color: '#fff', fontWeight: 650 }}>
                   {prontasParaVer[aberta].vista}
                 </Typography>
@@ -965,11 +960,10 @@ export function AddonCatalogo({ brandId }) {
               </Stack>
               <IconButton onClick={() => setAberta(null)} size="small"
                 sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,.45)', color: '#fff',
-                      '&:hover': { bgcolor: 'rgba(0,0,0,.66)' } }}>
+                  '&:hover': { bgcolor: 'rgba(0,0,0,.66)' } }}>
                 <CloseIcon fontSize="small" />
               </IconButton>
             </Box>
-
             <IconButton onClick={() => setAberta(i => Math.min(prontasParaVer.length - 1, i + 1))}
               disabled={aberta === prontasParaVer.length - 1}
               sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}>
