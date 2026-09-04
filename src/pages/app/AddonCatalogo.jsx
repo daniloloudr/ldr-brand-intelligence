@@ -274,12 +274,12 @@ export function AddonCatalogo({ brandId }) {
   // para quando a Biblioteca aprender a dividir por `/`. Esperar a tela para só
   // então estruturar deixaria os lotes de hoje fora da árvore de amanhã.
   //
-  // Data em ISO, não 04/09/2026: barra dentro do nome quebraria o caminho, e
-  // ISO ordena sozinha.
   const pastaDoLote = (sku) => {
     const d = new Date()
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    return `Catálogo/${String(sku).replace(/\//g, '-')}/${iso}`
+    // aaaammdd: sem separador, ordena sozinha e não briga com a barra do
+    // caminho — que aqui significa NÍVEL, não texto.
+    const dia = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+    return `Catálogo/${String(sku).replace(/\//g, '-')}/${dia}`
   }
 
   async function baixarTudo() {

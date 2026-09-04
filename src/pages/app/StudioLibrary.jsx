@@ -273,16 +273,46 @@ export function StudioLibrary({ brandId }) {
   const escopo = root ? porRoot[root] : []
   const temPastas = root && root !== 'campanhas'
 
-  // Subpastas do root atual (das existentes + criadas na sessão)
+  // ⭐ Pasta aninhada: `Catálogo/49FP/2026-09-04` é uma ÁRVORE, não um nome.
+  //
+  // Antes `pasta` era texto plano e cada caminho virava uma pasta solta na
+  // raiz — o addon de Lote grava a estrutura, e sem isto ela apareceria como
+  // uma linha ilegível por SKU e por dia. Aqui o `/` volta a significar nível.
+  //
+  // `pasta` continua sendo o caminho COMPLETO no banco: a mudança é só de
+  // leitura, e nada precisa ser migrado.
+  const dentroDe = (caminho, atual) => {
+    if (!caminho) return false
+    if (!atual) return true
+    return caminho === atual || caminho.startsWith(atual + '/')
+  }
+  // O próximo segmento de `caminho` a partir de `atual` — null se for o fim.
+  const proximoNivel = (caminho, atual) => {
+    const resto = atual ? caminho.slice(atual.length + 1) : caminho
+    if (!resto) return null
+    const seg = resto.split('/')[0]
+    return atual ? `${atual}/${seg}` : seg
+  }
+
+  // Subpastas do nível atual (das existentes + criadas na sessão)
   const subpastas = useMemo(() => {
     if (!temPastas) return []
-    const existentes = [...new Set(escopo.map(i => i.pasta).filter(Boolean))]
-    return [...new Set([...existentes, ...(novasPastas[root] || [])])].sort()
-  }, [escopo, novasPastas, root, temPastas])
+    const caminhos = [...new Set([
+      ...escopo.map(i => i.pasta).filter(Boolean),
+      ...(novasPastas[root] || []),
+    ])]
+    const filhos = caminhos
+      .filter(c => dentroDe(c, pasta) && c !== pasta)
+      .map(c => proximoNivel(c, pasta))
+      .filter(Boolean)
+    return [...new Set(filhos)].sort()
+  }, [escopo, novasPastas, root, temPastas, pasta])
 
   // Itens visíveis: da pasta atual (null = raiz do root), filtrados pela busca
   const visiveis = useMemo(() => {
     let list = escopo
+    // Só o que está NESTE nível — o que mora numa subpasta aparece ao entrar
+    // nela, senão a raiz mostraria tudo e a árvore não serviria para nada.
     if (temPastas) list = list.filter(i => (pasta ? i.pasta === pasta : !i.pasta))
     const q = busca.trim().toLowerCase()
     if (q) list = (temPastas && !pasta ? escopo : list).filter(i => {
@@ -541,7 +571,17 @@ export function StudioLibrary({ brandId }) {
                 sx={{ fontSize: 13.5, fontWeight: 800, cursor: pasta ? 'pointer' : 'default' }}
                 onClick={() => navegar(root)} {...(pasta ? dropProps(null) : {})}>{rootDef?.label}</Link>
             )}
-            {pasta && <Typography sx={{ fontSize: 13.5, fontWeight: 800 }}>📁 {pasta}</Typography>}
+            {/* Um nível por segmento, cada um clicável: com
+                `Catálogo/49FP/20260904` a pessoa precisa poder voltar para o
+                SKU sem sair para a raiz. */}
+            {pasta && pasta.split('/').map((seg, i, todos) => {
+              const ate = todos.slice(0, i + 1).join('/')
+              const ultimo = i === todos.length - 1
+              return ultimo
+                ? <Typography key={ate} sx={{ fontSize: 13.5, fontWeight: 800 }}>📁 {seg}</Typography>
+                : <Link key={ate} component="button" underline="hover" color="inherit"
+                    sx={{ fontSize: 13.5 }} onClick={() => navegar(root, ate)}>{seg}</Link>
+            })}
           </Breadcrumbs>
           <Box sx={{ flex: 1 }} />
           {root && (
@@ -617,13 +657,15 @@ export function StudioLibrary({ brandId }) {
             {temPastas && !pasta && !busca.trim() && subpastas.length > 0 && (
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.25, mb: 2.5 }}>
                 {subpastas.map(p => {
-                  const n = escopo.filter(i => i.pasta === p).length
+                  // conta tudo que está DENTRO, inclusive nos níveis abaixo
+                  const n = escopo.filter(i => dentroDe(i.pasta, p)).length
                   return (
                     <Paper key={p} variant="outlined" onClick={() => navegar(root, p)} {...dropProps(p)}
                       sx={{ px: 1.5, py: 1.25, borderRadius: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
                         '&:hover': { borderColor: TEAL }, '&:hover .del-pasta': { opacity: 1 } }}>
                       <FolderIcon sx={{ fontSize: 20, color: PALETTE.data.atencao }} />
-                      <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>{p}</Typography>
+                      {/* o cartão mostra o NOME da pasta, não o caminho inteiro */}
+                      <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>{p.split('/').pop()}</Typography>
                       <Typography variant="caption" color="text.disabled">{n}</Typography>
                       <Tooltip title="Apagar pasta (itens voltam para a raiz)">
                         <IconButton className="del-pasta" size="small" onClick={e => { e.stopPropagation(); apagarPasta(p) }}

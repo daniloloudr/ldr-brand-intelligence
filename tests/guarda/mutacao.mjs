@@ -89,6 +89,16 @@ const MUTACOES = [
     de: '      ...passosExtras,          // sempre por último: dependem do que a cadeia produziu',
     para: '' },
 
+  { nome: 'biblioteca: prefixo parecido vira filho (Catálogo2 dentro de Catálogo)',
+    arq: 'src/pages/app/StudioLibrary.jsx',
+    de: "    return caminho === atual || caminho.startsWith(atual + '/')",
+    para: '    return caminho.startsWith(atual)' },
+
+  { nome: 'biblioteca: a pasta volta a ser texto plano e a árvore some',
+    arq: 'src/pages/app/StudioLibrary.jsx',
+    de: '      .map(c => proximoNivel(c, pasta))',
+    para: '      .map(c => c)' },
+
   { nome: 'lote: o crédito volta a usar UM modelo para todas as etapas',
     arq: 'src/lib/loteExecucao.js',
     de: '  (roteiro?.passos || []).reduce((n, p) => n + (porImagem(p.model) || 0), 0)',

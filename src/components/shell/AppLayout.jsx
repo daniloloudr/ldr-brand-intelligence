@@ -228,6 +228,11 @@ export function AppLayout({
                 <ListSubheader key={`p-${c.label}-${j}`} disableSticky sx={{ lineHeight: "32px", bgcolor: "transparent" }}>
                   {c.label}
                 </ListSubheader>
+              ) : c.type === "divisor" ? (
+                // Separa grupos sem dar nome a eles: os addons instalados são
+                // ferramentas de trabalho como as de cima, mas não são o
+                // Estúdio. A linha diz isso sem exigir um rótulo.
+                <Divider key={`d-${j}`} sx={{ my: 1, mx: 2 }} />
               ) : (
                 <ListItemButton key={`p-${c.label}-${j}`} selected={!!c.active} onClick={() => go(c.hash)}
                   sx={{ mx: 1, borderRadius: 2,

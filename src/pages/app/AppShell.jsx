@@ -64,6 +64,7 @@ const USER_MENU = [
   { label: 'Créditos & Consumo',     hash: '#/app/plano' },
   { label: 'Gestão de time',         hash: '#/app/time' },
   { label: 'Alertas',                hash: '#/app/alertas' },
+  { label: 'Addons',                 hash: '#/app/addons' },
   { label: 'Inteligência BR4NDCODE',   hash: '#/app/inteligencia' },
 ]
 
@@ -275,15 +276,20 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       // como tela — a hipótese de síntese já escrita em 13/jul.
       { label: t('nav.studio.workflow'), hash: brandLink('/studio/workflow'), active: route === 'brands-studio-workflow' },
       { label: t('nav.studio.library'),  hash: brandLink('/studio/biblioteca'), active: route === 'brands-studio-biblioteca' },
-      // Os addons LIBERADOS aparecem aqui, entre a Biblioteca e a loja: são
-      // ferramentas de trabalho, não configuração. `brand_id` nulo na
-      // instalação = vale para todas as marcas do workspace (059).
-      ...addonsDoMenu(addonsAtivos, brandId).map(a => ({
-        label: a.nome,
-        hash: brandLink(`/studio/addon/${a.slug}`),
-        active: route === 'brands-studio-addon',
-      })),
-      { label: t('nav.studio.addons'), hash: '#/app/addons', active: route === 'addons' },
+      // Os addons LIBERADOS aparecem DEPOIS dos itens do Estúdio, separados por
+      // uma linha: são ferramentas de trabalho como as de cima, mas não são o
+      // Estúdio — a divisória diz isso sem precisar de rótulo.
+      //
+      // A LOJA saiu daqui (04/set): pedir um addon é ato de conta, não de
+      // produção, e mora no menu do usuário.
+      ...(addonsDoMenu(addonsAtivos, brandId).length
+        ? [{ type: 'divisor' },
+           ...addonsDoMenu(addonsAtivos, brandId).map(a => ({
+             label: a.nome,
+             hash: brandLink(`/studio/addon/${a.slug}`),
+             active: route === 'brands-studio-addon' && getAddonSlug() === a.slug,
+           }))]
+        : []),
     ] },
     // O Copiloto SAIU do menu (E0a): virou camada invocável de qualquer lugar
     // (⌘K + botão no canto). A rota /assistant segue viva como ARQUIVO das
