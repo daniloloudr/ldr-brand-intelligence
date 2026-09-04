@@ -36,7 +36,7 @@ import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS,
 import { creditsForImage } from '../../lib/credits'
 import { montarZip } from '../../lib/zip'
 import { navigate } from '../../lib/helpers'
-import { roteiroDaPeca, lerEstado } from '../../lib/loteExecucao'
+import { roteiroDaPeca, lerEstado, erroLegivel } from '../../lib/loteExecucao'
 import { montarContexto } from '../../lib/loteCatalogo'
 
 const COLUNAS = ['sku', 'contexto', ...PAPEIS.map(p => p.col), 'saidas']

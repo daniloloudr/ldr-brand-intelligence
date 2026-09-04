@@ -10,7 +10,7 @@ import {
   vistasDoGrafo,
 } from '../src/lib/studioGrafo.js'
 import { resolveModel, MAX_REFS_CANVAS } from '../src/lib/studioModels.js'
-import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado } from '../src/lib/loteExecucao.js'
+import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado, erroLegivel } from '../src/lib/loteExecucao.js'
 
 // Um recorte fiel do fluxo real da Hering: ids `eN_in_papel`, formato custom
 // 1720×2432, contexto de acabamento, e a ordem das arestas importando.
@@ -322,5 +322,17 @@ describe('⭐ acessórios por ETAPA, e a pose sem pessoa antiga', () => {
   it('nenhuma URL original sobra em nó nenhum', () => {
     expect(Object.values(m).flat()).not.toContain('ORIG')
     expect(Object.values(m).flat()).not.toContain('POSE_ANTIGA_1')
+  })
+})
+
+describe('⭐ o erro que a pessoa vê', () => {
+  it('é sempre a mesma mensagem, em português', () => {
+    for (const cru of ['dev poll: fal result 500: Downstream service error',
+                       '402 insufficient balance', 'content policy', '', null]) {
+      expect(erroLegivel(cru).texto).toBe('Erro interno do servidor. Gere de novo.')
+    }
+  })
+  it('e sempre oferece gerar de novo', () => {
+    expect(erroLegivel('qualquer coisa').tentarDeNovo).toBe(true)
   })
 })

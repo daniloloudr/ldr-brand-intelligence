@@ -305,3 +305,16 @@ export function mesclarContexto(doFluxo, doUsuario) {
     .map(s => [s.titulo, s.linhas.join('\n').trim()].filter(Boolean).join('\n'))
     .filter(Boolean).join('\n\n')
 }
+
+/**
+ * O que a pessoa vê quando uma geração falha.
+ *
+ * Uma mensagem só: erro interno do servidor (Danilo, 04/set). O texto cru do
+ * provedor — "dev poll: fal result 500: Downstream service error" — não diz
+ * nada a quem está fazendo catálogo e, pior, parece culpa do pedido quando é
+ * queda do fornecedor. Ele fica guardado no `title`, para quem for investigar.
+ */
+export const erroLegivel = () => ({
+  texto: 'Erro interno do servidor. Gere de novo.',
+  tentarDeNovo: true,
+})
