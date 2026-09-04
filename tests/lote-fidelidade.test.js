@@ -52,7 +52,7 @@ function comoOCanvasMonta(grafo) {
     .flatMap(n => n.data.urls || []).slice(0, MAX_REFS_CANVAS)
   return {
     brand_id: 'B', workflow_id: 'W', node_id: 'g1',
-    prompt: comContexto(inp.prompt, [inp.context, CTX_PECA].filter(Boolean).join('\n\n')),
+    prompt: comContexto(inp.prompt, CTX_PECA || inp.context),
     formato: inp.formato, custom_size: inp.customSize,
     use_brand: inp.hasBrand, brand_facets: inp.brandFacets,
     model, references,
@@ -74,10 +74,18 @@ describe('⭐ addon e canvas montam o MESMO pedido', () => {
   it('o pedido inteiro é idêntico', () => {
     expect(addon).toEqual(canvas)
   })
-  it('prompt: pose + contexto do grafo + contexto da peça, nessa ordem', () => {
+  it('prompt: a pose vem primeiro, depois o contexto', () => {
     expect(addon.prompt.indexOf('FRONTAL')).toBe(0)
     expect(addon.prompt).toContain('[CONTEXTO ADICIONAL]')
-    expect(addon.prompt.indexOf('ACABAMENTO')).toBeLessThan(addon.prompt.indexOf('A PEÇA'))
+  })
+  it('⭐ o contexto do usuário SUBSTITUI o do nó — nada de duas seções brigando', () => {
+    expect(addon.prompt).toContain('A PEÇA')
+    expect(addon.prompt).not.toContain('ACABAMENTO')      // o do nó ficou de fora
+  })
+  it('sem contexto do usuário, vale o do nó', () => {
+    const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
+      resolver: v => v, contextoDaPeca: '' })
+    expect(p.prompt).toContain('ACABAMENTO')
   })
   it('formato e px vêm do grafo, não da tela', () => {
     expect(addon.formato).toBe('1720x2432')

@@ -112,7 +112,19 @@ export function pedidoDaVista({ nodes, edges, vista, genId: genDireto, linha, br
   // O contexto da peça entra JUNTO do contexto que o grafo já declara — nunca
   // no lugar dele. O do grafo é a constante da receita (câmera, acabamento); o
   // da peça é o que muda por SKU. Substituir um pelo outro perderia metade.
-  const contexto = [inp.context, daPeca].filter(Boolean).join('\n\n')
+  // ⚠️ O contexto do usuário SUBSTITUI o do nó, não soma.
+  //
+  // Somar produzia DUAS seções §O LOOK no mesmo prompt: a do fluxo (escrita para
+  // o KH6V — "SAPATILHA PRETA", "TOTE PRETA") e a do SKU novo ("MOCASSIM
+  // MARROM", "TOTE MARROM"). O modelo obedeceu a primeira e devolveu bolsa e
+  // sapato pretos, com as referências marrons na mão. Instrução contraditória
+  // não dá erro: dá imagem errada com cara de certa.
+  //
+  // "O contexto precisa ser escrito pelo usuário, o restante é conosco"
+  // (Danilo, 04/set) — o nó de contexto das etapas de PEÇA é conteúdo de lote
+  // morando no lugar de constante. Na etapa 0 o contexto é da PESSOA e continua
+  // sendo do fluxo.
+  const contexto = daPeca || inp.context
 
   return {
     brand_id: brandId,

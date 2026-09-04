@@ -74,10 +74,10 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
-  { nome: 'lote: o contexto da peça SUBSTITUI o do grafo em vez de somar',
+  { nome: 'lote: o contexto do usuário volta a SOMAR e o prompt ganha dois §O LOOK brigando',
     arq: 'src/lib/loteExecucao.js',
-    de: "  const contexto = [inp.context, contextoDaPeca].filter(Boolean).join('\\n\\n')",
-    para: '  const contexto = contextoDaPeca' },
+    de: '  const contexto = daPeca || inp.context',
+    para: "  const contexto = [inp.context, daPeca].filter(Boolean).join('\\n\\n')" },
 
   { nome: 'grafo: o canvas volta a ter leitura PRÓPRIA do prompt (diverge do addon)',
     arq: 'src/lib/studioGrafo.js',
