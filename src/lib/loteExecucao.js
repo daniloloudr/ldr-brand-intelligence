@@ -15,6 +15,12 @@ import { entradasDaGeracao, comContexto, referenciasDaGeracao, comEntradas, pape
 import { resolveModel, MAX_REFS_CANVAS } from './studioModels'
 import { valoresDe } from './loteCatalogo'
 
+/** O modelo declarado num nó de geração — `custom` resolve para `customModel`. */
+export const modeloDoNo = (nodes, genId) => {
+  const d = (nodes || []).find(n => n.id === genId)?.data || {}
+  return resolveModel(d.model === 'custom' ? d.customModel : d.model)
+}
+
 /**
  * ⭐ Casa as colunas com os NÓS DE IMAGEM do grafo.
  *

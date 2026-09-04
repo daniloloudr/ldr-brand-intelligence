@@ -5,6 +5,12 @@
 // ════════════════════════════════════════════════════════════════════
 
 export const IMAGE_CREDITS = {
+  // Nano Banana 2.5 — $0,039/img (piloto Hering, F0.2). É o modelo da ETAPA 0
+  // do catálogo: gerar a base limpa da modelo é trabalho de PESSOA, e o nano
+  // faz melhor que o Seedream. Sem esta linha ele caía no `?? 1` — o valor
+  // batia por acaso, e ninguém saberia dizer se era apurado ou padrão.
+  'fal-ai/gemini-25-flash-image':      1,
+  'fal-ai/gemini-25-flash-image/edit': 1,
   'fal-ai/flux-pro/v1.1-ultra': 2,
   'fal-ai/ideogram/v2':         2,
   'fal-ai/ideogram/v3':         2,

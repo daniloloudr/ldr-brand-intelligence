@@ -15,6 +15,12 @@ export const IMAGE_CREDITS = {
   'fal-ai/flux-pro/v1/vto':     3,   // $0,0375 1º MP + $0,005/MP extra → ~$0,10 com as nossas imagens
   'fal-ai/fashn/tryon/v1.6':    2,   // $0,075 (try-on especializado)
   'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight de estúdio)
+  // Nano Banana 2.5 — $0,039/img (piloto Hering, F0.2). Pela regra da casa
+  // (créditos = ⌈18 × custo_USD⌉) daria 1, e é 1 mesmo — mas ESCRITO, não caindo
+  // no `?? 1`. Sem a linha, o modelo entrava na conta por acidente e ninguém
+  // saberia dizer se o valor era apurado ou o padrão.
+  'fal-ai/gemini-25-flash-image': 1,
+  'fal-ai/gemini-25-flash-image/edit': 1,
   'bytedance/seedream/v5/pro/text-to-image': 2,  // $0,0675/img acima de 1536² (o nosso 1920×2720 é)
   'bytedance/seedream/v5/pro/layerize':      4,  // $0,0675 POR CAMADA gerada — ~3 camadas no caso típico
   // demais = 1 (Nano Banana, GPT Image 2, Seedream 4.x e 5 Lite $0,035, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen, Bria product-shot ~$0,04)
