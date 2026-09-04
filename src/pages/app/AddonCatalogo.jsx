@@ -80,6 +80,7 @@ export function AddonCatalogo({ brandId }) {
   const [baixando, setBaixando] = useState(false)
   const [ultima, setUltima] = useState(null)   // { roteiro, saidas, auth } da rodada, p/ regerar
   const [regerando, setRegerando] = useState(null)
+  const [lotes, setLotes] = useState([])          // histórico, do banco
 
   // Declarada aqui, acima de todo efeito que a usa: um `const` referenciado
   // antes da linha em que é declarado estoura na montagem do componente
@@ -108,6 +109,10 @@ export function AddonCatalogo({ brandId }) {
     setElenco((assets || []).filter(a => (a.pasta || '').toLowerCase() === 'elenco').map(a => a.nome))
     setAcervo((assets || []).map(a => a.nome))
     setAcervoBruto(assets || [])
+    const { data: hist } = await supabase.from('lote_peca')
+      .select('id, pasta, sku, linha, extras, created_at, workflow_id')
+      .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(60)
+    setLotes(hist || [])
     setCarregando(false)
   }, [brandId])
   useEffect(() => { load() }, [load])
@@ -307,6 +312,27 @@ export function AddonCatalogo({ brandId }) {
     setRegerando(null)
   }
 
+  // Reabre um lote gravado: repõe a linha e busca as imagens que ele produziu.
+  async function abrirLote(lote) {
+    setErro(''); setAba(0)
+    setPeca({ sku: lote.sku, contexto: lote.linha?.contexto || '',
+              elenco: lote.linha?.elenco || '', saidas: (lote.linha?.vistasPedidas || []).join(';') })
+    setExtras(Array.isArray(lote.extras) ? lote.extras : [])
+    setArquivos({})
+    setCabecalho(COLUNAS); setLinhas([{ ...lote.linha, _linha: 2 }]); setOrigem(lote.sku)
+
+    const { data: gens } = await supabase.from('studio_generations')
+      .select('id, status, image_url, node_id, error, created_at')
+      .eq('brand_id', brandId).eq('pasta', lote.pasta).order('created_at')
+    const vistaDoNo = (no) => vistas.find(v => v.generateNodeId === no)?.nome || no
+    setJobs((gens || []).map(g => ({
+      sku: lote.sku, vista: vistaDoNo(g.node_id), __no: g.node_id, pasta: lote.pasta,
+      entrega: true, genId: g.id, url: g.image_url,
+      status: g.status === 'done' ? 'done' : g.status === 'error' ? 'error' : 'running',
+      error: g.error,
+    })))
+  }
+
   // ── A CORRIDA, EM ONDAS ─────────────────────────────────────────
   // O roteiro decide o que roda e em que ordem: escolher SENTADA arrasta a base
   // da modelo, a FRONTAL e a CAMINHANDO junto, porque a etapa 4 come a 2, que
@@ -333,6 +359,20 @@ export function AddonCatalogo({ brandId }) {
       })
       const saidas = {}
       setUltima({ roteiro, saidas, auth })
+
+      // ⭐ O pedido é gravado ANTES de gerar. Se a página cair, o navegador
+      // fechar ou a rodada falhar no meio, ele continua lá — e é dele que sai o
+      // "regerar esta peça" dias depois, quando o time do cliente reprovar uma.
+      const { data: b2 } = await supabase.from('brands').select('workspace_id').eq('id', brandId).single()
+      if (b2) {
+        supabase.from('lote_peca').upsert({
+          workspace_id: b2.workspace_id, brand_id: brandId, workflow_id: fluxo.id,
+          pasta: pastaDoLote(l.sku), sku: l.sku,
+          linha: { ...l, problemas: undefined }, extras,
+        }, { onConflict: 'brand_id,pasta,sku' }).then(({ error }) => {
+          if (error) console.warn('[lote] não gravou o pedido:', error.message)
+        })
+      }
 
       for (const [iOnda, onda] of roteiro.ondas.entries()) {
         setProgresso({ onda: iOnda + 1, ondas: roteiro.ondas.length, sku: l.sku })
@@ -467,6 +507,7 @@ export function AddonCatalogo({ brandId }) {
           <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}>
             <Tab label="Uma peça" />
             <Tab label="Em massa" />
+            <Tab label={`Lotes${lotes.length ? ` (${lotes.length})` : ''}`} />
           </Tabs>
 
           {/* ── uma peça ── */}
@@ -612,6 +653,34 @@ export function AddonCatalogo({ brandId }) {
                   </Button>
                 </Stack>
               </Stack>
+            </Box>
+          )}
+
+          {/* ── histórico ── */}
+          {aba === 2 && (
+            <Box sx={{ p: 2.5 }}>
+              {!lotes.length
+                ? <Typography variant="body2" color="text.disabled">Nenhum lote rodado ainda nesta marca.</Typography>
+                : (
+                  <Stack spacing={1}>
+                    {lotes.map(l => (
+                      <Paper key={l.id} variant="outlined" sx={{ p: 1.5, display: 'flex', gap: 2,
+                        alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: 1, minWidth: 200 }}>
+                          <Typography variant="body2" fontWeight={650}>{l.sku}</Typography>
+                          <Typography variant="caption" color="text.disabled">
+                            {l.pasta} · {(l.linha?.vistasPedidas || []).length} vista(s)
+                            {Array.isArray(l.extras) && l.extras.filter(Boolean).length
+                              ? ` · ${l.extras.filter(Boolean).length} extra(s)` : ''}
+                          </Typography>
+                        </Box>
+                        <Button size="small" variant="outlined" color="inherit" onClick={() => abrirLote(l)}>
+                          Abrir
+                        </Button>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
             </Box>
           )}
 
