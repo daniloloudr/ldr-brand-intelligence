@@ -48,6 +48,8 @@ const PASSOS = [
   { casos: 'tests/guarda/rls/059-assercoes.sql', titulo: '059 · instalação de addon' },
   { sql:   'supabase/migrations/061_lote_de_catalogo.sql' },
   { casos: 'tests/guarda/rls/061-assercoes.sql', titulo: '061 · o lote sobrevive ao F5' },
+  { sql:   'supabase/migrations/062_rodada_do_lote.sql' },
+  { casos: 'tests/guarda/rls/062-assercoes.sql', titulo: '062 · a rodada é o ato de gerar' },
 ]
 
 try {

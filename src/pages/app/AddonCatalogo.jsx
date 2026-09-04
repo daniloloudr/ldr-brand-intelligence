@@ -82,6 +82,20 @@ export function AddonCatalogo({ brandId }) {
   const [regerando, setRegerando] = useState(null)
   const [lotes, setLotes] = useState([])          // histórico, do banco
   const [contextoAberto, setContextoAberto] = useState(true)
+
+  // O histórico é por RODADA, não por peça: uma importação de 2 linhas é um ato
+  // só. Peça sem rodada (gravada antes da 062) vira uma rodada de si mesma.
+  const rodadas = useMemo(() => {
+    const por = new Map()
+    for (const l of lotes) {
+      const k = l.rodada || l.id
+      if (!por.has(k)) por.set(k, { id: k, origem: l.origem || 'peca', quando: l.created_at, pecas: [] })
+      const r = por.get(k)
+      r.pecas.push(l)
+      if (l.created_at < r.quando) r.quando = l.created_at
+    }
+    return [...por.values()].sort((a, b) => (a.quando < b.quando ? 1 : -1))
+  }, [lotes])
   const [detalheLote, setDetalheLote] = useState(false)
   const [loteAberto, setLoteAberto] = useState(null)   // lote do histórico sendo visto
 
@@ -113,7 +127,7 @@ export function AddonCatalogo({ brandId }) {
     setAcervo((assets || []).map(a => a.nome))
     setAcervoBruto(assets || [])
     const { data: hist } = await supabase.from('lote_peca')
-      .select('id, pasta, sku, linha, extras, created_at, workflow_id')
+      .select('id, pasta, sku, linha, extras, created_at, workflow_id, rodada, origem')
       .eq('brand_id', brandId).order('created_at', { ascending: false }).limit(60)
     setLotes(hist || [])
     setCarregando(false)
@@ -392,6 +406,12 @@ export function AddonCatalogo({ brandId }) {
     if (!relatorio?.podeRodar || rodando) return
     setRodando(true); setErro(''); setJobs([]); setLoteAberto(null)
 
+    // A RODADA é o ato: todas as peças deste clique compartilham o id. É o que
+    // faz "importação de 2 linhas" ser UMA entrada no histórico, e não duas
+    // soltas sem nada dizendo que foram juntas.
+    const rodada = crypto.randomUUID()
+    const origem = aba === 1 ? 'massa' : 'peca'
+
     const { data: { session } } = await supabase.auth.getSession()
     const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
     const porNome = new Map(acervoBruto.map(a => [String(a.nome || '').toLowerCase(), a.valor]))
@@ -417,7 +437,7 @@ export function AddonCatalogo({ brandId }) {
       if (b2) {
         supabase.from('lote_peca').upsert({
           workspace_id: b2.workspace_id, brand_id: brandId, workflow_id: fluxo.id,
-          pasta: pastaDoLote(l.sku), sku: l.sku,
+          pasta: pastaDoLote(l.sku), sku: l.sku, rodada, origem,
           linha: { ...l, problemas: undefined }, extras,
         }, { onConflict: 'brand_id,pasta,sku' }).then(({ error }) => {
           if (error) console.warn('[lote] não gravou o pedido:', error.message)
@@ -798,7 +818,7 @@ export function AddonCatalogo({ brandId }) {
       <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
         <Tab label="Uma peça" />
         <Tab label="Em massa" />
-        <Tab label={`Lotes${lotes.length ? ` · ${lotes.length}` : ''}`} />
+        <Tab label={`Lotes${rodadas.length ? ` · ${rodadas.length}` : ''}`} />
       </Tabs>
 
       {/* ═══ UMA PEÇA ═══ */}
@@ -965,25 +985,40 @@ export function AddonCatalogo({ brandId }) {
       {/* ═══ LOTES ═══ */}
       {aba === 2 && (
         <Box sx={{ maxWidth: 880 }}>
-          {!lotes.length
+          {!rodadas.length
             ? <Typography variant="body2" color="text.disabled">Nenhum lote rodado ainda nesta marca.</Typography>
             : (
               <Stack spacing={1}>
-                {lotes.map(l => (
-                  <Paper key={l.id} variant="outlined"
-                    sx={{ p: 1.75, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Box sx={{ flex: 1, minWidth: 200 }}>
-                      <Typography variant="body2" fontWeight={650}>{l.sku}</Typography>
-                      <Typography variant="caption" color="text.disabled">
-                        {l.pasta} · {(l.linha?.vistasPedidas || []).length} vista(s)
-                        {Array.isArray(l.extras) && l.extras.filter(Boolean).length
-                          ? ` · ${l.extras.filter(Boolean).length} extra(s)` : ''}
-                      </Typography>
-                    </Box>
-                    <Button size="small" variant="outlined" color="inherit"
-                      onClick={() => abrirLote(l)}>Abrir</Button>
-                  </Paper>
-                ))}
+                {rodadas.map(r => {
+                  const vistas = r.pecas.reduce((n, p) => n + (p.linha?.vistasPedidas || []).length, 0)
+                  const extras = r.pecas.reduce((n, p) => n + (Array.isArray(p.extras) ? p.extras.filter(Boolean).length : 0), 0)
+                  const quando = new Date(r.quando)
+                  return (
+                    <Paper key={r.id} variant="outlined" sx={{ p: 1.75 }}>
+                      <Stack direction="row" spacing={2} alignItems="baseline" flexWrap="wrap" useFlexGap>
+                        <Typography variant="body2" fontWeight={700}>
+                          {r.origem === 'massa' ? 'Importação em massa' : 'Uma peça'}
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          {quando.toLocaleDateString('pt-BR')} {quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {' · '}{r.pecas.length} peça{r.pecas.length !== 1 ? 's' : ''}
+                          {' · '}{vistas + extras} imagem{vistas + extras !== 1 ? 'ns' : ''} de entrega
+                        </Typography>
+                      </Stack>
+                      <Stack spacing={.5} sx={{ mt: 1 }}>
+                        {r.pecas.map(p => (
+                          <Stack key={p.id} direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                            <Typography variant="body2" sx={{ minWidth: 90 }}>{p.sku}</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ flex: 1 }}>
+                              {(p.linha?.vistasPedidas || []).join(' · ') || 'sem vistas'}
+                            </Typography>
+                            <Button size="small" color="inherit" onClick={() => abrirLote(p)}>Abrir</Button>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    </Paper>
+                  )
+                })}
               </Stack>
             )}
         </Box>
