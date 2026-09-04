@@ -74,6 +74,15 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'zip: nome repetido sobrepõe e um arquivo some na extração',
+    arq: 'src/lib/zip.js',
+    de: '  if (!usados.has(nome)) { usados.add(nome); return nome }',
+    para: '  return nome' },
+
+  { nome: 'zip: o CRC deixa de ser gravado e o arquivo abre corrompido',
+    arq: 'src/lib/zip.js',
+    de: '    escrever(cab, 14, crc, 4)', para: '    escrever(cab, 14, 0, 4)' },
+
   { nome: 'lote: o contexto do nó volta a se misturar ao do usuário',
     arq: 'src/lib/loteExecucao.js',
     de: '  const contexto = daPeca || inp.context',

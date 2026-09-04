@@ -21,14 +21,20 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Box, Paper, Stack, Typography, Button, Chip, CircularProgress, Alert,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
-  Tabs, Tab, TextField, MenuItem,
+  Tabs, Tab, TextField, MenuItem, Dialog, IconButton, Tooltip,
 } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
 import { creditsForImage } from '../../lib/credits'
+import { montarZip } from '../../lib/zip'
+import { navigate } from '../../lib/helpers'
 import { roteiroDaPeca, lerEstado } from '../../lib/loteExecucao'
 import { montarContexto } from '../../lib/loteCatalogo'
 
@@ -68,6 +74,8 @@ export function AddonCatalogo({ brandId }) {
   const [jobs, setJobs] = useState([])         // { vista, sku, genId, status, url, error }
   const [rodando, setRodando] = useState(false)
   const [progresso, setProgresso] = useState(null)   // { onda, ondas, sku }
+  const [aberta, setAberta] = useState(null)         // índice da imagem no modal
+  const [baixando, setBaixando] = useState(false)
 
   const load = useCallback(async () => {
     if (!brandId) return
@@ -94,6 +102,17 @@ export function AddonCatalogo({ brandId }) {
     setCarregando(false)
   }, [brandId])
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (aberta === null) return
+    const tecla = (e) => {
+      if (e.key === 'Escape') setAberta(null)
+      if (e.key === 'ArrowRight') setAberta(i => Math.min(prontasParaVer.length - 1, i + 1))
+      if (e.key === 'ArrowLeft')  setAberta(i => Math.max(0, i - 1))
+    }
+    window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [aberta, prontasParaVer.length])
 
   // O modelo vem do processo fixo do produto — nunca de um seletor na tela.
   const modelo = useMemo(() => {
@@ -205,6 +224,33 @@ export function AddonCatalogo({ brandId }) {
     setCabecalho(COLUNAS); setLinhas([linha]); setOrigem(peca.sku || 'a peça')
   }
 
+  // A pasta é por SKU e por dia: dois lotes do mesmo produto em dias
+  // diferentes não se misturam, e o nome é legível na Biblioteca.
+  const pastaDoLote = (sku) => `Lote ${sku} · ${new Date().toLocaleDateString('pt-BR')}`
+
+  const prontasParaVer = jobs.filter(j => j.status === 'done' && j.url)
+
+  async function baixarTudo() {
+    if (!prontasParaVer.length || baixando) return
+    setBaixando(true); setErro('')
+    try {
+      const arquivos = []
+      for (const j of prontasParaVer) {
+        const r = await fetch(j.url)
+        if (!r.ok) continue
+        const buf = new Uint8Array(await r.arrayBuffer())
+        const ext = (j.url.split('?')[0].match(/\.(jpe?g|png|webp)$/i) || [, 'jpg'])[1]
+        arquivos.push({ nome: `${j.sku} - ${j.vista}.${ext}`, dados: buf })
+      }
+      if (!arquivos.length) { setErro('Nenhuma imagem pôde ser baixada.'); return }
+      const url = URL.createObjectURL(new Blob([montarZip(arquivos)], { type: 'application/zip' }))
+      const a = document.createElement('a')
+      a.href = url; a.download = `${pastaDoLote(prontasParaVer[0].sku)}.zip`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) { setErro(`falha ao montar o zip: ${e.message}`) }
+    setBaixando(false)
+  }
+
   // ── A CORRIDA, EM ONDAS ─────────────────────────────────────────
   // O roteiro decide o que roda e em que ordem: escolher SENTADA arrasta a base
   // da modelo, a FRONTAL e a CAMINHANDO junto, porque a etapa 4 come a 2, que
@@ -243,6 +289,7 @@ export function AddonCatalogo({ brandId }) {
             const j = await res.json()
             if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
             const job = { sku: l.sku, vista: passo.nome, etapa: passo.etapa, __no: genId,
+                          pasta: pastaDoLote(l.sku),
                           entrega: passo.entrega, genId: j.generation_id, status: 'running' }
             todos.push(job); daOnda.push(job)
           } catch (e) {
@@ -274,7 +321,12 @@ export function AddonCatalogo({ brandId }) {
         const job = todos.find(j => j.genId === id)
         const e = lerEstado((data || []).find(x => x.id === id))
         if (e.estado === 'em_voo') { vivos++; continue }
-        if (e.estado === 'pronta') { job.status = 'done'; job.url = e.url; saidas[job.__no] = e.url }
+        if (e.estado === 'pronta') {
+          job.status = 'done'; job.url = e.url; saidas[job.__no] = e.url
+          // Carimba a pasta do lote: é o que faz a Biblioteca agrupar as peças
+          // em vez de despejá-las soltas na raiz de Imagens.
+          if (job.pasta) supabase.from('studio_generations').update({ pasta: job.pasta }).eq('id', id).then(() => {})
+        }
         else { job.status = 'error'; job.error = e.erro }
       }
       aplicar([...todos])
@@ -635,7 +687,7 @@ export function AddonCatalogo({ brandId }) {
       {/* ── o resultado ── */}
       {jobs.length > 0 && (
         <Paper variant="outlined" sx={{ p: 2.5, mt: 2 }}>
-          <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
             <Typography variant="overline" color="text.secondary">O que saiu</Typography>
             <Typography variant="caption" color="text.disabled">
               {jobs.filter(j => j.status === 'done').length} de {jobs.length} ·
@@ -643,12 +695,23 @@ export function AddonCatalogo({ brandId }) {
               {' '}{jobs.filter(j => !j.entrega).length} insumo{jobs.filter(j => !j.entrega).length !== 1 ? 's' : ''}
               {jobs.some(j => j.status === 'error') && ` · ${jobs.filter(j => j.status === 'error').length} com erro`}
             </Typography>
+            <Box sx={{ flex: 1 }} />
+            {prontasParaVer.length > 0 && (
+              <Button size="small" variant="outlined" color="inherit"
+                onClick={baixarTudo} disabled={baixando}
+                startIcon={baixando ? <CircularProgress size={14} /> : <DownloadOutlinedIcon />}>
+                {baixando ? 'Montando o zip…' : `Baixar tudo (${prontasParaVer.length})`}
+              </Button>
+            )}
           </Stack>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
             {jobs.map((j, i) => (
               <Box key={i}>
-                <Box sx={{ aspectRatio: '1720/2432', bgcolor: 'action.hover', borderRadius: 1,
-                           display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <Box onClick={() => { if (j.status === 'done' && j.url) setAberta(prontasParaVer.findIndex(x => x.genId === j.genId)) }}
+                  sx={{ aspectRatio: '1720/2432', bgcolor: 'action.hover', borderRadius: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                        cursor: j.status === 'done' && j.url ? 'zoom-in' : 'default',
+                        transition: 'opacity .15s', '&:hover': { opacity: j.url ? .88 : 1 } }}>
                   {j.status === 'done' && j.url
                     ? <Box component="img" src={j.url} alt={`${j.sku} · ${j.vista}`}
                         sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -659,14 +722,64 @@ export function AddonCatalogo({ brandId }) {
                 <Typography variant="caption" display="block" sx={{ mt: .5 }} noWrap title={`${j.sku} · ${j.vista}`}>
                   <b>{j.vista}</b>
                 </Typography>
-                <Typography variant="caption" color="text.disabled" noWrap>
-                  {j.sku}{j.entrega ? '' : ' · insumo'}
-                </Typography>
+                <Tooltip title="abrir a pasta deste lote na Biblioteca">
+                  <Typography variant="caption" color="text.disabled" noWrap
+                    onClick={() => navigate(`#/app/brands/${brandId}/studio/biblioteca?pasta=${encodeURIComponent(pastaDoLote(j.sku))}`)}
+                    sx={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: .4,
+                          '&:hover': { color: 'text.primary', textDecoration: 'underline' } }}>
+                    <FolderOpenOutlinedIcon sx={{ fontSize: 13 }} />
+                    {j.sku}{j.entrega ? '' : ' · insumo'}
+                  </Typography>
+                </Tooltip>
               </Box>
             ))}
           </Box>
         </Paper>
       )}
+
+      {/* ── a imagem grande, com setas ── */}
+      <Dialog open={aberta !== null} onClose={() => setAberta(null)} maxWidth="lg"
+        slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible' } } }}>
+        {aberta !== null && prontasParaVer[aberta] && (
+          <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton onClick={() => setAberta(i => Math.max(0, i - 1))} disabled={aberta === 0}
+              sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}>
+              <ChevronLeftIcon />
+            </IconButton>
+
+            <Box sx={{ position: 'relative' }}>
+              <Box component="img" src={prontasParaVer[aberta].url}
+                alt={`${prontasParaVer[aberta].sku} · ${prontasParaVer[aberta].vista}`}
+                sx={{ display: 'block', maxWidth: '78vw', maxHeight: '82vh', borderRadius: 1 }} />
+              <Stack direction="row" spacing={1} alignItems="center"
+                sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, p: 1.5,
+                      background: 'linear-gradient(transparent, rgba(0,0,0,.66))', borderRadius: '0 0 4px 4px' }}>
+                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 650 }}>
+                  {prontasParaVer[aberta].vista}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.7)' }}>
+                  {prontasParaVer[aberta].sku} · {aberta + 1} de {prontasParaVer.length}
+                </Typography>
+                <Box sx={{ flex: 1 }} />
+                <Button size="small" variant="contained" disableElevation
+                  href={prontasParaVer[aberta].url} download
+                  startIcon={<DownloadOutlinedIcon />}>Baixar</Button>
+              </Stack>
+              <IconButton onClick={() => setAberta(null)} size="small"
+                sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,.45)', color: '#fff',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,.66)' } }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            <IconButton onClick={() => setAberta(i => Math.min(prontasParaVer.length - 1, i + 1))}
+              disabled={aberta === prontasParaVer.length - 1}
+              sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}>
+              <ChevronRightIcon />
+            </IconButton>
+          </Box>
+        )}
+      </Dialog>
     </Box>
   )
 }
