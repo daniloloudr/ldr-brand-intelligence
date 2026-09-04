@@ -14,6 +14,7 @@ import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, fm
 import { t } from '../../lib/i18n'
 import { supabase } from '../../lib/supabase'
 import { PLANOS } from '../../lib/constants'
+import { addonsDoMenu } from '../../lib/addons'
 import { WorkspaceProvider, useWorkspace } from '../../lib/WorkspaceContext'
 import { useBrandManualJobs } from '../../lib/useBrandManualJobs'
 import { usePendencias } from '../../lib/usePendencias'
@@ -22,6 +23,7 @@ import { AppLayout } from '../../components/shell/AppLayout'
 // Páginas carregadas sob demanda (code-splitting por rota) — cada uma vira um chunk
 // separado, fora do bundle principal. Named exports → mapeados p/ default no lazy.
 const Home            = lazy(() => import('./Home').then(m => ({ default: m.Home })))
+const Addons          = lazy(() => import('./Addons').then(m => ({ default: m.Addons })))
 const Posicionamento  = lazy(() => import('./Posicionamento').then(m => ({ default: m.Posicionamento })))
 const SocialListening = lazy(() => import('./SocialListening').then(m => ({ default: m.SocialListening })))
 const BrandList       = lazy(() => import('./BrandList').then(m => ({ default: m.BrandList })))
@@ -132,6 +134,29 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
   // mandava pro wizard "Nova marca" durante o carregamento (a marca EXISTE, só não
   // resolveu ainda).
   const [brandId, setBrandId] = useState(null)
+
+  // ── Os addons ATIVOS deste workspace (§13.10) ─────────────────────
+  // O menu só mostra o que foi liberado — é isto que faz "por padrão não vem"
+  // ser verdade em vez de promessa, e é o que faz `suspenso` sumir do menu sem
+  // perder histórico.
+  //
+  // O erro é engolido de propósito: entre o deploy do código e a aplicação da
+  // 059 a tabela não existe, e um menu que quebra porque uma migration ainda
+  // não subiu seria pior do que um menu sem addon nenhum.
+  const [addonsAtivos, setAddonsAtivos] = useState([])
+  useEffect(() => {
+    if (!workspace?.id) { setAddonsAtivos([]); return }
+    let vivo = true
+    supabase.from('addon_instalacao')
+      .select('addon, brand_id')
+      .eq('workspace_id', workspace.id).eq('estado', 'ativo')
+      .then(({ data, error }) => {
+        if (!vivo) return
+        if (error) { console.warn('[addons] instalações indisponíveis:', error.message); return }
+        setAddonsAtivos(data || [])
+      })
+    return () => { vivo = false }
+  }, [workspace?.id])
   const [brandResolved, setBrandResolved] = useState(false)
   // O que falta na marca também é notificação — a pessoa olha o sininho, não a
   // pasta de referências.
@@ -249,6 +274,15 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       // como tela — a hipótese de síntese já escrita em 13/jul.
       { label: t('nav.studio.workflow'), hash: brandLink('/studio/workflow'), active: route === 'brands-studio-workflow' },
       { label: t('nav.studio.library'),  hash: brandLink('/studio/biblioteca'), active: route === 'brands-studio-biblioteca' },
+      // Os addons LIBERADOS aparecem aqui, entre a Biblioteca e a loja: são
+      // ferramentas de trabalho, não configuração. `brand_id` nulo na
+      // instalação = vale para todas as marcas do workspace (059).
+      ...addonsDoMenu(addonsAtivos, brandId).map(a => ({
+        label: a.nome,
+        hash: brandLink(`/studio/addon/${a.slug}`),
+        active: route === 'brands-studio-addon',
+      })),
+      { label: t('nav.studio.addons'), hash: '#/app/addons', active: route === 'addons' },
     ] },
     // O Copiloto SAIU do menu (E0a): virou camada invocável de qualquer lugar
     // (⌘K + botão no canto). A rota /assistant segue viva como ARQUIVO das
@@ -266,6 +300,7 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     // Plano e cobrança: customer-facing escondido (venda sob demanda). Créditos/PLANOS/Stripe seguem por baixo.
     if (route === 'plano')                 { navigate('#/app'); return null }
     if (route === 'alertas')               return <AlertasPage />
+    if (route === 'addons')                return <Addons />
     if (route === 'listening')             return <SocialListening />
     if (route === 'content-hub')           return <ContentHub />
     if (route === 'brands-list')           return <BrandList />

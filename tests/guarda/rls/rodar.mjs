@@ -42,6 +42,9 @@ const PASSOS = [
   { sql:   'tests/guarda/rls/058-retrato.sql' },
   { sql:   'supabase/migrations/058_escopo_e_vigencia_no_aprendizado.sql' },
   { casos: 'tests/guarda/rls/058-assercoes.sql', titulo: '058 · escopo e vigência no aprendizado' },
+  // A 059 também não tem retrato próprio: chega num banco pós-058.
+  { sql:   'supabase/migrations/059_instalacao_de_addon.sql' },
+  { casos: 'tests/guarda/rls/059-assercoes.sql', titulo: '059 · instalação de addon' },
 ]
 
 try {

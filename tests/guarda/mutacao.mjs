@@ -20,6 +20,21 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'o menu volta a mostrar addon que ninguém liberou',
+    arq: 'src/lib/addons.js',
+    de: "export const estaLigado = (inst) => inst?.estado === 'ativo'",
+    para: 'export const estaLigado = (inst) => !!inst' },
+
+  { nome: 'addon de UMA marca volta a aparecer nas outras do workspace',
+    arq: 'src/lib/addons.js',
+    de: 'export const valeNaMarca = (inst, brandId) => !inst?.brand_id || inst.brand_id === brandId',
+    para: 'export const valeNaMarca = () => true' },
+
+  { nome: 'o menu volta a confiar em slug que saiu do catálogo',
+    arq: 'src/lib/addons.js',
+    de: '    .map((i) => acharAddon(i.addon))\n    .filter(Boolean)',
+    para: '    .map((i) => acharAddon(i.addon))' },
+
   { nome: 'volta a mandar só o nome ao modelo (caso Pixel)',
     arq: 'netlify/functions/diagnostico-gerar-background.js',
     de: 'alvoDoDiagnostico(alvo)', para: 'alvo.nome' },

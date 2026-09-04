@@ -102,6 +102,7 @@ export function getRoute(caminho) {
   if (p === '/app/time')             return 'time';
   if (p === '/app/plano')            return 'plano';
   if (p === '/app/alertas')          return 'alertas';
+  if (p === '/app/addons')           return 'addons';
   // 'ia-loudr' foi o nome interno até o relançamento como BR4NDCODE; a rota antiga
   // segue resolvendo para não quebrar deep-link de e-mail/feed já disparado.
   if (p === '/app/inteligencia')     return 'inteligencia';

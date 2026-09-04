@@ -11,9 +11,11 @@ import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
+import { ADDONS } from "../lib/addons";
 import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual, novaSenha } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { abrirSessaoSuporte } from "../lib/sessaoSuporte";
@@ -394,6 +396,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     { id: "cerebros",     label: "Cérebros",         Icon: PsychologyOutlinedIcon },
     { id: "saude",        label: "Saúde",            Icon: MonitorHeartOutlinedIcon },
     { id: "acessos",      label: "Acessos",          Icon: HistoryOutlinedIcon },
+    { id: "addons",       label: "Addons",           Icon: ExtensionOutlinedIcon },
   ];
 
   const pendentesList = solicitacoes.filter(s => s.status === "pendente");
@@ -408,6 +411,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
     todos:        { title: "Todos os diagnósticos",   sub: `Lista completa — ${historico.length} item${historico.length !== 1 ? "ns" : ""} (${doneCount} concluído${doneCount !== 1 ? "s" : ""}).` },
     custos:       { title: "Custos de geração",       sub: "Consumo e custo estimado da borda (Studio) por modelo e por conta." },
     cerebros:     { title: "Cérebros de marca",       sub: "A inteligência de cada tenant: versão, confiança, sinais, dataset — e destilação sob demanda." },
+    addons:       { title: "Fila de addons",           sub: "Pedidos de instalação. Liberar é ato comercial — e a fila mede a demanda antes de o addon existir." },
     acessos:      { title: "Trilha de acessos",       sub: "Toda sessão de suporte aberta em workspace de cliente: qual tenant, quando, por quanto tempo e por quê." },
   };
 
@@ -664,6 +668,7 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
             {page === "cerebros" && <CerebrosAdmin />}
             {page === "saude" && <SaudeAdmin />}
             {page === "acessos" && <AcessosAdmin />}
+            {page === "addons" && <AddonsAdmin />}
           </Box>
       </AppLayout>
 
@@ -695,6 +700,96 @@ export function AppInterno({ user, onLogout, onImpersonate }) {
 // AS PRÓPRIAS sessões. Com um operador, é a trilha inteira. Quando houver mais
 // de um, ver a trilha completa exige policy nova (migration) ou leitura pelo
 // servidor, como o `admin-panorama` já faz.
+// ── A FILA DE ADDONS (estudio.md §13.10) ────────────────────────────
+// Liberar não é ato de suporte, é ato COMERCIAL: não depende de sessão aberta
+// no workspace do cliente, e por isso a 059 criou `e_admin_plataforma()` em
+// vez de reusar o `operador_pode(ws)` da 053.
+//
+// A RLS é quem garante o portão — nenhum papel de workspace consegue dar
+// update em `estado`. Esta tela é a mão que decide, não a fechadura.
+function AddonsAdmin() {
+  const [linhas, setLinhas] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+
+  const carregar = async () => {
+    setCarregando(true);
+    const { data, error } = await supabase
+      .from("addon_instalacao")
+      .select("id, addon, estado, motivo, pedido_em, decidido_em, workspace_id, workspaces(nome)")
+      .order("pedido_em", { ascending: true });
+    if (error) setErro(error.message);
+    setLinhas(data || []);
+    setCarregando(false);
+  };
+  useEffect(() => { carregar(); }, []);
+
+  const decidir = async (linha, estado, motivo = null) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("addon_instalacao").update({
+      estado, motivo, decidido_por: user?.id || null, decidido_em: new Date().toISOString(),
+    }).eq("id", linha.id);
+    if (error) setErro(error.message);
+    carregar();
+  };
+
+  const recusar = async (linha) => {
+    const motivo = window.prompt("Motivo da recusa (o cliente vê este texto):");
+    if (motivo === null) return;            // cancelou o prompt
+    if (!motivo.trim()) return;
+    decidir(linha, "recusado", motivo.trim());
+  };
+
+  const nomeAddon = (slug) => ADDONS.find(a => a.slug === slug)?.nome || slug;
+  const pedidos = linhas.filter(l => l.estado === "pedido");
+  const resto   = linhas.filter(l => l.estado !== "pedido");
+
+  if (carregando) return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress size={26} /></Box>;
+
+  const Linha = ({ l }) => (
+    <Paper key={l.id} variant="outlined" sx={{ p: 2, display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+      <Box sx={{ flex: 1, minWidth: 220 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: 14 }}>
+          {l.workspaces?.nome || l.workspace_id} · {nomeAddon(l.addon)}
+        </Typography>
+        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+          pedido {l.pedido_em ? new Date(l.pedido_em).toLocaleDateString("pt-BR") : "—"}
+          {l.motivo ? ` · ${l.motivo}` : ""}
+        </Typography>
+      </Box>
+      <Chip size="small" label={l.estado} variant="outlined" />
+      <Stack direction="row" spacing={1}>
+        {l.estado === "pedido" && <>
+          <Button size="small" variant="contained" disableElevation onClick={() => decidir(l, "ativo")}>Liberar</Button>
+          <Button size="small" color="inherit" onClick={() => recusar(l)}>Recusar</Button>
+        </>}
+        {l.estado === "ativo"    && <Button size="small" color="inherit" onClick={() => decidir(l, "suspenso")}>Suspender</Button>}
+        {l.estado === "suspenso" && <Button size="small" variant="outlined" onClick={() => decidir(l, "ativo")}>Reativar</Button>}
+      </Stack>
+    </Paper>
+  );
+
+  return (
+    <Stack spacing={3}>
+      {erro && <Alert severity="error">{erro}</Alert>}
+      <Box>
+        <Typography sx={{ fontWeight: 900, fontSize: 13, mb: 1.5 }}>
+          Aguardando decisão {pedidos.length ? `(${pedidos.length})` : ""}
+        </Typography>
+        {pedidos.length
+          ? <Stack spacing={1}>{pedidos.map(l => <Linha key={l.id} l={l} />)}</Stack>
+          : <Typography sx={{ fontSize: 13, color: "text.secondary" }}>Nenhum pedido aberto.</Typography>}
+      </Box>
+      {resto.length > 0 && (
+        <Box>
+          <Typography sx={{ fontWeight: 900, fontSize: 13, mb: 1.5 }}>Já decididos</Typography>
+          <Stack spacing={1}>{resto.map(l => <Linha key={l.id} l={l} />)}</Stack>
+        </Box>
+      )}
+    </Stack>
+  );
+}
+
 function AcessosAdmin() {
   const [sessoes, setSessoes] = useState([]);
   const [wsNomes, setWsNomes] = useState({});
