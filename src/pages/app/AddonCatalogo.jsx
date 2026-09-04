@@ -77,6 +77,11 @@ export function AddonCatalogo({ brandId }) {
   const [aberta, setAberta] = useState(null)         // índice da imagem no modal
   const [baixando, setBaixando] = useState(false)
 
+  // Declarada aqui, acima de todo efeito que a usa: um `const` referenciado
+  // antes da linha em que é declarado estoura na montagem do componente
+  // ("Cannot access before initialization") e a tela inteira cai.
+  const prontasParaVer = jobs.filter(j => j.status === 'done' && j.url)
+
   const load = useCallback(async () => {
     if (!brandId) return
     setCarregando(true)
@@ -227,8 +232,6 @@ export function AddonCatalogo({ brandId }) {
   // A pasta é por SKU e por dia: dois lotes do mesmo produto em dias
   // diferentes não se misturam, e o nome é legível na Biblioteca.
   const pastaDoLote = (sku) => `Lote ${sku} · ${new Date().toLocaleDateString('pt-BR')}`
-
-  const prontasParaVer = jobs.filter(j => j.status === 'done' && j.url)
 
   async function baixarTudo() {
     if (!prontasParaVer.length || baixando) return

@@ -74,6 +74,11 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'tela: const usada acima da declaração (zona morta — tela branca)',
+    arq: 'src/pages/app/AddonCatalogo.jsx',
+    de: '  const prontasParaVer = jobs.filter(j => j.status === \'done\' && j.url)',
+    para: '' },
+
   { nome: 'zip: nome repetido sobrepõe e um arquivo some na extração',
     arq: 'src/lib/zip.js',
     de: '  if (!usados.has(nome)) { usados.add(nome); return nome }',
