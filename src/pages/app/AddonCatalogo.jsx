@@ -361,6 +361,34 @@ export function AddonCatalogo({ brandId }) {
         const ok = await esperarOnda(ids, saidas, todos, setJobs)
         if (!ok) { setErro('Uma etapa falhou — as seguintes dependiam dela e não foram disparadas.'); break }
       }
+
+      // ⚠️ As posições extras NÃO estão nas ondas: ondas vêm do grafo, e uma
+      // pose escrita na hora não existe nele. Rodam depois de a cadeia inteira
+      // terminar, porque é da saída dela que elas partem.
+      const extrasDoRoteiro = roteiro.passos.filter(p => p.extra)
+      if (extrasDoRoteiro.length) {
+        setProgresso({ onda: roteiro.ondas.length + 1, ondas: roteiro.ondas.length + 1, sku: l.sku })
+        const daExtra = []
+        for (const passo of extrasDoRoteiro) {
+          const pedido = passo.montar(saidas)
+          try {
+            const res = await fetch('/.netlify/functions/studio-generate',
+              { method: 'POST', headers: auth, body: JSON.stringify(pedido) })
+            const j = await res.json()
+            if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+            const job = { sku: l.sku, vista: passo.nome, etapa: passo.etapa, __no: passo.genId,
+                          pasta: pastaDoLote(l.sku), entrega: true, extra: true,
+                          genId: j.generation_id, status: 'running' }
+            todos.push(job); daExtra.push(job)
+          } catch (e) {
+            todos.push({ sku: l.sku, vista: passo.nome, entrega: true, extra: true,
+                         genId: null, status: 'error', error: e.message })
+          }
+          setJobs([...todos])
+        }
+        const ids = daExtra.map(j => j.genId).filter(Boolean)
+        if (ids.length) await esperarOnda(ids, saidas, todos, setJobs)
+      }
     }
     setProgresso(null)
     setRodando(false)

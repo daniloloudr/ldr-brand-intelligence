@@ -74,6 +74,11 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'lote: a posição extra sai do roteiro e nunca é disparada',
+    arq: 'src/lib/loteExecucao.js',
+    de: '      ...passosExtras,          // sempre por último: dependem do que a cadeia produziu',
+    para: '' },
+
   { nome: 'lote: a posição extra some da conta (cliente vê 3 e recebe 4)',
     arq: 'src/lib/loteCatalogo.js',
     de: '             nSaidas: contarSaidas(l.saidas, saidasPadrao) + nExtras,',
