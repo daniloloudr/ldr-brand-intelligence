@@ -159,4 +159,29 @@ select caso('membro apaga o PRÓPRIO pedido em aberto',
   (select count(*) from addon_instalacao
     where workspace_id='aaaaaaaa-0000-0000-0000-000000000001' and addon='formatos') = 0);
 
+-- ── 7 · A receita (060) é de quem LIBERA, não de quem usa ───────────
+reset role;
+set teste.uid = '33333333-3333-3333-3333-333333333333';
+set role authenticated;
+update addon_instalacao set workflow_id = null
+ where workspace_id='aaaaaaaa-0000-0000-0000-000000000001' and addon='catalogo';
+select caso('admin define a receita da instalação',
+  (select count(*) from addon_instalacao
+    where workspace_id='aaaaaaaa-0000-0000-0000-000000000001' and addon='catalogo') = 1);
+
+reset role;
+set teste.uid = '22222222-2222-2222-2222-222222222222';
+set role authenticated;
+select caso('cliente LÊ a coluna da receita',
+  (select count(*) from addon_instalacao
+    where workspace_id='aaaaaaaa-0000-0000-0000-000000000001'
+      and addon='catalogo' and workflow_id is null) = 1);
+-- update sem policy que autorize afeta ZERO linha, calado — a asserção lê o
+-- estado depois, e não o número de linhas.
+update addon_instalacao set estado='suspenso'
+ where workspace_id='aaaaaaaa-0000-0000-0000-000000000001' and addon='catalogo';
+select caso('⭐ cliente NÃO troca nada da instalação — nem a receita',
+  (select estado from addon_instalacao
+    where workspace_id='aaaaaaaa-0000-0000-0000-000000000001' and addon='catalogo') = 'ativo');
+
 reset role;
