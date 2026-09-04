@@ -62,6 +62,7 @@ export function AddonCatalogo({ brandId }) {
   const [peca, setPeca] = useState(vazia)
   const [arquivos, setArquivos] = useState({})      // col → { nome, url }
   const [subindo, setSubindo] = useState('')
+  const [novas, setNovas] = useState([])       // castings subidos agora — ainda sem base conferida
 
   const load = useCallback(async () => {
     if (!brandId) return
@@ -98,6 +99,41 @@ export function AddonCatalogo({ brandId }) {
     if (!linhas?.length) return null
     return preflight({ linhas, cabecalho, elenco, acervo, modelo, creditoPorImagem: creditsForImage(modelo) })
   }, [linhas, cabecalho, elenco, acervo, modelo])
+
+  // Casting NOVO: sobe, é salvo na pasta `elenco` e já fica escolhível. Ele
+  // nasce com `base_conferida: false` — é isso que faz o portão da etapa 0
+  // existir para ele e NÃO existir para quem já está na base (decisão de
+  // 04/set: "se usar o novo processamos e salvamos; se escolher um, pulamos o
+  // portão").
+  //
+  // Não emite `reference_upload`: aquele sinal é ensino curatorial de MARCA
+  // ("isto É a marca"), e um casting é insumo de produção. Misturar os dois
+  // ensinaria ao cérebro que a marca "gosta" desta modelo.
+  async function subirCasting(file) {
+    if (!file) return
+    const nome = window.prompt('Nome desta modelo (é como ela vai aparecer na lista):',
+      (file.name || '').replace(/\.[^.]+$/, ''))?.trim()
+    if (!nome) return
+    if (elenco.some(e => e.toLowerCase() === nome.toLowerCase())) {
+      setErro(`Já existe uma modelo chamada "${nome}".`); return
+    }
+    setSubindo('elenco'); setErro('')
+    const path = `${brandId}/elenco/${Date.now()}-${(file.name || 'casting').replace(/[^\w.\-]/g, '_')}`
+    const { error } = await supabase.storage.from('brand-assets').upload(path, file, { upsert: true })
+    if (error) { setErro(`falha ao subir a modelo: ${error.message}`); setSubindo(''); return }
+    const url = supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl
+    const { error: e2 } = await supabase.from('brand_assets').insert({
+      brand_id: brandId, tipo: 'foto', nome, valor: url,
+      mime_type: file.type || null, pasta: 'elenco',
+      metadata: { source: 'upload', reference: true, elenco: true, base_conferida: false },
+    })
+    if (e2) { setErro(`falha ao cadastrar a modelo: ${e2.message}`); setSubindo(''); return }
+    setElenco(l => [...l, nome])
+    setAcervo(l => [...l, nome])
+    setPeca(p => ({ ...p, elenco: nome }))
+    setNovas(n => [...n, nome])
+    setSubindo('')
+  }
 
   async function subirArquivo(col, file) {
     if (!file) return
@@ -174,16 +210,40 @@ export function AddonCatalogo({ brandId }) {
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField label="SKU" size="small" sx={{ maxWidth: 220 }}
                     value={peca.sku} onChange={e => setPeca(p => ({ ...p, sku: e.target.value }))} />
-                  <TextField label="Elenco" size="small" select sx={{ minWidth: 200 }}
-                    value={peca.elenco} onChange={e => setPeca(p => ({ ...p, elenco: e.target.value }))}
-                    helperText={elenco.length ? 'castings aprovados na Biblioteca' : 'nenhum casting na pasta “elenco”'}>
-                    {elenco.map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
-                  </TextField>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <TextField label="Modelo" size="small" select sx={{ minWidth: 200 }}
+                      value={peca.elenco} onChange={e => setPeca(p => ({ ...p, elenco: e.target.value }))}
+                      disabled={!elenco.length}
+                      helperText={elenco.length
+                        ? 'modelos já aprovadas'
+                        : 'nenhuma modelo cadastrada ainda — suba uma ao lado'}>
+                      {elenco.map(n => (
+                        <MenuItem key={n} value={n}>
+                          {n}{novas.includes(n) ? ' · nova' : ''}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button component="label" size="small" color="inherit" sx={{ mt: .5 }}
+                      disabled={subindo === 'elenco'}
+                      startIcon={subindo === 'elenco' ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}>
+                      Subir modelo
+                      <input hidden type="file" accept="image/*"
+                        onChange={e => { subirCasting(e.target.files?.[0]); e.target.value = '' }} />
+                    </Button>
+                  </Stack>
                 </Stack>
 
                 <TextField label="A peça — descrição para fidelidade" multiline minRows={6}
                   value={peca.contexto} onChange={e => setPeca(p => ({ ...p, contexto: e.target.value }))}
                   helperText={`Modelagem, comprimento, manga, textura, gola, barra — e o erro que o modelo costuma cometer. ${peca.contexto.length}/${CONTEXTO_MIN} mínimo recomendado.`} />
+
+                {novas.includes(peca.elenco) && (
+                  <Alert severity="info" sx={{ py: .25 }}>
+                    <b>{peca.elenco}</b> é nova: antes de entrar na produção, a gente gera a base
+                    limpa dela e alguém confere contra a foto original. Isso acontece uma vez —
+                    nas próximas peças com essa modelo, a etapa é pulada.
+                  </Alert>
+                )}
 
                 <Box>
                   <Typography variant="overline" color="text.secondary">As referências</Typography>

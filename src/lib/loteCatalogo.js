@@ -173,8 +173,10 @@ export function preflight({
                : (ehUrl(v) || nomesAcervo.has(v.toLowerCase()))
       resolvidas[papel.col] = ok
       if (!ok) {
+        // Modelo só entra por upload — não dá para cadastrar por planilha, porque
+        // a foto dela não cabe numa célula. Por isso a mensagem aponta a porta.
         p.push(papel.doElenco
-          ? { nivel: GRAVE, campo: papel.col, texto: `elenco "${v}" não está cadastrado` }
+          ? { nivel: GRAVE, campo: papel.col, texto: `a modelo "${v}" não está cadastrada — suba a foto dela na aba "Uma peça"` }
           : { nivel: GRAVE, campo: papel.col, texto: `"${v}" não foi encontrado na Biblioteca` })
       }
     }

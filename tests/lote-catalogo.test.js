@@ -84,7 +84,8 @@ describe('o preflight barra antes de gastar', () => {
   it('⭐ elenco não cadastrado BLOQUEIA', () => {
     const r = rodar([{ ...base, elenco: 'Fulana' }])
     expect(r.bloqueadas).toBe(1)
-    expect(r.linhas[0].problemas.some(p => /não está cadastrado/.test(p.texto))).toBe(true)
+    expect(r.linhas[0].problemas.some(p => /não está cadastrada/.test(p.texto))).toBe(true)
+    expect(r.linhas[0].problemas.some(p => /Uma peça/.test(p.texto))).toBe(true)
   })
   it('⭐ arquivo fora da Biblioteca BLOQUEIA', () => {
     const r = rodar([{ ...base, peca_frente: 'nao_existe.jpg' }])
