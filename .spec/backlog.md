@@ -123,6 +123,28 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E4** | campanha como escopo | **D** | ✅ substituição | 🟡 **escrito e ensaiado 02/set** (057, `254918d`) — **na `dev`, NÃO subir sozinha** |
 | **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🟡 **escrito e ensaiado 02/set** (058 + núcleo) — na `dev` |
 | **E5b** | a campanha ganha CORPO — grupos, referência própria, a ficha | **D** | — | ⏸️ **ESTACIONADO 03/set** — desenho salvo, nada escrito. Volta pelo A3/agentes |
+| **E5c** | **o portão do addon** — `addon_instalacao`, a loja e a fila de liberação | **D** | ✅ aditiva | 🟡 **escrito e ensaiado 04/set** (059) — na `dev`. **APLICA SOZINHA** |
+
+> ⏸️ **A 057 e a 058 FICAM NA PRATELEIRA (decisão do Danilo, 04/set).** Campanha saiu
+> da interface — menu em 03/set, pasta da Biblioteca em 04/set — e com isso **a pressa
+> das duas caiu por terra**. Eu havia argumentado que "cada dia sem a 058 no ar é
+> contaminação irreversível", e isso valia **enquanto campanha estava viva**: sem tela,
+> ninguém cria campanha, nenhum sinal novo de campanha nasce, e não há o que se fundir na
+> marca. O argumento era certo e deixou de valer — registrado para não ser repetido como
+> se ainda valesse.
+>
+> ⚠️ **Consequência que ANDA JUNTO:** o código do E5 está na `dev` e faz o
+> `brand-distill-cron` devolver 500 todo dia se a 058 não estiver no banco. Então
+> **segurar as migrations implica segurar o código do E5 na `dev`** — a `main` não recebe
+> o E5 enquanto as duas não subirem. A 059 vai ao BANCO sozinha; isso é ato de migration,
+> não de deploy, e não exige `main`.
+>
+> ✅ **Provado em 04/set**, e o plano depende disso: a 059 aplica num banco em **056**,
+> sem `producao` e sem `campanha_id`. Não referencia nada da 057 nem da 058.
+>
+> 🟢 **E com isso o E5c não precisa de `guarda:ao-vivo`** — a 059 não toca o núcleo. A
+> `ao-vivo` continua obrigatória para o E5, quando ele for.
+
 | **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
 | **E7** | editor | — | — | ⏸️ o doc adia e manda revisitar |
 
