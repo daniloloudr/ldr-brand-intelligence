@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-// LOTE DE CATÁLOGO — o primeiro addon (§7.5, §13)
+// CATÁLOGO — o primeiro addon (§7.5, §13)
 //
 // Geração de imagem de catálogo em MASSA, e nada além disso.
 //
@@ -519,7 +519,7 @@ export function AddonCatalogo({ brandId }) {
   }
 
   if (carregando) return (
-    <Box><PageHeader title="Lote de Catálogo" subtitle="Imagem de catálogo, em massa" />
+    <Box><PageHeader title="Catálogo" subtitle="Imagem de catálogo, em massa" />
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress size={28} /></Box></Box>
   )
 
@@ -766,7 +766,7 @@ export function AddonCatalogo({ brandId }) {
 
   return (
     <Box sx={{ pb: relatorio ? 11 : 0 }}>
-      <PageHeader title="Lote de Catálogo"
+      <PageHeader title="Catálogo"
         subtitle="Imagem de catálogo em massa, no processo aprovado desta marca." />
 
       {erro && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro('')}>{erro}</Alert>}

@@ -18,7 +18,7 @@
 export const ADDONS = [
   {
     slug: 'catalogo',
-    nome: 'Lote de Catálogo',
+    nome: 'Catálogo',
     resumo: 'Uma planilha e uma pasta de fotos viram peças por SKU. O juiz filtra, e a rodada para em portões para o seu time bater o martelo.',
     paraQuem: 'Operação de catálogo — moda, varejo, marketplace.',
     fluxo: 'Roda sobre um fluxo já aprovado. O canvas continua sendo onde a receita se desenha.',
