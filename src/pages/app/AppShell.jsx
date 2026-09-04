@@ -241,7 +241,12 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
       // de Criar (D10). As rotas seguem vivas e caem na bancada com o formato
       // já escolhido, então link antigo não quebra. Estúdio fica em 4 itens.
       { label: t('nav.studio.create'),   hash: brandLink('/studio'),          active: route === 'brands-studio' || route === 'brands-studio-video' || route === 'brands-studio-writing' },
-      { label: t('nav.studio.campaigns'), hash: brandLink('/studio/campanhas'), active: route === 'brands-studio-campaigns' },
+      // Campanhas SAIU do menu (2026-09-03, decisão do Danilo: "muito trabalho
+      // para um resultado que ainda não serve"). A rota /studio/campanhas segue
+      // VIVA — as campanhas existentes e a aba da Biblioteca continuam chegando
+      // nela, e link antigo não quebra. Não é remoção, é estacionamento: o
+      // backlog (E5b) registra que campanha volta como SAÍDA do agente, não
+      // como tela — a hipótese de síntese já escrita em 13/jul.
       { label: t('nav.studio.workflow'), hash: brandLink('/studio/workflow'), active: route === 'brands-studio-workflow' },
       { label: t('nav.studio.library'),  hash: brandLink('/studio/biblioteca'), active: route === 'brands-studio-biblioteca' },
     ] },

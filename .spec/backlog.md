@@ -122,6 +122,7 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E3** | peça × versão + estados + julgamento como entidade — **os três juntos** | **C** | ✅ backfill | ✅ **APLICADO EM PRODUÇÃO 01/set** (056, `462eed2`) |
 | **E4** | campanha como escopo | **D** | ✅ substituição | 🟡 **escrito e ensaiado 02/set** (057, `254918d`) — **na `dev`, NÃO subir sozinha** |
 | **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🟡 **escrito e ensaiado 02/set** (058 + núcleo) — na `dev` |
+| **E5b** | a campanha ganha CORPO — grupos, referência própria, a ficha | **D** | — | ⏸️ **ESTACIONADO 03/set** — desenho salvo, nada escrito. Volta pelo A3/agentes |
 | **E6** | fluxo versionado em uso · batch com fila ordenada · agentes · gatilho local → capturado | B (tabelas já em E1) | ❌ | 🔴 |
 | **E7** | editor | — | — | ⏸️ o doc adia e manda revisitar |
 
@@ -166,6 +167,75 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 > **Ensaios:** 184 asserções de RLS (25 novas), 108 mutações, `guarda:replay` verde. O
 > ensaio da 058 **instala os gatilhos velhos no retrato e prova a substituição**, em vez
 > de descrever o defeito. Falta `guarda:ao-vivo` antes do deploy — o `_brain.js` é núcleo.
+
+> ⏸️ **E5b — ESTACIONADO em 03/set pelo Danilo**, com a frase: *"muito trabalho para
+> um resultado que ainda não serve para mim. Preciso pensar direito nisso."* O desenho
+> abaixo fica salvo inteiro; nada foi escrito. **Campanhas saiu do menu no mesmo dia**
+> (rota viva, padrão da casa — igual Ativos em 14/jul e Imagem/Vídeo/Redação no E0a).
+>
+> 🔁 **Não é decisão nova — é a de 13/jul recebendo veredito.** A "DECISÃO EM OBSERVAÇÃO"
+> da Casa do Conteúdo já dizia *"não sei se estou convencido"*, já nomeava a tensão
+> (ganhou-se motor único, perdeu-se o 1-clique; criar campanha abre um canvas técnico e o
+> dossiê é passivo) e já apontava a saída: **"o usuário de campanha NÃO deveria ver o
+> canvas — brief → fluxo roda sozinho → peças no dossiê. Isso é o A3/agentes; revisar
+> quando ele existir."** O uso real de 03/set deu o veredito, e ele confirma a hipótese.
+> **Conclusão: campanha não volta como tela. Volta como SAÍDA do agente.**
+>
+> ── o que foi levantado antes de estacionar (vale para quando voltar) ──
+>
+> **A campanha é um JOB, não um agrupador.** `studio_campaigns.workflow_id` é singular, e
+> é a campanha que aponta para o fluxo. Uma campanha com dois fluxos é impossível.
+>
+> **Quem gera o fluxo é a TELA, não o backend** — `StudioCampaigns.jsx:73` (`criarCampanha`):
+> insere a campanha → chama `studio-workflow-build` com o conceito → o LLM desenha um grafo
+> → grava como `studio_workflows` → carimba `workflow_id` → **navega direto para o canvas**.
+> É a decisão de 13/jul em código, e é a que o Danilo achou pesada nas duas vezes.
+>
+> 🔴 **`netlify/functions/studio-campaign.js` NÃO TEM CHAMADOR.** Grep em `src/` não acha
+> um `fetch` para ela. É a função do fan-out "1 conceito → N peças", e é a **única** que
+> grava `formatos`, `mode` e `producao: 'gerando'` — por isso toda campanha criada pela
+> tela nasce com `formatos: []` e `mode` nulo. Consequências: o modo **adapt** (hero +
+> adaptações) **não é acionável pela interface**, e o fan-out do `_studio.js` que o E5
+> tocou está num caminho que ninguém percorre. **Ficou órfão quando o canvas virou o
+> caminho em 13/jul** — não foi decisão registrada. Decidir ao voltar: religar ou remover.
+>
+> ── o mapa que o Danilo trouxe (03/set) — "How to Structure Campaigns", até o passo 05 ──
+>
+> Os passos 01–04 são BRIEF (constroem e contextualizam); o 05 é execução, e o 05 já é o
+> Estúdio inteiro. **06 (budget/bidding) e 07 (track/ROAS) ficam fora: são da plataforma
+> de mídia, não nossos.**
+>
+> | # | No quadro | Em LOUDR | Veredito |
+> |---|---|---|---|
+> | 01 | Objetivo — Leads/Sales/Traffic/Awareness | `objetivo` (texto livre, vazio nas 4) | existe, **precisa virar TIPADO** |
+> | 02 | Tipo — Search/Display/Video/Shopping | não existe (`formatos` é proporção: 1:1, 9:16, 16:9, 4:5) | falta — é **canal** |
+> | 03 | **Ad Groups** — por tema, audiência ou produto | **não existe** | **é a camada que falta** |
+> | 04 | Targeting — demografia, interesses, comportamento | a marca tem `personas` no modelo vivo; a campanha, nada | falta |
+> | 05 | Ads & Creatives | o Estúdio inteiro | existe |
+>
+> ⭐ **O 03 é o "agrupador" que o Danilo pediu, e está um andar acima de onde eu tinha
+> proposto.** A agregação é de DOIS níveis — `campanha → grupos → criativos` — e é por
+> isso que `workflow_id` singular dói: é **um fluxo por GRUPO**, não por campanha. Dois
+> grupos ("jovem/story", "sênior/feed") são duas receitas na mesma campanha.
+>
+> Isso **preserva** a escolha N:N do Danilo (03/set), só muda de andar: a junção é
+> **`grupo ↔ fluxo`**, não `campanha ↔ fluxo`. E separa a posse como Google e Meta fazem:
+> **objetivo e tipo são da CAMPANHA; audiência é do GRUPO.**
+>
+> 🎯 **O porquê que não é formulário:** o eixo de **ESCOPO do juiz (§2.3) é cego hoje** —
+> `objetivo` e `direcional` estão vazios nas quatro campanhas, então ele não tem como
+> avaliar se a peça serve à campanha. Preencher 01–04 **liga um dos quatro eixos**. E o
+> objetivo TIPADO importa: "vender mais" o juiz não usa; `awareness` vs `leads` muda o que
+> é uma boa peça (memorabilidade vs CTA claro).
+>
+> ⚠️ **O 05 completo pede COPY.** As dicas dele são Strong Hook · Clear Message · CTA — os
+> três são texto, e o Estúdio gera **imagem sem texto** por regra da casa. O 05 só fecha
+> com `pecas_escritas` (040), que o E2 adiou com motivo medido.
+>
+> **Decisões do Danilo (03/set), que seguem valendo quando voltar:** fluxo **N:N** (agora
+> `grupo ↔ fluxo`); **`referencia_modo`** por campanha (`soma` | `substitui`), com a
+> ressalva de que `substitui` **obriga o `art-review` a ler o modo** antes de julgar —
+> senão o eixo de fidelidade reprova a peça por fazer o que foi mandado. Isso é NÚCLEO.
 
 **O E0 virou três (31/ago), por tamanho e por uma dependência de ordem que a spec não
 menciona: o menu só pode tirar o Copiloto depois que ele for invocável** — senão some o
@@ -757,7 +827,7 @@ Dor: inversão do ciclo operacional → guia de compras precisa de **imagem fide
 | ~~**5**~~ ✅ **31/ago** | "clicou no nó, tentou deletar a linha, não conseguiu — ela usa Windows" | **UMA PROP.** O canvas nunca passa `deleteKeyCode`, então vale o default do xyflow: **`'Backspace'`, e só ele** (`@xyflow/react@12.11.1`). No teclado Mac a tecla grande é rotulada *delete* e emite `Backspace` — por isso funciona para o Danilo. No Windows ela é `Backspace` e existe uma tecla `Delete` **separada**, que é a que a cliente apertou, e o xyflow ignora. Pior: **conexão não tem nenhuma afordância de mouse** — nó tem botão de excluir no `NodeToolbar`, edge não tem nada. No Windows não existe caminho nenhum para apagar uma linha.<br><br>**Entregue:** `deleteKeyCode={['Backspace', 'Delete']}` **+** o ✕ de desconectar no painel Entradas (item 6), que é a afordância de mouse que faltava — a cliente clicou no NÓ, e é no nó que ela agora resolve | ✅ |
 | ~~**4+6**~~ ✅ **31/ago** | "o sapato não pegou" · ver o que entra em cada nó | **MESMA CAUSA.** `MAX_REF = 5` (`studioNodes.jsx:513`) e `StudioCanvas.jsx:469` faz `.slice(0, MAX_REF)` **em silêncio**. O brief do KH6V já pede base + still frente + still costas + bolsa + calçado = **5**; o processo de 4 etapas soma pose + imagem aprovada = **7**. O calçado costuma ser a última conexão, então é o primeiro a cair — sem mensagem. E o nó Imagem **não mostra o que entrou**: só modelo, créditos e saída. O 6 é o instrumento que teria mostrado o 4. **O limite é NOSSO** (ver abaixo). **E havia um SEGUNDO sumiço, pior e independente do teto:** os modelos de endpoint singular (`field: 'image_url'` — Kontext, Qwen, FLUX dev/Pro 1.1/Ultra, Ideogram v2, Recraft) recebem `references[0]` e **descartam o resto sem erro**.<br><br>**Entregue:** painel **Entradas** no nó Imagem — resumo na caixa, lista ordenada com miniatura, **reordenar** (↑↓), **desconectar** (✕), papel por posição no try-on, e o corte dito com a culpa nomeada (limite do modelo × teto do canvas). A ordem virou `refOrder` persistido, no lugar do histórico de conexões | ✅ |
 | **2+3** | cor da peça (KH6U/KH6V) · costura/gola/acabamento | mesma família, e o processo de 21/ago já responde por escolha de modelo (Seedream 5 Pro para peça). O que o código acrescenta: com foto de produto conectada, `use_brand` **segue ligado por padrão** (`studio-generate.js:44`) e a faceta visual injeta "paleta, tipografia e estética" da marca no prompt — instrução de paleta competindo com a cor real da peça. **Hipótese, não medida.** Ensaio: mesma peça, mesmo modelo, `use_brand` on × off, julgado pelo `art-review` em `modo: 'fidelidade'` | 🟢 medir · 🟡 se confirmar |
-| **1** | batch de produtos por SKU | ⏸️ **PARADO POR DECISÃO (Danilo, 31/ago): _"temos especificado em diversos lugares, precisamos pensar melhor sobre ele"_.** E é exatamente esse o sintoma: o mesmo pedido está escrito em **três** lugares com nomes diferentes — `F2 — escala` (CSV/Drive), `F3` do Studio (nó de lote) e `R4` (lote de formatos com preview). Não volta à fila como implementação; volta como **unificação das três specs numa só** | ⏸️ pensar |
+| **1** | batch de produtos por SKU | ✅ **UNIFICADO 03/set** — a leitura das "três specs" achou **cinco** menções, e o diagnóstico mudou: **não eram três desenhos concorrentes, era UM motor, DUAS entradas e um eixo com o nome errado.** O motor é a §7.4 do `estudio.md` (fluxo × conjunto → execução → parecer → fila ordenada); o F2 Hering (CSV/Drive) é a **entrada** dele, não outro motor; o SLIDE 08 do `deck-retail.md` é o mesmo desenho já **vendido ao cliente**. **O "nó de lote" do F3 PERDE** — `execucao.variaveis_lote` já está em produção (054) e codifica a §7.4; um nó dissolveria a camada "do lote" da §7.2 e a execução perderia a unidade de custo/veredito. **O R4 Worten NÃO É LOTE** — é `1 peça × N formatos`, outro eixo, já meio construído (nó Recortar + template), volta pra fila dele como **fan-out de formato**. 🟢 **O risco de ordem está pago:** `julgamento.modo` e `julgamento.treina` conferidos no banco (E3/056), então lote de 200 aprovado num clique não envenena o cérebro. ⚠️ **Lacuna achada:** `execucao` grava `creditos` mas **não tem teto** — só o `agente` tem; lote disparado por pessoa roda sem freio, e o deck já vendeu "teto de créditos por lote". Unificação escrita em [`features/estudio.md`](features/estudio.md) §7.5 | 🟡 destravado |
 | **7** | linha infantil | 🔴 **PODE NÃO SER FEATURE — pode ser bloqueio.** Levantado pelo Danilo (31/ago): geração de imagem de criança tem risco de política de provedor **e** de regulação de publicidade infantil. Isso vem **antes** do que eu tinha escrito (a falta de dimensão de linha no cérebro), que segue verdadeiro mas é o segundo problema. **Portão antes de qualquer código:** (a) o que a política do fal e a de cada modelo dizem sobre menores; (b) o que a regulação de publicidade infantil no Brasil exige de peça publicitária com criança — inclusive sintética; (c) o que a Hering já pratica hoje na linha infantil. Sem essas três respostas, não se escreve nada | 🔴 **portão jurídico primeiro** |
 
 **A ordem:** ~~5 → 4+6~~ ✅ **na release de 31/ago (v8.6)** → medir o 2 → 7 só depois do portão → 1 quando for pensado.

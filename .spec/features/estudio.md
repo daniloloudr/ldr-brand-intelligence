@@ -434,6 +434,67 @@ Fluxo  ×  Lote de SKUs
 
 **Implementação:** o julgamento grava o modo (`individual`/`lote`) e a flag de treino. Aprovação em lote grava `treina = falso`; recusa grava `treina = verdadeiro` sempre.
 
+## 7.5 A unificação do lote (03/set/2026)
+
+O backlog registrou em 31/ago que "batch de produtos por SKU" estava escrito em **três
+lugares com nomes diferentes**, e parou a implementação até alguém unificar. Feita a
+leitura das três (mais duas que ninguém tinha contado), o diagnóstico muda:
+
+**Não eram três desenhos concorrentes. Era UM motor, DUAS entradas, e um eixo diferente
+arquivado com o nome errado.**
+
+| Origem | O que pedia | Veredito |
+|---|---|---|
+| **§7.4** (esta spec) | fluxo × conjunto → execução → parecer → fila ordenada | ✅ **é o MOTOR — manda** |
+| **F2 Hering** (backlog) | CSV/planilha/pasta do Drive → fila com progresso + teto | ✅ **é a ENTRADA** do motor, não outro motor |
+| **SLIDE 08** (`deck-retail.md`) | os 5 passos já VENDIDOS ao cliente | ✅ o mesmo motor + a mesma entrada, em linguagem comercial — **é o contrato** |
+| **F3 Studio** (backlog) | "nó de lote" DENTRO do fluxo | ❌ **perde** — contradiz o §7.4 |
+| **R4 Worten** (backlog) | 1 peça × N formatos, com preview | ⚠️ **não é lote** — é outro eixo |
+
+### Decisão 1 · o lote é EXECUÇÃO, não NÓ
+
+E não é questão de gosto: **`execucao.variaveis_lote` já existe em produção** (E1 · 054,
+aplicada 01/set) e codifica exatamente o §7.4. O "nó de lote" do F3 colocaria a iteração
+**dentro** do grafo, e aí a execução perde a unidade — não daria para dizer *"esta rodada
+custou X e teve Y aprovadas"*, porque a rodada seria uma só com N ramos internos.
+
+O §7.2 exige as três camadas separadas, e **a camada "do lote" só existe se o lote for a
+rodada**. Um nó dissolveria a camada que a spec criou para poder atribuir resultado.
+
+### Decisão 2 · o R4 sai da conversa de lote
+
+`N produtos × 1 fluxo` **não é** `1 peça × N formatos`. São dois fan-outs em eixos
+diferentes, e chamar os dois de "lote" foi o que criou a ilusão de três specs.
+
+O R4 já está meio construído por outro caminho (nó **Recortar** a 0 crédito + template
+"1 peça → 6 formatos"). Ele volta para a fila dele, como **fan-out de formato**.
+
+### O risco de ordem já foi pago
+
+A §10 deste documento avisava que os pesos de julgamento (`modo`, `treina`) tinham que
+estar de pé **antes** do batch — senão o primeiro lote de 200 peças aprovado num clique
+entra no cérebro como 200 aprovações individuais e **envenena o modelo sem desfazer**.
+
+**Conferido no banco em 03/set: `julgamento.modo` e `julgamento.treina` existem em
+produção** (E3 · 056). A dependência perigosa está paga. O batch pode ser construído.
+
+### O que sobra para construir, na ordem
+
+1. **A entrada** — CSV/planilha → `execucao.variaveis_lote`
+2. **A execução** — roda o fluxo N vezes, grava `creditos` e as contagens por veredito
+3. **A fila ordenada** — reprovado → rechecar → aprovado
+4. **A aprovação em lote** — grava `modo = 'lote'`, `treina = falso` (o §7.4 já manda)
+
+### ⚠️ A lacuna que a unificação encontrou
+
+**`execucao` não tem teto de crédito.** Ela grava `creditos` (o que foi gasto), mas não
+tem coluna de limite. O teto existe só no **agente** (`agente.teto_creditos_ciclo`) —
+então um lote disparado por uma **pessoa** (`agente_id` nulo) roda sem freio.
+
+E o `deck-retail.md` **já vendeu** "teto de créditos por lote" como guarda de operação.
+É uma coluna a mais na `execucao`, e ela entra no passo 2, não depois.
+
+
 ---
 
 # 8 · Agentes
