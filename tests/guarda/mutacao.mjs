@@ -74,6 +74,11 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'lote: a posição extra some da conta (cliente vê 3 e recebe 4)',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '             nSaidas: contarSaidas(l.saidas, saidasPadrao) + nExtras,',
+    para: '             nSaidas: contarSaidas(l.saidas, saidasPadrao),' },
+
   { nome: 'lote: a posição extra vira caminho paralelo e perde a câmera da etapa',
     arq: 'src/lib/loteExecucao.js',
     de: "          return { ...p, prompt: [texto, ...semPose.slice(1)].join('\\n\\n[CONTEXTO ADICIONAL]\\n') }",

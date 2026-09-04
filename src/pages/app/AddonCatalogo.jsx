@@ -141,8 +141,9 @@ export function AddonCatalogo({ brandId }) {
 
   const relatorio = useMemo(() => {
     if (!linhas?.length) return null
-    return preflight({ linhas, cabecalho, elenco, acervo, modelo, vistas, creditoPorImagem: creditsForImage(modelo) })
-  }, [linhas, cabecalho, elenco, acervo, modelo, vistas])
+    return preflight({ linhas, cabecalho, elenco, acervo, modelo, vistas, extras,
+                       creditoPorImagem: creditsForImage(modelo) })
+  }, [linhas, cabecalho, elenco, acervo, modelo, vistas, extras])
 
   const escolhidas = String(peca.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
 
@@ -619,8 +620,13 @@ export function AddonCatalogo({ brandId }) {
                 color={relatorio.prontas ? 'success' : 'default'} variant="outlined" />
               {relatorio.bloqueadas > 0 && <Chip label={`${relatorio.bloqueadas} bloqueada${relatorio.bloqueadas !== 1 ? 's' : ''}`} color="error" variant="outlined" />}
               {relatorio.avisos > 0 && <Chip label={`${relatorio.avisos} aviso${relatorio.avisos !== 1 ? 's' : ''}`} color="warning" variant="outlined" />}
-              <Chip label={`${relatorio.imagens} imagens`} variant="outlined" />
-              <Chip label={`≈ ${relatorio.creditos} créditos`} variant="outlined" />
+              <Chip label={`${relatorio.imagens} entregas`} variant="outlined" />
+              {roteiroPrevia && roteiroPrevia.total > relatorio.imagens && (
+                <Chip variant="outlined"
+                  label={`+ ${roteiroPrevia.total - relatorio.imagens} insumo${roteiroPrevia.total - relatorio.imagens !== 1 ? 's' : ''}`} />
+              )}
+              <Chip variant="outlined"
+                label={`≈ ${(roteiroPrevia?.total || relatorio.imagens) * creditsForImage(modelo)} créditos`} />
             </Stack>
 
             {relatorio.problemas.length > 0 && (
@@ -713,7 +719,8 @@ export function AddonCatalogo({ brandId }) {
               <Button variant="contained" disableElevation
                 disabled={!relatorio.podeRodar || rodando} onClick={rodar}
                 startIcon={rodando ? <CircularProgress size={15} color="inherit" /> : null}>
-                {rodando ? 'Gerando…' : `Rodar (${relatorio.imagens} entregas · ≈${relatorio.creditos} créditos)`}
+                {rodando ? 'Gerando…'
+                  : `Rodar (${relatorio.imagens} entregas · ≈${(roteiroPrevia?.total || relatorio.imagens) * creditsForImage(modelo)} créditos)`}
               </Button>
               {/* Botão travado sem dizer o QUE trava faz a pessoa clicar e achar
                   que o sistema não responde. Aqui sai a lista exata. */}

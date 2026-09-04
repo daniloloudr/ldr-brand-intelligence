@@ -275,3 +275,20 @@ describe('os papéis', () => {
     expect(id.obrigatorio).toBe(true)
   })
 })
+
+describe('⭐ a conta inclui as posições extras', () => {
+  it('extra entra na contagem de saídas', () => {
+    const r = rodar([{ ...base, saidas: 'A;B' }], { extras: ['POSE NOVA'] })
+    expect(r.linhas[0].nSaidas).toBe(3)
+    expect(r.linhas[0].nExtras).toBe(1)
+  })
+  it('extra em branco não conta', () => {
+    const r = rodar([{ ...base, saidas: 'A' }], { extras: ['  ', ''] })
+    expect(r.linhas[0].nSaidas).toBe(1)
+  })
+  it('a estimativa de crédito acompanha', () => {
+    const r = rodar([{ ...base, saidas: 'A' }], { extras: ['X', 'Y'], creditoPorImagem: 2 })
+    expect(r.imagens).toBe(3)
+    expect(r.creditos).toBe(6)
+  })
+})

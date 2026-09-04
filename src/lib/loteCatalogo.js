@@ -171,6 +171,7 @@ export function preflight({
   acervo = [],              // nomes/arquivos já disponíveis
   modelo = null,
   vistas = [],              // as vistas que o fluxo oferece (vistasDoFluxo)
+  extras = [],              // posições escritas na hora — contam como entrega
   saidasPadrao = 1,
   creditoPorImagem = 1,
   teto = MAX_REFS_CANVAS,
@@ -254,9 +255,13 @@ export function preflight({
     // geração. Trocar a lista pelo número fazia o roteiro procurar uma vista
     // chamada "5", não achar nenhuma, e o botão Rodar não disparar NADA — sem
     // erro, sem log, sem pista. Custou uma tarde.
+    // As posições extras são entregas como qualquer outra: fora da conta, o
+    // cliente veria "3 imagens" e receberia 4.
+    const nExtras = (extras || []).filter(t => String(t || '').trim()).length
     return { ...l, sku, refs, resolvidas,
              vistasPedidas: pedidas,
-             nSaidas: contarSaidas(l.saidas, saidasPadrao),
+             nExtras,
+             nSaidas: contarSaidas(l.saidas, saidasPadrao) + nExtras,
              problemas: p }
   })
 
