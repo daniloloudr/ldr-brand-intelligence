@@ -97,7 +97,7 @@ describe('⭐ as referências: o grafo decide, o addon só injeta', () => {
   const addon = montarAddon()
   it('⭐ a ordem é: modelo, PEÇA PRINCIPAL, depois acessórios', () => {
     expect(addon.references).toEqual(
-      ['CAST.jpg', 'STILL.jpg', 'STILL_costas.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg', 'POSE_a.jpg'])
+      ['CAST.jpg', 'STILL.jpg', 'STILL_costas.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg'])
     expect(addon.references[1]).toBe('STILL.jpg')          // a estrela, logo após a modelo
     expect(addon.references[2]).toBe('STILL_costas.jpg')   // a vista 2, colada nela
   })
@@ -110,8 +110,8 @@ describe('⭐ as referências: o grafo decide, o addon só injeta', () => {
   it('as N vistas de um acessório entram todas, em sequência', () => {
     expect(addon.references.filter(u => /^B\d/.test(u))).toEqual(['B1.jpg', 'B2.jpg'])
   })
-  it('⭐ nó que a planilha NÃO preenche fica intocado (constante da receita)', () => {
-    expect(addon.references).toContain('POSE_a.jpg')
+  it('⭐ o nó de POSE é ZERADO — foto de outra pessoa ali contamina a identidade', () => {
+    expect(addon.references).not.toContain('POSE_a.jpg')
   })
   it('nenhuma URL original sobrevive onde a planilha mandou substituir', () => {
     expect(addon.references.some(u => u.startsWith('ORIG_'))).toBe(false)
@@ -126,7 +126,6 @@ describe('o resolver traduz nome da Biblioteca em URL', () => {
     const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
       resolver: v => `https://cdn/${v}`, contextoDaPeca: '' })
     expect(p.references[0]).toBe('https://cdn/CAST.jpg')
-    expect(p.references).toContain('POSE_a.jpg')      // o não-injetado não passa pelo resolver
   })
 })
 
@@ -135,7 +134,7 @@ describe('o mapa de injeção', () => {
     const m = entradasDoLote(nodes, linha, v => v, edges)
     expect(m.e0_in_casting).toEqual(['CAST.jpg'])
     expect(m.e1_in_still).toEqual(['STILL.jpg', 'STILL_costas.jpg'])   // peça + vista 2
-    expect(m.e2_in_pose).toBeUndefined()             // constante da receita
+    expect(m.e2_in_pose).toEqual([])                 // zerado: nada de pessoa antiga
   })
   it('⭐ os acessórios vão TODOS no primeiro nó de acessório', () => {
     const m = entradasDoLote(nodes, linha, v => v, edges)
@@ -295,5 +294,33 @@ describe('⭐ posições extras — pose nova sem caminho paralelo', () => {
     const r2 = roteiroDaPeca({ nodes: N, edges: E, vistas, escolhidas: [], linha: L,
       brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: '', extras: ['POSE X'] })
     expect(r2.passos.filter(p => p.extra)).toHaveLength(1)
+  })
+})
+
+describe('⭐ acessórios por ETAPA, e a pose sem pessoa antiga', () => {
+  const N = [
+    { id: 'e1_in_still',   type: 'imageInput', data: { urls: ['ORIG'] } },
+    { id: 'e1_in_calcado', type: 'imageInput', data: { urls: ['ORIG'] } },
+    { id: 'e1_in_bolsa',   type: 'imageInput', data: { urls: ['ORIG'] } },
+    { id: 'e2_in_pose',    type: 'imageInput', data: { urls: ['POSE_ANTIGA_1', 'POSE_ANTIGA_2'] } },
+    { id: 'e3_in_calca',   type: 'imageInput', data: { urls: ['ORIG'] } },
+    { id: 'e3_in_calcado', type: 'imageInput', data: { urls: ['ORIG'] } },
+  ]
+  const m = entradasDoLote(N, { peca_principal: 'P', acessorios: 'A1;A2' }, v => v, [])
+
+  it('⭐ a etapa 3 recebe os acessórios — não fica vazia', () => {
+    expect(m.e3_in_calca).toEqual(['A1', 'A2'])
+    expect(m.e3_in_calcado).toEqual([])
+  })
+  it('a etapa 1 também recebe, no primeiro nó dela', () => {
+    expect(m.e1_in_calcado).toEqual(['A1', 'A2'])
+    expect(m.e1_in_bolsa).toEqual([])
+  })
+  it('⭐ o nó de POSE é zerado, e a foto antiga não sobrevive', () => {
+    expect(m.e2_in_pose).toEqual([])
+  })
+  it('nenhuma URL original sobra em nó nenhum', () => {
+    expect(Object.values(m).flat()).not.toContain('ORIG')
+    expect(Object.values(m).flat()).not.toContain('POSE_ANTIGA_1')
   })
 })

@@ -65,27 +65,39 @@ export function entradasDoLote(nodes, linha, resolver = (v) => v, edges = []) {
   const peca   = [...usar('peca_principal'), ...usar('peca_vista_2')]
   const acess  = usar('acessorios')
   const modelo = usar('elenco')
+  const pose   = usar('pose')          // opcional: referência de pose do lote
 
-  // A ordem dos acessórios é a que o fluxo declara no `refOrder` — o primeiro
-  // deles recebe o balde inteiro.
+  // A ordem dos acessórios é a que o fluxo declara no `refOrder`; o primeiro de
+  // CADA ETAPA recebe o balde inteiro.
+  //
+  // ⚠️ Por etapa, não global: a etapa 3 tem os próprios nós de acessório
+  // (`e3_in_calca`, `e3_in_calcado`), e distribuir só no primeiro do grafo
+  // deixava a etapa 3 SEM acessório nenhum — a peça de costas sairia sem calça
+  // nem calçado, sem erro.
   const ordem = new Map()
   for (const n of nodes || []) {
     const ro = n?.type === 'generate' ? n.data?.refOrder : null
     if (Array.isArray(ro)) ro.forEach((id, i) => { if (!ordem.has(id)) ordem.set(id, i) })
   }
-  const acessorios = Object.entries(slots).filter(([, s]) => s === 'acessorio')
-    .map(([id]) => id).sort((a, b) => (ordem.get(a) ?? 99) - (ordem.get(b) ?? 99))
+  const porEtapa = {}
+  for (const [nodeId, slot] of Object.entries(slots)) {
+    if (slot !== 'acessorio') continue
+    ;(porEtapa[etapaDoNo(nodeId) ?? 'x'] ||= []).push(nodeId)
+  }
 
   for (const [nodeId, slot] of Object.entries(slots)) {
-    if (slot === 'pose') continue
     if (slot === 'casting')   { mapa[nodeId] = modelo; continue }
     if (slot === 'principal') { mapa[nodeId] = peca;   continue }
+    // ⚠️ O nó de POSE também é reescrito. Ele guardava fotos de um shooting
+    // anterior — uma PESSOA — e por mais que o texto mande ignorá-la, ela
+    // vinha na imagem: "a modelo saiu diferente" três rodadas seguidas. A pose
+    // é descrita no prompt; foto de outra pessoa ali é risco puro.
+    if (slot === 'pose')      { mapa[nodeId] = pose;   continue }
   }
-  // ⚠️ TODO nó de acessório é reescrito, inclusive com lista VAZIA. Sem isso os
-  // nós que a planilha não preenche guardariam as URLs do lote ANTERIOR — a
-  // bolsa e o calçado da Hering entrariam em todo SKU novo, caladas, e a peça
-  // sairia com um acessório que ninguém pediu.
-  acessorios.forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })
+  for (const lista of Object.values(porEtapa)) {
+    lista.sort((a, b) => (ordem.get(a) ?? 99) - (ordem.get(b) ?? 99))
+      .forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })
+  }
   return mapa
 }
 

@@ -34,6 +34,16 @@ const MUTACOES = [
     arq: 'src/lib/loteCatalogo.js',
     de: '             vistasPedidas: pedidas,', para: '             saidas: pedidas.length, vistasPedidas: undefined,' },
 
+  { nome: 'lote: a foto de POSE de um shooting anterior volta a entrar (outra modelo)',
+    arq: 'src/lib/loteExecucao.js',
+    de: "    if (slot === 'pose')      { mapa[nodeId] = pose;   continue }",
+    para: "    if (slot === 'pose')      { continue }" },
+
+  { nome: 'lote: acessórios voltam a ser globais e a etapa 3 fica sem nenhum',
+    arq: 'src/lib/loteExecucao.js',
+    de: "    ;(porEtapa[etapaDoNo(nodeId) ?? 'x'] ||= []).push(nodeId)",
+    para: "    ;(porEtapa['x'] ||= []).push(nodeId)" },
+
   { nome: 'lote: acessório do lote ANTERIOR sobrevive no SKU novo',
     arq: 'src/lib/loteExecucao.js',
     de: '  acessorios.forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })',
