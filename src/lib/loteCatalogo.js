@@ -23,24 +23,24 @@ import { vistasDoGrafo } from './studioGrafo'
 // Espelham a seção §O LOOK do gabarito: cada papel diz DE ONDE vem cada parte
 // da imagem. Não são "campos de arquivo" — são papéis, e é por isso que a
 // ordem importa e o corte silencioso dói.
-// A PEÇA PRINCIPAL é a estrela, e nem sempre é camisa — pode ser calça, pode
-// ser sapato (Danilo, 04/set). Por isso os papéis deixaram de ser
-// `calca`/`calcado`/`bolsa`, que só descrevem um look de camiseta: agora é UMA
-// peça principal com N vistas, mais N acessórios genéricos.
+// As três entradas, como o Danilo definiu (04/set):
 //
-// A vista 1 da peça é a ÂNCORA — é ela que precisa sair perfeita, e é ela que
-// entra primeiro entre os uploads. As outras vistas são ângulos da MESMA peça
-// (lado, costas), não itens diferentes.
+//   Peça Principal            a estrela — pode ser camisa, calça, sapato
+//   Peça Principal Vista 2    outro ângulo da MESMA peça (lado ou costas)
+//   Acessórios                todos os outros itens do look, juntos
+//
+// Não é `calca`/`calcado`/`bolsa`: aquilo descrevia um look de camiseta, não um
+// processo. Acessório é acessório, e quantos forem.
 export const PAPEIS = [
-  { col: 'peca',        papel: 'PEÇA PRINCIPAL', obrigatorio: true,  principal: true },
-  { col: 'acessorio_1', papel: 'ACESSÓRIO 1',    obrigatorio: false },
-  { col: 'acessorio_2', papel: 'ACESSÓRIO 2',    obrigatorio: false },
-  { col: 'acessorio_3', papel: 'ACESSÓRIO 3',    obrigatorio: false },
-  { col: 'elenco',      papel: 'MODELO',         obrigatorio: true,  doElenco: true },
+  { col: 'peca_principal', papel: 'Peça Principal',         obrigatorio: true, principal: true },
+  { col: 'peca_vista_2',   papel: 'Peça Principal Vista 2', obrigatorio: false, principal: true },
+  { col: 'acessorios',     papel: 'Acessórios',             obrigatorio: false },
+  { col: 'elenco',         papel: 'Modelo',                 obrigatorio: true, doElenco: true },
 ]
 
-export const PAPEL_PRINCIPAL = 'peca'
-export const ACESSORIOS = PAPEIS.filter(p => /^acessorio_/.test(p.col)).map(p => p.col)
+export const COL_PRINCIPAL = 'peca_principal'
+export const COL_VISTA_2   = 'peca_vista_2'
+export const COL_ACESSORIOS = 'acessorios'
 
 export const COLUNAS_OBRIGATORIAS = ['sku', 'contexto', ...PAPEIS.filter(p => p.obrigatorio).map(p => p.col)]
 

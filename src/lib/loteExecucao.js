@@ -31,54 +31,61 @@ import { valoresDe } from './loteCatalogo'
  * ordem dos nós quando não — sempre a ordem que o fluxo declara, nunca uma
  * convenção do addon.
  */
-export function classificarSlots(nodes, edges) {
-  const porEtapa = {}
+export function classificarSlots(nodes) {
+  const slots = {}
   for (const n of nodes || []) {
     if (n?.type !== 'imageInput') continue
-    const etapa = etapaDoNo(n.id)
     const papel = papelDoNo(n.id) || ''
-    const tipo = /casting/.test(papel) ? 'casting'
-               : /still|peca/.test(papel) ? 'principal'
-               : /pose/.test(papel) ? 'pose'
-               : 'acessorio'
-    ;(porEtapa[etapa] ||= []).push({ id: n.id, tipo, no: n })
-  }
-  // Dentro de cada etapa, os acessórios seguem a ordem que o grafo declara.
-  const ordemDoGrafo = new Map()
-  for (const n of nodes || []) {
-    if (n?.type !== 'generate') continue
-    const ro = n.data?.refOrder
-    if (Array.isArray(ro)) ro.forEach((id, i) => { if (!ordemDoGrafo.has(id)) ordemDoGrafo.set(id, i) })
-  }
-  const slots = {}
-  for (const [etapa, lista] of Object.entries(porEtapa)) {
-    const acess = lista.filter(x => x.tipo === 'acessorio')
-      .sort((a, b) => (ordemDoGrafo.get(a.id) ?? 99) - (ordemDoGrafo.get(b.id) ?? 99))
-    for (const x of lista) {
-      slots[x.id] = x.tipo === 'acessorio'
-        ? `acessorio_${acess.findIndex(a => a.id === x.id) + 1}`
-        : x.tipo
-    }
+    slots[n.id] = /casting/.test(papel)     ? 'casting'
+                : /still|peca/.test(papel)  ? 'principal'
+                : /pose/.test(papel)        ? 'pose'
+                : 'acessorio'
   }
   return slots
 }
 
-const COLUNA_DO_SLOT = { casting: 'elenco', principal: 'peca' }
-
 /**
- * Mapa `{ nodeId: [url] }` para injetar no grafo.
- * Slot `pose` fica de fora de propósito: é constante da receita.
+ * Preenche os nós do grafo com as TRÊS entradas.
+ *
+ *   slot casting    ← Modelo
+ *   slot principal  ← Peça Principal, e em seguida a Vista 2 (mesma peça)
+ *   slot acessório  ← Acessórios, todos no PRIMEIRO nó de acessório
+ *   slot pose       ← intocado: é constante da receita
+ *
+ * Os acessórios vão todos no primeiro nó porque um nó de imagem carrega N
+ * imagens, e distribuir um por nó inventaria uma correspondência que a planilha
+ * não declara — "o segundo acessório é o calçado" só é verdade num look de
+ * camiseta, que é justamente o que deixou de ser assumido.
  */
 export function entradasDoLote(nodes, linha, resolver = (v) => v, edges = []) {
-  const slots = classificarSlots(nodes, edges)
+  const slots = classificarSlots(nodes)
   const mapa = {}
+  const usar = (col) => valoresDe(linha, col).map(resolver).filter(Boolean)
+
+  const peca   = [...usar('peca_principal'), ...usar('peca_vista_2')]
+  const acess  = usar('acessorios')
+  const modelo = usar('elenco')
+
+  // A ordem dos acessórios é a que o fluxo declara no `refOrder` — o primeiro
+  // deles recebe o balde inteiro.
+  const ordem = new Map()
+  for (const n of nodes || []) {
+    const ro = n?.type === 'generate' ? n.data?.refOrder : null
+    if (Array.isArray(ro)) ro.forEach((id, i) => { if (!ordem.has(id)) ordem.set(id, i) })
+  }
+  const acessorios = Object.entries(slots).filter(([, s]) => s === 'acessorio')
+    .map(([id]) => id).sort((a, b) => (ordem.get(a) ?? 99) - (ordem.get(b) ?? 99))
+
   for (const [nodeId, slot] of Object.entries(slots)) {
     if (slot === 'pose') continue
-    const col = COLUNA_DO_SLOT[slot] || slot          // acessorio_1, _2, _3
-    const vals = valoresDe(linha, col)
-    if (!vals.length) continue
-    mapa[nodeId] = vals.map(resolver).filter(Boolean)
+    if (slot === 'casting')   { mapa[nodeId] = modelo; continue }
+    if (slot === 'principal') { mapa[nodeId] = peca;   continue }
   }
+  // ⚠️ TODO nó de acessório é reescrito, inclusive com lista VAZIA. Sem isso os
+  // nós que a planilha não preenche guardariam as URLs do lote ANTERIOR — a
+  // bolsa e o calçado da Hering entrariam em todo SKU novo, caladas, e a peça
+  // sairia com um acessório que ninguém pediu.
+  acessorios.forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })
   return mapa
 }
 

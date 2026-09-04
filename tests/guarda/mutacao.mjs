@@ -22,8 +22,13 @@ import { execSync } from 'child_process'
 const MUTACOES = [
   { nome: 'lote: a peça principal deixa de ter slot próprio (vira acessório qualquer)',
     arq: 'src/lib/loteExecucao.js',
-    de: "               : /still|peca/.test(papel) ? 'principal'",
-    para: "               : false ? 'principal'" },
+    de: "                : /still|peca/.test(papel)  ? 'principal'",
+    para: "                : false                     ? 'principal'" },
+
+  { nome: 'lote: acessório do lote ANTERIOR sobrevive no SKU novo',
+    arq: 'src/lib/loteExecucao.js',
+    de: '  acessorios.forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })',
+    para: '  if (acessorios[0] && acess.length) mapa[acessorios[0]] = acess' },
 
   { nome: 'grafo: a ordem escolhida no painel volta a perder para a das conexões',
     arq: 'src/lib/studioGrafo.js',

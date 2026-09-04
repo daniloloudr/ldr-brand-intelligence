@@ -38,8 +38,9 @@ const edges = [
 ]
 
 const linha = {
-  sku: 'KH6V', elenco: 'CAST.jpg', peca: 'STILL.jpg',
-  acessorio_1: 'CALC.jpg', acessorio_2: 'B1.jpg;B2.jpg',
+  sku: 'KH6V', elenco: 'CAST.jpg',
+  peca_principal: 'STILL.jpg', peca_vista_2: 'STILL_costas.jpg',
+  acessorios: 'CALC.jpg;B1.jpg;B2.jpg',
 }
 const CTX_PECA = '═══ A PEÇA ═══\nRibana canelada, slim.'
 
@@ -87,8 +88,10 @@ describe('⭐ addon e canvas montam o MESMO pedido', () => {
 describe('⭐ as referências: o grafo decide, o addon só injeta', () => {
   const addon = montarAddon()
   it('⭐ a ordem é: modelo, PEÇA PRINCIPAL, depois acessórios', () => {
-    expect(addon.references).toEqual(['CAST.jpg', 'STILL.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg', 'POSE_a.jpg'])
-    expect(addon.references[1]).toBe('STILL.jpg')
+    expect(addon.references).toEqual(
+      ['CAST.jpg', 'STILL.jpg', 'STILL_costas.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg', 'POSE_a.jpg'])
+    expect(addon.references[1]).toBe('STILL.jpg')          // a estrela, logo após a modelo
+    expect(addon.references[2]).toBe('STILL_costas.jpg')   // a vista 2, colada nela
   })
   it('⭐ sem refOrder, cai na ordem das arestas — e por isso o fluxo grava a ordem', () => {
     const semOrdem = nodes.map(n => n.id === 'g1' ? { ...n, data: { ...n.data, refOrder: undefined } } : n)
@@ -123,18 +126,13 @@ describe('o mapa de injeção', () => {
   it('casa coluna com nó pelo id', () => {
     const m = entradasDoLote(nodes, linha, v => v, edges)
     expect(m.e0_in_casting).toEqual(['CAST.jpg'])
-    expect(m.e1_in_still).toEqual(['STILL.jpg'])     // a PEÇA PRINCIPAL
-    expect(m.e2_in_pose).toBeUndefined()             // sem coluna: constante da receita
+    expect(m.e1_in_still).toEqual(['STILL.jpg', 'STILL_costas.jpg'])   // peça + vista 2
+    expect(m.e2_in_pose).toBeUndefined()             // constante da receita
   })
-  it('⭐ os acessórios são posicionais, na ordem do grafo', () => {
+  it('⭐ os acessórios vão TODOS no primeiro nó de acessório', () => {
     const m = entradasDoLote(nodes, linha, v => v, edges)
-    // e1_in_calcado vem antes de e1_in_bolsa no refOrder → acessorio_1, acessorio_2
-    expect(m.e1_in_calcado).toEqual(['CALC.jpg'])
-    expect(m.e1_in_bolsa).toEqual(['B1.jpg', 'B2.jpg'])
-  })
-  it('a peça principal aceita várias VISTAS no mesmo nó', () => {
-    const m = entradasDoLote(nodes, { ...linha, peca: 'V1.jpg;V2.jpg' }, v => v, edges)
-    expect(m.e1_in_still).toEqual(['V1.jpg', 'V2.jpg'])
+    expect(m.e1_in_calcado).toEqual(['CALC.jpg', 'B1.jpg', 'B2.jpg'])
+    expect(m.e1_in_bolsa).toEqual([])          // ⭐ zerado: nada do lote anterior sobrevive
   })
   it('papelDoNo lê o papel do id', () => {
     expect(papelDoNo('e1_in_bolsa')).toBe('bolsa')
@@ -178,7 +176,7 @@ describe('⭐ o roteiro: todas as etapas, na ordem que o grafo manda', () => {
     { source: 'e1_g1', target: 'e4_g1' }, { source: 'e2_g1', target: 'e4_g1' }, { source: 'e4_p1', target: 'e4_g1' },
   ]
   const vistas = vistasDoGrafo(N, E)
-  const L = { sku: 'K', elenco: 'CAST', peca: 'STILL' }
+  const L = { sku: 'K', elenco: 'CAST', peca_principal: 'STILL' }
   const r = roteiroDaPeca({ nodes: N, edges: E, vistas, escolhidas: ['SENTADA'], linha: L,
     brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: 'A PEÇA' })
 
