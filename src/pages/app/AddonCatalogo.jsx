@@ -32,7 +32,7 @@ import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { lerCSV, preflight, vistasDoFluxo, instrucoesQueSePerdem, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
+import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
 import { creditsForImage } from '../../lib/credits'
 import { montarZip } from '../../lib/zip'
 import { navigate } from '../../lib/helpers'
@@ -135,18 +135,6 @@ export function AddonCatalogo({ brandId }) {
   // Só as vistas de CATÁLOGO viram chip. As da etapa 0 são os ângulos da base
   // da modelo (nano banana) — insumo, não entrega; oferecê-las cobraria do
   // cliente por imagem que não é peça.
-  // O que o contexto do SKU apagaria, por etapa.
-  const perdidas = useMemo(() => {
-    const saida = []
-    for (const n of fluxo?.nodes || []) {
-      if (n?.type !== 'context') continue
-      const etapa = String(n.id).match(/^(e\d)_/)?.[1]
-      if (etapa === 'e0') continue          // a etapa 0 não recebe o contexto do SKU
-      for (const s of instrucoesQueSePerdem(n.data?.text)) saida.push({ etapa: n.id, secao: s })
-    }
-    return saida
-  }, [fluxo])
-
   const vistas = useMemo(
     () => vistasDoFluxo(fluxo?.nodes, fluxo?.edges).filter(v => v.deCatalogo),
     [fluxo])
@@ -469,18 +457,6 @@ export function AddonCatalogo({ brandId }) {
         {/* O produto roda UM processo, fixo. Quando ele está configurado, a
             tela não fala disso — "fluxo" e "receita" não são palavras de quem
             está fazendo catálogo. Só aparece algo aqui quando falta algo. */}
-        {/* O contexto do SKU substitui o da etapa; se a etapa guardar instrução
-            que não é sobre a peça, ela some sem erro. Avisar aqui é mais barato
-            que descobrir pela imagem errada — foi o que custou três rodadas. */}
-        {!semProcesso && perdidas.length > 0 && (
-          <Alert severity="warning">
-            <b>Este lote tem instruções no contexto de etapa que o seu texto vai substituir.</b>
-            <Box component="ul" sx={{ m: '6px 0 0', pl: 2.5 }}>
-              {perdidas.map((x, i) => <li key={i}><code>{x.etapa}</code> · {x.secao}</li>)}
-            </Box>
-            Elas deveriam estar no prompt da pose, não no contexto — senão desaparecem em toda peça.
-          </Alert>
-        )}
         {semProcesso && (
           <Alert severity="warning">
             <b>Este lote ainda não está configurado para esta marca.</b> Fale com a gente antes de subir as peças.

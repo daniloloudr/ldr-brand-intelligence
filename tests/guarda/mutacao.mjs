@@ -74,11 +74,6 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
-  { nome: 'lote: para de avisar que o contexto da etapa vai ser apagado',
-    arq: 'src/lib/loteCatalogo.js',
-    de: '    if (!SECOES_DA_PECA.includes(chave)) perdidas.push(titulo)',
-    para: '    if (false) perdidas.push(titulo)' },
-
   { nome: 'lote: a posição extra sai do roteiro e nunca é disparada',
     arq: 'src/lib/loteExecucao.js',
     de: '      ...passosExtras,          // sempre por último: dependem do que a cadeia produziu',

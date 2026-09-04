@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   lerCSV, normalizarCabecalho, montarLook, montarContexto, preflight,
-  contarSaidas, ehUrl, valoresDe, vistasDoFluxo, instrucoesQueSePerdem, PAPEIS, CONTEXTO_MIN, NIVEIS,
+  contarSaidas, ehUrl, valoresDe, vistasDoFluxo, PAPEIS, CONTEXTO_MIN, NIVEIS,
 } from '../src/lib/loteCatalogo.js'
 
 const CTX = 'Camiseta feminina em ribana, canelado fino. '.repeat(8)   // > CONTEXTO_MIN
@@ -291,27 +291,4 @@ describe('⭐ a conta inclui as posições extras', () => {
     expect(r.imagens).toBe(3)
     expect(r.creditos).toBe(6)
   })
-})
-
-describe('⭐ o que o contexto do SKU apagaria', () => {
-  it('aponta seção que não é sobre a peça', () => {
-    const ctx = `═══ A PEÇA ═══
-polo
-
-═══ VISÃO DE CÂMERA E ÂNGULO ═══
-corpo inteiro`
-    expect(instrucoesQueSePerdem(ctx)).toEqual(['VISÃO DE CÂMERA E ÂNGULO'])
-  })
-  it('não alarma para as seções que SÃO da peça', () => {
-    const ctx = '═══ A PEÇA — FIDELIDADE ═══\nx\n\n═══ O LOOK ═══\ny\n\n═══ ACABAMENTO ═══\nz'
-    expect(instrucoesQueSePerdem(ctx)).toEqual([])
-  })
-  it('⭐ pega instrução solta no TOPO, antes de qualquer seção', () => {
-    const ctx = 'PRODUÇÃO — POSES\n\nO QUE TRAVA: a identidade.\n\n═══ A PEÇA ═══\nx'
-    expect(instrucoesQueSePerdem(ctx)).toContain('(topo do contexto)')
-  })
-  it('cabeçalho de uma linha é rótulo, não instrução', () => {
-    expect(instrucoesQueSePerdem('PRODUÇÃO DE CATÁLOGO\n\n═══ A PEÇA ═══\nx')).toEqual([])
-  })
-  it('contexto vazio não alarma', () => expect(instrucoesQueSePerdem('')).toEqual([]))
 })
