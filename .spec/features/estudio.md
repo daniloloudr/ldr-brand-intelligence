@@ -1083,14 +1083,71 @@ construídos. Loja com prateleira vazia não ensina nada, e "loja" arrasta consi
 por terceiros, versionamento, cobrança, revisão e isolamento — um negócio de plataforma,
 não uma tela.
 
-A ordem que evita a armadilha:
+A ordem que evita a armadilha — **corrigida em 03/set**, porque o addon não pode vir
+ligado por padrão e portanto a instalação deixa de ser passo posterior:
 
-1. **Um addon.** O lote de catálogo (§7.5). Construir revela o que um addon precisa de verdade.
-2. **O segundo.** É ele que mostra o que os dois têm em comum — e **isso** é o contrato do addon.
-   Antes do segundo, qualquer "contrato" é chute.
-3. **A prateleira.** Interna e curada: instalar por marca, ligar e desligar. Barata, porque
-   a essa altura já existe o que prateleirar.
-4. **A loja.** Só se um dia alguém de fora publicar. É outra decisão, e é de negócio.
+1. **A instalação mínima, junto com o addon 1.** Uma tabela, uma tela, uma fila de
+   liberação. Sem ela o primeiro addon teria de ser cravado no menu, que é exatamente o
+   que não se quer. Detalhe na §13.10.
+2. **Um addon.** O lote de catálogo (§7.5). Construir revela o que um addon precisa de verdade.
+3. **O segundo.** É ele que mostra o que os dois têm em comum — e **isso** é o contrato do
+   addon. Antes do segundo, qualquer "contrato" é chute.
+4. **A loja de verdade.** Só se um dia alguém de fora publicar. É outra decisão, e é de negócio.
 
 **Regra:** nada de abstração de addon antes do segundo addon. O primeiro é código concreto
 de lote de catálogo, e tem que poder ser feio.
+
+## 13.10 A loja e a instalação
+
+**Nenhum addon vem ligado.** A marca não enxerga o que não pediu, e pedir não instala:
+**o cliente solicita, o br4ndcode libera.** É portão comercial — a §13.5 já diz que addon
+é o que um contrato compra — e tem um efeito colateral bom: **a fila de pedidos mede a
+demanda antes de o addon existir.**
+
+### O catálogo é código; a instalação é banco
+
+O que existe para pedir mora numa lista **no código**, porque cada addon É uma tela — não
+faz sentido o banco anunciar algo sem implementação. Addon fora do registro não pode ser
+solicitado, e assim nunca há linha apontando para o vazio.
+
+### Os dois níveis, porque são duas perguntas
+
+| Nível | Pergunta | Onde vive |
+|---|---|---|
+| **Workspace** | o contrato cobre? | é onde já moram `plano`, `creditos_saldo` — quem libera é `platform_admins` |
+| **Marca** | aparece em qual? | a §13.5 regra 4: addon é por marca, não global |
+
+Uma linha por `(workspace, addon, marca)`, com a marca **nula significando "todas as do
+workspace"**. Índice único com `nulls not distinct`, o mesmo recurso usado na 058 para o
+escopo do aprendizado.
+
+### Os estados
+
+```
+        solicitar              liberar
+ —— →  pedido  ─────────────→  ativo  ⇄  suspenso
+                   │
+                   └─ recusado (com motivo)
+```
+
+**Suspender não apaga** — mesma regra da §8.3 para agentes. O histórico permanece e o
+addon volta sem novo pedido.
+
+### As telas, e são duas
+
+**A loja**, para o cliente: os addons do catálogo com o estado de cada um — *Disponível ·
+Pedido enviado · Ativo · Recusado*. Um botão, "Solicitar", e o motivo aparece quando foi
+recusado.
+
+**A fila**, no painel admin que já existe: os pedidos abertos, com liberar e recusar.
+
+**O menu lê as instalações ativas.** É isso que faz "por padrão não vem" ser verdade, e não
+uma promessa.
+
+### As guardas
+
+1. **Só `platform_admins` move `pedido → ativo`.** Nenhum papel de workspace consegue se
+   auto-liberar. Isso é RLS, e vai para o ensaio da `guarda:rls`.
+2. **Addon ativo num workspace nunca aparece em marca de outro.** Mesmo isolamento do resto.
+3. **Nada de versionamento, cobrança ou publicação por terceiros.** Existe **um** addon.
+   Cada uma dessas é um produto próprio e nenhuma se paga com um item na prateleira.
