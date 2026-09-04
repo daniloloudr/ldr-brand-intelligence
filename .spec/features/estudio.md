@@ -530,6 +530,61 @@ você"*. Chegam; só chegam **ordenadas** e já com o argumento do juiz ao lado.
 reprovou, ou reprovar o que ele aprovou, é ensino direto sobre o próprio juiz — mais
 valioso que uma aprovação em lote, que a §7.4 já manda não treinar.
 
+### 4 · A ficha não é coluna — é o CONTEXTO, e o gabarito já existe
+
+> *"essa parte será uma parte de contexto da peça, não separado. Precisamos gerar um modelo
+> de contexto a ser seguido, que já estamos usando."* — Danilo, 04/set, sobre as colunas
+> `cor · material · categoria`.
+
+Ele está certo, e o gabarito **não precisa ser inventado**: está escrito nos nós do fluxo
+"Catálogo em 4 etapas — Hering KH6V", ~4 KB por peça, com esta estrutura:
+
+```
+PRODUÇÃO DE CATÁLOGO — <ETAPA>
+
+═══ A PEÇA — FIDELIDADE É O CRITÉRIO PRINCIPAL ═══
+    composição · material · cor · padronagem
+    MODELAGEM   — medida real + O ERRO COMUM, nomeado
+    COMPRIMENTO — medida + onde termina no corpo
+    MANGA · TEXTURA · GOLA · BARRA · OMBRO · detalhes distintivos
+
+═══ O LOOK — DE ONDE VEM CADA PARTE ═══
+    • PARTE DE CIMA · CALÇA · CALÇADO · BOLSA · IDENTIDADE
+      cada item aponta QUAL referência o alimenta
+
+═══ VISÃO DE CÂMERA E ÂNGULO ═══
+═══ ACABAMENTO ═══
+
+(nas etapas de pose, entra também:)
+O QUE TRAVA E O QUE VARIA:
+    • TRAVA: identidade, look completo, a peça, fundo e luz
+    • VARIA: pose, gesto, ângulo, olhar, altura da câmera
+```
+
+**O que faz esse texto funcionar não é descrever a peça — é ANTECIPAR O ERRO.** *"É o ponto
+que mais erra, leia com atenção: no still a peça está DEITADA e a ribana relaxada parece
+larga. Ela NÃO é larga."* Isso é conhecimento de produção, e é o que a §7.1 chama de
+receita que merece se repetir.
+
+#### O que isso muda na planilha
+
+`cor`, `material` e `categoria` **saem como colunas**. Entra **um campo `contexto` por SKU**,
+escrito no gabarito.
+
+E há uma divisão de trabalho que cai de graça: a seção **§O LOOK é exatamente o papel por
+referência** que as colunas de arquivo já declaram. Então o addon **gera §O LOOK sozinho**, a
+partir das colunas — e o humano escreve só **§A PEÇA**, que é a parte que exige a ficha
+técnica e o olho.
+
+| Seção do contexto | Quem escreve |
+|---|---|
+| §A PEÇA | **pessoa** — é onde mora a fidelidade, e onde o erro comum é antecipado |
+| §O LOOK | **o addon**, das colunas de arquivo da planilha |
+| §VISÃO DE CÂMERA · §ACABAMENTO · §TRAVA/VARIA | **o fluxo** — são constantes da receita (§7.2 "do fluxo") |
+
+Isso encaixa nas três camadas da §7.2 sem forçar: §A PEÇA é *do produto*, §O LOOK é *do
+lote*, e o resto é *do fluxo*.
+
 ### ⚠️ A lacuna que a unificação encontrou
 
 **`execucao` não tem teto de crédito.** Ela grava `creditos` (o que foi gasto), mas não
