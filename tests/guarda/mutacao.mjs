@@ -74,6 +74,11 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'lote: a posição extra vira caminho paralelo e perde a câmera da etapa',
+    arq: 'src/lib/loteExecucao.js',
+    de: "          return { ...p, prompt: [texto, ...semPose.slice(1)].join('\\n\\n[CONTEXTO ADICIONAL]\\n') }",
+    para: '          return { ...p, prompt: texto }' },
+
   { nome: 'navegação: link com query volta a perder o tenant (app vazio, sem erro)',
     arq: 'src/lib/helpers.js',
     de: '  if (t) {\n    const [semQuery, query = \'\'] = path.split(\'?\');',

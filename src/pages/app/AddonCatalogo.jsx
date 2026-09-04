@@ -68,6 +68,7 @@ export function AddonCatalogo({ brandId }) {
 
   // ── uma peça ──
   const vazia = { sku: '', contexto: '', elenco: '', saidas: '' }
+  const [extras, setExtras] = useState([])       // posições escritas na hora
   const [peca, setPeca] = useState(vazia)
   const [arquivos, setArquivos] = useState({})      // col → [{ nome, url }] · N vistas por papel
   const [subindo, setSubindo] = useState('')
@@ -155,9 +156,9 @@ export function AddonCatalogo({ brandId }) {
       nodes: fluxo.nodes, edges: fluxo.edges, vistas,
       escolhidas: l.vistasPedidas || [],
       linha: l, brandId, workflowId: fluxo.id, resolver,
-      contextoDaPeca: montarContexto({ aPeca: l.contexto }),
+      contextoDaPeca: montarContexto({ aPeca: l.contexto }), extras,
     })
-  }, [relatorio, fluxo, vistas, acervoBruto, brandId])
+  }, [relatorio, fluxo, vistas, acervoBruto, brandId, extras])
   const alternarVista = (nome) => setPeca(p => {
     const atuais = String(p.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
     const novas = atuais.includes(nome) ? atuais.filter(v => v !== nome) : [...atuais, nome]
@@ -327,7 +328,7 @@ export function AddonCatalogo({ brandId }) {
       const roteiro = roteiroDaPeca({
         nodes: fluxo.nodes, edges: fluxo.edges, vistas, escolhidas: escolhidasDaLinha, linha: l,
         brandId, workflowId: fluxo.id, resolver,
-        contextoDaPeca: montarContexto({ aPeca: l.contexto }),
+        contextoDaPeca: montarContexto({ aPeca: l.contexto }), extras,
       })
       const saidas = {}
       setUltima({ roteiro, saidas, auth })
@@ -528,7 +529,7 @@ export function AddonCatalogo({ brandId }) {
                       </Button>
                     )}
                   </Stack>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1, mb: 2 }}>
                     {vistas.map(v => (
                       <Chip key={v.id} label={v.nome} size="small" title={v.instrucao}
                         variant={escolhidas.includes(v.nome) ? 'filled' : 'outlined'}
@@ -536,11 +537,36 @@ export function AddonCatalogo({ brandId }) {
                         onClick={() => alternarVista(v.nome)} />
                     ))}
                   </Stack>
+
+                  {/* Pose que o fluxo não tem, escrita na hora. Ela roda no
+                      MESMO nó da primeira vista escolhida — herda câmera,
+                      modelo e formato daquela etapa — e só troca a instrução. */}
+                  <Typography variant="overline" color="text.secondary">Posições extras</Typography>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {extras.map((t, i) => (
+                      <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
+                        <TextField size="small" fullWidth multiline maxRows={3} value={t}
+                          placeholder="ex.: DE FRENTE, MEIO CORPO — busto até o quadril, crop na peça"
+                          onChange={e => setExtras(l => l.map((x, j) => j === i ? e.target.value : x))} />
+                        <IconButton size="small" onClick={() => setExtras(l => l.filter((_, j) => j !== i))}>
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ))}
+                    <Box>
+                      <Button size="small" color="inherit" onClick={() => setExtras(l => [...l, ''])}>
+                        + posição
+                      </Button>
+                      <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
+                        herda a câmera e o modelo da primeira vista escolhida
+                      </Typography>
+                    </Box>
+                  </Stack>
                 </Box>
 
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                   <Button variant="contained" disableElevation onClick={conferirPeca}
-                    disabled={semProcesso || !peca.sku.trim() || !escolhidas.length}>
+                    disabled={semProcesso || !peca.sku.trim() || (!escolhidas.length && !extras.some(t => t.trim()))}>
                     Conferir esta peça
                   </Button>
                   {/* Botão desabilitado sem explicação faz a pessoa achar que a
@@ -552,7 +578,7 @@ export function AddonCatalogo({ brandId }) {
                         : 'escolha ao menos uma vista'}
                     </Typography>
                   )}
-                  <Button color="inherit" onClick={() => { setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem('') }}>
+                  <Button color="inherit" onClick={() => { setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem(''); setExtras([]) }}>
                     Limpar
                   </Button>
                 </Stack>

@@ -255,3 +255,46 @@ describe('⭐ o contexto do usuário vale COMO ESTÁ', () => {
     expect(p.prompt).toContain('ACABAMENTO')
   })
 })
+
+describe('⭐ posições extras — pose nova sem caminho paralelo', () => {
+  const N = [
+    { id: 'e1_in_still', type: 'imageInput', data: { urls: ['S'] } },
+    { id: 'e1_p1', type: 'prompt', data: { text: 'FRONTAL\n\nde frente\n\nCÂMERA — corpo inteiro, 85 mm.' } },
+    { id: 'e1_ctx', type: 'context', data: { text: '═══ ACABAMENTO ═══\nfundo cinza' } },
+    { id: 'e1_fmt', type: 'formato', data: { formato: 'custom', width: 1720, height: 2432 } },
+    { id: 'e1_g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+  ]
+  const E = [{ source: 'e1_p1', target: 'e1_g1' }, { source: 'e1_in_still', target: 'e1_g1' },
+             { source: 'e1_ctx', target: 'e1_g1' }, { source: 'e1_fmt', target: 'e1_g1' }]
+  const vistas = vistasDoGrafo(N, E)
+  const L = { sku: 'K', elenco: 'C', peca_principal: 'P' }
+  const r = roteiroDaPeca({ nodes: N, edges: E, vistas, escolhidas: ['FRONTAL'], linha: L,
+    brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: '═══ A PEÇA ═══\npolo',
+    extras: ['DE COSTAS SENTADA — no chão, joelhos dobrados', '  ', ''] })
+
+  it('cada extra não-vazia vira um passo', () => {
+    expect(r.passos.filter(p => p.extra)).toHaveLength(1)
+  })
+  it('extras contam como ENTREGA', () => {
+    expect(r.entregas).toBe(2)      // FRONTAL + a extra
+  })
+  it('⭐ a extra troca a POSE e mantém câmera, contexto e formato', () => {
+    const p = r.passos.find(x => x.extra).montar({})
+    expect(p.prompt).toContain('DE COSTAS SENTADA')
+    expect(p.prompt).not.toContain('de frente')       // a pose da base saiu
+    expect(p.prompt).toContain('A PEÇA')              // o contexto ficou
+    expect(p.formato).toBe('1720x2432')               // o formato ficou
+    expect(p.model).toMatch(/seedream/)               // o modelo ficou
+  })
+  it('o nome do passo é a 1ª linha do texto', () => {
+    expect(r.passos.find(x => x.extra).nome).toContain('DE COSTAS SENTADA')
+  })
+  it('extras vêm por último — dependem do que a cadeia produziu', () => {
+    expect(r.passos.at(-1).extra).toBe(true)
+  })
+  it('sem vista escolhida, a extra ainda acha uma base', () => {
+    const r2 = roteiroDaPeca({ nodes: N, edges: E, vistas, escolhidas: [], linha: L,
+      brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: '', extras: ['POSE X'] })
+    expect(r2.passos.filter(p => p.extra)).toHaveLength(1)
+  })
+})

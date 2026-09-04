@@ -162,27 +162,56 @@ export function pedidosDaPeca({ nodes, edges, vistas, escolhidas, linha, brandId
  * simplesmente faltaria e a imagem viria plausível e errada.
  */
 export function roteiroDaPeca({ nodes, edges, vistas, escolhidas, linha, brandId, workflowId,
-                                resolver, contextoDaPeca }) {
-  const alvos = (vistas || [])
+                                resolver, contextoDaPeca, extras = [] }) {
+  const escolhidasVistas = (vistas || [])
     .filter(v => (escolhidas || []).some(e => e.toLowerCase() === v.nome.toLowerCase()))
-    .map(v => v.generateNodeId).filter(Boolean)
+  const alvos = escolhidasVistas.map(v => v.generateNodeId).filter(Boolean)
 
   const plano = planoDeExecucao(nodes, edges, alvos)
   const ondas = ondasDaExecucao(nodes, edges, plano)
   const nome = (genId) => (vistas || []).find(v => v.generateNodeId === genId)?.nome
                        || `etapa ${etapaDoNo(genId) ?? '?'}`
 
+  // ── POSIÇÕES EXTRAS ────────────────────────────────────────────────
+  // Pose que o fluxo não tem, escrita na hora. Ela roda no MESMO nó de geração
+  // de uma vista escolhida — herdando câmera, modelo e formato daquela etapa —
+  // e só troca o texto da pose. Assim uma posição nova não vira um caminho
+  // paralelo com regras próprias: é a receita da casa com outra instrução.
+  const baseParaExtra = escolhidasVistas[0] || (vistas || [])[0] || null
+  const passosExtras = (extras || [])
+    .map(t => String(t || '').trim()).filter(Boolean)
+    .map((texto, i) => {
+      if (!baseParaExtra?.generateNodeId) return null
+      const nome = (texto.split(/\r?\n/)[0] || `EXTRA ${i + 1}`).slice(0, 40).trim()
+      return {
+        genId: baseParaExtra.generateNodeId, nome, etapa: etapaDoNo(baseParaExtra.generateNodeId),
+        entrega: true, extra: true,
+        montar: (saidas) => {
+          const p = pedidoDaVista({ nodes, edges, genId: baseParaExtra.generateNodeId, linha,
+                                    brandId, workflowId, resolver, contextoDaPeca, saidas })
+          if (!p) return null
+          // a pose escrita substitui a da vista-base; o resto do prompt (câmera,
+          // contexto, formato) fica exatamente igual
+          const semPose = p.prompt.split('\n\n[CONTEXTO ADICIONAL]\n')
+          return { ...p, prompt: [texto, ...semPose.slice(1)].join('\n\n[CONTEXTO ADICIONAL]\n') }
+        },
+      }
+    }).filter(Boolean)
+
   return {
     plano, ondas, alvos,
     // quantas gerações no total, e quantas são ENTREGA (o resto é insumo)
-    total: plano.length,
-    entregas: alvos.length,
-    passos: plano.map(genId => ({
-      genId, nome: nome(genId), etapa: etapaDoNo(genId),
-      entrega: alvos.includes(genId),
-      montar: (saidas) => pedidoDaVista({ nodes, edges, genId, linha, brandId, workflowId,
-                                          resolver, contextoDaPeca, saidas }),
-    })),
+    total: plano.length + passosExtras.length,
+    entregas: alvos.length + passosExtras.length,
+    passos: [
+      ...plano.map(genId => ({
+        genId, nome: nome(genId), etapa: etapaDoNo(genId),
+        entrega: alvos.includes(genId),
+        montar: (saidas) => pedidoDaVista({ nodes, edges, genId, linha, brandId, workflowId,
+                                            resolver, contextoDaPeca, saidas }),
+      })),
+      ...passosExtras,          // sempre por último: dependem do que a cadeia produziu
+    ],
   }
 }
 
