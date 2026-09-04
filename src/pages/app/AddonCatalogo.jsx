@@ -82,6 +82,7 @@ export function AddonCatalogo({ brandId }) {
   const [regerando, setRegerando] = useState(null)
   const [lotes, setLotes] = useState([])          // histórico, do banco
   const [contextoAberto, setContextoAberto] = useState(true)
+  const [detalheLote, setDetalheLote] = useState(false)
 
   // Declarada aqui, acima de todo efeito que a usa: um `const` referenciado
   // antes da linha em que é declarado estoura na montagem do componente
@@ -152,6 +153,20 @@ export function AddonCatalogo({ brandId }) {
   }, [linhas, cabecalho, elenco, acervo, modelo, vistas, extras])
 
   const escolhidas = String(peca.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+
+  // Um roteiro por LINHA — é o que permite dizer, por SKU, quantas gerações
+  // vão acontecer e quanto custa. Puro; não dispara nada.
+  const roteiroDe = useCallback((l) => {
+    if (!l || !fluxo || !vistas.length) return null
+    const porNome = new Map(acervoBruto.map(a => [String(a.nome || '').toLowerCase(), a.valor]))
+    const resolver = (v) => /^https?:\/\//i.test(v) ? v : (porNome.get(String(v).toLowerCase()) || v)
+    return roteiroDaPeca({
+      nodes: fluxo.nodes, edges: fluxo.edges, vistas,
+      escolhidas: l.vistasPedidas || [], linha: l,
+      brandId, workflowId: fluxo.id, resolver,
+      contextoDaPeca: montarContexto({ aPeca: l.contexto }), extras,
+    })
+  }, [fluxo, vistas, acervoBruto, brandId, extras])
 
   // O roteiro da PRIMEIRA linha pronta, só para mostrar. Não dispara nada.
   const roteiroPrevia = useMemo(() => {
@@ -533,6 +548,114 @@ export function AddonCatalogo({ brandId }) {
     </Box>
   )
 
+  // ── O RESUMO ────────────────────────────────────────────────────
+  // Em massa, listar as referências etapa por etapa repete os mesmos nomes
+  // dezenas de vezes: oito chips por etapa, cinco etapas, um SKU por linha.
+  // Ninguém lê. O que se quer saber antes de gastar é: quantas peças, o que
+  // entra em cada uma, quantas imagens saem e quanto custa.
+  const Resumo = ({ detalhe, aoAlternar }) => {
+    const linhas = relatorio.linhas.map(l => {
+      const r = roteiroDe(l)
+      const bloqueada = l.problemas.some(p => p.nivel === NIVEIS.GRAVE)
+      return { l, bloqueada,
+        entradas: l.refs, saidas: r?.entregas ?? l.nSaidas,
+        geracoes: r?.total ?? l.nSaidas, ctx: String(l.contexto || '').length }
+    })
+    const soma = (f) => linhas.filter(x => !x.bloqueada).reduce((n, x) => n + f(x), 0)
+    const prontas = linhas.filter(x => !x.bloqueada).length
+    const geracoes = soma(x => x.geracoes)
+    const entregas = soma(x => x.saidas)
+
+    // ⚠️ As gerações são SEQUENCIAIS: cada etapa espera a anterior, e as peças
+    // rodam uma após a outra. Num lote de 150 isso deixa de ser detalhe e vira
+    // a informação principal — por isso o tempo aparece junto do custo.
+    const minutos = Math.round(geracoes * 25 / 60)
+    const tempo = minutos < 60 ? `${minutos} min`
+      : `${Math.floor(minutos / 60)}h${String(minutos % 60).padStart(2, '0')}`
+
+    const Numero = ({ valor, rotulo, cor }) => (
+      <Box sx={{ minWidth: 92 }}>
+        <Typography variant="h5" fontWeight={800} color={cor} sx={{ lineHeight: 1.1 }}>
+          {typeof valor === 'number' ? valor.toLocaleString('pt-BR') : valor}
+        </Typography>
+        <Typography variant="caption" color="text.disabled">{rotulo}</Typography>
+      </Box>
+    )
+
+    return (
+    <Box>
+      <Paper variant="outlined" sx={{ p: 2.5, mb: 2 }}>
+        <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
+          <Numero valor={prontas} rotulo={`peça${prontas !== 1 ? 's' : ''} pronta${prontas !== 1 ? 's' : ''}`} />
+          <Numero valor={entregas} rotulo="imagens de entrega" />
+          <Numero valor={geracoes} rotulo={`gerações no total${geracoes > entregas ? ` · ${geracoes - entregas} de insumo` : ''}`} />
+          <Numero valor={geracoes * creditsForImage(modelo)} rotulo="créditos" cor="primary.main" />
+          <Numero valor={`~${tempo}`} rotulo="sequencial, uma etapa por vez" />
+        </Stack>
+        {linhas.some(x => x.bloqueada) && (
+          <Typography variant="body2" color="error.main" sx={{ mt: 2 }}>
+            <b>{linhas.filter(x => x.bloqueada).length} peça(s) bloqueada(s)</b> — não entram na conta acima.
+          </Typography>
+        )}
+        <Button size="small" color="inherit" sx={{ mt: 1.5, ml: -1 }} onClick={aoAlternar}>
+          {detalhe ? 'esconder o detalhe' : `ver as ${linhas.length} linhas`}
+        </Button>
+      </Paper>
+
+      {detalhe && (
+      <TableContainer sx={{ overflowX: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Peça</TableCell>
+              <TableCell align="right">Contexto</TableCell>
+              <TableCell align="right">Entradas</TableCell>
+              <TableCell align="right">Saídas</TableCell>
+              <TableCell align="right">Gerações</TableCell>
+              <TableCell align="right">Créditos</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {linhas.map(({ l, bloqueada, entradas, saidas, geracoes, ctx }) => (
+              <TableRow key={l._linha} sx={bloqueada ? { opacity: .5 } : undefined}>
+                <TableCell>
+                  <Typography variant="body2" fontWeight={650}>{l.sku || `linha ${l._linha}`}</Typography>
+                  {bloqueada && <Typography variant="caption" color="error.main">bloqueada</Typography>}
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="body2" color={ctx < CONTEXTO_MIN ? 'warning.main' : 'text.primary'}>
+                    {ctx.toLocaleString('pt-BR')} ch
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{entradas}</TableCell>
+                <TableCell align="right"><b>{bloqueada ? '—' : saidas}</b></TableCell>
+                <TableCell align="right">
+                  {bloqueada ? '—' : geracoes}
+                  {!bloqueada && geracoes > saidas && (
+                    <Typography component="span" variant="caption" color="text.disabled">
+                      {' '}(+{geracoes - saidas} insumo)
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell align="right">{bloqueada ? '—' : geracoes * creditsForImage(modelo)}</TableCell>
+              </TableRow>
+            ))}
+            <TableRow sx={{ '& td': { borderTop: 2, borderColor: 'divider', fontWeight: 700 } }}>
+              <TableCell>{linhas.filter(x => !x.bloqueada).length} peça(s)</TableCell>
+              <TableCell />
+              <TableCell align="right">{soma(x => x.entradas)}</TableCell>
+              <TableCell align="right">{soma(x => x.saidas)}</TableCell>
+              <TableCell align="right">{soma(x => x.geracoes)}</TableCell>
+              <TableCell align="right">{soma(x => x.geracoes) * creditsForImage(modelo)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TableContainer>
+      )}
+    </Box>
+    )
+  }
+
   // A conferência: o que falta por linha, e o que cada etapa vai receber.
   // A prévia virou TABELA — antes era um <ol> de URLs truncadas por etapa, e
   // ninguém conseguia ler justamente o que existe para ser conferido.
@@ -562,7 +685,14 @@ export function AddonCatalogo({ brandId }) {
         </Box>
       )}
 
-      {roteiroPrevia?.passos?.length > 0 && (
+      {relatorio.linhas.length > 1 && (
+        <Box sx={{ mb: 3 }}>
+          <Rotulo hint="o que vai acontecer quando você clicar em Rodar">Resumo</Rotulo>
+          <Resumo detalhe={detalheLote} aoAlternar={() => setDetalheLote(v => !v)} />
+        </Box>
+      )}
+
+      {relatorio.linhas.length === 1 && roteiroPrevia?.passos?.length > 0 && (
         <Box>
           <Rotulo hint="na ordem em que o modelo vai receber">O que cada etapa recebe</Rotulo>
           <TableContainer sx={{ overflowX: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
