@@ -83,6 +83,7 @@ export function AddonCatalogo({ brandId }) {
   const [lotes, setLotes] = useState([])          // histórico, do banco
   const [contextoAberto, setContextoAberto] = useState(true)
   const [detalheLote, setDetalheLote] = useState(false)
+  const [loteAberto, setLoteAberto] = useState(null)   // lote do histórico sendo visto
 
   // Declarada aqui, acima de todo efeito que a usa: um `const` referenciado
   // antes da linha em que é declarado estoura na montagem do componente
@@ -351,9 +352,19 @@ export function AddonCatalogo({ brandId }) {
     setRegerando(null)
   }
 
+  // ⚠️ Limpar tem de zerar TUDO. Antes ele deixava `jobs` e `ultima` de pé: a
+  // pessoa saía do lote e continuava vendo as imagens dele, com o ↻ apontando
+  // para uma rodada que não era mais a da tela.
+  function limparTudo() {
+    setPeca(vazia); setArquivos({}); setExtras([])
+    setLinhas(null); setOrigem(''); setJobs([])
+    setUltima(null); setLoteAberto(null); setContextoAberto(true)
+    setErro('')
+  }
+
   // Reabre um lote gravado: repõe a linha e busca as imagens que ele produziu.
   async function abrirLote(lote) {
-    setErro(''); setAba(0)
+    limparTudo(); setAba(0); setLoteAberto(lote)
     setPeca({ sku: lote.sku, contexto: lote.linha?.contexto || '',
               elenco: lote.linha?.elenco || '', saidas: (lote.linha?.vistasPedidas || []).join(';') })
     setExtras(Array.isArray(lote.extras) ? lote.extras : [])
@@ -379,7 +390,7 @@ export function AddonCatalogo({ brandId }) {
   // a falta não daria erro, só uma imagem plausível e infiel.
   async function rodar() {
     if (!relatorio?.podeRodar || rodando) return
-    setRodando(true); setErro(''); setJobs([])
+    setRodando(true); setErro(''); setJobs([]); setLoteAberto(null)
 
     const { data: { session } } = await supabase.auth.getSession()
     const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
@@ -776,6 +787,14 @@ export function AddonCatalogo({ brandId }) {
         </Alert>
       )}
 
+      {loteAberto && (
+        <Alert severity="info" sx={{ mb: 2 }}
+          action={<Button size="small" color="inherit" onClick={limparTudo}>Novo lote</Button>}>
+          Você está vendo o lote <b>{loteAberto.sku}</b> de {loteAberto.pasta?.split('/').pop()}.
+          Regere o que precisar — ou comece um novo.
+        </Alert>
+      )}
+
       <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
         <Tab label="Uma peça" />
         <Tab label="Em massa" />
@@ -908,9 +927,7 @@ export function AddonCatalogo({ brandId }) {
                 )}
                 <Button variant="outlined" color="inherit" size="small"
                   onClick={conferirPeca} disabled={!podeConferir}>Conferir</Button>
-                <Button size="small" color="inherit" onClick={() => {
-                  setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem(''); setExtras([])
-                }}>Limpar</Button>
+                <Button size="small" color="inherit" onClick={limparTudo}>Limpar</Button>
               </Stack>
             }>
             {!relatorio
