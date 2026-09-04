@@ -289,3 +289,38 @@ export function contarSaidas(valor, padrao = 1) {
 export const ehUrl = (v) => /^https?:\/\//i.test(String(v || '').trim())
 
 export const NIVEIS = { GRAVE, AVISO }
+
+// ── A guarda que impede o problema de voltar ────────────────────────
+//
+// O contexto do SKU SUBSTITUI o contexto da etapa. Tudo que estiver no contexto
+// da etapa e não for sobre a peça — enquadramento, o que trava e o que varia,
+// como ler a referência de pose — simplesmente desaparece, sem erro. Isso
+// aconteceu três vezes em 04/set, e cada vez custou uma rodada de crédito para
+// ser descoberto pela imagem errada.
+//
+// Estas seções são "sobre a peça": o usuário escreve, e substituir é o certo.
+const SECOES_DA_PECA = ['a peca', 'o look', 'acabamento', 'como a peca se le por tras']
+
+/**
+ * O que se perderia ao trocar o contexto da etapa pelo do SKU.
+ * Devolve os títulos das seções (e o topo, se houver) que não são da peça.
+ */
+export function instrucoesQueSePerdem(contextoDaEtapa) {
+  const t = String(contextoDaEtapa || '')
+  if (!t.trim()) return []
+  const perdidas = []
+
+  const topo = t.split('═══')[0].trim()
+  // Um cabeçalho de uma linha ("PRODUÇÃO DE CATÁLOGO — POSES") é rótulo, não
+  // instrução; mais que isso já é conteúdo que alguém escreveu para ser lido.
+  if (topo && topo.split(/\r?\n/).filter(l => l.trim()).length > 1) perdidas.push('(topo do contexto)')
+
+  for (const m of t.matchAll(/^═+\s*(.+?)\s*═+$/gm)) {
+    const titulo = m[1].trim()
+    const chave = titulo.split('—')[0]
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .trim().toLowerCase().replace(/\s+/g, ' ')
+    if (!SECOES_DA_PECA.includes(chave)) perdidas.push(titulo)
+  }
+  return perdidas
+}
