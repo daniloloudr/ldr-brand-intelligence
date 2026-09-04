@@ -958,3 +958,86 @@ as duas não coincidem:
 - **C1+C2+C3 são uma release, não três.** Peça/versão sem estado novo, ou estado novo sem
   julgamento, deixa o módulo lendo dois modelos ao mesmo tempo.
 
+
+---
+
+# 13 · Addons — miniapps sobre o fluxo
+
+## 13.1 De onde veio
+
+Levantada pelo Danilo em 03/set, saindo de dois impasses no mesmo dia. A frase foi:
+*"e se, ao invés de eu querer automatizar o fluxo — que já funciona bem — usar ele como
+base pra criar um addon, que é uma tela nova? Meu bloqueio acho que está em não querer
+mudar o objetivo das coisas."*
+
+O bloqueio estava certo. O canvas resolve o problema dele; transformá-lo em máquina de
+lote custaria o que ele já entrega. **A saída não é mudar o fluxo — é construir por cima.**
+
+E é a mesma hipótese escrita em 13/jul sobre campanha (*"o usuário NÃO deveria ver o
+canvas; canvas = bastidores opcional"*). Chegar nela de novo, por outro caminho, é o
+argumento mais forte de que está certa.
+
+## 13.2 A linha que separa addon de feature
+
+**Um addon existe quando o vocabulário do cliente não cabe no do produto.**
+
+O LOUDR fala marca, peça, campanha, parecer. A Hering fala SKU, guia de compras, elenco,
+still, ficha técnica. "Guia de compras" não é feature de um produto de inteligência de
+marca — construí-la no núcleo dobraria o produto para a operação de catálogo de **um**
+varejista, e todo mundo pagaria o inchaço.
+
+O teste, nesta ordem:
+
+1. **O caso se resolve com um fluxo?** Se não, não é addon — é feature, ou não é nosso.
+2. **O nome que o cliente usa já existe no produto?** Se existe, é feature.
+3. **Serve a outro cliente sem tradução?** Se serve, é feature.
+
+Duas respostas "não" → é addon.
+
+## 13.3 O que um addon é
+
+Uma **tela** mais um **contrato com um fluxo**. Ela fixa a versão do fluxo, entrega as
+variáveis, roda, e apresenta o resultado no vocabulário do cliente.
+
+**Ela nunca gera.** O fluxo gera.
+
+## 13.4 O que todo addon herda de graça
+
+É por isso que um addon é barato — ele não reconstrói nada disto:
+
+| Herda | De onde |
+|---|---|
+| contexto de marca | `resolveBrandIntelligence` |
+| o juiz, nos quatro eixos | `art-review` → `parecer` |
+| a casa da peça, com trilha | `studio_generations` + Biblioteca |
+| crédito, teto, débito e estorno | `_credits.js` |
+| a rodada auditável | `execucao` |
+| o aprendizado | `julgamento` + sinais |
+
+## 13.5 As regras duras
+
+1. **Addon não gera. O fluxo gera.**
+2. **A peça nasce em `studio_generations`**, com `generation_id`, parecer e trilha. Addon
+   com casa de peça própria é um fork do produto.
+3. **Addon não inventa aprovação.** Usa `julgamento`, com `modo` e `treina` — senão o peso
+   do §7.4 se perde e o primeiro lote grande envenena o cérebro.
+4. **Addon é por marca, não global.** Instalado para quem precisa. É o que impede o
+   produto de inchar para todos — e é o que um contrato compra.
+5. **O canvas é bastidor, não pré-requisito.** Um link, para quem quiser ver por que a
+   peça saiu assim.
+6. **Addon não cria schema para o que já existe.**
+
+## 13.6 O risco, nomeado
+
+**Addon virando produto paralelo.** Todo addon que guarda peça própria é um fork, e forks
+divergem calados. A guarda é a regra 2: peça sem `generation_id` não tem parecer, não vira
+sinal, e o aprendizado — que é o produto — para naquele addon sem ninguém notar.
+
+## 13.7 A fila de candidatos
+
+| Candidato | De quem | Situação |
+|---|---|---|
+| **Lote de catálogo** | Hering | o primeiro; entrada e saída desenhadas na §7.5 |
+| Fan-out de formato (R4) | Worten | meio construído — nó Recortar + template "1 peça → 6 formatos" |
+| Campanha | — | E5b estacionado 03/set; **volta como addon, não como página do núcleo** |
+| Editor (§3.7) | — | o próprio documento adia e manda revisitar; forte candidato |
