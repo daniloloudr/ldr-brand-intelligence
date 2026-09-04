@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   lerCSV, normalizarCabecalho, montarLook, montarContexto, preflight,
-  contarSaidas, ehUrl, valoresDe, PAPEIS, CONTEXTO_MIN, NIVEIS,
+  contarSaidas, ehUrl, valoresDe, vistasDoFluxo, PAPEIS, CONTEXTO_MIN, NIVEIS,
 } from '../src/lib/loteCatalogo.js'
 
 const CTX = 'Camiseta feminina em ribana, canelado fino. '.repeat(8)   // > CONTEXTO_MIN
@@ -168,6 +168,47 @@ describe('⭐ várias vistas do mesmo acessório', () => {
     const r = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg;kh6v_costas.jpg' }],
                     { modelo: 'fal-ai/nano-banana-pro', teto: 4 })
     expect(r.linhas[0].problemas.some(p => p.campo === 'referencias')).toBe(true)
+  })
+})
+
+describe('⭐ as vistas vêm do FLUXO, não de lista fixa', () => {
+  const nodes = [
+    { id: 'n1', type: 'prompt',  data: { text: 'FRONTAL\n\nDe frente, em pé, peso distribuído.' } },
+    { id: 'n2', type: 'prompt',  data: { text: 'TRÊS QUARTOS\n\nCorpo girado a três quartos.' } },
+    { id: 'n3', type: 'generate', data: { model: 'x' } },
+    { id: 'n4', type: 'prompt',  data: { text: '' } },
+    { id: 'n5', type: 'prompt',  data: { text: 'FRONTAL\n\noutra redação da mesma vista' } },
+  ]
+  it('lê o nome da primeira linha de cada nó prompt', () => {
+    expect(vistasDoFluxo(nodes).map(v => v.nome)).toEqual(['FRONTAL', 'TRÊS QUARTOS'])
+  })
+  it('guarda a instrução separada do nome', () => {
+    expect(vistasDoFluxo(nodes)[0].instrucao).toContain('De frente')
+    expect(vistasDoFluxo(nodes)[0].instrucao).not.toContain('FRONTAL')
+  })
+  it('ignora nó que não é prompt e prompt sem texto', () => {
+    expect(vistasDoFluxo(nodes)).toHaveLength(2)
+  })
+  it('não repete vista de mesmo nome', () => {
+    expect(vistasDoFluxo(nodes).filter(v => v.nome === 'FRONTAL')).toHaveLength(1)
+  })
+  it('grafo vazio ou inválido não quebra', () => {
+    expect(vistasDoFluxo(null)).toEqual([])
+    expect(vistasDoFluxo([])).toEqual([])
+  })
+  it('⭐ pedir vista que o fluxo não tem BLOQUEIA', () => {
+    const vistas = vistasDoFluxo(nodes)
+    const r = rodar([{ ...base, saidas: 'FRONTAL;VOANDO' }], { vistas })
+    expect(r.bloqueadas).toBe(1)
+    expect(r.linhas[0].problemas.some(p => /"VOANDO"/.test(p.texto))).toBe(true)
+  })
+  it('vista conhecida passa, sem ligar para maiúscula', () => {
+    const r = rodar([{ ...base, saidas: 'frontal;Três Quartos' }], { vistas: vistasDoFluxo(nodes) })
+    expect(r.bloqueadas).toBe(0)
+    expect(r.linhas[0].saidas).toBe(2)
+  })
+  it('sem vistas conhecidas, não inventa bloqueio', () => {
+    expect(rodar([{ ...base, saidas: 'QUALQUER' }]).bloqueadas).toBe(0)
   })
 })
 

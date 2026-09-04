@@ -20,6 +20,20 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'lote: as vistas voltam a ser lista fixa no código (divergem do fluxo)',
+    arq: 'src/lib/loteCatalogo.js',
+    de: "    if (n?.type !== 'prompt') continue", para: '    if (false) continue' },
+
+  { nome: 'lote: pedir vista que o fluxo não tem volta a passar calado',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '      if (orfas.length) p.push({ nivel: GRAVE, campo: \'saidas\',',
+    para: '      if (false) p.push({ nivel: GRAVE, campo: \'saidas\',' },
+
+  { nome: 'lote: o teto volta a contar PAPEL em vez de imagem (caso do sapato)',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '      refs += vs.length                       // IMAGENS, não papéis',
+    para: '      refs += 1' },
+
   { nome: 'lote: contexto vazio volta a passar e a peça sai genérica',
     arq: 'src/lib/loteCatalogo.js',
     de: "if (!ctx) p.push({ nivel: GRAVE, campo: 'contexto', texto: 'sem contexto — a peça sairia genérica' })",

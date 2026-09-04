@@ -27,11 +27,10 @@ import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import { supabase } from '../../lib/supabase'
 import { PageHeader } from '../../components/shell/PageHeader'
-import { lerCSV, preflight, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
+import { lerCSV, preflight, vistasDoFluxo, PAPEIS, COLUNAS_OBRIGATORIAS, NIVEIS, CONTEXTO_MIN } from '../../lib/loteCatalogo'
 import { creditsForImage } from '../../lib/credits'
 
 const COLUNAS = ['sku', 'contexto', ...PAPEIS.map(p => p.col), 'saidas']
-const SAIDAS = ['inteiro', 'aproximada', 'costas']
 
 function csvModelo() {
   const exemplo = {
@@ -39,7 +38,7 @@ function csvModelo() {
     contexto: 'Camiseta feminina de manga curta em RIBANA (poliamida + elastano): malha canelada fina, off-white. MODELAGEM — SLIM, RENTE AO CORPO: é o ponto que mais erra. No still a peça está DEITADA e a ribana relaxada parece larga. Ela NÃO é larga. COMPRIMENTO — 54,5 cm no P, barra na altura do osso do quadril. (…descreva também manga, textura, gola, barra, ombro — e o erro que o modelo costuma cometer.)',
     peca_frente: 'kh6v_frente.jpg', peca_costas: 'kh6v_costas.jpg',
     calca: 'jeans_azul.jpg', calcado: 'sapatilha_preta.jpg', bolsa: 'tote_preta.jpg',
-    elenco: 'Marina', saidas: 'inteiro;aproximada;costas',
+    elenco: 'Marina', saidas: 'FRONTAL;TRÊS QUARTOS;COSTAS',
   }
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
   return '﻿' + [COLUNAS.join(';'), COLUNAS.map(c => esc(exemplo[c])).join(';')].join('\n')
@@ -58,7 +57,7 @@ export function AddonCatalogo({ brandId }) {
   const [erro, setErro] = useState('')
 
   // ── uma peça ──
-  const vazia = { sku: '', contexto: '', elenco: '', saidas: SAIDAS.join(';') }
+  const vazia = { sku: '', contexto: '', elenco: '', saidas: '' }
   const [peca, setPeca] = useState(vazia)
   const [arquivos, setArquivos] = useState({})      // col → [{ nome, url }] · N vistas por papel
   const [subindo, setSubindo] = useState('')
@@ -95,10 +94,22 @@ export function AddonCatalogo({ brandId }) {
     return nodes.map(n => n?.data?.model).find(Boolean) || null
   }, [fluxo])
 
+  // As vistas são os nós de prompt do fluxo — "FRONTAL", "SENTADA",
+  // "APROXIMADA". Nunca uma lista no código: pose nova no canvas tem que
+  // aparecer aqui sozinha, senão a tela e o grafo divergem calados.
+  const vistas = useMemo(() => vistasDoFluxo(fluxo?.nodes), [fluxo])
+
   const relatorio = useMemo(() => {
     if (!linhas?.length) return null
-    return preflight({ linhas, cabecalho, elenco, acervo, modelo, creditoPorImagem: creditsForImage(modelo) })
-  }, [linhas, cabecalho, elenco, acervo, modelo])
+    return preflight({ linhas, cabecalho, elenco, acervo, modelo, vistas, creditoPorImagem: creditsForImage(modelo) })
+  }, [linhas, cabecalho, elenco, acervo, modelo, vistas])
+
+  const escolhidas = String(peca.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+  const alternarVista = (nome) => setPeca(p => {
+    const atuais = String(p.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+    const novas = atuais.includes(nome) ? atuais.filter(v => v !== nome) : [...atuais, nome]
+    return { ...p, saidas: novas.join(';') }
+  })
 
   // Casting NOVO: sobe, é salvo na pasta `elenco` e já fica escolhível. Ele
   // nasce com `base_conferida: false` — é isso que faz o portão da etapa 0
@@ -286,24 +297,44 @@ export function AddonCatalogo({ brandId }) {
                   </Stack>
                 </Box>
 
-                <TextField label="Saídas" size="small" select sx={{ maxWidth: 320 }}
-                  value={peca.saidas} onChange={e => setPeca(p => ({ ...p, saidas: e.target.value }))}>
-                  <MenuItem value={SAIDAS.join(';')}>as três (inteiro · aproximada · costas)</MenuItem>
-                  {SAIDAS.map(s => <MenuItem key={s} value={s}>só {s}</MenuItem>)}
-                </TextField>
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap>
+                    <Typography variant="overline" color="text.secondary">As vistas</Typography>
+                    <Typography variant="caption" color="text.disabled">
+                      {vistas.length
+                        ? `${escolhidas.length} de ${vistas.length} escolhidas`
+                        : 'este lote não declara vistas'}
+                    </Typography>
+                    {vistas.length > 0 && (
+                      <Button size="small" color="inherit"
+                        onClick={() => setPeca(p => ({ ...p,
+                          saidas: escolhidas.length === vistas.length ? '' : vistas.map(v => v.nome).join(';') }))}>
+                        {escolhidas.length === vistas.length ? 'limpar' : 'todas'}
+                      </Button>
+                    )}
+                  </Stack>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                    {vistas.map(v => (
+                      <Chip key={v.id} label={v.nome} size="small" title={v.instrucao}
+                        variant={escolhidas.includes(v.nome) ? 'filled' : 'outlined'}
+                        color={escolhidas.includes(v.nome) ? 'primary' : 'default'}
+                        onClick={() => alternarVista(v.nome)} />
+                    ))}
+                  </Stack>
+                </Box>
 
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                   <Button variant="contained" disableElevation onClick={conferirPeca}
-                    disabled={semProcesso || !peca.sku.trim()}>
+                    disabled={semProcesso || !peca.sku.trim() || !escolhidas.length}>
                     Conferir esta peça
                   </Button>
                   {/* Botão desabilitado sem explicação faz a pessoa achar que a
                       tela quebrou. Aqui ele diz o que falta. */}
-                  {(semProcesso || !peca.sku.trim()) && (
+                  {(semProcesso || !peca.sku.trim() || !escolhidas.length) && (
                     <Typography variant="caption" color="text.disabled">
-                      {semProcesso
-                        ? 'este lote ainda não está configurado para esta marca'
-                        : 'preencha o SKU para conferir'}
+                      {semProcesso ? 'este lote ainda não está configurado para esta marca'
+                        : !peca.sku.trim() ? 'preencha o SKU para conferir'
+                        : 'escolha ao menos uma vista'}
                     </Typography>
                   )}
                   <Button color="inherit" onClick={() => { setPeca(vazia); setArquivos({}); setLinhas(null); setOrigem('') }}>

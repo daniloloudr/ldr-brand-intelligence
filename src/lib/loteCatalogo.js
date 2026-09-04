@@ -129,6 +129,27 @@ export function montarContexto({ etapa, aPeca, linha, doFluxo = '', resolvidas }
   return blocos.filter(b => b && b.trim()).join('\n\n')
 }
 
+// ── 2b · As vistas vêm do FLUXO, não de uma lista fixa ──────────────
+//
+// Cada nó `prompt` do grafo é uma VISTA — "FRONTAL", "TRÊS QUARTOS", "SENTADA",
+// "APROXIMADA". O nome é a primeira linha do texto, em caixa alta; o resto é a
+// instrução daquela pose.
+//
+// Ter isso fixo no código seria a divergência que o Danilo perguntou como
+// evitar: o dia em que alguém acrescentasse uma pose no canvas, o addon não
+// saberia — e ninguém veria, porque a tela continuaria mostrando as antigas.
+export function vistasDoFluxo(nodes) {
+  const vistas = []
+  for (const n of Array.isArray(nodes) ? nodes : []) {
+    if (n?.type !== 'prompt') continue
+    const texto = String(n?.data?.text || '')
+    const nome = (texto.split(/\r?\n/)[0] || '').trim()
+    if (!nome) continue
+    if (!vistas.some(v => v.nome === nome)) vistas.push({ id: n.id, nome, instrucao: texto.slice(nome.length).trim() })
+  }
+  return vistas
+}
+
 // ── 3 · O preflight ─────────────────────────────────────────────────
 //
 // Roda ANTES de a execução nascer. Todo problema aqui é problema que não
@@ -143,6 +164,7 @@ export function preflight({
   elenco = [],              // nomes de castings aprovados na Biblioteca
   acervo = [],              // nomes/arquivos já disponíveis
   modelo = null,
+  vistas = [],              // as vistas que o fluxo oferece (vistasDoFluxo)
   saidasPadrao = 1,
   creditoPorImagem = 1,
   teto = MAX_REFS_CANVAS,
@@ -212,6 +234,15 @@ export function preflight({
       p.push({ nivel: GRAVE, campo: 'referencias', texto: `este modelo exige ${plano.exatas} referências; faltam ${plano.faltam}` })
     }
 
+    // Saída que não existe no fluxo é pedido que nunca sairia — e sem esta
+    // conferência ela sumiria calada, virando "gerou menos do que pedi".
+    const pedidas = String(l.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+    if (vistas.length && pedidas.length) {
+      const conhecidas = new Set(vistas.map(v => v.nome.toLowerCase()))
+      const orfas = pedidas.filter(v => !conhecidas.has(v.toLowerCase()))
+      if (orfas.length) p.push({ nivel: GRAVE, campo: 'saidas',
+        texto: `este lote não tem a vista ${orfas.map(o => `"${o}"`).join(', ')}` })
+    }
     const saidas = contarSaidas(l.saidas, saidasPadrao)
     return { ...l, sku, refs, resolvidas, saidas, problemas: p }
   })
