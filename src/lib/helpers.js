@@ -113,6 +113,7 @@ export function getRoute(caminho) {
   if (p.match(/^\/app\/brands\/[^/]+\/campaigns\/new/))          return 'brands-campaign-new';
   if (p.match(/^\/app\/brands\/[^/]+\/campaigns\/[^/]+/))        return 'brands-campaign-detail';
   if (p.match(/^\/app\/brands\/[^/]+\/campaigns/))               return 'brands-campaigns';
+  if (p.match(/^\/app\/brands\/[^/]+\/studio\/addon\//))        return 'brands-studio-addon';
   if (p.match(/^\/app\/brands\/[^/]+\/studio\/campanhas/))       return 'brands-studio-campaigns';
   if (p.match(/^\/app\/brands\/[^/]+\/studio\/workflow/))        return 'brands-studio-workflow';
   if (p.match(/^\/app\/brands\/[^/]+\/studio\/video/))           return 'brands-studio-video';
@@ -125,6 +126,11 @@ export function getRoute(caminho) {
   if (p === '/admin')                return 'admin';
   if (p === '/admin/historico')      return 'admin-historico';
   return 'public';
+}
+
+export function getAddonSlug() {
+  const m = (window.location.pathname || '').match(/^\/app\/brands\/[^/]+\/studio\/addon\/([^/?#]+)/)
+  return m ? m[1] : null
 }
 
 export function getBrandId() {

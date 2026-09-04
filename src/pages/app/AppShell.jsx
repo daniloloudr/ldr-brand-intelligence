@@ -10,7 +10,7 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { theme as themeDark, themeLight } from '../../lib/theme'
-import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, fmtDate, navigate } from '../../lib/helpers'
+import { getRoute, getBrandId, getCampaignId, getWorkflowId, getBrandSection, getAddonSlug, fmtDate, navigate } from '../../lib/helpers'
 import { t } from '../../lib/i18n'
 import { supabase } from '../../lib/supabase'
 import { PLANOS } from '../../lib/constants'
@@ -24,6 +24,7 @@ import { AppLayout } from '../../components/shell/AppLayout'
 // separado, fora do bundle principal. Named exports → mapeados p/ default no lazy.
 const Home            = lazy(() => import('./Home').then(m => ({ default: m.Home })))
 const Addons          = lazy(() => import('./Addons').then(m => ({ default: m.Addons })))
+const AddonCatalogo   = lazy(() => import('./AddonCatalogo').then(m => ({ default: m.AddonCatalogo })))
 const Posicionamento  = lazy(() => import('./Posicionamento').then(m => ({ default: m.Posicionamento })))
 const SocialListening = lazy(() => import('./SocialListening').then(m => ({ default: m.SocialListening })))
 const BrandList       = lazy(() => import('./BrandList').then(m => ({ default: m.BrandList })))
@@ -326,6 +327,11 @@ function Shell({ isDark, onToggleTheme, impersonating, onStopImpersonating }) {
     if (route === 'trends')                return <TrendsPage />
     if (route === 'reports')               return <Posicionamento />   // ressignificado: a medição da marca vive em Intelligence
     if (route === 'brands-studio-campaigns') return <StudioCampaigns brandId={getBrandId()} />
+    // O addon resolve pelo slug da URL. Slug que não existe no catálogo cai na
+    // Home — é o caso de instalação viva para um addon que saiu do código.
+    if (route === 'brands-studio-addon') {
+      return getAddonSlug() === 'catalogo' ? <AddonCatalogo brandId={getBrandId()} /> : <Home />
+    }
     if (route === 'brands-detail')         return <BrandBook brandId={getBrandId()} />
     return <Home />
   }

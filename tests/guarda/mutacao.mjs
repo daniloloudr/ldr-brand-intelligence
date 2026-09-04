@@ -20,6 +20,30 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'lote: contexto vazio volta a passar e a peça sai genérica',
+    arq: 'src/lib/loteCatalogo.js',
+    de: "if (!ctx) p.push({ nivel: GRAVE, campo: 'contexto', texto: 'sem contexto — a peça sairia genérica' })",
+    para: 'if (false) {}' },
+
+  { nome: 'lote: o corte silencioso de referência volta a ser silencioso',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '    if (plano?.ignoradas) {', para: '    if (false) {' },
+
+  { nome: 'lote: elenco não cadastrado volta a passar no portão',
+    arq: 'src/lib/loteCatalogo.js',
+    de: "      const ok = papel.doElenco ? nomesElenco.has(v.toLowerCase())\n               : (ehUrl(v) || nomesAcervo.has(v.toLowerCase()))",
+    para: '      const ok = true' },
+
+  { nome: 'lote: linha bloqueada volta a entrar na conta de crédito',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '  const imagens = prontas.reduce((n, l) => n + l.saidas, 0)',
+    para: '  const imagens = avaliadas.reduce((n, l) => n + l.saidas, 0)' },
+
+  { nome: 'lote: o separador do Excel pt-BR (;) volta a não ser detectado',
+    arq: 'src/lib/loteCatalogo.js',
+    de: "  const sep = (primeira.match(/;/g) || []).length > (primeira.match(/,/g) || []).length ? ';' : ','",
+    para: "  const sep = ','" },
+
   { nome: 'o menu volta a mostrar addon que ninguém liberou',
     arq: 'src/lib/addons.js',
     de: "export const estaLigado = (inst) => inst?.estado === 'ativo'",
