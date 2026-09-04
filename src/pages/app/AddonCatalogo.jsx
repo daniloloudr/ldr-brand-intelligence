@@ -24,6 +24,7 @@ import {
   Tabs, Tab, TextField, MenuItem, Dialog, IconButton, Tooltip,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
@@ -76,6 +77,8 @@ export function AddonCatalogo({ brandId }) {
   const [progresso, setProgresso] = useState(null)   // { onda, ondas, sku }
   const [aberta, setAberta] = useState(null)         // índice da imagem no modal
   const [baixando, setBaixando] = useState(false)
+  const [ultima, setUltima] = useState(null)   // { roteiro, saidas, auth } da rodada, p/ regerar
+  const [regerando, setRegerando] = useState(null)
 
   // Declarada aqui, acima de todo efeito que a usa: um `const` referenciado
   // antes da linha em que é declarado estoura na montagem do componente
@@ -237,9 +240,13 @@ export function AddonCatalogo({ brandId }) {
     if (!prontasParaVer.length || baixando) return
     setBaixando(true); setErro('')
     try {
+      // Passa pelo proxy: o R2 não devolve CORS, então `fetch` direto na URL
+      // pública é bloqueado pelo navegador — a `<img>` funciona, o `fetch` não.
+      const { data: { session } } = await supabase.auth.getSession()
+      const auth = { Authorization: `Bearer ${session?.access_token}` }
       const arquivos = []
       for (const j of prontasParaVer) {
-        const r = await fetch(j.url)
+        const r = await fetch(`/.netlify/functions/studio-baixar?generation_id=${j.genId}`, { headers: auth })
         if (!r.ok) continue
         const buf = new Uint8Array(await r.arrayBuffer())
         const ext = (j.url.split('?')[0].match(/\.(jpe?g|png|webp)$/i) || [, 'jpg'])[1]
@@ -252,6 +259,50 @@ export function AddonCatalogo({ brandId }) {
       URL.revokeObjectURL(url)
     } catch (e) { setErro(`falha ao montar o zip: ${e.message}`) }
     setBaixando(false)
+  }
+
+  /**
+   * Regera UMA peça, reaproveitando o que já saiu.
+   *
+   * Não roda a cadeia inteira: as etapas anteriores já produziram, e as saídas
+   * delas estão guardadas. Refazer tudo custaria crédito para reconstruir
+   * exatamente o mesmo insumo — e ainda arriscaria uma base diferente, que é o
+   * que a F0.4 chama de deriva de identidade.
+   *
+   * `regen: true` diz ao backend que isto é uma REGENERAÇÃO: ele emite o sinal
+   * `image_regen`, que o cérebro lê como reprovação implícita da anterior.
+   */
+  async function regerar(job) {
+    if (!ultima || regerando) return
+    const passo = ultima.roteiro.passos.find(p => p.genId === job.__no)
+    if (!passo) { setErro('não consigo regerar: o roteiro desta rodada se perdeu. Rode de novo.'); return }
+    setRegerando(job.genId); setErro('')
+    try {
+      const pedido = { ...passo.montar(ultima.saidas), regen: true, regen_of: job.genId }
+      const res = await fetch('/.netlify/functions/studio-generate',
+        { method: 'POST', headers: ultima.auth, body: JSON.stringify(pedido) })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || `Erro ${res.status}`)
+      setJobs(js => js.map(x => x.genId === job.genId
+        ? { ...x, genId: j.generation_id, status: 'running', url: null, error: null } : x))
+      // acompanha só esta
+      const inicio = Date.now()
+      while (Date.now() - inicio < 300_000) {
+        await new Promise(r => setTimeout(r, 3000))
+        const { data } = await supabase.from('studio_generations')
+          .select('id, status, image_url, error').eq('id', j.generation_id).maybeSingle()
+        const e = lerEstado(data)
+        if (e.estado === 'em_voo') continue
+        setJobs(js => js.map(x => x.genId === j.generation_id
+          ? { ...x, status: e.estado === 'pronta' ? 'done' : 'error', url: e.url, error: e.erro } : x))
+        if (e.estado === 'pronta') {
+          ultima.saidas[job.__no] = e.url
+          if (job.pasta) supabase.from('studio_generations').update({ pasta: job.pasta }).eq('id', j.generation_id).then(() => {})
+        }
+        break
+      }
+    } catch (e) { setErro(`falha ao regerar: ${e.message}`) }
+    setRegerando(null)
   }
 
   // ── A CORRIDA, EM ONDAS ─────────────────────────────────────────
@@ -279,6 +330,7 @@ export function AddonCatalogo({ brandId }) {
         contextoDaPeca: montarContexto({ aPeca: l.contexto }),
       })
       const saidas = {}
+      setUltima({ roteiro, saidas, auth })
 
       for (const [iOnda, onda] of roteiro.ondas.entries()) {
         setProgresso({ onda: iOnda + 1, ondas: roteiro.ondas.length, sku: l.sku })
@@ -725,6 +777,19 @@ export function AddonCatalogo({ brandId }) {
                 <Typography variant="caption" display="block" sx={{ mt: .5 }} noWrap title={`${j.sku} · ${j.vista}`}>
                   <b>{j.vista}</b>
                 </Typography>
+                {(j.status === 'done' || j.status === 'error') && ultima && (
+                  <Tooltip title={`gerar de novo a ${j.vista}`}>
+                    <span>
+                      <IconButton size="small" disabled={!!regerando}
+                        onClick={() => regerar(j)}
+                        sx={{ float: 'right', mt: -.25 }}>
+                        {regerando === j.genId
+                          ? <CircularProgress size={14} />
+                          : <RefreshIcon sx={{ fontSize: 15 }} />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                )}
                 <Tooltip title="abrir a pasta deste lote na Biblioteca">
                   <Typography variant="caption" color="text.disabled" noWrap
                     onClick={() => navigate(`#/app/brands/${brandId}/studio/biblioteca?pasta=${encodeURIComponent(pastaDoLote(j.sku))}`)}

@@ -74,6 +74,16 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'download: o proxy vira BUSCADOR DE URL ARBITRÁRIA no nosso domínio',
+    arq: 'netlify/functions/studio-baixar.js',
+    de: "  if (!permitidos.includes(alvo.host)) return { statusCode: 400, headers, body: 'origem não permitida' }",
+    para: '  if (false) return { statusCode: 400, headers }' },
+
+  { nome: 'download: o proxy entrega peça de workspace alheio',
+    arq: 'netlify/functions/studio-baixar.js',
+    de: '  if (!membro && !admin) return { statusCode: 403, headers }',
+    para: '  if (false) return { statusCode: 403, headers }' },
+
   { nome: 'tela: const usada acima da declaração (zona morta — tela branca)',
     arq: 'src/pages/app/AddonCatalogo.jsx',
     de: '  const prontasParaVer = jobs.filter(j => j.status === \'done\' && j.url)',

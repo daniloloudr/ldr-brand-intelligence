@@ -167,11 +167,17 @@ export function StudioLibrary({ brandId }) {
   // Deep-link dos botões "Ver todas": handoff via sessionStorage (o router
   // normaliza o hash e derruba query params) — lê e limpa no mount.
   const [root, setRoot]   = useState(() => {
+    if (new URLSearchParams(window.location.search).get('pasta')) return 'imagens'
     const r = sessionStorage.getItem('biblioteca_root')
     sessionStorage.removeItem('biblioteca_root')
     return ROOTS.some(x => x.id === r) ? r : null
   })
-  const [pasta, setPasta] = useState(null)
+  // `?pasta=` abre direto a pasta pedida — é o que faz o link vindo do addon de
+  // Lote aterrissar no lugar em vez de na raiz de Imagens.
+  const [pasta, setPasta] = useState(() => {
+    const p = new URLSearchParams(window.location.search).get('pasta')
+    return p ? decodeURIComponent(p) : null
+  })
   // Performance: paginação infinita de RENDER — o grid só materializa o que
   // está perto do viewport (o fetch já vem limitado; o peso é a mídia no DOM)
   const PAGE = 40
