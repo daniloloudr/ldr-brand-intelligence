@@ -20,6 +20,16 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'grafo: a ordem escolhida no painel volta a perder para a das conexões',
+    arq: 'src/lib/studioGrafo.js',
+    de: '  if (!Array.isArray(refOrder) || !refOrder.length) return produtores',
+    para: '  return produtores; if (!Array.isArray(refOrder) || !refOrder.length) return produtores' },
+
+  { nome: 'lote: o addon volta a inventar um §O LOOK e briga com o do nó de contexto',
+    arq: 'src/lib/loteCatalogo.js',
+    de: "export const montarLook = () => ''",
+    para: "export const montarLook = (l) => '═══ O LOOK ═══\\n• PARTE DE CIMA'" },
+
   { nome: 'grafo: a etapa deixa de puxar as dependências (peça sai SEM base, calada)',
     arq: 'src/lib/studioGrafo.js',
     de: '    for (const dep of dependenciasDeGeracao(nodes, edges, id)) visitar(dep)',

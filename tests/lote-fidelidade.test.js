@@ -85,11 +85,18 @@ describe('⭐ addon e canvas montam o MESMO pedido', () => {
 
 describe('⭐ as referências: o grafo decide, o addon só injeta', () => {
   const addon = montarAddon()
-  it('a 1ª referência é a PESSOA — a regra que custou o KH6V', () => {
+  it('a ordem é a das arestas quando não há refOrder', () => {
     expect(addon.references[0]).toBe('CAST.jpg')
   })
-  it('a ordem é a das arestas, não a das colunas da planilha', () => {
-    expect(addon.references).toEqual(['CAST.jpg', 'STILL.jpg', 'B1.jpg', 'B2.jpg', 'CALC.jpg', 'POSE_a.jpg'])
+  it('⭐ com refOrder, a ordem do painel Entradas VENCE as conexões', () => {
+    // O que o Danilo definiu em 04/set: imagem gerada, PEÇA PRINCIPAL, acessórios.
+    const comOrdem = nodes.map(n => n.id === 'g1'
+      ? { ...n, data: { ...n.data, refOrder: ['e0_in_casting', 'e1_in_still', 'e1_in_calcado', 'e1_in_bolsa', 'e2_in_pose'] } }
+      : n)
+    const p = pedidoDaVista({ nodes: comOrdem, edges, vista, linha, brandId: 'B', workflowId: 'W',
+      resolver: v => v, contextoDaPeca: '' })
+    expect(p.references).toEqual(['CAST.jpg', 'STILL.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg', 'POSE_a.jpg'])
+    expect(p.references[1]).toBe('STILL.jpg')      // a peça principal, logo após a pessoa
   })
   it('as N vistas de um acessório entram todas, em sequência', () => {
     expect(addon.references.filter(u => /^B\d/.test(u))).toEqual(['B1.jpg', 'B2.jpg'])

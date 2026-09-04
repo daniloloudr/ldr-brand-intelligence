@@ -100,23 +100,17 @@ export function normalizarCabecalho(s) {
 
 // ── 2 · O contexto, no gabarito ─────────────────────────────────────
 
-// §O LOOK sai das COLUNAS — o addon escreve esta seção sozinho. A pessoa
-// escreve só §A PEÇA, que é onde mora a fidelidade (decisão de 04/set).
-export function montarLook(linha, resolvidas = {}) {
-  const itens = PAPEIS
-    .filter(p => p.col !== 'peca_costas')
-    .map(p => {
-      const vs = valoresDe(linha, p.col)
-      if (!vs.length) return null
-      const de = p.doElenco
-        ? `do elenco "${vs[0]}"`
-        : `da referência de ${p.papel.toLowerCase()}${vs.length > 1 ? ` (${vs.length} vistas)` : ''}`
-      const falta = resolvidas[p.col] === false ? '  ⚠ referência não encontrada' : ''
-      return `• ${p.papel}: ${de}.${falta}`
-    })
-    .filter(Boolean)
-  return itens.length ? `═══ O LOOK — DE ONDE VEM CADA PARTE ═══\n${itens.join('\n')}` : ''
-}
+// ⚠️ O §O LOOK NÃO É MAIS GERADO AQUI (decisão do Danilo, 04/set):
+// *"o contexto precisa ser escrito pelo usuário, o restante é conosco. Os
+// prompts são relacionados às poses, o contexto à roupa."*
+//
+// O contexto INTEIRO é do usuário e fala da roupa — peça e acessórios. Gerar
+// uma seção §O LOOK aqui produzia DUAS: a rica, escrita à mão no nó de
+// contexto, e a minha, rasa ("da referência de calça"). Duas seções com o mesmo
+// título no mesmo prompt é ruído, e a rasa contradizia a boa.
+//
+// Fica exportada devolvendo vazio para não quebrar quem chama.
+export const montarLook = () => ''
 
 // O contexto completo. §A PEÇA vem da planilha; §O LOOK é gerado; o resto é
 // constante da RECEITA e vem do fluxo (§7.2, camada "do fluxo").

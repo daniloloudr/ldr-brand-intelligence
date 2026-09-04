@@ -52,22 +52,18 @@ describe('a planilha', () => {
   })
 })
 
-describe('o contexto — a pessoa escreve UMA seção', () => {
-  it('§O LOOK é gerado das colunas, não escrito à mão', () => {
-    const look = montarLook(base)
-    expect(look).toContain('PARTE DE CIMA')
-    expect(look).toContain('IDENTIDADE: do elenco "Marina"')
-    expect(look).toContain('CALÇADO')
-    expect(look).not.toContain('BOLSA')          // coluna vazia não vira linha
+describe('o contexto é do usuário, e fala da roupa', () => {
+  it('⭐ o addon NÃO escreve §O LOOK — o nó de contexto já traz o dele', () => {
+    expect(montarLook(base)).toBe('')
   })
-  it('referência não resolvida aparece marcada no LOOK', () => {
-    expect(montarLook(base, { calcado: false })).toContain('⚠')
+  it('o contexto do usuário chega inteiro, sem seção inventada', () => {
+    const c = montarContexto({ etapa: 'primeira imagem inteira', aPeca: CTX, linha: base })
+    expect(c).toContain(CTX.trim().slice(0, 30))
+    expect(c).not.toContain('O LOOK')
   })
-  it('monta o gabarito na ordem certa', () => {
-    const c = montarContexto({ etapa: 'primeira imagem inteira', aPeca: CTX, linha: base, doFluxo: '═══ ACABAMENTO ═══\nx' })
-    expect(c.indexOf('PRODUÇÃO DE CATÁLOGO — PRIMEIRA IMAGEM INTEIRA')).toBe(0)
-    expect(c.indexOf('A PEÇA')).toBeLessThan(c.indexOf('O LOOK'))
-    expect(c.indexOf('O LOOK')).toBeLessThan(c.indexOf('ACABAMENTO'))
+  it('cabeçalho da etapa vem primeiro', () => {
+    const c = montarContexto({ etapa: 'costas', aPeca: 'x', linha: base })
+    expect(c.indexOf('PRODUÇÃO DE CATÁLOGO — COSTAS')).toBe(0)
   })
   it('seção vazia não deixa buraco', () => {
     expect(montarContexto({ etapa: 'x', aPeca: 'y', linha: {} })).not.toMatch(/\n\n\n/)
@@ -152,12 +148,6 @@ describe('⭐ várias vistas do mesmo acessório', () => {
   it('se UMA vista não existe, o papel inteiro bloqueia', () => {
     const r = rodar([{ ...base, bolsa: 'bolsa.jpg;fantasma.jpg' }])
     expect(r.bloqueadas).toBe(1)
-  })
-  it('o LOOK diz quantas vistas entraram', () => {
-    expect(montarLook({ ...base, bolsa: 'a.jpg;b.jpg;c.jpg' })).toContain('3 vistas')
-  })
-  it('uma vista só não vira "1 vistas"', () => {
-    expect(montarLook(base)).not.toMatch(/1 vistas/)
   })
   it('⭐ o elenco continua sendo UMA pessoa', () => {
     const r = rodar([{ ...base, elenco: 'Marina;Julia' }])
