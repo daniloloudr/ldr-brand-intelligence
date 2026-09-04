@@ -1041,3 +1041,56 @@ sinal, e o aprendizado — que é o produto — para naquele addon sem ninguém 
 | Fan-out de formato (R4) | Worten | meio construído — nó Recortar + template "1 peça → 6 formatos" |
 | Campanha | — | E5b estacionado 03/set; **volta como addon, não como página do núcleo** |
 | Editor (§3.7) | — | o próprio documento adia e manda revisitar; forte candidato |
+
+## 13.8 O fluxo é a referência do addon
+
+A §8.2 tem uma escada — peça → fluxo → agente — e o addon **não é um degrau novo. É um
+ramo**, no mesmo ponto:
+
+```
+peça  →  fluxo  ─┬→  agente   o fluxo roda sozinho      (automação de TEMPO)
+                 └→  addon    o fluxo ganha uma tela    (interface no VOCABULÁRIO)
+```
+
+Valem as mesmas regras da promoção a agente: **ato humano, explícito e reversível**, botão
+sempre habilitado, histórico como informação e nunca como condição.
+
+**E a promoção não é embalar o fluxo.** Duas coisas o grafo não carrega:
+
+- **o vocabulário** — SKU, elenco, guia de compras, ficha técnica
+- **os portões** — onde a rodada para e espera alguém olhar
+
+Essas duas são o addon. O resto ele lê do fluxo.
+
+### O que dá para derivar de verdade
+
+`studio_workflows` já declara `variaveis_fluxo` e `variaveis_produto` (E1 · 054). A camada
+**"do produto"** da §7.2 é exatamente o que o fluxo espera receber por item — ou seja,
+**`variaveis_produto` É o esquema da planilha do lote**.
+
+Isso fecha uma lacuna que o backlog marcou aberta na E1: *"`variaveis_produto` nasce sem
+catálogo para preenchê-la"*. O catálogo é a planilha do addon. As colunas não são
+inventadas na tela — são **lidas da receita**, e o preflight confere contra elas.
+
+## 13.9 A prateleira, e por que ainda não é loja
+
+O destino é uma **vitrine de addons**: a marca instala o que precisa, e o que ela instalou
+é o que um contrato compra. A semente já existe — `studio_workflows.is_template`.
+
+⚠️ **Mas construir a vitrine antes do primeiro addon é o erro que acabou de custar a
+campanha:** muita obra para um resultado que ainda não serve. Hoje existem **zero** addons
+construídos. Loja com prateleira vazia não ensina nada, e "loja" arrasta consigo publicação
+por terceiros, versionamento, cobrança, revisão e isolamento — um negócio de plataforma,
+não uma tela.
+
+A ordem que evita a armadilha:
+
+1. **Um addon.** O lote de catálogo (§7.5). Construir revela o que um addon precisa de verdade.
+2. **O segundo.** É ele que mostra o que os dois têm em comum — e **isso** é o contrato do addon.
+   Antes do segundo, qualquer "contrato" é chute.
+3. **A prateleira.** Interna e curada: instalar por marca, ligar e desligar. Barata, porque
+   a essa altura já existe o que prateleirar.
+4. **A loja.** Só se um dia alguém de fora publicar. É outra decisão, e é de negócio.
+
+**Regra:** nada de abstração de addon antes do segundo addon. O primeiro é código concreto
+de lote de catálogo, e tem que poder ser feio.
