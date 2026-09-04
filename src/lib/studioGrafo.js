@@ -18,6 +18,13 @@
 
 const dados = (n) => n?.data || {}
 
+// Quem produz imagem no grafo. Espelha `PRODUCES_IMAGE` do studioNodes: nó que
+// não produz imagem NÃO entra como referência, por mais conectado que esteja.
+export const PRODUZ_IMAGEM = new Set(['generate', 'app', 'imageInput', 'preview', 'artGate'])
+
+// Normaliza o que um nó "produziu": string, lista, ou nada.
+export const paraUrls = (v) => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
+
 /** Nós ligados à ENTRADA de um nó. */
 export const entradasDe = (nodes, edges, nodeId) => {
   const ids = (edges || []).filter(e => e.target === nodeId).map(e => e.source)
@@ -94,13 +101,92 @@ export function vistasDoGrafo(nodes, edges) {
     const nome  = (texto.split(/\r?\n/)[0] || '').trim()
     if (!nome || vistas.some(v => v.nome === nome)) continue
     const gen = geracaoDoPrompt(nodes, edges, n.id)
+    const etapa = etapaDoNo(gen?.id) ?? etapaDoNo(n.id)
     vistas.push({
       id: n.id,
       nome,
       instrucao: texto.slice(nome.length).trim(),
       generateNodeId: gen?.id || null,
       model: dados(gen).model === 'custom' ? dados(gen).customModel : (dados(gen).model || null),
+      etapa,
+      // A etapa 0 constrói a base da modelo; ela não é entrega de catálogo.
+      deCatalogo: etapa === null ? true : etapa !== ETAPA_DA_BASE,
     })
   }
   return vistas
+}
+
+/**
+ * ⭐ A ORDEM DAS REFERÊNCIAS — o coração da fidelidade.
+ *
+ * Extraído do `imageUpstreamsOf` do canvas, sem mudar comportamento. Duas
+ * regras, e as duas custaram rodada para serem descobertas (F4 · itens 4+6):
+ *
+ *  · vale a ordem das ARESTAS, não a do array de nós. A convenção do try-on
+ *    (1ª = modelo, 2ª = peça) depende disso, e foi a raiz do "a 1ª imagem
+ *    precisa ser PESSOA";
+ *  · mas a ordem ESCOLHIDA no painel Entradas (`refOrder`) vence a das
+ *    conexões, porque ordem de conexão é histórico de edição — ninguém a vê
+ *    nem a controla sem refazer as ligações.
+ *
+ * O addon NÃO monta lista de referência própria: ele troca as URLs dos nós de
+ * imagem e chama isto. Assim a ordem é decidida pelo MESMO código que decide no
+ * canvas, e não por uma convenção paralela que divergiria no primeiro ajuste.
+ */
+export function produtoresDeImagem(nodes, edges, nodeId) {
+  const ids = [...new Set((edges || []).filter(e => e.target === nodeId).map(e => e.source))]
+  const produtores = ids.map(id => (nodes || []).find(n => n.id === id))
+                        .filter(n => n && PRODUZ_IMAGEM.has(n.type))
+  const refOrder = dados((nodes || []).find(n => n.id === nodeId)).refOrder
+  if (!Array.isArray(refOrder) || !refOrder.length) return produtores
+  const pos = id => { const i = refOrder.indexOf(id); return i === -1 ? Infinity : i }
+  return [...produtores].sort((a, b) => pos(a.id) - pos(b.id))
+}
+
+/** As URLs de referência de uma geração, na ordem que o grafo determina. */
+export const referenciasDaGeracao = (nodes, edges, genId, teto = Infinity) =>
+  produtoresDeImagem(nodes, edges, genId)
+    .flatMap(n => paraUrls(dados(n).urls || dados(n).outputUrl || dados(n).imageUrl || dados(n).url))
+    .slice(0, teto)
+
+/**
+ * Troca as URLs dos nós de imagem por um mapa `{ nodeId: [url, …] }`.
+ *
+ * É assim que o addon injeta a peça do cliente NO GRAFO, em vez de montar um
+ * pedido paralelo: o grafo continua sendo quem decide o que entra e em que
+ * ordem. Nó não citado no mapa fica como está — é o que preserva as
+ * constantes da receita (pose de referência, fundo, base neutra).
+ */
+export function comEntradas(nodes, mapa) {
+  return (nodes || []).map(n => {
+    const urls = mapa?.[n.id]
+    if (!urls) return n
+    return { ...n, data: { ...dados(n), urls: Array.isArray(urls) ? urls : [urls] } }
+  })
+}
+
+/**
+ * A ETAPA de um nó, pelo prefixo do id (`e0_g4` → 0, `e2_in_pose` → 2).
+ *
+ * ⚠️ A etapa 0 NÃO é catálogo: é a construção da BASE DE CASTING LIMPA, e roda
+ * em nano banana porque o trabalho é pessoa. As etapas 1+ é que produzem a peça,
+ * em Seedream 5 Pro. Misturar as duas ofereceria "VISTA 90° · PERFIL" como se
+ * fosse saída de catálogo, quando é ângulo da base da modelo — e o cliente
+ * pagaria por uma imagem que não é entrega.
+ */
+export const etapaDoNo = (nodeId) => {
+  const m = String(nodeId || '').match(/^e(\d+)_/)
+  return m ? Number(m[1]) : null
+}
+
+export const ETAPA_DA_BASE = 0
+
+/**
+ * O papel de um nó de imagem, deduzido do id (`e1_in_bolsa` → `bolsa`).
+ * A convenção existe no fluxo real da Hering e é o que permite casar as colunas
+ * da planilha com os nós do grafo sem ninguém remapear à mão.
+ */
+export const papelDoNo = (nodeId) => {
+  const m = String(nodeId || '').match(/^e\d+_in_(.+)$/)
+  return m ? m[1] : null
 }

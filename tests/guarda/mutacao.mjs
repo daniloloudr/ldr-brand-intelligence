@@ -20,6 +20,21 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'grafo: a base da modelo (etapa 0) volta a ser vendida como peça de catálogo',
+    arq: 'src/lib/studioGrafo.js',
+    de: '      deCatalogo: etapa === null ? true : etapa !== ETAPA_DA_BASE,',
+    para: '      deCatalogo: true,' },
+
+  { nome: 'lote: o addon volta a montar as referências por conta (perde a ordem do grafo)',
+    arq: 'src/lib/loteExecucao.js',
+    de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
+    para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
+
+  { nome: 'lote: o contexto da peça SUBSTITUI o do grafo em vez de somar',
+    arq: 'src/lib/loteExecucao.js',
+    de: "  const contexto = [inp.context, contextoDaPeca].filter(Boolean).join('\\n\\n')",
+    para: '  const contexto = contextoDaPeca' },
+
   { nome: 'grafo: o canvas volta a ter leitura PRÓPRIA do prompt (diverge do addon)',
     arq: 'src/lib/studioGrafo.js',
     de: "  const promptNode  = ins.find(n => n.type === 'prompt')",

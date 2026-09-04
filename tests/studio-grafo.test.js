@@ -74,3 +74,34 @@ describe('as arestas', () => {
     expect(geracaoDoPrompt(nodes, edges, 'p1').id).toBe('g1')
   })
 })
+
+describe('⭐ a etapa 0 é a BASE da modelo, não catálogo', () => {
+  const n = [
+    { id: 'e0_p1', type: 'prompt',   data: { text: 'VISTA 90° · PERFIL\n\nde lado' } },
+    { id: 'e0_g4', type: 'generate', data: { model: 'fal-ai/gemini-25-flash-image' } },
+    { id: 'e1_p1', type: 'prompt',   data: { text: 'FRONTAL\n\nde frente' } },
+    { id: 'e1_g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+  ]
+  const e = [{ source: 'e0_p1', target: 'e0_g4' }, { source: 'e1_p1', target: 'e1_g1' }]
+  const v = vistasDoGrafo(n, e)
+
+  it('lê a etapa do id do nó', () => {
+    expect(v.find(x => x.nome.startsWith('VISTA 90')).etapa).toBe(0)
+    expect(v.find(x => x.nome === 'FRONTAL').etapa).toBe(1)
+  })
+  it('⭐ a etapa 0 NÃO é de catálogo — é insumo, e cobrá-la seria errado', () => {
+    expect(v.find(x => x.nome.startsWith('VISTA 90')).deCatalogo).toBe(false)
+    expect(v.find(x => x.nome === 'FRONTAL').deCatalogo).toBe(true)
+  })
+  it('cada etapa traz o modelo do trabalho dela', () => {
+    expect(v.find(x => x.etapa === 0).model).toMatch(/gemini/)      // pessoa → nano banana
+    expect(v.find(x => x.etapa === 1).model).toMatch(/seedream/)    // peça  → Seedream 5 Pro
+  })
+  it('nó sem prefixo de etapa não é excluído por engano', () => {
+    const solto = vistasDoGrafo(
+      [{ id: 'x', type: 'prompt', data: { text: 'AVULSA\n\nx' } },
+       { id: 'y', type: 'generate', data: { model: 'm' } }],
+      [{ source: 'x', target: 'y' }])
+    expect(solto[0].deCatalogo).toBe(true)
+  })
+})

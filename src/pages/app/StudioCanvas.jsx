@@ -40,7 +40,7 @@ import { useWorkspace } from '../../lib/WorkspaceContext'
 import { CreditBadge } from '../../components/CreditBadge'
 import { PageHeader } from '../../components/shell/PageHeader'
 import { IMAGE_MODELS, IMAGE_MODEL_GROUPS, DEFAULT_IMAGE_MODEL, resolveModel, ordenarPorRefOrder } from '../../lib/studioModels'
-import { entradasDaGeracao, comContexto } from '../../lib/studioGrafo'
+import { entradasDaGeracao, comContexto, produtoresDeImagem } from '../../lib/studioGrafo'
 import { VIDEO_MODELS, VIDEO_MODEL_GROUPS, DEFAULT_VIDEO_MODEL, videoModelByKey, durLabel, modeLabel } from '../../lib/videoModels'
 import { PALETTE } from '../../lib/theme'
 import {
@@ -508,18 +508,10 @@ export function StudioCanvas({ brandId, workflowId }) {
     return nodes.find(n => inIds.includes(n.id) && PRODUCES_IMAGE.has(n.type))
   }
   // Todos os nós produtores de imagem conectados → viram referências (image-to-image)
-  function imageUpstreamsOf(nodeId) {
-    // Ordem das EDGES (1ª conexão = 1ª referência), não do array de nós —
-    // a convenção do try-on (1ª = modelo, 2ª = peça) depende disso.
-    const inIds = [...new Set(edges.filter(e => e.target === nodeId).map(e => e.source))]
-    const produtores = inIds.map(id => nodes.find(n => n.id === id)).filter(n => n && PRODUCES_IMAGE.has(n.type))
-    // ...mas a ordem ESCOLHIDA no painel Entradas vence a ordem das conexões.
-    // Ordem de conexão é histórico de edição: ninguém a vê e ninguém a controla
-    // sem refazer as ligações. `refOrder` é o mesmo dado, explícito e editável.
-    // Quem não está na lista salva entra no fim (sort estável), então conexão
-    // nova nasce por último em vez de embaralhar o que já foi ordenado.
-    return ordenarPorRefOrder(produtores, nodes.find(n => n.id === nodeId)?.data?.refOrder)
-  }
+  // Ordem das referências: `lib/studioGrafo.js`, compartilhada com o addon de
+  // Lote — duas implementações divergiriam, e é justamente aqui que doeria.
+  const imageUpstreamsOf = (nodeId) => produtoresDeImagem(nodes, edges, nodeId)
+
   // Fecho a jusante de um nó (ele + tudo que descende dele) — p/ run seletivo
   function downstreamClosure(rootId) {
     const keep = new Set([rootId]); const stack = [rootId]
