@@ -124,35 +124,16 @@ export const montarLook = () => ''
 
 // O contexto completo. §A PEÇA vem da planilha; §O LOOK é gerado; o resto é
 // constante da RECEITA e vem do fluxo (§7.2, camada "do fluxo").
-// Seções que NÃO podem vir do contexto da peça: câmera é da POSE, e pose é
-// prompt. Qualquer texto colado que traga "§VISÃO DE CÂMERA E ÂNGULO" declara
-// um enquadramento fixo — e ele vence a pose, fazendo a APROXIMADA (meio corpo)
-// e a CONTRA-PLONGÉE (câmera baixa) saírem iguais à FRONTAL.
+// ⚠️ O contexto do usuário NÃO é editado pelo código (Danilo, 04/set: "o
+// contexto precisa vir do usuário"). Eu havia feito o addon remover sozinho a
+// seção de câmera — resolvia o sintoma e criava outro problema: texto que a
+// pessoa escreveu e o sistema altera em silêncio é pior que texto errado, porque
+// ela não tem como saber o que foi parar no prompt.
 //
-// Aconteceu três vezes em 04/set, com textos diferentes. Pedir para a pessoa
-// lembrar de apagar a seção é transferir a ela um cuidado que o código faz uma
-// vez — então o addon tira.
-const SECOES_PROIBIDAS = ['visao de camera e angulo', 'visao de camera', 'camera e angulo', 'enquadramento']
-
-const chaveDeSecao = (t) => String(t || '').split('—')[0]
-  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .trim().toLowerCase().replace(/\s+/g, ' ')
-
-/** Tira do contexto da peça as seções que pertencem ao prompt. */
-export function limparContextoDaPeca(texto) {
-  const linhas = String(texto || '').split(/\r?\n/)
-  const saida = []
-  let pulando = false
-  for (const l of linhas) {
-    const m = l.trim().match(/^═+\s*(.+?)\s*═+$/)
-    if (m) { pulando = SECOES_PROIBIDAS.includes(chaveDeSecao(m[1])); if (pulando) continue }
-    if (!pulando) saida.push(l)
-  }
-  return saida.join('\n').replace(/\n{3,}/g, '\n\n').trim()
-}
-
+// Se o contexto trouxer §VISÃO DE CÂMERA, ele vence a pose. Isso é problema do
+// texto, e o lugar de consertar é o texto.
 export function montarContexto({ etapa, aPeca, doFluxo = '' } = {}) {
-  const texto = limparContextoDaPeca(aPeca)
+  const texto = String(aPeca || '').trim()
   if (!texto) return String(doFluxo || '').trim()
 
   // ⚠️ Se o usuário já colou um contexto COMPLETO — com cabeçalho e seções —,

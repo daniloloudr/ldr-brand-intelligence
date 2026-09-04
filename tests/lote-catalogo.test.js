@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   lerCSV, normalizarCabecalho, montarLook, montarContexto, preflight,
-  contarSaidas, ehUrl, valoresDe, vistasDoFluxo, limparContextoDaPeca, PAPEIS, CONTEXTO_MIN, NIVEIS,
+  contarSaidas, ehUrl, valoresDe, vistasDoFluxo, PAPEIS, CONTEXTO_MIN, NIVEIS,
 } from '../src/lib/loteCatalogo.js'
 
 const CTX = 'Camiseta feminina em ribana, canelado fino. '.repeat(8)   // > CONTEXTO_MIN
@@ -290,41 +290,5 @@ describe('⭐ a conta inclui as posições extras', () => {
     const r = rodar([{ ...base, saidas: 'A' }], { extras: ['X', 'Y'], creditoPorImagem: 2 })
     expect(r.imagens).toBe(3)
     expect(r.creditos).toBe(6)
-  })
-})
-
-describe('⭐ o contexto da peça não carrega câmera', () => {
-  const COM_CAMERA = `═══ A PEÇA ═══
-polo listrada
-
-═══ VISÃO DE CÂMERA E ÂNGULO ═══
-Corpo inteiro, da cabeça aos pés.
-
-═══ ACABAMENTO ═══
-fundo #F2F2F2`
-
-  it('⭐ a seção de câmera é removida — ela venceria a pose', () => {
-    const c = limparContextoDaPeca(COM_CAMERA)
-    expect(c).not.toContain('Corpo inteiro')
-    expect(c).not.toContain('VISÃO DE CÂMERA')
-  })
-  it('o resto passa intacto', () => {
-    const c = limparContextoDaPeca(COM_CAMERA)
-    expect(c).toContain('polo listrada')
-    expect(c).toContain('#F2F2F2')
-  })
-  it('não deixa buraco onde a seção estava', () => {
-    expect(limparContextoDaPeca(COM_CAMERA)).not.toMatch(/\n\n\n/)
-  })
-  it('casa com variações do título', () => {
-    for (const t of ['VISÃO DE CÂMERA', 'CÂMERA E ÂNGULO', 'ENQUADRAMENTO', 'visao de camera e angulo'])
-      expect(limparContextoDaPeca(`═══ ${t} ═══\nx\n\n═══ A PEÇA ═══\ny`)).not.toContain('x')
-  })
-  it('contexto sem câmera não é alterado', () => {
-    const c = '═══ A PEÇA ═══\npolo'
-    expect(limparContextoDaPeca(c)).toBe(c)
-  })
-  it('montarContexto já entrega limpo', () => {
-    expect(montarContexto({ aPeca: COM_CAMERA })).not.toContain('Corpo inteiro')
   })
 })
