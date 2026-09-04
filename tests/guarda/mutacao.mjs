@@ -133,6 +133,11 @@ const MUTACOES = [
     de: "  const contexto = [inp.context, daPeca].filter(Boolean).join('\\n\\n')",
     para: '  const contexto = daPeca || inp.context' },
 
+  { nome: 'lote: o contexto da peça volta a trazer CÂMERA e vence a pose',
+    arq: 'src/lib/loteCatalogo.js',
+    de: '    if (m) { pulando = SECOES_PROIBIDAS.includes(chaveDeSecao(m[1])); if (pulando) continue }',
+    para: '    if (m) { pulando = false }' },
+
   { nome: 'lote: contexto já completo volta a ser embrulhado (cabeçalho em cima de cabeçalho)',
     arq: 'src/lib/loteCatalogo.js',
     de: "  if (/^═+|PRODUÇÃO DE CATÁLOGO/m.test(texto)) return texto",
