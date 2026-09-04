@@ -74,15 +74,10 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
-  { nome: 'lote: o contexto volta a SUBSTITUIR inteiro e leva a câmera da etapa junto',
+  { nome: 'lote: o contexto do nó volta a se misturar ao do usuário',
     arq: 'src/lib/loteExecucao.js',
-    de: '  const contexto = mesclarContexto(inp.context, daPeca)',
-    para: '  const contexto = daPeca || inp.context' },
-
-  { nome: 'lote: a seção do usuário deixa de vencer a do fluxo (duas §A PEÇA no prompt)',
-    arq: 'src/lib/loteExecucao.js',
-    de: '    if (!s.chave || doUsuarioPorChave.has(s.chave)) continue',
-    para: '    if (!s.chave) continue' },
+    de: '  const contexto = daPeca || inp.context',
+    para: "  const contexto = [inp.context, daPeca].filter(Boolean).join('\\n\\n')" },
 
   { nome: 'lote: contexto já completo volta a ser embrulhado (cabeçalho em cima de cabeçalho)',
     arq: 'src/lib/loteCatalogo.js',

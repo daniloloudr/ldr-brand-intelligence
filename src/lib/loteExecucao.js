@@ -124,7 +124,12 @@ export function pedidoDaVista({ nodes, edges, vista, genId: genDireto, linha, br
   // (Danilo, 04/set) — o nó de contexto das etapas de PEÇA é conteúdo de lote
   // morando no lugar de constante. Na etapa 0 o contexto é da PESSOA e continua
   // sendo do fluxo.
-  const contexto = mesclarContexto(inp.context, daPeca)
+  // O contexto do usuário vale COMO ESTÁ — nada de mesclar seção do fluxo por
+  // cima. "Não era pra você substituir nada; mantenha as infos de câmera no
+  // prompt" (Danilo, 04/set): enquadramento é da POSE, e pose é prompt. Com a
+  // câmera fora do contexto, não há o que conciliar — some a classe inteira de
+  // conflito entre o que o usuário escreve e o que a etapa precisa.
+  const contexto = daPeca || inp.context
 
   return {
     brand_id: brandId,

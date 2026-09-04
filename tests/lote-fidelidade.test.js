@@ -10,7 +10,7 @@ import {
   vistasDoGrafo,
 } from '../src/lib/studioGrafo.js'
 import { resolveModel, MAX_REFS_CANVAS } from '../src/lib/studioModels.js'
-import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado, mesclarContexto, seccionar, chaveDaSecao } from '../src/lib/loteExecucao.js'
+import { pedidoDaVista, entradasDoLote, pedidosDaPeca, roteiroDaPeca, lerEstado } from '../src/lib/loteExecucao.js'
 
 // Um recorte fiel do fluxo real da Hering: ids `eN_in_papel`, formato custom
 // 1720×2432, contexto de acabamento, e a ordem das arestas importando.
@@ -52,7 +52,7 @@ function comoOCanvasMonta(grafo) {
     .flatMap(n => n.data.urls || []).slice(0, MAX_REFS_CANVAS)
   return {
     brand_id: 'B', workflow_id: 'W', node_id: 'g1',
-    prompt: comContexto(inp.prompt, mesclarContexto(inp.context, CTX_PECA)),
+    prompt: comContexto(inp.prompt, CTX_PECA || inp.context),
     formato: inp.formato, custom_size: inp.customSize,
     use_brand: inp.hasBrand, brand_facets: inp.brandFacets,
     model, references,
@@ -78,10 +78,9 @@ describe('⭐ addon e canvas montam o MESMO pedido', () => {
     expect(addon.prompt.indexOf('FRONTAL')).toBe(0)
     expect(addon.prompt).toContain('[CONTEXTO ADICIONAL]')
   })
-  it('⭐ a seção do usuário substitui a do nó, e as outras do nó ficam', () => {
-    expect(addon.prompt).toContain('A PEÇA')              // a do usuário
-    expect(addon.prompt).toContain('ACABAMENTO')          // a do fluxo sobrevive
-    expect(addon.prompt.match(/A PEÇA/g)).toHaveLength(1) // sem duplicata
+  it('⭐ o contexto do usuário é o único — nada do nó se mistura', () => {
+    expect(addon.prompt).toContain('A PEÇA')
+    expect(addon.prompt).not.toContain('ACABAMENTO')
   })
   it('sem contexto do usuário, vale o do nó', () => {
     const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
@@ -241,47 +240,18 @@ describe('⭐ o estado de uma geração — só `error` é falha', () => {
   })
 })
 
-describe('⭐ o contexto se mescla por SEÇÃO — a roupa é do usuário, a câmera é da etapa', () => {
-  const DO_FLUXO = `═══ A PEÇA ═══
-ribana canelada off-white
-
-═══ VISÃO DE CÂMERA E ÂNGULO ═══
-MEIO CORPO, do topo da cabeça até o quadril.
-
-═══ ACABAMENTO ═══
-fundo #F2F2F2`
-
-  const DO_USUARIO = `═══ A PEÇA — FIDELIDADE É O CRITÉRIO PRINCIPAL ═══
-polo listrada 100% algodão
-
-═══ O LOOK ═══
-• BOLSA: tote marrom`
-
-  const m = mesclarContexto(DO_FLUXO, DO_USUARIO)
-
-  it('a peça do usuário SUBSTITUI a do fluxo', () => {
-    expect(m).toContain('polo listrada')
-    expect(m).not.toContain('ribana canelada')
+describe('⭐ o contexto do usuário vale COMO ESTÁ', () => {
+  const DO_FLUXO = '═══ A PEÇA ═══\nribana canelada'
+  const DO_USUARIO = '═══ A PEÇA ═══\npolo listrada'
+  it('quando existe, o do usuário é o único', () => {
+    const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
+      resolver: v => v, contextoDaPeca: DO_USUARIO })
+    expect(p.prompt).toContain('polo listrada')
+    expect(p.prompt).not.toContain('ribana canelada')
   })
-  it('⭐ a câmera da ETAPA sobrevive — é ela que dá o enquadramento', () => {
-    expect(m).toContain('MEIO CORPO')
-  })
-  it('o acabamento do fluxo também sobrevive', () => {
-    expect(m).toContain('#F2F2F2')
-  })
-  it('seção nova do usuário entra', () => {
-    expect(m).toContain('tote marrom')
-  })
-  it('o título casa mesmo com sufixo depois do travessão', () => {
-    expect(m.match(/A PEÇA/g)).toHaveLength(1)      // não duplica
-  })
-  it('sem contexto do usuário, o do fluxo passa inteiro', () => {
-    expect(mesclarContexto(DO_FLUXO, '')).toBe(DO_FLUXO)
-  })
-  it('sem contexto do fluxo, o do usuário passa inteiro', () => {
-    expect(mesclarContexto('', DO_USUARIO)).toBe(DO_USUARIO)
-  })
-  it('chaveDaSecao ignora acento, caixa e sufixo', () => {
-    expect(chaveDaSecao('A PEÇA — FIDELIDADE')).toBe(chaveDaSecao('a peca'))
+  it('sem o do usuário, vale o do nó', () => {
+    const p = pedidoDaVista({ nodes, edges, vista, linha, brandId: 'B', workflowId: 'W',
+      resolver: v => v, contextoDaPeca: '' })
+    expect(p.prompt).toContain('ACABAMENTO')
   })
 })
