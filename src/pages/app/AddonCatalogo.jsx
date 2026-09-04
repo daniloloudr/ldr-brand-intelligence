@@ -266,7 +266,21 @@ export function AddonCatalogo({ brandId }) {
       .replace(/^\d{10,}-/, '').replace(/^[a-z0-9]{4}-/i, '') || t
   }
 
-  const pastaDoLote = (sku) => `Lote ${sku} · ${new Date().toLocaleDateString('pt-BR')}`
+  // ⭐ A pasta carrega a ESTRUTURA no nome: Catálogo / SKU / data.
+  //
+  // A Biblioteca hoje trata `pasta` como texto plano — não aninha. Gravar o
+  // caminho mesmo assim resolve duas coisas: agrupa na ordem certa (todo
+  // "Catálogo/" junto, cada SKU junto, data ordenável) e deixa o DADO pronto
+  // para quando a Biblioteca aprender a dividir por `/`. Esperar a tela para só
+  // então estruturar deixaria os lotes de hoje fora da árvore de amanhã.
+  //
+  // Data em ISO, não 04/09/2026: barra dentro do nome quebraria o caminho, e
+  // ISO ordena sozinha.
+  const pastaDoLote = (sku) => {
+    const d = new Date()
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return `Catálogo/${String(sku).replace(/\//g, '-')}/${iso}`
+  }
 
   async function baixarTudo() {
     if (!prontasParaVer.length || baixando) return
