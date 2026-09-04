@@ -23,14 +23,24 @@ import { vistasDoGrafo } from './studioGrafo'
 // Espelham a seção §O LOOK do gabarito: cada papel diz DE ONDE vem cada parte
 // da imagem. Não são "campos de arquivo" — são papéis, e é por isso que a
 // ordem importa e o corte silencioso dói.
+// A PEÇA PRINCIPAL é a estrela, e nem sempre é camisa — pode ser calça, pode
+// ser sapato (Danilo, 04/set). Por isso os papéis deixaram de ser
+// `calca`/`calcado`/`bolsa`, que só descrevem um look de camiseta: agora é UMA
+// peça principal com N vistas, mais N acessórios genéricos.
+//
+// A vista 1 da peça é a ÂNCORA — é ela que precisa sair perfeita, e é ela que
+// entra primeiro entre os uploads. As outras vistas são ângulos da MESMA peça
+// (lado, costas), não itens diferentes.
 export const PAPEIS = [
-  { col: 'peca_frente', papel: 'PARTE DE CIMA',           obrigatorio: true  },
-  { col: 'peca_costas', papel: 'PARTE DE CIMA (costas)',  obrigatorio: false },
-  { col: 'calca',       papel: 'CALÇA',                   obrigatorio: false },
-  { col: 'calcado',     papel: 'CALÇADO',                 obrigatorio: false },
-  { col: 'bolsa',       papel: 'BOLSA',                   obrigatorio: false },
-  { col: 'elenco',      papel: 'IDENTIDADE',              obrigatorio: true, doElenco: true },
+  { col: 'peca',        papel: 'PEÇA PRINCIPAL', obrigatorio: true,  principal: true },
+  { col: 'acessorio_1', papel: 'ACESSÓRIO 1',    obrigatorio: false },
+  { col: 'acessorio_2', papel: 'ACESSÓRIO 2',    obrigatorio: false },
+  { col: 'acessorio_3', papel: 'ACESSÓRIO 3',    obrigatorio: false },
+  { col: 'elenco',      papel: 'MODELO',         obrigatorio: true,  doElenco: true },
 ]
+
+export const PAPEL_PRINCIPAL = 'peca'
+export const ACESSORIOS = PAPEIS.filter(p => /^acessorio_/.test(p.col)).map(p => p.col)
 
 export const COLUNAS_OBRIGATORIAS = ['sku', 'contexto', ...PAPEIS.filter(p => p.obrigatorio).map(p => p.col)]
 

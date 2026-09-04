@@ -9,12 +9,12 @@ import {
 const CTX = 'Camiseta feminina em ribana, canelado fino. '.repeat(8)   // > CONTEXTO_MIN
 const base = {
   sku: 'KH6V', contexto: CTX, elenco: 'Marina',
-  peca_frente: 'kh6v_frente.jpg', calcado: 'sapatilha.jpg',
+  peca: 'kh6v_frente.jpg', acessorio_1: 'sapatilha.jpg',
 }
 const mundo = {
   elenco: ['Marina', 'Julia'],
   acervo: ['kh6v_frente.jpg', 'kh6v_costas.jpg', 'sapatilha.jpg', 'bolsa.jpg', 'calca.jpg'],
-  cabecalho: ['sku', 'contexto', 'elenco', 'peca_frente', 'calcado'],
+  cabecalho: ['sku', 'contexto', 'elenco', 'peca', 'acessorio_1'],
 }
 const rodar = (linhas, extra = {}) =>
   preflight({ linhas: linhas.map((l, i) => ({ _linha: i + 2, ...l })), ...mundo, ...extra })
@@ -84,11 +84,11 @@ describe('o preflight barra antes de gastar', () => {
     expect(r.linhas[0].problemas.some(p => /Uma peça/.test(p.texto))).toBe(true)
   })
   it('⭐ arquivo fora da Biblioteca BLOQUEIA', () => {
-    const r = rodar([{ ...base, peca_frente: 'nao_existe.jpg' }])
+    const r = rodar([{ ...base, peca: 'nao_existe.jpg' }])
     expect(r.bloqueadas).toBe(1)
   })
   it('URL passa sem estar na Biblioteca', () => {
-    const r = rodar([{ ...base, peca_frente: 'https://cdn.exemplo.com/a.jpg' }])
+    const r = rodar([{ ...base, peca: 'https://cdn.exemplo.com/a.jpg' }])
     expect(r.bloqueadas).toBe(0)
   })
   it('SKU repetido bloqueia e diz onde está o primeiro', () => {
@@ -115,7 +115,7 @@ describe('o preflight barra antes de gastar', () => {
 
 describe('⭐ o corte silencioso do F4, dito ANTES de gerar', () => {
   const seisRefs = {
-    ...base, peca_costas: 'kh6v_costas.jpg', calca: 'calca.jpg', bolsa: 'bolsa.jpg',
+    ...base, peca: 'kh6v_frente.jpg;kh6v_costas.jpg', acessorio_2: 'calca.jpg', acessorio_3: 'bolsa.jpg',
   }
   it('modelo de referência única avisa que descarta o resto, e culpa o MODELO', () => {
     const r = rodar([seisRefs], { modelo: 'fal-ai/flux-pro/v1.1', teto: 10 })
@@ -137,16 +137,16 @@ describe('⭐ o corte silencioso do F4, dito ANTES de gerar', () => {
 
 describe('⭐ várias vistas do mesmo acessório', () => {
   it('a célula aceita N vistas separadas por ;', () => {
-    const r = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg' }])
+    const r = rodar([{ ...base, acessorio_2: 'bolsa.jpg;calca.jpg' }])
     expect(r.bloqueadas).toBe(0)
   })
   it('conta IMAGEM, não papel — é o que o modelo recebe', () => {
     const uma = rodar([base]).linhas[0].refs
-    const duas = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg' }]).linhas[0].refs
+    const duas = rodar([{ ...base, acessorio_2: 'bolsa.jpg;calca.jpg' }]).linhas[0].refs
     expect(duas).toBe(uma + 2)
   })
   it('se UMA vista não existe, o papel inteiro bloqueia', () => {
-    const r = rodar([{ ...base, bolsa: 'bolsa.jpg;fantasma.jpg' }])
+    const r = rodar([{ ...base, acessorio_2: 'bolsa.jpg;fantasma.jpg' }])
     expect(r.bloqueadas).toBe(1)
   })
   it('⭐ o elenco continua sendo UMA pessoa', () => {
@@ -155,7 +155,7 @@ describe('⭐ várias vistas do mesmo acessório', () => {
     expect(r.linhas[0].problemas.some(p => /só uma modelo/.test(p.texto))).toBe(true)
   })
   it('mais vistas empurram o corte do modelo', () => {
-    const r = rodar([{ ...base, bolsa: 'bolsa.jpg;calca.jpg;kh6v_costas.jpg' }],
+    const r = rodar([{ ...base, acessorio_2: 'bolsa.jpg;calca.jpg;kh6v_costas.jpg' }],
                     { modelo: 'fal-ai/nano-banana-pro', teto: 4 })
     expect(r.linhas[0].problemas.some(p => p.campo === 'referencias')).toBe(true)
   })
@@ -222,12 +222,30 @@ describe('a conta antes do gasto', () => {
   })
 })
 
-describe('os papéis espelham o §O LOOK do gabarito', () => {
+describe('a peça principal é a estrela', () => {
+  it('⭐ existe exatamente UMA peça principal, e ela é obrigatória', () => {
+    const pr = PAPEIS.filter(p => p.principal)
+    expect(pr).toHaveLength(1)
+    expect(pr[0].col).toBe('peca')
+    expect(pr[0].obrigatorio).toBe(true)
+  })
+  it('a peça aceita várias vistas — lado e costas da MESMA peça', () => {
+    const r = rodar([{ ...base, peca: 'kh6v_frente.jpg;kh6v_costas.jpg' }])
+    expect(r.bloqueadas).toBe(0)
+    expect(r.linhas[0].refs).toBe(4)      // 2 vistas da peça + 1 acessório + a modelo
+  })
+  it('acessórios são genéricos — nada de calça/bolsa cravados', () => {
+    expect(PAPEIS.map(p => p.col)).not.toContain('bolsa')
+    expect(PAPEIS.map(p => p.col)).not.toContain('calcado')
+  })
+})
+
+describe('os papéis', () => {
   it('todo papel tem coluna e rótulo', () => {
     for (const p of PAPEIS) { expect(p.col).toBeTruthy(); expect(p.papel).toBeTruthy() }
   })
-  it('identidade vem do elenco, e é obrigatória', () => {
-    const id = PAPEIS.find(p => p.papel === 'IDENTIDADE')
+  it('a modelo vem do elenco, e é obrigatória', () => {
+    const id = PAPEIS.find(p => p.doElenco)
     expect(id.doElenco).toBe(true)
     expect(id.obrigatorio).toBe(true)
   })

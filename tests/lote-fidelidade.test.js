@@ -23,7 +23,8 @@ const nodes = [
   { id: 'ctx',  type: 'context',  data: { text: '═══ ACABAMENTO ═══\nfundo #F2F2F2, luz suave' } },
   { id: 'fmt',  type: 'formato',  data: { formato: 'custom', width: 1720, height: 2432 } },
   { id: 'p_frontal', type: 'prompt', data: { text: 'FRONTAL\n\nDe frente, peso distribuído.' } },
-  { id: 'g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image' } },
+  { id: 'g1', type: 'generate', data: { model: 'bytedance/seedream/v5/pro/text-to-image',
+      refOrder: ['e0_in_casting', 'e1_in_still', 'e1_in_calcado', 'e1_in_bolsa', 'e2_in_pose'] } },
 ]
 // ordem das arestas = ordem das referências (casting primeiro: é a PESSOA)
 const edges = [
@@ -37,8 +38,8 @@ const edges = [
 ]
 
 const linha = {
-  sku: 'KH6V', elenco: 'CAST.jpg', peca_frente: 'STILL.jpg',
-  bolsa: 'B1.jpg;B2.jpg', calcado: 'CALC.jpg',
+  sku: 'KH6V', elenco: 'CAST.jpg', peca: 'STILL.jpg',
+  acessorio_1: 'CALC.jpg', acessorio_2: 'B1.jpg;B2.jpg',
 }
 const CTX_PECA = '═══ A PEÇA ═══\nRibana canelada, slim.'
 
@@ -66,7 +67,7 @@ const montarAddon = () => pedidoDaVista({
 
 describe('⭐ addon e canvas montam o MESMO pedido', () => {
   const addon = montarAddon()
-  const grafoInjetado = comEntradas(nodes, entradasDoLote(nodes, linha))
+  const grafoInjetado = comEntradas(nodes, entradasDoLote(nodes, linha, v => v, edges))
   const canvas = comoOCanvasMonta(grafoInjetado)
 
   it('o pedido inteiro é idêntico', () => {
@@ -85,18 +86,15 @@ describe('⭐ addon e canvas montam o MESMO pedido', () => {
 
 describe('⭐ as referências: o grafo decide, o addon só injeta', () => {
   const addon = montarAddon()
-  it('a ordem é a das arestas quando não há refOrder', () => {
-    expect(addon.references[0]).toBe('CAST.jpg')
+  it('⭐ a ordem é: modelo, PEÇA PRINCIPAL, depois acessórios', () => {
+    expect(addon.references).toEqual(['CAST.jpg', 'STILL.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg', 'POSE_a.jpg'])
+    expect(addon.references[1]).toBe('STILL.jpg')
   })
-  it('⭐ com refOrder, a ordem do painel Entradas VENCE as conexões', () => {
-    // O que o Danilo definiu em 04/set: imagem gerada, PEÇA PRINCIPAL, acessórios.
-    const comOrdem = nodes.map(n => n.id === 'g1'
-      ? { ...n, data: { ...n.data, refOrder: ['e0_in_casting', 'e1_in_still', 'e1_in_calcado', 'e1_in_bolsa', 'e2_in_pose'] } }
-      : n)
-    const p = pedidoDaVista({ nodes: comOrdem, edges, vista, linha, brandId: 'B', workflowId: 'W',
+  it('⭐ sem refOrder, cai na ordem das arestas — e por isso o fluxo grava a ordem', () => {
+    const semOrdem = nodes.map(n => n.id === 'g1' ? { ...n, data: { ...n.data, refOrder: undefined } } : n)
+    const p = pedidoDaVista({ nodes: semOrdem, edges, vista, linha, brandId: 'B', workflowId: 'W',
       resolver: v => v, contextoDaPeca: '' })
-    expect(p.references).toEqual(['CAST.jpg', 'STILL.jpg', 'CALC.jpg', 'B1.jpg', 'B2.jpg', 'POSE_a.jpg'])
-    expect(p.references[1]).toBe('STILL.jpg')      // a peça principal, logo após a pessoa
+    expect(p.references[0]).toBe('CAST.jpg')
   })
   it('as N vistas de um acessório entram todas, em sequência', () => {
     expect(addon.references.filter(u => /^B\d/.test(u))).toEqual(['B1.jpg', 'B2.jpg'])
@@ -123,16 +121,20 @@ describe('o resolver traduz nome da Biblioteca em URL', () => {
 
 describe('o mapa de injeção', () => {
   it('casa coluna com nó pelo id', () => {
-    const m = entradasDoLote(nodes, linha)
+    const m = entradasDoLote(nodes, linha, v => v, edges)
     expect(m.e0_in_casting).toEqual(['CAST.jpg'])
-    expect(m.e1_in_bolsa).toEqual(['B1.jpg', 'B2.jpg'])
+    expect(m.e1_in_still).toEqual(['STILL.jpg'])     // a PEÇA PRINCIPAL
     expect(m.e2_in_pose).toBeUndefined()             // sem coluna: constante da receita
   })
-  it('still de COSTAS usa a coluna própria, pelo rótulo', () => {
-    const n2 = [...nodes, { id: 'e3_in_still', type: 'imageInput', data: { rotulo: 'Still · costas', urls: ['x'] } }]
-    const m = entradasDoLote(n2, { ...linha, peca_costas: 'COSTAS.jpg' })
-    expect(m.e3_in_still).toEqual(['COSTAS.jpg'])
-    expect(m.e1_in_still).toEqual(['STILL.jpg'])
+  it('⭐ os acessórios são posicionais, na ordem do grafo', () => {
+    const m = entradasDoLote(nodes, linha, v => v, edges)
+    // e1_in_calcado vem antes de e1_in_bolsa no refOrder → acessorio_1, acessorio_2
+    expect(m.e1_in_calcado).toEqual(['CALC.jpg'])
+    expect(m.e1_in_bolsa).toEqual(['B1.jpg', 'B2.jpg'])
+  })
+  it('a peça principal aceita várias VISTAS no mesmo nó', () => {
+    const m = entradasDoLote(nodes, { ...linha, peca: 'V1.jpg;V2.jpg' }, v => v, edges)
+    expect(m.e1_in_still).toEqual(['V1.jpg', 'V2.jpg'])
   })
   it('papelDoNo lê o papel do id', () => {
     expect(papelDoNo('e1_in_bolsa')).toBe('bolsa')
@@ -176,7 +178,7 @@ describe('⭐ o roteiro: todas as etapas, na ordem que o grafo manda', () => {
     { source: 'e1_g1', target: 'e4_g1' }, { source: 'e2_g1', target: 'e4_g1' }, { source: 'e4_p1', target: 'e4_g1' },
   ]
   const vistas = vistasDoGrafo(N, E)
-  const L = { sku: 'K', elenco: 'CAST', peca_frente: 'STILL' }
+  const L = { sku: 'K', elenco: 'CAST', peca: 'STILL' }
   const r = roteiroDaPeca({ nodes: N, edges: E, vistas, escolhidas: ['SENTADA'], linha: L,
     brandId: 'B', workflowId: 'W', resolver: v => v, contextoDaPeca: 'A PEÇA' })
 

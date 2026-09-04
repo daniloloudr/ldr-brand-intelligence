@@ -116,6 +116,20 @@ export function AddonCatalogo({ brandId }) {
   }, [linhas, cabecalho, elenco, acervo, modelo, vistas])
 
   const escolhidas = String(peca.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
+
+  // O roteiro da PRIMEIRA linha pronta, só para mostrar. Não dispara nada.
+  const roteiroPrevia = useMemo(() => {
+    const l = relatorio?.linhas?.find(x => !x.problemas.some(p => p.nivel === NIVEIS.GRAVE))
+    if (!l || !fluxo || !vistas.length) return null
+    const porNome = new Map(acervoBruto.map(a => [String(a.nome || '').toLowerCase(), a.valor]))
+    const resolver = (v) => /^https?:\/\//i.test(v) ? v : (porNome.get(String(v).toLowerCase()) || v)
+    return roteiroDaPeca({
+      nodes: fluxo.nodes, edges: fluxo.edges, vistas,
+      escolhidas: String(l.saidas || '').split(';').map(v => v.trim()).filter(Boolean),
+      linha: l, brandId, workflowId: fluxo.id, resolver,
+      contextoDaPeca: montarContexto({ etapa: '', aPeca: l.contexto, linha: l }),
+    })
+  }, [relatorio, fluxo, vistas, acervoBruto, brandId])
   const alternarVista = (nome) => setPeca(p => {
     const atuais = String(p.saidas || '').split(';').map(v => v.trim()).filter(Boolean)
     const novas = atuais.includes(nome) ? atuais.filter(v => v !== nome) : [...atuais, nome]
@@ -362,10 +376,13 @@ export function AddonCatalogo({ brandId }) {
                 <Box>
                   <Typography variant="overline" color="text.secondary">As referências</Typography>
                   <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 1 }}>
-                    Cada item aceita mais de uma vista — frente, lado, de cima.
+                    A <b>peça principal</b> é a estrela: suba a vista 1 (a âncora) e, se tiver,
+                    lado e costas da <b>mesma</b> peça. Acessórios são os outros itens do look —
+                    cada um também aceita várias vistas.
                   </Typography>
                   <Stack spacing={1}>
                     {PAPEIS.filter(p => !p.doElenco).map(p => {
+                      // eslint-disable-next-line
                       const vistas = arquivos[p.col] || []
                       return (
                         <Stack key={p.col} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -516,6 +533,47 @@ export function AddonCatalogo({ brandId }) {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* ⭐ A PRÉVIA DAS REFERÊNCIAS. "as referências não estão certas" só é
+                verificável se der para VER a lista antes de gastar. Aqui sai o
+                que cada etapa vai receber, na ordem em que vai receber. */}
+            {roteiroPrevia && (
+              <Box sx={{ mt: 2.5, border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
+                <Typography variant="overline" color="text.secondary">
+                  O que cada etapa vai receber
+                </Typography>
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  {roteiroPrevia.passos.map((p, i) => {
+                    const ped = p.montar(Object.fromEntries(
+                      roteiroPrevia.passos.slice(0, i).map(x => [x.genId, `‹saída de ${x.nome}›`])))
+                    return (
+                      <Box key={p.genId}>
+                        <Typography variant="body2">
+                          <b>{p.nome}</b>
+                          <Typography component="span" variant="caption" color="text.disabled">
+                            {' '}· etapa {p.etapa} · {p.entrega ? 'entrega' : 'insumo'}
+                            {ped?.model ? ` · ${ped.model.split('/').pop()}` : ''}
+                          </Typography>
+                        </Typography>
+                        <Stack component="ol" sx={{ m: 0, pl: 2.5 }} spacing={0}>
+                          {(ped?.references || []).map((r, j) => (
+                            <Typography key={j} component="li" variant="caption" color="text.secondary"
+                              sx={{ wordBreak: 'break-all' }}>
+                              {String(r).replace(/^https?:\/\/[^/]+\//, '…/')}
+                            </Typography>
+                          ))}
+                          {!(ped?.references || []).length && (
+                            <Typography component="li" variant="caption" color="error.main">
+                              nenhuma referência — a peça sairia sem base
+                            </Typography>
+                          )}
+                        </Stack>
+                      </Box>
+                    )
+                  })}
+                </Stack>
+              </Box>
+            )}
 
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2.5 }}>
               <Button variant="contained" disableElevation

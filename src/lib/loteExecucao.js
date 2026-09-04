@@ -13,34 +13,71 @@
 import { entradasDaGeracao, comContexto, referenciasDaGeracao, comEntradas, papelDoNo,
          planoDeExecucao, ondasDaExecucao, etapaDoNo, ETAPA_DA_BASE } from './studioGrafo'
 import { resolveModel, MAX_REFS_CANVAS } from './studioModels'
-import { valoresDe, PAPEIS } from './loteCatalogo'
+import { valoresDe } from './loteCatalogo'
 
-// Casa as colunas da planilha com os nós de imagem do grafo, pelo id
-// (`e1_in_bolsa` → coluna `bolsa`). O elenco alimenta o nó de casting.
-const COLUNA_DO_PAPEL = {
-  casting: 'elenco', still: 'peca_frente', look: 'calca',
-  calca: 'calca', calcado: 'calcado', bolsa: 'bolsa',
+/**
+ * ⭐ Casa as colunas com os NÓS DE IMAGEM do grafo.
+ *
+ * O grafo declara SLOTS; a planilha os preenche. E a classificação é por papel,
+ * não por nome de peça — porque a peça principal nem sempre é camisa (pode ser
+ * a calça, pode ser o sapato). Um slot é:
+ *
+ *   casting     → a modelo (coluna `elenco`)
+ *   principal   → a PEÇA, com todas as suas vistas (coluna `peca`)
+ *   acessório   → os demais, na ORDEM DO GRAFO, recebendo acessorio_1, _2, _3
+ *   pose        → constante da receita: a planilha não toca
+ *
+ * A ordem dos acessórios sai do `refOrder` do nó de geração quando existe, e da
+ * ordem dos nós quando não — sempre a ordem que o fluxo declara, nunca uma
+ * convenção do addon.
+ */
+export function classificarSlots(nodes, edges) {
+  const porEtapa = {}
+  for (const n of nodes || []) {
+    if (n?.type !== 'imageInput') continue
+    const etapa = etapaDoNo(n.id)
+    const papel = papelDoNo(n.id) || ''
+    const tipo = /casting/.test(papel) ? 'casting'
+               : /still|peca/.test(papel) ? 'principal'
+               : /pose/.test(papel) ? 'pose'
+               : 'acessorio'
+    ;(porEtapa[etapa] ||= []).push({ id: n.id, tipo, no: n })
+  }
+  // Dentro de cada etapa, os acessórios seguem a ordem que o grafo declara.
+  const ordemDoGrafo = new Map()
+  for (const n of nodes || []) {
+    if (n?.type !== 'generate') continue
+    const ro = n.data?.refOrder
+    if (Array.isArray(ro)) ro.forEach((id, i) => { if (!ordemDoGrafo.has(id)) ordemDoGrafo.set(id, i) })
+  }
+  const slots = {}
+  for (const [etapa, lista] of Object.entries(porEtapa)) {
+    const acess = lista.filter(x => x.tipo === 'acessorio')
+      .sort((a, b) => (ordemDoGrafo.get(a.id) ?? 99) - (ordemDoGrafo.get(b.id) ?? 99))
+    for (const x of lista) {
+      slots[x.id] = x.tipo === 'acessorio'
+        ? `acessorio_${acess.findIndex(a => a.id === x.id) + 1}`
+        : x.tipo
+    }
+  }
+  return slots
 }
+
+const COLUNA_DO_SLOT = { casting: 'elenco', principal: 'peca' }
 
 /**
  * Mapa `{ nodeId: [url] }` para injetar no grafo.
- * O `resolver` traduz o valor da planilha (nome na Biblioteca ou URL) em URL.
- * Nó cujo papel a planilha não preenche fica INTOCADO — é o que preserva as
- * constantes da receita (referência de pose, base neutra, fundo).
+ * Slot `pose` fica de fora de propósito: é constante da receita.
  */
-export function entradasDoLote(nodes, linha, resolver = (v) => v) {
+export function entradasDoLote(nodes, linha, resolver = (v) => v, edges = []) {
+  const slots = classificarSlots(nodes, edges)
   const mapa = {}
-  for (const n of nodes || []) {
-    if (n?.type !== 'imageInput') continue
-    const papel = papelDoNo(n.id)
-    const col = COLUNA_DO_PAPEL[papel]
-    if (!col) continue
-    // `still` de costas tem coluna própria; o id não distingue, o rótulo sim.
-    const rotulo = String(n?.data?.rotulo || '')
-    const colFinal = (papel === 'still' && /costas/i.test(rotulo)) ? 'peca_costas' : col
-    const vals = valoresDe(linha, colFinal)
+  for (const [nodeId, slot] of Object.entries(slots)) {
+    if (slot === 'pose') continue
+    const col = COLUNA_DO_SLOT[slot] || slot          // acessorio_1, _2, _3
+    const vals = valoresDe(linha, col)
     if (!vals.length) continue
-    mapa[n.id] = vals.map(resolver).filter(Boolean)
+    mapa[nodeId] = vals.map(resolver).filter(Boolean)
   }
   return mapa
 }
@@ -54,7 +91,7 @@ export function pedidoDaVista({ nodes, edges, vista, genId: genDireto, linha, br
   const genId = genDireto || vista?.generateNodeId
   if (!genId) return null
 
-  const grafo = comEntradas(nodes, entradasDoLote(nodes, linha, resolver))
+  const grafo = comEntradas(nodes, entradasDoLote(nodes, linha, resolver, edges))
   const inp   = entradasDaGeracao(grafo, edges, genId)
   const gen   = (nodes || []).find(n => n.id === genId)
   const bruto = vista?.model ?? (gen?.data?.model === 'custom' ? gen?.data?.customModel : gen?.data?.model)

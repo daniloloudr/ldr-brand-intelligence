@@ -20,6 +20,11 @@ import { execSync } from 'child_process'
 // Cada mutação reintroduz UM defeito real que chegou ao cliente.
 // Teste que não fica vermelho aqui é teatro.
 const MUTACOES = [
+  { nome: 'lote: a peça principal deixa de ter slot próprio (vira acessório qualquer)',
+    arq: 'src/lib/loteExecucao.js',
+    de: "               : /still|peca/.test(papel) ? 'principal'",
+    para: "               : false ? 'principal'" },
+
   { nome: 'grafo: a ordem escolhida no painel volta a perder para a das conexões',
     arq: 'src/lib/studioGrafo.js',
     de: '  if (!Array.isArray(refOrder) || !refOrder.length) return produtores',
