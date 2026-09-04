@@ -1251,3 +1251,40 @@ uma promessa.
 2. **Addon ativo num workspace nunca aparece em marca de outro.** Mesmo isolamento do resto.
 3. **Nada de versionamento, cobrança ou publicação por terceiros.** Existe **um** addon.
    Cada uma dessas é um produto próprio e nenhuma se paga com um item na prateleira.
+
+## 13.11 O fluxo fica no Fluxos — e o addon consome a estrutura
+
+Confirmado pelo Danilo ao fechar o primeiro addon (04/set): *"o fluxo fica no
+fluxo, usamos e criamos lá por referência. Se no background usamos eles por
+estrutura, porque já tem tudo construído, não tem problema."*
+
+O que está FORA do Fluxos é a **tela**: rota própria, vocabulário do cliente
+(SKU, peça, acessório, modelo), tabelas próprias, portão de instalação. Ninguém
+abre o canvas para usar o addon.
+
+O que está DENTRO, de propósito, é o **motor**. O addon lê o grafo pela mesma
+função que o canvas (`lib/studioGrafo.js`) e chama o mesmo `studio-generate`. As
+peças caem em `studio_generations`, com trilha e parecer, como qualquer outra.
+Fosse completamente fora, teria um segundo motor — e a fidelidade voltaria a ser
+promessa.
+
+### ⚠️ A dependência que isso cria: a convenção de id dos nós
+
+O addon descobre o que é casting, peça, acessório e pose pelo **id do nó**:
+`e0_in_casting`, `e1_in_still`, `e2_in_pose`, `e1_g1`. O prefixo `eN` dá a etapa;
+o sufixo dá o papel.
+
+**Fluxo que não segue a convenção não roda no addon.** O `Hering - 49FP (Brasil)`
+é o caso real: os nós dele são `imageInput-1787690734467`, sem rótulo — ali o
+addon classificaria tudo como acessório e não acharia etapa nenhuma. Foi por isso
+que, no teste de 04/set, dele saíram só os DADOS para a planilha, e a execução
+correu sobre a cópia do "Catálogo em 4 etapas".
+
+Hoje isso é aceitável: `addon_instalacao.workflow_id` amarra o addon a UM fluxo,
+escolhido por quem libera — coerente com *"é um produto com base num fluxo
+específico e só vai fazer isso"*.
+
+Quando precisar servir a fluxos que não sigam a convenção, o caminho não é o
+addon adivinhar melhor: é o **fluxo declarar o papel de cada entrada**, em vez de
+escondê-lo no id. Papel implícito num identificador é convenção que ninguém vê e
+qualquer renomeação quebra.
