@@ -124,7 +124,7 @@ export function pedidoDaVista({ nodes, edges, vista, genId: genDireto, linha, br
   // (Danilo, 04/set) — o nó de contexto das etapas de PEÇA é conteúdo de lote
   // morando no lugar de constante. Na etapa 0 o contexto é da PESSOA e continua
   // sendo do fluxo.
-  const contexto = daPeca || inp.context
+  const contexto = mesclarContexto(inp.context, daPeca)
 
   return {
     brand_id: brandId,
@@ -196,4 +196,60 @@ export function lerEstado(row) {
   if (row.status === 'done')  return { estado: 'pronta', url: row.image_url }
   if (row.status === 'error') return { estado: 'falhou', erro: row.error || 'a geração falhou' }
   return { estado: 'em_voo' }
+}
+
+/**
+ * ⭐ MESCLA POR SEÇÃO — o contexto tem duas naturezas, e tratá-lo como uma só
+ * foi o que fez as quatro peças saírem no mesmo enquadramento.
+ *
+ *   §A PEÇA · §O LOOK              → do USUÁRIO, por SKU. É a roupa.
+ *   §VISÃO DE CÂMERA · §ACABAMENTO → do FLUXO, por ETAPA. É a fotografia.
+ *
+ * Substituir o contexto inteiro levava a câmera junto: o texto do usuário
+ * declarava "corpo inteiro, da cabeça aos pés", e isso vencia a APROXIMADA
+ * ("meio corpo") e a CONTRA-PLONGÉE ("câmera baixa"). Prompt e contexto
+ * discordando não dá erro — dá quatro imagens iguais.
+ *
+ * Seção que o usuário escreve substitui a do fluxo. Seção que ele não escreve
+ * fica com a do fluxo, na ordem em que o fluxo a declarou.
+ */
+const TITULO = /^═+\s*(.+?)\s*═+$/
+
+export function seccionar(texto) {
+  const linhas = String(texto || '').split(/\r?\n/)
+  const secoes = []
+  let atual = { titulo: null, chave: null, linhas: [] }
+  for (const l of linhas) {
+    const m = l.trim().match(TITULO)
+    if (m) {
+      if (atual.titulo || atual.linhas.some(x => x.trim())) secoes.push(atual)
+      atual = { titulo: l.trim(), chave: chaveDaSecao(m[1]), linhas: [] }
+    } else atual.linhas.push(l)
+  }
+  if (atual.titulo || atual.linhas.some(x => x.trim())) secoes.push(atual)
+  return secoes
+}
+
+// A chave ignora acento, caixa e o que vem depois de "—", para que
+// "A PEÇA — FIDELIDADE É O CRITÉRIO" e "A PEÇA" sejam a mesma seção.
+export const chaveDaSecao = (t) => String(t || '')
+  .split('—')[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .trim().toLowerCase().replace(/\s+/g, ' ')
+
+export function mesclarContexto(doFluxo, doUsuario) {
+  if (!doUsuario) return doFluxo || ''
+  if (!doFluxo)   return doUsuario
+  const usuario = seccionar(doUsuario)
+  const fluxo   = seccionar(doFluxo)
+  const doUsuarioPorChave = new Set(usuario.filter(s => s.chave).map(s => s.chave))
+
+  // as do usuário primeiro, na ordem dele; depois as do fluxo que ele não cobriu
+  const saida = [...usuario]
+  for (const s of fluxo) {
+    if (!s.chave || doUsuarioPorChave.has(s.chave)) continue
+    saida.push(s)
+  }
+  return saida
+    .map(s => [s.titulo, s.linhas.join('\n').trim()].filter(Boolean).join('\n'))
+    .filter(Boolean).join('\n\n')
 }

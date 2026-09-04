@@ -128,7 +128,7 @@ export function AddonCatalogo({ brandId }) {
       nodes: fluxo.nodes, edges: fluxo.edges, vistas,
       escolhidas: l.vistasPedidas || [],
       linha: l, brandId, workflowId: fluxo.id, resolver,
-      contextoDaPeca: montarContexto({ etapa: '', aPeca: l.contexto, linha: l }),
+      contextoDaPeca: montarContexto({ aPeca: l.contexto }),
     })
   }, [relatorio, fluxo, vistas, acervoBruto, brandId])
   const alternarVista = (nome) => setPeca(p => {
@@ -227,7 +227,7 @@ export function AddonCatalogo({ brandId }) {
       const roteiro = roteiroDaPeca({
         nodes: fluxo.nodes, edges: fluxo.edges, vistas, escolhidas: escolhidasDaLinha, linha: l,
         brandId, workflowId: fluxo.id, resolver,
-        contextoDaPeca: montarContexto({ etapa: '', aPeca: l.contexto, linha: l }),
+        contextoDaPeca: montarContexto({ aPeca: l.contexto }),
       })
       const saidas = {}
 

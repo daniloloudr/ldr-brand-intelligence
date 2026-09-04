@@ -124,14 +124,21 @@ export const montarLook = () => ''
 
 // O contexto completo. §A PEÇA vem da planilha; §O LOOK é gerado; o resto é
 // constante da RECEITA e vem do fluxo (§7.2, camada "do fluxo").
-export function montarContexto({ etapa, aPeca, linha, doFluxo = '', resolvidas } = {}) {
-  const blocos = [
-    `PRODUÇÃO DE CATÁLOGO — ${String(etapa || '').toUpperCase()}`.trim(),
-    `═══ A PEÇA — FIDELIDADE É O CRITÉRIO PRINCIPAL ═══\n${String(aPeca || '').trim()}`,
-    montarLook(linha, resolvidas),
-    String(doFluxo || '').trim(),
-  ]
-  return blocos.filter(b => b && b.trim()).join('\n\n')
+export function montarContexto({ etapa, aPeca, doFluxo = '' } = {}) {
+  const texto = String(aPeca || '').trim()
+  if (!texto) return String(doFluxo || '').trim()
+
+  // ⚠️ Se o usuário já colou um contexto COMPLETO — com cabeçalho e seções —,
+  // devolve como está. Embrulhar de novo produzia "PRODUÇÃO DE CATÁLOGO —"
+  // seguido de "PRODUÇÃO DE CATÁLOGO", e a seção §A PEÇA duas vezes, uma delas
+  // vazia. Era ruído no topo do prompt, no lugar de mais valor.
+  if (/^═+|PRODUÇÃO DE CATÁLOGO/m.test(texto)) return texto
+
+  const cab = String(etapa || '').trim()
+  return [
+    cab ? `PRODUÇÃO DE CATÁLOGO — ${cab.toUpperCase()}` : null,
+    `═══ A PEÇA — FIDELIDADE É O CRITÉRIO PRINCIPAL ═══\n${texto}`,
+  ].filter(Boolean).join('\n\n')
 }
 
 // ── 2b · As vistas vêm do FLUXO, não de uma lista fixa ──────────────

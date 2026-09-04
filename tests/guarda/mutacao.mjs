@@ -74,10 +74,20 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
-  { nome: 'lote: o contexto do usuário volta a SOMAR e o prompt ganha dois §O LOOK brigando',
+  { nome: 'lote: o contexto volta a SUBSTITUIR inteiro e leva a câmera da etapa junto',
     arq: 'src/lib/loteExecucao.js',
-    de: '  const contexto = daPeca || inp.context',
-    para: "  const contexto = [inp.context, daPeca].filter(Boolean).join('\\n\\n')" },
+    de: '  const contexto = mesclarContexto(inp.context, daPeca)',
+    para: '  const contexto = daPeca || inp.context' },
+
+  { nome: 'lote: a seção do usuário deixa de vencer a do fluxo (duas §A PEÇA no prompt)',
+    arq: 'src/lib/loteExecucao.js',
+    de: '    if (!s.chave || doUsuarioPorChave.has(s.chave)) continue',
+    para: '    if (!s.chave) continue' },
+
+  { nome: 'lote: contexto já completo volta a ser embrulhado (cabeçalho em cima de cabeçalho)',
+    arq: 'src/lib/loteCatalogo.js',
+    de: "  if (/^═+|PRODUÇÃO DE CATÁLOGO/m.test(texto)) return texto",
+    para: '  if (false) return texto' },
 
   { nome: 'grafo: o canvas volta a ter leitura PRÓPRIA do prompt (diverge do addon)',
     arq: 'src/lib/studioGrafo.js',

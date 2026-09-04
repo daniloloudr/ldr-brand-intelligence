@@ -56,14 +56,17 @@ describe('o contexto é do usuário, e fala da roupa', () => {
   it('⭐ o addon NÃO escreve §O LOOK — o nó de contexto já traz o dele', () => {
     expect(montarLook(base)).toBe('')
   })
-  it('o contexto do usuário chega inteiro, sem seção inventada', () => {
-    const c = montarContexto({ etapa: 'primeira imagem inteira', aPeca: CTX, linha: base })
-    expect(c).toContain(CTX.trim().slice(0, 30))
-    expect(c).not.toContain('O LOOK')
-  })
-  it('cabeçalho da etapa vem primeiro', () => {
-    const c = montarContexto({ etapa: 'costas', aPeca: 'x', linha: base })
+  it('texto solto ganha cabeçalho e a seção §A PEÇA', () => {
+    const c = montarContexto({ etapa: 'costas', aPeca: 'malha canelada' })
     expect(c.indexOf('PRODUÇÃO DE CATÁLOGO — COSTAS')).toBe(0)
+    expect(c).toContain('A PEÇA')
+  })
+  it('⭐ contexto JÁ COMPLETO passa intacto — nada de cabeçalho em cima de cabeçalho', () => {
+    const pronto = 'PRODUÇÃO DE CATÁLOGO\n\n═══ A PEÇA ═══\npolo listrada'
+    const c = montarContexto({ etapa: 'primeira', aPeca: pronto })
+    expect(c).toBe(pronto)
+    expect(c.match(/PRODUÇÃO DE CATÁLOGO/g)).toHaveLength(1)
+    expect(c.match(/A PEÇA/g)).toHaveLength(1)
   })
   it('seção vazia não deixa buraco', () => {
     expect(montarContexto({ etapa: 'x', aPeca: 'y', linha: {} })).not.toMatch(/\n\n\n/)
