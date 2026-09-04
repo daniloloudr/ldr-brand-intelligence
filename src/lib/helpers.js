@@ -58,9 +58,16 @@ export function navigate(to, { replace = false } = {}) {
   let path = String(to ?? '/');
   if (path.startsWith('#')) path = path.slice(1);       // legado #/x → /x
   if (!path.startsWith('/')) path = '/' + path;
-  if (!path.includes('?')) {
-    const t = new URLSearchParams(window.location.search).get('tenant');
-    if (t) path += `?tenant=${encodeURIComponent(t)}`;
+  // O tenant sobrevive a QUALQUER navegação, inclusive para um destino que já
+  // traz query própria. A versão antiga só o acrescentava quando não havia `?`,
+  // então todo link com parâmetro (`?pasta=`, `?c=`) perdia o tenant e a app
+  // caía sem workspace — sem erro, só vazia.
+  const t = new URLSearchParams(window.location.search).get('tenant');
+  if (t) {
+    const [semQuery, query = ''] = path.split('?');
+    const qs = new URLSearchParams(query);
+    if (!qs.has('tenant')) qs.set('tenant', t);
+    path = `${semQuery}?${qs.toString()}`;
   }
   const cur = window.location.pathname + window.location.search;
   if (path !== cur) window.history[replace ? 'replaceState' : 'pushState']({}, '', path);

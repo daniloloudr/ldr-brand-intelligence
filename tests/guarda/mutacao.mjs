@@ -74,6 +74,11 @@ const MUTACOES = [
     de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
+  { nome: 'navegação: link com query volta a perder o tenant (app vazio, sem erro)',
+    arq: 'src/lib/helpers.js',
+    de: '  if (t) {\n    const [semQuery, query = \'\'] = path.split(\'?\');',
+    para: '  if (t && !path.includes(\'?\')) {\n    const [semQuery, query = \'\'] = path.split(\'?\');' },
+
   { nome: 'download: o proxy vira BUSCADOR DE URL ARBITRÁRIA no nosso domínio',
     arq: 'netlify/functions/studio-baixar.js',
     de: "  if (!permitidos.includes(alvo.host)) return { statusCode: 400, headers, body: 'origem não permitida' }",
