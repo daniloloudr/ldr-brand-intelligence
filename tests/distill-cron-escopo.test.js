@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // DISPARADO, não sobre a conta.
 
 let sinais = []
+let erroLeitura = null
 const disparos = []
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -22,7 +23,9 @@ vi.mock('@supabase/supabase-js', () => ({
     from: () => {
       const q = {
         select() { return q }, is() { return q }, not() { return q },
-        then: (res, rej) => Promise.resolve({ data: sinais, error: null }).then(res, rej),
+        then: (res, rej) => Promise.resolve(
+          erroLeitura ? { data: null, error: erroLeitura } : { data: sinais, error: null }
+        ).then(res, rej),
       }
       return q
     },
@@ -41,7 +44,7 @@ const CAMP  = 'campanha-1'
 const daMarca    = { brand_id: MARCA, campanha_id: null }
 const daCampanha = { brand_id: MARCA, campanha_id: CAMP }
 
-beforeEach(() => { disparos.length = 0; process.env.BRAND_DISTILL_THRESHOLD = '5' })
+beforeEach(() => { disparos.length = 0; erroLeitura = null; process.env.BRAND_DISTILL_THRESHOLD = '5' })
 
 describe('brand-distill-cron conta e dispara POR ESCOPO', () => {
   it('sinal de campanha não empurra a MARCA acima do limiar', async () => {
@@ -69,6 +72,28 @@ describe('brand-distill-cron conta e dispara POR ESCOPO', () => {
   it('duas campanhas da mesma marca não se somam', async () => {
     sinais = [...Array(3).fill(daCampanha), ...Array(3).fill({ brand_id: MARCA, campanha_id: 'campanha-2' })]
     await handler()
+    expect(disparos).toEqual([])
+  })
+})
+
+// A 058 foi segurada (decisão de 08/set: nada de campanha sobe por ora), mas o
+// código do escopo está no ar. Nessa janela a coluna `campanha_id` não existe e
+// o select falha — e isso é DECISÃO, não defeito: o cron responde 200, loga o
+// porquê e deixa os sinais acumularem para quando a migration subir. Um 500
+// diário de scheduler seria alarme aceso permanente por uma escolha registrada.
+describe('a janela sem a migration 058', () => {
+  it('⭐ coluna de escopo ausente: 200 silencioso, nada disparado', async () => {
+    erroLeitura = { message: 'column brand_signals.campanha_id does not exist' }
+    const r = await handler()
+    expect(r.statusCode).toBe(200)
+    expect(JSON.parse(r.body).adiado).toBe('058 pendente')
+    expect(disparos).toEqual([])
+  })
+
+  it('erro de leitura de VERDADE continua sendo 500 — não vira pausa', async () => {
+    erroLeitura = { message: 'connection refused' }
+    const r = await handler()
+    expect(r.statusCode).toBe(500)
     expect(disparos).toEqual([])
   })
 })

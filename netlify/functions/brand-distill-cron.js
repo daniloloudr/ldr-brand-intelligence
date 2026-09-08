@@ -23,6 +23,15 @@ const run = async () => {
   const { data, error } = await supabase.from('brand_signals')
     .select('brand_id, campanha_id').is('consumido_em', null).not('brand_id', 'is', null)
   if (error) {
+    // A 058 está SEGURADA de propósito (decisão de 08/set: nada de campanha
+    // sobe por ora). Sem a coluna de escopo não há o que contar — a destilação
+    // fica adiada e os sinais acumulam com `consumido_em` null, esperando a
+    // migration. 200, não 500: scheduler falhando todo dia é alarme, e isto é
+    // decisão registrada, não defeito.
+    if (/campanha_id/.test(error.message)) {
+      console.log('[distill-cron] brand_signals ainda sem campanha_id (058 pendente) — destilação adiada')
+      return { statusCode: 200, body: JSON.stringify({ distilled: 0, adiado: '058 pendente' }) }
+    }
     console.error('[distill-cron] leitura de sinais falhou:', error.message)
     return { statusCode: 500, body: error.message }
   }
