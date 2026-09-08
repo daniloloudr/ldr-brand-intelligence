@@ -175,6 +175,26 @@ describe('o e-mail', () => {
   it('tem Reply-To real — remetente que não aceita resposta é sinal de bulk', () => {
     expect(soCodigo(email)).toMatch(/reply_to/)
   })
+
+  it('🔒 NENHUM dado cru entra no HTML — o nome do workspace o CLIENTE edita', () => {
+    // `nome` está na lista-branca do trigger protege_campos_comerciais (052),
+    // ao lado de dominio/setor/porte: um usuário de tenant escreve o que quiser
+    // ali. Sem escapar, o link dele viaja dentro de um convite NOSSO, com DKIM
+    // válido, para alguém em onboarding esperando exatamente um link de
+    // primeiro acesso. Não é XSS (cliente de e-mail bloqueia script) — é
+    // phishing assinado com a nossa credencial de domínio.
+    const corpo = email.slice(email.indexOf('const html = `'), email.indexOf('return { assunto, html, texto }'))
+    expect(corpo, 'variável crua no HTML do e-mail').not.toMatch(/\$\{(workspaceNome|deQuem|link|base)\}/)
+    expect(soCodigo(email)).toMatch(/const esc = /)
+    for (const v of ['nome', 'quem', 'href']) {
+      expect(soCodigo(email), `${v} precisa sair de esc()`).toMatch(new RegExp(`const ${v} = esc\\(`))
+    }
+  })
+
+  it('🔒 o assunto não aceita quebra de linha — seria injeção de cabeçalho', () => {
+    expect(soCodigo(email)).toMatch(/umaLinha\(workspaceNome\)/)
+    expect(soCodigo(email)).toMatch(/replace\(\/\[\\r\\n\]\+\/g/)
+  })
 })
 
 describe('a tela do /admin', () => {

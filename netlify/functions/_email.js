@@ -32,13 +32,30 @@ const FONTE  = "'Saira','Saira Condensed',-apple-system,BlinkMacSystemFont,'Sego
 
 export const REMETENTE = 'BR4NDCODE <hello@br4ndcode.com>'
 
+// ⚠️ TODO dado que entra no HTML passa por aqui. O nome do workspace é EDITÁVEL
+// PELO CLIENTE — está na lista-branca do trigger `protege_campos_comerciais`
+// (migration 052) junto de dominio/setor/porte. Sem escapar, um usuário de
+// tenant escreve HTML no nome e o link dele viaja dentro de um convite nosso,
+// assinado com DKIM válido, para alguém em onboarding que nunca viu a interface
+// e está esperando exatamente um link de primeiro acesso. Cliente de e-mail
+// bloqueia <script>, então não é XSS — é phishing com a nossa credencial.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+// Cabeçalho não interpreta HTML, mas quebra de linha em assunto é injeção de
+// cabeçalho. Some com as duas antes de compor.
+const umaLinha = (s) => String(s ?? '').replace(/[\r\n]+/g, ' ').trim()
+
 /** O convite. `base` é a origem da marca (https://<slug>.br4ndcode.com) — a
  *  MESMA de onde sai o link e de onde vem o logotipo. Um host só no e-mail
  *  inteiro é o que um filtro corporativo espera ver. */
 export function convite({ workspaceNome, link, deQuem, base }) {
-  const BASE = String(base || '').replace(/\/$/, '')
+  const BASE = esc(String(base || '').replace(/\/$/, ''))
+  const nome = esc(workspaceNome)          // ← cliente edita este campo
+  const quem = esc(deQuem)
+  const href = esc(link)
   const assunto = workspaceNome
-    ? `Seu acesso ao BR4NDCODE — ${workspaceNome}`
+    ? `Seu acesso ao BR4NDCODE — ${umaLinha(workspaceNome)}`
     : 'Seu acesso ao BR4NDCODE'
 
   const texto = [
@@ -71,7 +88,7 @@ export function convite({ workspaceNome, link, deQuem, base }) {
    <tr><td style="padding:34px 28px 0">
     <p style="margin:0 0 10px;font-size:23px;font-weight:800;color:${TINTA};letter-spacing:-0.02em;line-height:1.2">Seu acesso está pronto</p>
     <p style="margin:0;font-size:15px;line-height:1.65;color:#4a4a4a">
-      Você recebeu acesso${workspaceNome ? ` ao workspace <strong style="color:${TINTA}">${workspaceNome}</strong>` : ''} no BR4NDCODE.
+      Você recebeu acesso${workspaceNome ? ` ao workspace <strong style="color:${TINTA}">${nome}</strong>` : ''} no BR4NDCODE.
       Defina sua senha para entrar.
     </p>
    </td></tr>
@@ -79,7 +96,7 @@ export function convite({ workspaceNome, link, deQuem, base }) {
    <tr><td style="padding:26px 28px 0">
     <table role="presentation" cellpadding="0" cellspacing="0"><tr>
      <td style="background:${VERDE1};border-radius:8px">
-      <a href="${link}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:800;color:${PRETO};text-decoration:none;letter-spacing:-0.01em">Definir minha senha</a>
+      <a href="${href}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:800;color:${PRETO};text-decoration:none;letter-spacing:-0.01em">Definir minha senha</a>
      </td>
     </tr></table>
    </td></tr>
@@ -88,10 +105,10 @@ export function convite({ workspaceNome, link, deQuem, base }) {
     <p style="margin:0 0 16px;font-size:12px;line-height:1.55;color:#8a8a8a">
       O link vale por 24 horas e só pode ser usado uma vez.<br>
       Se o botão não abrir, copie este endereço:<br>
-      <span style="color:#6a6a6a;word-break:break-all">${link}</span>
+      <span style="color:#6a6a6a;word-break:break-all">${href}</span>
     </p>
     <p style="margin:0;padding-top:16px;border-top:1px solid #ececec;font-size:12px;line-height:1.55;color:#9a9a9a">
-      ${deQuem ? `Convite enviado por ${deQuem}. ` : ''}Se você não esperava este e-mail, pode ignorá-lo — nenhuma conta é criada sem que você defina a senha.
+      ${quem ? `Convite enviado por ${quem}. ` : ''}Se você não esperava este e-mail, pode ignorá-lo — nenhuma conta é criada sem que você defina a senha.
     </p>
    </td></tr>
 
