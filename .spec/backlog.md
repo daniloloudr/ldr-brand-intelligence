@@ -88,6 +88,29 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 > R2 e o `backup.md` documenta o restore). Sem isso, o item 2 do protocolo é meia
 > verificação. 🟢 · construir junto do E1.
 
+> 🧪 **AMBIENTE DE TESTE CLICÁVEL — `npm run seed:ficticia` (08/set).** Os ensaios
+> provam SQL; nenhum deixa alguém *usar* a app. O que faltava não era banco — era
+> **cliente**: branch de preview nasce vazio, e app vazia não testa nada. A **Maré
+> Alta** (moda praia, `.example`, `slug: mare-alta`) é uma empresa fictícia inteira —
+> marca, brand book, cérebro v1, 4 sinais pendentes, 2 concorrentes com clipping,
+> escuta com URL, insights, tendências e síntese de mercado. Roda **só** com
+> `.env.branch` presente e recusa se a URL for igual à do `.env`.
+>
+> ⚠️ **Semear com a forma errada é pior que não semear** — a tela mente e a culpa
+> parece do código. Dois casos, os dois pegos ao olhar a Home: `avg_positivo` é
+> **percentual 0–100** (semeado 0,67, a Home pintou "1%") e a proveniência é
+> `gerado_de.count`, não `.sinais` (a Home pintou "? evidências"). Regra que fica:
+> **o seed copia a forma de quem ESCREVE em produção**, não a que parece natural.
+>
+> 🔑 **Em local a app é o painel admin** — `getTenantSlug()` devolve null em
+> `localhost` e o cliente cai em "Acesso restrito". A URL de teste é
+> `localhost:8888/app?tenant=mare-alta`.
+>
+> 🐛 **`branch:subir` estava escrevendo uma MÁSCARA no `.env.branch`** e o branch
+> respondia 401 em tudo. O CLI passou a mascarar a secret nova no `branches get`
+> (`sb_secret_…····`) e o teste de prefixo aceitava — corrigido para exigir base64url
+> até o fim, com queda para a `service_role` legada.
+
 ### As releases, na ordem por custo de reversão
 
 | # | Release | Faixa | Migration | Estado |

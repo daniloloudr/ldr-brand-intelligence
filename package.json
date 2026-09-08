@@ -18,6 +18,7 @@
     "branch:status": "node scripts/branch.mjs status",
     "branch:matar": "node scripts/branch.mjs matar",
     "dev:branch": "set -a && . ./.env.branch && set +a && netlify dev",
+    "seed:ficticia": "node scripts/seed-ficticia.mjs",
     "guarda:instalar": "node tests/guarda/nucleo.mjs --instalar",
     "nucleo": "node tests/guarda/nucleo.mjs",
     "auditoria:escuta": "node scripts/auditoria-escuta.mjs",

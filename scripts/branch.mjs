@@ -99,7 +99,12 @@ if (verbo === 'status') {
   // nasceu respondendo 401 em tudo. `SUPABASE_DEFAULT_KEY` é a secret no
   // formato novo (sb_secret_), que sobrevive a isso. Preferir a nova e cair na
   // legada só se ela não vier.
-  const secret = /^sb_secret_/.test(String(d.SUPABASE_DEFAULT_KEY || ''))
+  //
+  // ⚠️ O CLI (visto na v2.x em 08/set) passou a MASCARAR a secret nova no
+  // `branches get`: vem "sb_secret_…····" — começa certo e termina em pontos.
+  // O teste de prefixo aceitava a máscara, ela ia parar no .env.branch e tudo
+  // respondia 401. Chave só é chave se for base64url do início ao fim.
+  const secret = /^sb_secret_[A-Za-z0-9_-]{20,}$/.test(String(d.SUPABASE_DEFAULT_KEY || ''))
     ? d.SUPABASE_DEFAULT_KEY : d.SUPABASE_SERVICE_ROLE_KEY
   const anon = d.SUPABASE_ANON_KEY
   if (secret !== d.SUPABASE_DEFAULT_KEY) console.log('  ⚠ usando a service_role LEGADA — se o projeto desabilitou as legadas, isto vai dar 401')
