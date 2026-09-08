@@ -123,7 +123,7 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E4** | campanha como escopo | **D** | ✅ substituição | 🟡 **escrito e ensaiado 02/set** (057, `254918d`) — **na `dev`, NÃO subir sozinha** |
 | **E5** | escopo e vigência no aprendizado | **D + núcleo** | ✅ | 🟡 **escrito e ensaiado 02/set** (058 + núcleo) — na `dev` |
 | **E5b** | a campanha ganha CORPO — grupos, referência própria, a ficha | **D** | — | ⏸️ **ESTACIONADO 03/set** — desenho salvo, nada escrito. Volta pelo A3/agentes |
-| **E5c** | **o portão do addon** — `addon_instalacao`, a loja e a fila de liberação | **D** | ✅ aditiva | 🟡 **escrito e ensaiado 04/set** (059) — na `dev`. **APLICA SOZINHA** |
+| **E5c** | **o portão do addon** — `addon_instalacao`, a loja e a fila de liberação | **D** | ✅ aditiva | ✅ **APLICADO EM PRODUÇÃO 08/set** (059–062, dump `db_20260908_111506` no R2) — release do addon Catálogo no ar (`70d8845`) |
 
 > ⏸️ **A 057 e a 058 FICAM NA PRATELEIRA (decisão do Danilo, 04/set).** Campanha saiu
 > da interface — menu em 03/set, pasta da Biblioteca em 04/set — e com isso **a pressa
@@ -133,11 +133,13 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 > marca. O argumento era certo e deixou de valer — registrado para não ser repetido como
 > se ainda valesse.
 >
-> ⚠️ **Consequência que ANDA JUNTO:** o código do E5 está na `dev` e faz o
-> `brand-distill-cron` devolver 500 todo dia se a 058 não estiver no banco. Então
-> **segurar as migrations implica segurar o código do E5 na `dev`** — a `main` não recebe
-> o E5 enquanto as duas não subirem. A 059 vai ao BANCO sozinha; isso é ato de migration,
-> não de deploy, e não exige `main`.
+> ⚠️ ~~**Consequência que ANDA JUNTO:** segurar as migrations implica segurar o código
+> do E5 na `dev`~~ — **resolvida de outro jeito em 08/set** (`faaacbe`): o cron aprendeu
+> a reconhecer a janela. Coluna de escopo ausente → 200 com log "destilação adiada",
+> sinais acumulam com `consumido_em` null e a destilação **retoma sozinha** quando a 058
+> subir. Com isso a `main` recebeu o E5 inteiro sem a 058 no banco: na janela, o
+> aprendizado fica PAUSADO por decisão registrada, não quebrado. Erro de leitura de
+> verdade continua sendo 500 — a pausa não engole defeito.
 >
 > ✅ **Provado em 04/set**, e o plano depende disso: a 059 aplica num banco em **056**,
 > sem `producao` e sem `campanha_id`. Não referencia nada da 057 nem da 058.
