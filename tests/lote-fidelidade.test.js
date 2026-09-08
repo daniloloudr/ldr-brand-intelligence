@@ -141,6 +141,14 @@ describe('o mapa de injeção', () => {
     expect(m.e1_in_calcado).toEqual(['CALC.jpg', 'B1.jpg', 'B2.jpg'])
     expect(m.e1_in_bolsa).toEqual([])          // ⭐ zerado: nada do lote anterior sobrevive
   })
+  it('⭐ linha SEM acessórios também LIMPA os nós — o calçado do SKU anterior não sobrevive', () => {
+    // O reset não pode depender de haver acessório novo: é justamente a linha
+    // vazia que deixaria a foto do lote anterior colada no nó, e a peça sairia
+    // com o sapato do SKU passado — o defeito que deu nome à mutação.
+    const m = entradasDoLote(nodes, { ...linha, acessorios: '' }, v => v, edges)
+    expect(m.e1_in_calcado).toEqual([])
+    expect(m.e1_in_bolsa).toEqual([])
+  })
   it('papelDoNo lê o papel do id', () => {
     expect(papelDoNo('e1_in_bolsa')).toBe('bolsa')
     expect(papelDoNo('g1')).toBeNull()
@@ -362,4 +370,21 @@ describe('⭐ o crédito é por ETAPA, não por um modelo só', () => {
     expect(r.total * 2).not.toBe(creditosDoRoteiro(r, m => /seedream/.test(m || '') ? 2 : 1))
   })
   it('roteiro vazio custa zero', () => expect(creditosDoRoteiro(null, () => 2)).toBe(0))
+})
+
+// A ordem das referências é decidida por UM código só (produtoresDeImagem), e o
+// refOrder do painel Entradas vence a ordem das conexões — que é histórico de
+// edição, invisível e incontrolável. Os testes de igualdade canvas × addon não
+// pegam a regressão daqui: os DOIS lados passam pelo mesmo código, então os
+// dois sairiam errados juntos e continuariam iguais. Só a asserção direta vê.
+describe('⭐ a ordem do painel Entradas vence a das conexões', () => {
+  it('refOrder reordena: calçado antes da bolsa, como o painel mandou', () => {
+    expect(produtoresDeImagem(nodes, edges, 'g1').map(n => n.id))
+      .toEqual(['e0_in_casting', 'e1_in_still', 'e1_in_calcado', 'e1_in_bolsa', 'e2_in_pose'])
+  })
+  it('sem refOrder, vale a ordem das conexões — estável, ainda que histórica', () => {
+    const sem = nodes.map(n => n.id === 'g1' ? { ...n, data: { model: n.data.model } } : n)
+    expect(produtoresDeImagem(sem, edges, 'g1').map(n => n.id))
+      .toEqual(['e0_in_casting', 'e1_in_still', 'e1_in_bolsa', 'e1_in_calcado', 'e2_in_pose'])
+  })
 })

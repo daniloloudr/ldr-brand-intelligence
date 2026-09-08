@@ -1,23 +1,10 @@
 // A pasta virou CAMINHO: "Catálogo/49FP/20260904" é uma árvore, não um nome.
-// A leitura em árvore mora na Biblioteca; aqui ficam as duas regras que a
-// sustentam, isoladas para poderem ser provadas.
+// As regras moram em `bibliotecaPastas.js` e a StudioLibrary importa de lá —
+// este teste prova o MESMO código que roda na página. A versão anterior
+// provava uma CÓPIA colada, e a varredura de mutação mostrou o preço: dava
+// para quebrar a página sem nenhum vermelho aqui.
 import { describe, it, expect } from 'vitest'
-
-// mesmas funções da StudioLibrary — se divergirem, o teste deixa de valer
-const dentroDe = (caminho, atual) => {
-  if (!caminho) return false
-  if (!atual) return true
-  return caminho === atual || caminho.startsWith(atual + '/')
-}
-const proximoNivel = (caminho, atual) => {
-  const resto = atual ? caminho.slice(atual.length + 1) : caminho
-  if (!resto) return null
-  const seg = resto.split('/')[0]
-  return atual ? `${atual}/${seg}` : seg
-}
-const filhosDe = (caminhos, atual) => [...new Set(caminhos
-  .filter(c => dentroDe(c, atual) && c !== atual)
-  .map(c => proximoNivel(c, atual)).filter(Boolean))].sort()
+import { dentroDe, proximoNivel, filhosDe } from '../src/lib/bibliotecaPastas.js'
 
 const ACERVO = [
   'Catálogo/49FP/20260904',
@@ -47,6 +34,10 @@ describe('a árvore de pastas', () => {
   it('item sem pasta fica na raiz e não vira filho de ninguém', () => {
     expect(dentroDe(null, 'Catálogo')).toBe(false)
     expect(dentroDe('', null)).toBe(false)
+  })
+  it('o próximo nível é UM segmento, nunca o caminho inteiro', () => {
+    expect(proximoNivel('Catálogo/49FP/20260904', 'Catálogo')).toBe('Catálogo/49FP')
+    expect(proximoNivel('Catálogo/49FP', 'Catálogo/49FP')).toBeNull()
   })
   it('contar uma pasta inclui os níveis abaixo', () => {
     expect(ACERVO.filter(c => dentroDe(c, 'Catálogo')).length).toBe(3)

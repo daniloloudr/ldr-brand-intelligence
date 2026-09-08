@@ -46,8 +46,8 @@ const MUTACOES = [
 
   { nome: 'lote: acessório do lote ANTERIOR sobrevive no SKU novo',
     arq: 'src/lib/loteExecucao.js',
-    de: '  acessorios.forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })',
-    para: '  if (acessorios[0] && acess.length) mapa[acessorios[0]] = acess' },
+    de: '      .forEach((id, i) => { mapa[id] = i === 0 ? acess : [] })',
+    para: '      .forEach((id, i) => { if (acess.length) mapa[id] = i === 0 ? acess : [] })' },
 
   { nome: 'grafo: a ordem escolhida no painel volta a perder para a das conexões',
     arq: 'src/lib/studioGrafo.js',
@@ -81,7 +81,7 @@ const MUTACOES = [
 
   { nome: 'lote: o addon volta a montar as referências por conta (perde a ordem do grafo)',
     arq: 'src/lib/loteExecucao.js',
-    de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS),',
+    de: '    references: referenciasDaGeracao(grafo, edges, genId, MAX_REFS_CANVAS, saidas),',
     para: '    references: Object.values(entradasDoLote(nodes, linha, resolver)).flat(),' },
 
   { nome: 'lote: a posição extra sai do roteiro e nunca é disparada',
@@ -89,15 +89,18 @@ const MUTACOES = [
     de: '      ...passosExtras,          // sempre por último: dependem do que a cadeia produziu',
     para: '' },
 
+  // As duas regras da árvore moram em bibliotecaPastas.js desde que a varredura
+  // mostrou que a página e o teste tinham CÓPIAS — mutar uma não avermelhava a
+  // outra. O alvo agora é o código que os dois importam.
   { nome: 'biblioteca: prefixo parecido vira filho (Catálogo2 dentro de Catálogo)',
-    arq: 'src/pages/app/StudioLibrary.jsx',
-    de: "    return caminho === atual || caminho.startsWith(atual + '/')",
-    para: '    return caminho.startsWith(atual)' },
+    arq: 'src/lib/bibliotecaPastas.js',
+    de: "  return caminho === atual || caminho.startsWith(atual + '/')",
+    para: '  return caminho.startsWith(atual)' },
 
   { nome: 'biblioteca: a pasta volta a ser texto plano e a árvore some',
-    arq: 'src/pages/app/StudioLibrary.jsx',
-    de: '      .map(c => proximoNivel(c, pasta))',
-    para: '      .map(c => c)' },
+    arq: 'src/lib/bibliotecaPastas.js',
+    de: '  .map(c => proximoNivel(c, atual))',
+    para: '  .map(c => c)' },
 
   { nome: 'lote: o crédito volta a usar UM modelo para todas as etapas',
     arq: 'src/lib/loteExecucao.js',
@@ -158,10 +161,13 @@ const MUTACOES = [
     de: "  const promptNode  = ins.find(n => n.type === 'prompt')",
     para: '  const promptNode  = null' },
 
+  // ⚠️ Os `\n` daqui são LITERAIS no código (dentro de template string): a
+  // versão anterior desta entrada os escrevia como quebra de linha real e o
+  // alvo nunca era encontrado.
   { nome: 'grafo: o separador de contexto muda e a peça sai diferente do canvas',
     arq: 'src/lib/studioGrafo.js',
-    de: '  context ? `${prompt}\n\n[CONTEXTO ADICIONAL]\n${context}` : prompt',
-    para: '  context ? `${prompt}\n${context}` : prompt' },
+    de: '  context ? `${prompt}\\n\\n[CONTEXTO ADICIONAL]\\n${context}` : prompt',
+    para: '  context ? `${prompt}\\n${context}` : prompt' },
 
   { nome: 'grafo: o clamp de px some e pedido absurdo chega na fal',
     arq: 'src/lib/studioGrafo.js',
@@ -175,7 +181,8 @@ const MUTACOES = [
 
   { nome: 'lote: as vistas voltam a ser lista fixa no código (divergem do fluxo)',
     arq: 'src/lib/loteCatalogo.js',
-    de: "    if (n?.type !== 'prompt') continue", para: '    if (false) continue' },
+    de: 'export const vistasDoFluxo = (nodes, edges) => vistasDoGrafo(nodes, edges)',
+    para: "export const vistasDoFluxo = () => [{ nome: 'FRONTAL', instrucao: 'De frente' }, { nome: 'COSTAS', instrucao: 'De costas' }]" },
 
   { nome: 'lote: pedir vista que o fluxo não tem volta a passar calado',
     arq: 'src/lib/loteCatalogo.js',
@@ -198,13 +205,13 @@ const MUTACOES = [
 
   { nome: 'lote: elenco não cadastrado volta a passar no portão',
     arq: 'src/lib/loteCatalogo.js',
-    de: "      const ok = papel.doElenco ? nomesElenco.has(v.toLowerCase())\n               : (ehUrl(v) || nomesAcervo.has(v.toLowerCase()))",
+    de: "      const ok = vs.every(x => papel.doElenco ? nomesElenco.has(x.toLowerCase())\n                                              : (ehUrl(x) || nomesAcervo.has(x.toLowerCase())))",
     para: '      const ok = true' },
 
   { nome: 'lote: linha bloqueada volta a entrar na conta de crédito',
     arq: 'src/lib/loteCatalogo.js',
-    de: '  const imagens = prontas.reduce((n, l) => n + l.saidas, 0)',
-    para: '  const imagens = avaliadas.reduce((n, l) => n + l.saidas, 0)' },
+    de: '  const imagens = prontas.reduce((n, l) => n + l.nSaidas, 0)',
+    para: '  const imagens = avaliadas.reduce((n, l) => n + l.nSaidas, 0)' },
 
   { nome: 'lote: o separador do Excel pt-BR (;) volta a não ser detectado',
     arq: 'src/lib/loteCatalogo.js',

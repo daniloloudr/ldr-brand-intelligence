@@ -28,6 +28,7 @@ import Alert from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
 import { supabase } from '../../lib/supabase'
 import { pendencias, resumoPendencias } from '../../lib/pendencias'
+import { dentroDe, filhosDe } from '../../lib/bibliotecaPastas'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -277,22 +278,12 @@ export function StudioLibrary({ brandId }) {
   //
   // Antes `pasta` era texto plano e cada caminho virava uma pasta solta na
   // raiz — o addon de Lote grava a estrutura, e sem isto ela apareceria como
-  // uma linha ilegível por SKU e por dia. Aqui o `/` volta a significar nível.
+  // uma linha ilegível por SKU e por dia. O `/` significa nível, e as regras
+  // moram em `bibliotecaPastas.js` — o teste prova o MESMO código que roda
+  // aqui, não uma cópia.
   //
   // `pasta` continua sendo o caminho COMPLETO no banco: a mudança é só de
   // leitura, e nada precisa ser migrado.
-  const dentroDe = (caminho, atual) => {
-    if (!caminho) return false
-    if (!atual) return true
-    return caminho === atual || caminho.startsWith(atual + '/')
-  }
-  // O próximo segmento de `caminho` a partir de `atual` — null se for o fim.
-  const proximoNivel = (caminho, atual) => {
-    const resto = atual ? caminho.slice(atual.length + 1) : caminho
-    if (!resto) return null
-    const seg = resto.split('/')[0]
-    return atual ? `${atual}/${seg}` : seg
-  }
 
   // Subpastas do nível atual (das existentes + criadas na sessão)
   const subpastas = useMemo(() => {
@@ -301,11 +292,7 @@ export function StudioLibrary({ brandId }) {
       ...escopo.map(i => i.pasta).filter(Boolean),
       ...(novasPastas[root] || []),
     ])]
-    const filhos = caminhos
-      .filter(c => dentroDe(c, pasta) && c !== pasta)
-      .map(c => proximoNivel(c, pasta))
-      .filter(Boolean)
-    return [...new Set(filhos)].sort()
+    return filhosDe(caminhos, pasta)
   }, [escopo, novasPastas, root, temPastas, pasta])
 
   // Itens visíveis: da pasta atual (null = raiz do root), filtrados pela busca
