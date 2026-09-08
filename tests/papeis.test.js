@@ -262,8 +262,14 @@ describe('as functions do time checam quem chama', () => {
   })
 
   it('admin-invite grava a intenção do convite em app_metadata', () => {
+    // O que importa é o CAMPO, não o nome da variável que carrega o id: em
+    // 08/set o convite virou lote e `workspace_id` passou a ser `ws.id`. Casar
+    // o nome fazia este teste reprovar uma mudança que não afrouxou nada.
     const invite = readFileSync('netlify/functions/admin-invite.js', 'utf8')
-    expect(invite).toMatch(/app_metadata: \{ convite_workspace_id: workspace_id \}/)
+    expect(invite).toMatch(/app_metadata: \{ convite_workspace_id: [\w.]+ \}/)
+    // E o par que não pode inverter: user_metadata é enfeite (a tela lê o nome
+    // da marca dali); quem autoriza é app_metadata, que só a service key grava.
+    expect(invite).not.toMatch(/user_metadata: \{ convite_workspace_id/)
   })
 })
 

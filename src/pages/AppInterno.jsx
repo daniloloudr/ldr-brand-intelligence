@@ -1375,6 +1375,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
   const [configForm, setConfigForm]       = useState({ creditos_mes: '', valor: '', slug: '' });
   const [savingConfig, setSavingConfig]   = useState(false);
   const [inviteEmail, setInviteEmail]     = useState('');
+  const [inviteResultado, setInviteResultado] = useState(null);
   const [showCreateUser, setShowCreateUser] = useState(null);
   const [creatingUser, setCreatingUser]   = useState(false);
   const [userForm, setUserForm]           = useState({ nome: '', email: '', password: '', role: 'member' });
@@ -1661,23 +1662,39 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
     }
   }
 
+  // Colar uma lista de gente nunca vem limpo: vem com vírgula, ponto e vírgula,
+  // linha em branco, "Nome <email@x>" copiado do Outlook e o mesmo endereço
+  // duas vezes. Quem normaliza é a tela; o servidor valida de novo.
+  const TETO_CONVITES = 10;
+  function lerEmails(texto) {
+    return [...new Set(
+      String(texto || '')
+        .split(/[\n,;]+/)
+        .map(l => (l.match(/<([^>]+)>/)?.[1] || l).trim().toLowerCase())
+        .filter(Boolean)
+    )];
+  }
+
   async function handleInvite(e) {
     e.preventDefault();
-    setError('');
-    if (!inviteEmail.trim()) { setError('E-mail obrigatório'); return; }
+    setError(''); setInviteResultado(null);
+    const emails = lerEmails(inviteEmail);
+    if (!emails.length) { setError('Informe ao menos um e-mail'); return; }
+    if (emails.length > TETO_CONVITES) { setError(`${emails.length} e-mails — o limite é ${TETO_CONVITES} por vez`); return; }
     setInviting(true);
     const token = await getToken();
     const res = await fetch('/.netlify/functions/admin-invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ email: inviteEmail, workspace_id: showInvite.id, workspace_name: showInvite.nome }),
+      body: JSON.stringify({ emails, workspace_id: showInvite.id }),
     });
     const json = await res.json();
     setInviting(false);
     if (!res.ok) { setError(json.error || 'Erro ao enviar convite'); return; }
-    setShowInvite(null);
-    setInviteEmail('');
-    alert(`Convite enviado para ${inviteEmail}`);
+    // O modal NÃO fecha sozinho. Num lote, fechar apaga a única prova de quem
+    // saiu e quem não — e o reenvio às cegas manda de novo para quem já recebeu.
+    setInviteResultado(json);
+    if (json.enviados === json.total) setInviteEmail('');
   }
 
   function genPassword() {
@@ -1783,7 +1800,7 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
                 <Button size="small" variant="outlined" onClick={() => { setShowCreateUser(ws); setUserForm({ nome: '', email: '', password: '', role: 'member' }); setUserOk(''); setError(''); }}>
                   Criar acesso
                 </Button>
-                <Button size="small" variant="outlined" onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); }}>
+                <Button size="small" variant="outlined" onClick={() => { setShowInvite(ws); setInviteEmail(''); setError(''); setInviteResultado(null); }}>
                   Convidar
                 </Button>
                 <Button size="small" variant="outlined"
@@ -2065,15 +2082,52 @@ function WorkspacesAdmin({ user, onImpersonate, createSignal = 0 }) {
       {/* Modal convidar cliente */}
       {showInvite && (
         <Box sx={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 400 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider',  padding: '28px', width: '100%', maxWidth: 460, maxHeight: '90vh', overflowY: 'auto' }}>
             <Box sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', marginBottom: '6px' }}>Convidar para {showInvite.nome}</Box>
-            <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>O cliente receberá um e-mail com link para definir senha e acessar o workspace.</Box>
+            <Box sx={{ fontSize: 13, color: 'text.disabled', marginBottom: '20px' }}>
+              Cada pessoa recebe um e-mail com link para definir a senha e entrar em{' '}
+              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 700 }}>{showInvite.slug}.br4ndcode.com</Box>.
+              Até {TETO_CONVITES} por vez — um por linha, ou separados por vírgula.
+            </Box>
             {error && <Box sx={{ marginBottom: '12px', padding: '8px 12px', background: PALETTE.data.criticoFraco, color: PALETTE.data.critico,  fontSize: 12 }}>{error}</Box>}
+
+            {inviteResultado && (
+              <Box sx={{ marginBottom: '16px', border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                <Box sx={{ padding: '8px 12px', bgcolor: 'action.hover', fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>
+                  {inviteResultado.enviados} de {inviteResultado.total} enviados
+                </Box>
+                {inviteResultado.resultados.map(r => (
+                  <Box key={r.email} sx={{ padding: '7px 12px', fontSize: 12, borderTop: 1, borderColor: 'divider', display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                    <Box component="span" sx={{ color: r.ok ? PALETTE.data.positivo : PALETTE.data.critico, fontWeight: 800 }}>{r.ok ? '✓' : '✕'}</Box>
+                    <Box component="span" sx={{ color: 'text.primary', flex: 1, wordBreak: 'break-all' }}>{r.email}</Box>
+                    <Box component="span" sx={{ color: 'text.disabled', fontSize: 11 }}>
+                      {r.ok ? (r.novo ? 'convite enviado' : 'link de acesso (já tinha conta)') : r.motivo}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+
             <Box component="form" onSubmit={handleInvite} sx={{ display: 'flex', flexDirection: 'column', gap: '12px'}}>
-              <TextField size="small"  type="email" placeholder="E-mail do cliente *" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required />
+              <TextField
+                size="small" multiline minRows={4} maxRows={10}
+                placeholder={"fulano@empresa.com\nciclana@empresa.com"}
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                helperText={(() => {
+                  const n = lerEmails(inviteEmail).length;
+                  if (!n) return ' ';
+                  return `${n} endereço${n > 1 ? 's' : ''}${n > TETO_CONVITES ? ` — acima do limite de ${TETO_CONVITES}` : ''}`;
+                })()}
+                FormHelperTextProps={{ sx: { fontSize: 11, color: lerEmails(inviteEmail).length > TETO_CONVITES ? PALETTE.data.critico : 'text.disabled' } }}
+              />
               <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                <Button type="button" size="small" variant="outlined" onClick={() => { setShowInvite(null); setError(''); }}>Cancelar</Button>
-                <Button type="submit" size="small" variant="contained" disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</Button>
+                <Button type="button" size="small" variant="outlined" onClick={() => { setShowInvite(null); setError(''); setInviteResultado(null); setInviteEmail(''); }}>
+                  {inviteResultado ? 'Fechar' : 'Cancelar'}
+                </Button>
+                <Button type="submit" size="small" variant="contained" disabled={inviting || !lerEmails(inviteEmail).length}>
+                  {inviting ? 'Enviando...' : inviteResultado ? 'Enviar novamente' : 'Enviar convites'}
+                </Button>
               </Box>
             </Box>
           </Box>

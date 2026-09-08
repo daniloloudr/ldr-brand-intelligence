@@ -91,6 +91,12 @@ export function getRoute(caminho) {
   if (p === '/metodologia')          return 'metodologia';
   if (p.startsWith('/relatorio/'))   return 'relatorio-publico';
   if (p === '/login')                return 'login';
+  // Convite: o link do e-mail aponta para CÁ, no domínio da marca, e o app troca
+  // o token por sessão. Antes ele apontava para o /auth/v1/verify do Supabase —
+  // o convidado via um host `*.supabase.co` num e-mail nosso, e o token queimava
+  // no momento em que QUALQUER UM buscava a URL (scanner de e-mail corporativo
+  // inclusive). Aqui, buscar a URL devolve só o HTML do app.
+  if (p === '/convite')              return 'convite';
   if (p === '/app')                  return 'app-home';
   if (p === '/app/posicionamento')   return 'posicionamento';
   // legacy redirects mantidos temporariamente

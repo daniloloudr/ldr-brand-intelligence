@@ -47,7 +47,11 @@ if (_INITIAL_HASH.startsWith('#/')) {
 }
 
 export default function App() {
+  // Três entradas para a mesma tela: a rota /convite (link novo, no domínio da
+  // marca, token trocado pelo app) e os hashes de invite/recovery do redirect do
+  // Supabase (links antigos, ainda válidos na caixa de quem recebeu).
   const [isInviteFlow, setInviteFlow] = useState(
+    getRoute() === 'convite' ||
     _INITIAL_HASH.includes('type=invite') || _INITIAL_HASH.includes('type=recovery')
   );
   const [route, setRoute]             = useState(getRoute());
