@@ -62,6 +62,18 @@ export function compileBrandContext({ brandBook, tokens, brandNome, facets }) {
   // Regra do logo (Danilo, 2026-07-14): diretrizes visuais SIM, construção de
   // logo NÃO — geração sempre deforma logotipo/wordmark; elemento gráfico pode.
   if (useVisual) linhas.push('LOGO: NUNCA desenhe, reconstrua ou escreva o logotipo nem o nome da marca como assinatura/wordmark — modelos generativos sempre os deformam (logo real entra em pós-produção). Elementos GRÁFICOS da identidade (formas, grafismos, padrões — sem letras) PODEM compor a cena.')
+  // Regra do texto (Danilo, 2026-09-09). Escrita em forma AFIRMATIVA de
+  // propósito: "não escreva texto" é negação, e modelo de imagem não obedece
+  // negação — ela injeta o conceito. Medido duas vezes neste repo. No KH6V da
+  // Hering, "sem corte lateral" trouxe o corte. Na Worten, as peças que traziam
+  // "não deve ter nada escrito na imagem" saíram com os rótulos DESTRUÍDOS
+  // ("STRAIGNT", "PIZ BUIN" borrado) e foram reprovadas; a mesma cena sem essa
+  // frase foi aprovada, com os rótulos legíveis.
+  //
+  // A separação entre os dois tipos de texto é o ponto: pedir "imagem sem
+  // texto" mandaria o modelo APAGAR o rótulo da embalagem e o nome do modelo no
+  // ecrã — que é justamente a fidelidade que um retalhista não pode perder.
+  if (useVisual) linhas.push('TEXTO: esta peça é a camada de IMAGEM — títulos, claims, preços, selos promocionais e assinaturas entram depois, em pós-produção, e por isso não fazem parte dela. Já o texto que PERTENCE ao que está sendo fotografado — rótulo de embalagem, nome do modelo no ecrã do produto, etiqueta técnica, placa real do ambiente — é parte do produto e deve sair fiel e legível. Quando a peça precisar de texto de comunicação, o pedido dirá exatamente o que escrever.')
   if (evitar.length) linhas.push(`Evitar: ${evitar.join('; ')}`)
 
   const prefix = `[BRAND CONTEXT]\n${linhas.join('\n')}`

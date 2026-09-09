@@ -33,6 +33,28 @@ describe('compileBrandContext', () => {
     expect(prefix).toContain('LOGO: NUNCA desenhe')
   })
 
+  it('guardrail do TEXTO está presente, e é AFIRMATIVO — negação não funciona', () => {
+    // Medido duas vezes neste repo: modelo de imagem não obedece negação, ela
+    // injeta o conceito. No KH6V, "sem corte lateral" trouxe o corte. Na Worten,
+    // as peças com "não deve ter nada escrito" saíram com os rótulos destruídos
+    // ("STRAIGNT") e reprovaram; a mesma cena sem a frase foi aprovada.
+    const { prefix } = compileBrandContext({ brandBook, tokens, brandNome: 'Hering' })
+    expect(prefix).toContain('TEXTO: esta peça é a camada de IMAGEM')
+    expect(prefix).toContain('em pós-produção')
+    // A forma proibida: se alguém reescrever a regra como negação, reprova aqui.
+    const linhaTexto = prefix.split('\n').find(l => l.startsWith('TEXTO:')) || ''
+    expect(linhaTexto).not.toMatch(/\bNUNCA escreva\b|\bnão escreva\b|\bsem texto\b|\bnada escrito\b/i)
+  })
+
+  it('o TEXTO do PRODUTO é preservado — senão a regra destrói a fidelidade', () => {
+    // "imagem sem texto" mandaria apagar o rótulo da embalagem e o nome do
+    // modelo no ecrã. Para retalho isso é pior que o problema que resolve.
+    const linhaTexto = compileBrandContext({ brandBook, tokens, brandNome: 'Hering' })
+      .prefix.split('\n').find(l => l.startsWith('TEXTO:')) || ''
+    expect(linhaTexto).toMatch(/rótulo/i)
+    expect(linhaTexto).toMatch(/fiel e legível/i)
+  })
+
   it('funde cores dos tokens + paleta, sem duplicar', () => {
     const { prefix, snapshot } = compileBrandContext({ brandBook, tokens, brandNome: 'Hering' })
     expect(prefix).toContain('#0D9E7A')      // token
@@ -48,6 +70,7 @@ describe('compileBrandContext', () => {
     })
     expect(prefix).toContain('Posicionamento: A camiseta que dura')
     expect(prefix).not.toContain('LOGO: NUNCA')
+    expect(prefix).not.toContain('TEXTO: esta peça')   // regra de imagem não entra em peça de texto
     expect(prefix).not.toContain('Paleta')
     expect(snapshot.facets).toEqual({ verbal: true, visual: false })
   })

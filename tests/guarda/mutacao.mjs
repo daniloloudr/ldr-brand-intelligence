@@ -799,6 +799,11 @@ const MUTACOES = [
     de: "return campanha_id ? q.eq('campanha_id', campanha_id) : q.is('campanha_id', null)",
     para: 'return q' },
 
+  { nome: 'a regra do TEXTO some do contexto (modelo volta a inventar headline)',
+    arq: 'netlify/functions/_brain.js',
+    de: "  if (useVisual) linhas.push('TEXTO: esta peça é a camada de IMAGEM",
+    para: "  if (false) linhas.push('TEXTO: esta peça é a camada de IMAGEM" },
+
   { nome: 'campanha ENCERRADA volta a alimentar peça nova',
     arq: 'netlify/functions/_brain.js',
     de: "return data?.status === 'ativa'",
