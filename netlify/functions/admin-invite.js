@@ -127,9 +127,15 @@ export const handler = async (event) => {
       // convite podia ser reapontado para qualquer tenant. `app_metadata` só a
       // service key escreve — é a única parte do usuário em que o servidor pode
       // confiar. Quem lê é workspace-join.
+      // user_metadata vai junto e SEMPRE, não só no caminho `invite`: é dele que
+      // a tela de boas-vindas tira o nome da marca (Invite.jsx). O `data:` do
+      // generateLink só existe para o tipo invite, então no reconvite por
+      // magiclink o convidado veria "acesse o workspace" sem dizer qual —
+      // justamente para quem já teve um convite falhar e precisa de confiança.
       if (uid) {
         await supabase.auth.admin.updateUserById(uid, {
           app_metadata: { convite_workspace_id: ws.id },
+          user_metadata: { workspace_id: ws.id, workspace_name: ws.nome },
         })
       }
 
