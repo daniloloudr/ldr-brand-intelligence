@@ -49,3 +49,6 @@ backups/
 
 # banco de dev efêmero (scripts/branch.mjs)
 .env.branch
+
+# Material de case (imagens de cliente, pesado, não versionar)
+.case/
