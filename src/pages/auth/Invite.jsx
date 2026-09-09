@@ -27,39 +27,54 @@ export function InvitePage({ onDone }) {
   const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState('')
   const [workspaceName, setWsName]  = useState('')
-  // 'trocando' → 'pronto' | 'invalido'. Começa em 'pronto' quando não há
-  // token_hash: é o caminho antigo, onde a sessão já veio pelo hash.
-  const [estado, setEstado]         = useState(
-    new URLSearchParams(window.location.search).get('token_hash') ? 'trocando' : 'pronto'
+  // ⚠️ 'aguardando' → 'trocando' → 'pronto' | 'invalido'.
+  //
+  // O ESTADO 'aguardando' EXISTE POR CAUSA DE UM INCIDENTE (08/09/2026).
+  // Cinco convites saíram para a Worten às 23:37 UTC e os CINCO tokens foram
+  // consumidos entre 23:38:53 e 23:39:02 — 36 a 45 segundos depois, madrugada
+  // em Portugal, cinco caixas diferentes. Não foram as pessoas: foi o Safe
+  // Links do Microsoft Defender detonando as URLs.
+  //
+  // A versão anterior desta tela chamava verifyOtp NO MOUNT, apostando que o
+  // scanner só busca HTML. O detonador do M365 RODA JAVASCRIPT: ele executou a
+  // troca e queimou os cinco links antes de qualquer humano abrir o e-mail.
+  //
+  // Por isso a troca agora pende de um CLIQUE. Scanner busca e renderiza; não
+  // aperta botão. Nunca mover isto de volta para o useEffect.
+  const [estado, setEstado] = useState(
+    new URLSearchParams(window.location.search).get('token_hash') ? 'aguardando' : 'pronto'
   )
 
   useEffect(() => {
+    // Sem token na URL é o caminho antigo (hash do Supabase): a sessão já veio
+    // pronta e só falta ler o nome da marca para a tela de boas-vindas.
+    if (new URLSearchParams(window.location.search).get('token_hash')) return
     let vivo = true
-    const q = new URLSearchParams(window.location.search)
-    const tokenHash = q.get('token_hash')
-
-    async function entrar() {
-      if (tokenHash) {
-        const { error: err } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: q.get('type') || 'invite',
-        })
-        if (!vivo) return
-        if (err) { setEstado('invalido'); return }
-        // Tira o token da barra de endereço assim que ele vira sessão: link de
-        // uso único não deve sobreviver no histórico do navegador.
-        window.history.replaceState({}, '', window.location.pathname)
-        setEstado('pronto')
-      }
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!vivo) return
-      if (session?.user?.user_metadata?.workspace_name) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (vivo && session?.user?.user_metadata?.workspace_name) {
         setWsName(session.user.user_metadata.workspace_name)
       }
-    }
-    entrar()
+    })
     return () => { vivo = false }
   }, [])
+
+  async function trocarToken() {
+    const q = new URLSearchParams(window.location.search)
+    setEstado('trocando')
+    const { error: err } = await supabase.auth.verifyOtp({
+      token_hash: q.get('token_hash'),
+      type: q.get('type') || 'invite',
+    })
+    if (err) { setEstado('invalido'); return }
+    // Tira o token da barra de endereço assim que ele vira sessão: link de uso
+    // único não deve sobreviver no histórico do navegador.
+    window.history.replaceState({}, '', window.location.pathname)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.user_metadata?.workspace_name) {
+      setWsName(session.user.user_metadata.workspace_name)
+    }
+    setEstado('pronto')
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -110,6 +125,24 @@ export function InvitePage({ onDone }) {
         <Box sx={{ width: '100%', maxWidth: 400 }}>{conteudo}</Box>
       </Box>
     </ThemeProvider>
+  )
+
+  // A porta. Um clique humano separa o convidado do detonador de URL do
+  // Microsoft, que abre a página e roda o JS mas não aperta botão.
+  if (estado === 'aguardando') return moldura(
+    <Box sx={{ textAlign: 'center' }}>
+      <Box sx={{ mb: 2 }}><Wordmark size={24} sx={{ mx: 'auto' }} /></Box>
+      <Typography variant="h6" fontWeight={800} gutterBottom>Boas-vindas</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Você foi convidado para o BR4NDCODE. Clique abaixo para definir sua senha.
+      </Typography>
+      <Button
+        variant="contained" size="large" fullWidth onClick={trocarToken}
+        sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' }, fontWeight: 800 }}
+      >
+        Continuar
+      </Button>
+    </Box>
   )
 
   if (estado === 'trocando') return moldura(

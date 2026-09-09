@@ -136,6 +136,24 @@ describe('a rota /convite', () => {
     expect(c).toMatch(/replaceState/)
   })
 
+  it('🔴 a troca do token pende de um CLIQUE — nunca do mount', () => {
+    // INCIDENTE 08/09/2026: cinco convites saíram para a Worten às 23:37 UTC e
+    // os cinco tokens foram consumidos entre 23:38:53 e 23:39:02 — madrugada em
+    // Portugal, cinco caixas diferentes, 45 segundos. Foi o Safe Links do
+    // Microsoft Defender detonando as URLs. A tela chamava verifyOtp no mount,
+    // apostando que scanner só busca HTML; o detonador do M365 RODA JS.
+    // Scanner renderiza, mas não clica. Devolver isto para o useEffect mata
+    // todo convite que passar por filtro corporativo, e sem nada acusando.
+    const c = soCodigo(invite)
+    expect(c).toMatch(/async function trocarToken/)
+    expect(c).toMatch(/onClick=\{trocarToken\}/)
+    expect(c).toMatch(/'aguardando'/)
+    const efeitos = c.match(/useEffect\([\s\S]*?\n  \}, \[\]\)/g) || []
+    for (const e of efeitos) {
+      expect(e, 'verifyOtp voltou para dentro de um useEffect').not.toMatch(/verifyOtp/)
+    }
+  })
+
   it('link vencido ou já usado tem tela própria, com o que fazer', () => {
     const c = soCodigo(invite)
     expect(c).toMatch(/'invalido'/)
