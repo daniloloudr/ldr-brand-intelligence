@@ -642,8 +642,32 @@ const MUTACOES = [
   // gravou, num reimport, em silêncio.
   { nome: 'a estratégia volta a não ter onde ser gravada',
     arq: 'netlify/functions/brand-manual-extract-background.js',
-    de: '    strategy:        strategyMesclada,\n',
+    de: '    strategy:        mesclarColuna(existingBook?.strategy,        extracted.strategy),\n',
     para: '' },
+
+  // Zétona (09/set) — a mescla passou a valer para as QUATRO colunas. O manual
+  // que CALA num campo devolve "" e, sem a mescla, isso grava vazio por cima do
+  // que o cliente escreveu à mão. A coluna cresce no mesmo ato (chaves novas em
+  // branco), então nada que meça tamanho percebe.
+  { nome: 'a identidade verbal volta a ser substituída (apaga o que o cliente escreveu)',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: '    verbal_identity: mesclarColuna(existingBook?.verbal_identity, extracted.verbal_identity),',
+    para: '    verbal_identity: extracted.verbal_identity || {},' },
+
+  { nome: 'a identidade visual volta a ser zerada por bloco que falha',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: '    visual_identity: mesclarColuna(existingBook?.visual_identity, extracted.visual_identity),',
+    para: '    visual_identity: extracted.visual_identity || {},' },
+
+  { nome: 'as colunas deixam de ser lidas — a mescla vira substituição silenciosa',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: ".select('id, version, strategy, verbal_identity, visual_identity, design_system')",
+    para: ".select('id, version, strategy')" },
+
+  { nome: 'a extração volta a escrever sem fotografar o estado anterior',
+    arq: 'netlify/functions/brand-manual-extract-background.js',
+    de: "      const { error: hErr } = await supabase.from('brand_book_history').insert(fotos)",
+    para: '      const hErr = null' },
 
   { nome: 'a mescla vira substituição (apaga o que o Copiloto gravou)',
     arq: 'netlify/functions/brand-manual-extract-background.js',

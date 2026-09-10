@@ -12,15 +12,18 @@
 // aquele manual é de EXPRESSÃO e realmente não traz modelo de negócio nem
 // jornada do cliente. Mas, se trouxesse, não haveria onde gravar.
 //
-// O risco que estes testes guardam é o da MESCLA. `strategy` é a única coluna
-// do brand book onde outra mão escreve: o Copiloto grava `goals_kpis` ali, e
-// `personas` de marcas antigas ainda vive lá como legado. Substituir a coluna
-// — que é o que as outras três colunas fazem — apagaria isso em silêncio, num
-// reimport, que é exatamente quando o cliente acha que está ACRESCENTANDO.
+// O risco que estes testes guardam é o da MESCLA. Em `strategy` outra mão
+// escreve há mais tempo: o Copiloto grava `goals_kpis` ali, e `personas` de
+// marcas antigas ainda vive lá como legado. Substituir a coluna apagaria isso
+// em silêncio, num reimport — exatamente quando o cliente acha que está
+// ACRESCENTANDO.
+//
+// Desde 10/set a mescla vale para as QUATRO colunas, não só esta. O que ela
+// impede quando o cliente escreve à mão está em `manual-nao-apaga.test.js`.
 // ════════════════════════════════════════════════════════════════════
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { mesclarStrategy } from '../netlify/functions/brand-manual-extract-background.js'
+import { mesclarColuna } from '../netlify/functions/brand-manual-extract-background.js'
 import { TODOS } from '../src/lib/campos.js'
 
 const src = readFileSync('netlify/functions/brand-manual-extract-background.js', 'utf8')
@@ -29,14 +32,14 @@ describe('a mescla protege o que o manual não disse', () => {
   it('preserva o que o Copiloto gravou quando o manual cala', () => {
     const atual = { goals_kpis: [{ objetivo: 'ser referência', kpi: 'share of search', meta: 'top-3' }] }
     const novo  = { goals_kpis: [], business_model: 'varejo omnicanal' }
-    const r = mesclarStrategy(atual, novo)
+    const r = mesclarColuna(atual, novo)
     expect(r.goals_kpis, 'a extração apagou os objetivos do Copiloto').toEqual(atual.goals_kpis)
     expect(r.business_model).toBe('varejo omnicanal')
   })
 
   it('preserva personas legadas — elas ainda vivem em strategy', () => {
     const atual = { personas: [{ nome: 'Ana', dores: 'preço' }] }
-    expect(mesclarStrategy(atual, { ux: 'simples' }).personas).toEqual(atual.personas)
+    expect(mesclarColuna(atual, { ux: 'simples' }).personas).toEqual(atual.personas)
   })
 
   it('NÃO se deixa enganar pelo esqueleto vazio que o modelo devolve', () => {
@@ -45,18 +48,18 @@ describe('a mescla protege o que o manual não disse', () => {
     // como conteúdo e apagaria o dado bom com uma casca.
     const atual = { goals_kpis: [{ objetivo: 'real', kpi: 'real', meta: 'real' }] }
     const novo  = { goals_kpis: [{ objetivo: '', kpi: '', meta: '' }] }
-    expect(mesclarStrategy(atual, novo).goals_kpis).toEqual(atual.goals_kpis)
+    expect(mesclarColuna(atual, novo).goals_kpis).toEqual(atual.goals_kpis)
   })
 
   it('o manual vence quando ele DIZ algo', () => {
-    const r = mesclarStrategy({ business_model: 'antigo' }, { business_model: 'novo' })
+    const r = mesclarColuna({ business_model: 'antigo' }, { business_model: 'novo' })
     expect(r.business_model).toBe('novo')
   })
 
   it('aguenta ausência dos dois lados sem explodir', () => {
-    expect(mesclarStrategy(null, null)).toEqual({})
-    expect(mesclarStrategy(undefined, { ux: 'x' })).toEqual({ ux: 'x' })
-    expect(mesclarStrategy({ ux: 'x' }, undefined)).toEqual({ ux: 'x' })
+    expect(mesclarColuna(null, null)).toEqual({})
+    expect(mesclarColuna(undefined, { ux: 'x' })).toEqual({ ux: 'x' })
+    expect(mesclarColuna({ ux: 'x' }, undefined)).toEqual({ ux: 'x' })
   })
 })
 
@@ -101,15 +104,15 @@ describe('a passada de estratégia existe e fala o vocabulário da tela', () => 
 describe('a escrita persiste a estratégia', () => {
   it('`strategy` entra no conjunto salvo', () => {
     expect(src, 'strategy voltou a ficar de fora da escrita')
-      .toMatch(/strategy:\s+strategyMesclada/)
+      .toMatch(/strategy:\s+mesclarColuna\(/)
   })
 
   it('a mescla usa o que está NO BANCO, não um objeto vazio', () => {
-    expect(src).toMatch(/mesclarStrategy\(existingBook\?\.strategy, extracted\.strategy\)/)
+    expect(src).toMatch(/mesclarColuna\(existingBook\?\.strategy,\s+extracted\.strategy\)/)
     // Sem ler a coluna, `existingBook.strategy` é undefined e a "mescla" vira
     // substituição silenciosa — o pior dos dois mundos, porque parece protegida.
     expect(src, 'a coluna strategy não é lida do banco antes de mesclar')
-      .toMatch(/select\('id, version, strategy'\)/)
+      .toMatch(/\.select\('id, version, strategy[^']*'\)/)
   })
 
   it('coluna ausente derruba um degrau por vez, não a extração inteira', () => {

@@ -49,23 +49,39 @@ meio inventado é pior que um incompleto — a destilação aprende a invenção
 
 Responda APENAS com o JSON pedido, sem markdown e sem texto em volta.`
 
-/* `strategy` é a ÚNICA coluna do brand book que a extração MESCLA em vez de
-   substituir, e por um motivo concreto: é a única onde outra mão escreve. O
-   Copiloto grava `goals_kpis` ali pela tool `salvar_estrategia`, e `personas`
-   de marcas antigas ainda vive lá como legado (a tela trata isso em
-   StrategySections). Substituir a coluna inteira — que é o que as outras três
-   fazem — apagaria em silêncio o que o cliente respondeu ao Copiloto. E
-   apagaria justamente num REIMPORT, que é quando ele acha que está
-   ACRESCENTANDO informação.
+/* TODA coluna do brand book é MESCLADA, nunca substituída. A diferença entre
+   as duas é uma marca perdendo o que escreveu.
+
+   O prompt manda o modelo devolver string vazia para campo sem lastro no
+   manual, e isso está certo — brand book meio inventado é pior que incompleto.
+   Errada era a escrita, que gravava esse vazio POR CIMA do conteúdo real: "o
+   manual não fala da visão" virava "a visão desta marca é vazia".
+
+   ⚠️ ZÉTONA, 09/set. A cliente escreveu o brand book à mão durante semanas e
+   subiu um manual de EXPRESSÃO — que cobre posicionamento e visual e não
+   carrega visão, missão, propósito, boilerplate nem narrativa de origem. Os
+   sete campos voltaram vazios do modelo e apagaram 3837 caracteres dela. No
+   MESMO ato a coluna CRESCEU de 4380 para 8498 chars, porque a extração
+   acrescentou 18 chaves novas quase todas em branco: qualquer conferência que
+   olhe tamanho de coluna dá o estrago como crescimento.
 
    A regra é a mesma do resto do arquivo: só entra o que o manual disse. Campo
    que a extração devolveu vazio não sobrescreve nada; campo que ela preencheu
    vence, porque aí o manual É a fonte.
 
+   Antes só `strategy` era protegida — era a única onde se SABIA que outra mão
+   escrevia (o Copiloto grava `goals_kpis` pela tool `salvar_estrategia`, e
+   `personas` de marcas antigas vive lá como legado). A mão do cliente escreve
+   nas quatro.
+
+   De quebra, some o segundo defeito: bloco que falha devolve `undefined`, e o
+   `|| {}` de antes zerava a coluna. Mesclar `{}` não move nada — a lacuna
+   volta a ser lacuna, que é o que o resto do arquivo já prometia.
+
    `vazio` vem do smartbrand e é recursivo — o modelo às vezes devolve o
    esqueleto do array de volta com tudo em branco, e um `.length` ingênuo leria
    isso como conteúdo, apagando o dado bom com uma casca. */
-export const mesclarStrategy = (atual, novo) => {
+export const mesclarColuna = (atual, novo) => {
   const saida = { ...(atual || {}) }
   for (const [k, v] of Object.entries(novo || {})) if (!vazio(v)) saida[k] = v
   return saida
@@ -491,10 +507,14 @@ export const handler = async (event) => {
   console.log(`[brand-manual] strategy tem ${strategyCheios.length} campo(s) com conteúdo: ${strategyCheios.map(([k]) => k).join(', ') || '—'}`)
 
   // Busca a row mais recente (não maybeSingle, que falha com duplicatas)
-  // `strategy` vem junto porque a escrita dela é MESCLADA, não substituída —
-  // ver a nota em `strategyMesclada` abaixo.
+  // As QUATRO colunas de conteúdo vêm junto porque a escrita é MESCLADA, não
+  // substituída — ver a nota em `mesclarColuna`. Sem ler a coluna aqui, o
+  // `atual` da mescla chega undefined e ela vira substituição silenciosa: o
+  // pior dos dois mundos, porque o código parece protegido.
   const { data: existingBooks } = await supabase
-    .from('brand_books').select('id, version, strategy').eq('brand_id', brand_id)
+    .from('brand_books')
+    .select('id, version, strategy, verbal_identity, visual_identity, design_system')
+    .eq('brand_id', brand_id)
     .order('created_at', { ascending: false }).limit(1)
   const existingBook = existingBooks?.[0] || null
   console.log(`[brand-manual] Existing book:`, existingBook?.id, 'version:', existingBook?.version)
@@ -505,13 +525,14 @@ export const handler = async (event) => {
   const smart = renderSmartbrand(extracted, { marca: brand.nome })
   console.log(`[brand-manual] smartbrand: ${smart.preenchidos}/${smart.total} campos · ${smart.lacunas.length} lacuna(s)`)
 
-  const strategyMesclada = mesclarStrategy(existingBook?.strategy, extracted.strategy)
-
+  // `smartbrand` e `smartbrand_gaps` continuam SUBSTITUÍDOS, e de propósito:
+  // eles não são conteúdo da marca, são o retrato do que ESTE manual disse. É
+  // disso que `pendencias.js` tira "o que o manual não declarou".
   const campos = {
-    verbal_identity: extracted.verbal_identity || {},
-    visual_identity: extracted.visual_identity || {},
-    design_system:   extracted.design_system   || {},
-    strategy:        strategyMesclada,
+    verbal_identity: mesclarColuna(existingBook?.verbal_identity, extracted.verbal_identity),
+    visual_identity: mesclarColuna(existingBook?.visual_identity, extracted.visual_identity),
+    design_system:   mesclarColuna(existingBook?.design_system,   extracted.design_system),
+    strategy:        mesclarColuna(existingBook?.strategy,        extracted.strategy),
     smartbrand:      smart.markdown,
     smartbrand_gaps: smart.lacunas,
   }
@@ -543,6 +564,32 @@ export const handler = async (event) => {
       ;({ error, data } = await aplicar(semSmartNemStrategy))
     }
     return { error, data }
+  }
+
+  // ── Trilha ANTES de escrever ─────────────────────────────────────────
+  // A extração nunca gravou histórico, e a tela só fotografa as seções que
+  // estão em `histSectionMap` (BrandBook.jsx) — nenhuma delas cobre
+  // `visual_identity` nem `design_system`. Foi por isso que o caso da Zétona
+  // não teve resposta dentro do produto: para saber o que a cliente tinha
+  // escrito foi preciso restaurar um dump do R2.
+  //
+  // A mescla acima impede o APAGAMENTO, não a substituição: quando o manual
+  // fala de um campo, ele vence — é a doutrina do arquivo e continua valendo.
+  // Só que aí a pessoa precisa poder ver o que havia antes, e decidir.
+  //
+  // Falha aqui NÃO derruba a extração: perder a trilha é ruim, perder uma
+  // extração já paga é pior.
+  if (existingBook?.id) {
+    const fotos = ['verbal_identity', 'visual_identity', 'design_system', 'strategy']
+      .filter((col) => !vazio(existingBook[col]))
+      .map((col) => ({ brand_book_id: existingBook.id, section: col, snapshot: existingBook[col] }))
+    if (fotos.length) {
+      // `changed_by` fica nulo de propósito: quem escreveu foi a extração, não
+      // uma pessoa. A coluna é anulável (005) e a tela já trata autor ausente.
+      const { error: hErr } = await supabase.from('brand_book_history').insert(fotos)
+      if (hErr) console.error(`[brand-manual] histórico NÃO gravado: ${hErr.message}`)
+      else console.log(`[brand-manual] histórico: ${fotos.length} seção(ões) fotografadas antes da escrita`)
+    }
   }
 
   if (existingBook?.id) {
