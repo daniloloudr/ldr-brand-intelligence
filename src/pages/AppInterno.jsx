@@ -16,6 +16,7 @@ import { theme as themeDark, themeLight } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { COOLDOWN_ENTRE_APROVACOES } from "../lib/constants";
 import { ADDONS } from "../lib/addons";
+import { fluxoDaInstalacao } from "../lib/addonReceitas";
 import { fmtDate, normalizeSector, calcularScoreLead, MACRO_SETORES, slugify, tenantUrl, navigate, checarTamanhoManual, novaSenha } from "../lib/helpers";
 import { creditsForProvider, brlFromCredits, usdFromCredits, modelLabel } from "../lib/studioCosts";
 import { abrirSessaoSuporte } from "../lib/sessaoSuporte";
@@ -716,7 +717,7 @@ function AddonsAdmin() {
     setCarregando(true);
     const { data, error } = await supabase
       .from("addon_instalacao")
-      .select("id, addon, estado, motivo, pedido_em, decidido_em, workspace_id, workspaces(nome)")
+      .select("id, addon, estado, motivo, pedido_em, decidido_em, workspace_id, brand_id, workflow_id, workspaces(nome)")
       .order("pedido_em", { ascending: true });
     if (error) setErro(error.message);
     setLinhas(data || []);
@@ -724,12 +725,50 @@ function AddonsAdmin() {
   };
   useEffect(() => { carregar(); }, []);
 
+  // ── A receita entra junto com a liberação ───────────────────────────
+  // Antes isto não existia, e o efeito era silencioso: a linha virava `ativo`
+  // com `workflow_id` nulo, o addon aparecia no menu do cliente e a tela
+  // recusava rodar — exatamente o estado que a 060 descreve como quebrado.
+  // Quem instalava de verdade precisava montar 61 nós no canvas e amarrar a
+  // coluna à mão.
+  //
+  // Clona, não referencia: cada instalação nasce com a própria cópia, senão a
+  // edição de um cliente no canvas apareceria no de outro.
+  const garantirReceita = async (linha) => {
+    if (linha.workflow_id) return linha.workflow_id;       // já tem, não duplica
+    const fluxo = fluxoDaInstalacao(linha.addon, {
+      workspaceId: linha.workspace_id,
+      brandId: linha.brand_id,
+      nomeDaMarca: linha.workspaces?.nome || "",
+    });
+    if (!fluxo) return null;                               // addon sem receita própria
+    const { data, error } = await supabase
+      .from("studio_workflows").insert(fluxo).select("id").single();
+    if (error) throw new Error(`a receita não foi instalada: ${error.message}`);
+    return data.id;
+  };
+
   const decidir = async (linha, estado, motivo = null) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("addon_instalacao").update({
-      estado, motivo, decidido_por: user?.id || null, decidido_em: new Date().toISOString(),
-    }).eq("id", linha.id);
-    if (error) setErro(error.message);
+    setErro("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const patch = {
+        estado, motivo, decidido_por: user?.id || null, decidido_em: new Date().toISOString(),
+      };
+      // Só ao ATIVAR. Suspender não mexe na receita — a §13.10 diz que suspender
+      // não apaga, e o addon volta sem novo pedido; recriar o fluxo na reativação
+      // deixaria um órfão no canvas do cliente a cada ciclo.
+      if (estado === "ativo") {
+        const workflowId = await garantirReceita(linha);
+        if (workflowId) patch.workflow_id = workflowId;
+      }
+      const { error } = await supabase.from("addon_instalacao").update(patch).eq("id", linha.id);
+      if (error) throw new Error(error.message);
+    } catch (e) {
+      // Falhar aqui é melhor que liberar pela metade: um addon ativo sem receita
+      // é uma tela que o cliente abre e não usa.
+      setErro(e.message);
+    }
     carregar();
   };
 
