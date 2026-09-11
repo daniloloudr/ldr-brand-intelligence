@@ -223,3 +223,49 @@ Aprofundamento do núcleo (trilho "D"). O painel IA LOUDR mostrava só a foto do
 - RLS por workspace em `brand_signals` e `brand_intelligence` (espelhar policy `for all` de `studio_generations`).
 - Idempotência no destilador (retry automático do Netlify não pode duplicar incorporação de sinal).
 - Escopo **por-marca** (um acesso = uma marca).
+
+---
+
+## ⚠️ 11/set/2026 — o piloto ensinou UMA CAMISETA à marca
+
+Achado durante um bake-off de seis modelos na Hering: todos rodaram com o MESMO
+prompt e um deles devolveu uma peça completamente diferente da pedida — a
+camiseta marinière listrada do KH6V, em vez da regata do pedido.
+
+Não foi alucinação. O prompt tinha **11.834 caracteres**, e **9.158 deles
+(77%) eram `[BRAND CONTEXT]`** — o modelo vivo destilado. Dentro dele, com todas
+as letras:
+
+> *"**Padrões que a marca APROVA** (priorize): Camiseta marinière com manga
+> curta, base off-white/creme e listras azul-marinho horizontais finas, gola alta
+> canelada (mock-neck)…"*
+
+O modelo que devolveu a listrada **priorizou o que mandamos priorizar**.
+
+**A cadeia:** o piloto do KH6V aprovou dezenas de imagens daquela peça → cada
+aprovação virou linha em `brand_dataset` (**15 das 55** da Hering descrevem essa
+camiseta) → a destilação concluiu, corretamente pela evidência que tinha, que a
+marca aprova camiseta listrada → e isso passou a entrar em toda geração.
+
+**Nada está errado no código.** O sistema fez exatamente o que foi desenhado
+para fazer. O problema é que um único SKU dominou o material de aprendizado, por
+volume, não por qualidade.
+
+⚠️ O `brand_books` da Hering está VAZIO (`{}` nas três colunas). Todo esse
+contexto é destilado — então "limpar o brand book" não resolveria nada, e quem
+procurasse ali concluiria que o problema estava noutro lugar.
+
+**A §7.2 do `estudio.md` previu isto, palavra por palavra:** *"Foi a receita que
+funcionou, ou aquele produto específico? Sem separação, toda aprovação é ruído."*
+
+### O que fazer (não feito)
+
+1. **Medir a concentração** do dataset: quantos SKUs distintos nas 55 linhas.
+2. **Separar "padrão de peça" de "padrão de marca"** na destilação. Modelagem,
+   cor e estampa de um produto são camada *do produto* (§7.2) e nunca deveriam
+   subir para regra de marca.
+3. **Redestilar** depois de corrigir o escopo, com mais de um produto na base.
+
+⚠️ Enquanto isso não for feito, **todo bake-off de modelo na Hering mede duas
+coisas ao mesmo tempo**: a qualidade do modelo e a resistência dele a um viés
+herdado do piloto.

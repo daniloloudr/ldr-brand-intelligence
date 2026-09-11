@@ -24,6 +24,10 @@
 | [diagnostico.md](features/diagnostico.md) | Diagnóstico de marca (próprio e de concorrentes) |
 | [mcp-cerebro.md](features/mcp-cerebro.md) | Plano MCP (Figma/Canva) — aprovado, aguardando "vai" |
 | [piloto-hering.md](features/piloto-hering.md) | Piloto Hering: F0 (fix + mapa de modelos de fidelidade + custos) e protocolo do pilotinho |
+| [addon-retomar-e-regerar.md](features/addon-retomar-e-regerar.md) | 🔴 **Defeito ATIVO** — "gerar de novo" usa os dados do último SKU do lote. Contorno e conserto (retomar do banco) |
+| [lote-em-background.md](features/lote-em-background.md) | O lote sai da aba do navegador: fila em `execucao` (055, existe e ninguém usa) + cron no molde do `onboard-cron` |
+| [turnaround-arquitetura-b.md](features/turnaround-arquitetura-b.md) | Etapa 0 do catálogo: âncora dupla (frente + perfil) e depois interpolação, em vez de cinco palpites independentes |
+| [storage-unificar-no-r2.md](features/storage-unificar-no-r2.md) | Upload sai do Supabase Storage e vai para o R2, por URL pré-assinada. ⚠️ Migração tem que ser ADITIVA |
 
 ## arquivo/ — histórico (não apagar, não atualizar)
 
