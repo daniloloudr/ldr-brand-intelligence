@@ -83,6 +83,34 @@ const EDIT_ACCEPTS_ASPECT = new Set([
   'fal-ai/nano-banana-pro',
 ])
 
+// A proporção convertida em PIXELS, para os endpoints de edição que não aceitam
+// `aspect_ratio`.
+//
+// ⚠️ O DEFEITO QUE ISTO FECHA (11/09/2026): em edição, quem estava fora do
+// `EDIT_ACCEPTS_ASPECT` não recebia aspect_ratio NEM image_size — nada. O
+// `image_size` da fal tem default `"auto"`, documentado como "infer from input
+// images", então a saída herdava o tamanho da REFERÊNCIA. Medido em produção:
+// um pedido de `1:1` voltou 1920×2720 (o tamanho do still) e um de `16:9` voltou
+// 800×832. A pessoa escolhia um formato e recebia outro, sem erro nenhum.
+//
+// O comentário antigo dizia que "os demais inferem o tamanho da imagem de
+// entrada" como se fosse comportamento aceito. Não era: era o formato escolhido
+// sendo descartado em silêncio.
+//
+// BASE NO LADO MENOR, e 1024 porque é o que a família Gemini/Nano Banana já
+// devolve para `1:1` hoje. Assim trocar de modelo não muda o tamanho da peça —
+// e comparar dois modelos volta a comparar só o que interessa.
+const BASE_MENOR = 1024
+export function pxDaProporcao(format, base = BASE_MENOR) {
+  const m = /^(\d+):(\d+)$/.exec(String(format || '').trim())
+  if (!m) return null
+  const w = Number(m[1]), h = Number(m[2])
+  if (!w || !h) return null
+  return w >= h
+    ? { width: Math.round((base * w) / h), height: base }
+    : { width: base, height: Math.round((base * h) / w) }
+}
+
 const wantsEditMode = (references, mode) => (references && references.length > 0) || ['edit', 'variation', 'adapt'].includes(mode)
 const ALREADY_I2I = /\/(edit|image-to-image|redux|remix)$/
 
@@ -182,13 +210,20 @@ export async function submitImageJob({ model, prompt, references = [], format, m
   } else {
     const hasRefs = references?.length > 0
     body = { prompt, num_images: 1 }
-    // Em t2i sempre envia aspect_ratio. Em edição (com referência), só para os
-    // modelos que aceitam — senão o tamanho é inferido da imagem de entrada.
-    // Formato personalizado: extra.image_size manda em px exatos e o
-    // aspect_ratio NÃO vai (format vira "1080x1350", que não é proporção).
-    const sendAspect = format && /^\d+:\d+$/.test(format) && !(extra && extra.image_size)
-      && (!hasRefs || EDIT_ACCEPTS_ASPECT.has(model || DEFAULT_MODEL))
-    if (sendAspect) body.aspect_ratio = format               // "1:1" | "9:16" | "16:9"
+    // A PROPORÇÃO SEMPRE VIAJA — o que muda é o veículo.
+    //  · t2i, e edição nos modelos da lista → `aspect_ratio` (o atalho).
+    //  · edição nos demais → `image_size` em px, derivado da mesma proporção.
+    // Antes, este segundo caso não mandava nada e o tamanho vinha da referência.
+    //
+    // "Personalizado (px)" do nó Formato vence os dois: já é px exato, e ali o
+    // `format` vira "1080x1350", que não é proporção.
+    const ehRazao   = /^\d+:\d+$/.test(String(format || ''))
+    const pxDoNo    = !!(extra && extra.image_size)
+    const aceitaAR  = !hasRefs || EDIT_ACCEPTS_ASPECT.has(model || DEFAULT_MODEL)
+    if (ehRazao && !pxDoNo) {
+      if (aceitaAR) body.aspect_ratio = format                // "1:1" | "9:16" | "16:9"
+      else          body.image_size   = pxDaProporcao(format) // { width, height }
+    }
     if (hasRefs) {
       const field = imageField(model)
       if (field === 'image_url') body.image_url = references[0]   // endpoint singular
