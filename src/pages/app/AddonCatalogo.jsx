@@ -37,6 +37,7 @@ import { creditsForImage } from '../../lib/credits'
 import { montarZip } from '../../lib/zip'
 import { navigate } from '../../lib/helpers'
 import { roteiroDaPeca, lerEstado, erroLegivel, creditosDoRoteiro } from '../../lib/loteExecucao'
+import { modelLabel } from '../../lib/studioCosts'
 import { montarContexto } from '../../lib/loteCatalogo'
 
 const COLUNAS = ['sku', 'contexto', ...PAPEIS.map(p => p.col), 'saidas']
@@ -351,7 +352,7 @@ export function AddonCatalogo({ brandId }) {
       while (Date.now() - inicio < 300_000) {
         await new Promise(r => setTimeout(r, 3000))
         const { data } = await supabase.from('studio_generations')
-          .select('id, status, image_url, error').eq('id', j.generation_id).maybeSingle()
+          .select('id, status, image_url, error, provider').eq('id', j.generation_id).maybeSingle()
         const e = lerEstado(data)
         if (e.estado === 'em_voo') continue
         setJobs(js => js.map(x => x.genId === j.generation_id
@@ -386,12 +387,12 @@ export function AddonCatalogo({ brandId }) {
     setCabecalho(COLUNAS); setLinhas([{ ...lote.linha, _linha: 2 }]); setOrigem(lote.sku)
 
     const { data: gens } = await supabase.from('studio_generations')
-      .select('id, status, image_url, node_id, error, created_at')
+      .select('id, status, image_url, node_id, error, created_at, provider')
       .eq('brand_id', brandId).eq('pasta', lote.pasta).order('created_at')
     const vistaDoNo = (no) => vistas.find(v => v.generateNodeId === no)?.nome || no
     setJobs((gens || []).map(g => ({
       sku: lote.sku, vista: vistaDoNo(g.node_id), __no: g.node_id, pasta: lote.pasta,
-      entrega: true, genId: g.id, url: g.image_url,
+      entrega: true, genId: g.id, url: g.image_url, provider: g.provider,
       status: g.status === 'done' ? 'done' : g.status === 'error' ? 'error' : 'running',
       error: g.error,
     })))
@@ -510,11 +511,16 @@ export function AddonCatalogo({ brandId }) {
     while (Date.now() - inicio < 600_000) {
       await new Promise(r => setTimeout(r, 3000))
       const { data } = await supabase.from('studio_generations')
-        .select('id, status, image_url, error').in('id', ids)
+        .select('id, status, image_url, error, provider').in('id', ids)
       let vivos = 0
       for (const id of ids) {
         const job = todos.find(j => j.genId === id)
-        const e = lerEstado((data || []).find(x => x.id === id))
+        const linha = (data || []).find(x => x.id === id)
+        // O MODELO fica grudado na peça. Sem isto, comparar resultados depende
+        // de lembrar o que estava selecionado — e num bake-off de seis modelos
+        // as saídas ficam indistinguíveis (11/set).
+        if (linha?.provider) job.provider = linha.provider
+        const e = lerEstado(linha)
         if (e.estado === 'em_voo') { vivos++; continue }
         if (e.estado === 'pronta') {
           job.status = 'done'; job.url = e.url; saidas[job.__no] = e.url
@@ -1100,6 +1106,12 @@ export function AddonCatalogo({ brandId }) {
                     {j.sku}{j.entrega ? '' : ' · insumo'}
                   </Typography>
                 </Tooltip>
+                {j.provider && (
+                  <Typography variant="caption" color="text.disabled" noWrap title={j.provider}
+                    sx={{ display: 'block', fontSize: 10.5 }}>
+                    {modelLabel(j.provider)}
+                  </Typography>
+                )}
               </Box>
             ))}
           </Box>

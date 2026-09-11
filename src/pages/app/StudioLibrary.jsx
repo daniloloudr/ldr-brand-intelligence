@@ -29,6 +29,7 @@ import AlertTitle from '@mui/material/AlertTitle'
 import { supabase } from '../../lib/supabase'
 import { pendencias, resumoPendencias } from '../../lib/pendencias'
 import { dentroDe, filhosDe } from '../../lib/bibliotecaPastas'
+import { modelLabel } from '../../lib/studioCosts'
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { PageHeader } from '../../components/shell/PageHeader'
@@ -249,6 +250,10 @@ export function StudioLibrary({ brandId }) {
       full: g.image_url, poster: g.thumbnail_url || null,
       mime_type: g.media_type === 'video' ? 'video/mp4' : 'image/png',
       tipo: g.media_type === 'video' ? 'video' : 'foto',
+      // O MODELO viaja com a peça. Sem isto, comparar dois resultados exige
+      // lembrar o que estava selecionado na hora — e um bake-off de seis
+      // modelos vira seis imagens indistinguíveis (11/set).
+      provider: g.provider,
       pasta: g.pasta, tags: [], metadata: { generation_id: g.id, source: 'studio-auto' },
     }))
     const aItems = assets.map(a => ({ ...a, kind: 'asset' }))
@@ -747,6 +752,12 @@ export function StudioLibrary({ brandId }) {
                     <Box sx={{ px: 1.25, pt: 0.75 }}>
                       <Typography variant="caption" noWrap>{a.nome}</Typography>
                       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minHeight: 18, flexWrap: 'wrap' }}>
+                        {a.provider && (
+                          <Typography variant="caption" noWrap title={a.provider}
+                            sx={{ color: 'text.secondary', fontWeight: 700, fontSize: 10.5 }}>
+                            {modelLabel(a.provider)}
+                          </Typography>
+                        )}
                         {busca.trim() && a.pasta && <Typography variant="caption" color="text.secondary" noWrap>📁 {a.pasta}</Typography>}
                         {(a.tags || []).slice(0, 3).map(t => (
                           <Typography variant="caption" key={t} sx={{ color: 'primary.main', fontWeight: 700 }}>#{t}</Typography>
