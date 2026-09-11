@@ -1,9 +1,63 @@
 # brandcode — Especificação Completa do Produto
-**Versão:** 8.6
-**Data:** Agosto 2026
+**Versão:** 8.7
+**Data:** Setembro 2026
 **Status:** Documento vivo — atualizar a cada entrega
 **Owner:** Danilo Silva · LOUDR
 **Nomes:** o produto é o **brandcode** (`br4ndcode.com` — o "4" existe só no domínio). **LOUDR é a empresa/agência** e permanece como tal: assina o relatório público de diagnóstico, o framework Smart Branding e os contratos. Dentro do app logado, nada mais se chama LOUDR.
+
+**Changelog v8.7 (10–11/set/2026) — O CASO ESPECÍFICO VIRANDO REGRA GERAL: a mesma doença em quatro lugares, e num deles ela aprendeu sozinha.**
+
+Dois dias, dois clientes, e um fio único que só apareceu no fim: **conteúdo de um caso particular promovido a regra do sistema** — por substituição, por cópia, por instrução e, no último, por aprendizado.
+
+### 10/set · ZÉTONA — subir manual APAGAVA o que a marca escreveu
+
+A cliente escreveu o brand book pela tela durante semanas e subiu um manual de EXPRESSÃO. Sete campos de `verbal_identity` foram a zero — `narrativa_origem` (1887 chars), `boilerplate`, `valores`, `visao`, `missao`, `proposito`, `proposta_valor`: **3837 caracteres**.
+
+**O modelo não alucinou — obedeceu.** O prompt manda devolver string vazia para campo sem lastro no manual, e isso está certo. Errada era a escrita: `verbal_identity: extracted.verbal_identity || {}` gravava esse vazio POR CIMA do conteúdo real. "O manual não fala da visão" virava "a visão desta marca é vazia".
+
+⚠️ **O QUE ESCONDEU ISSO DE TODO MUNDO:** no mesmo ato a coluna **CRESCEU**, de 4380 para 8498 chars — a extração acrescentou 18 chaves novas quase todas em branco. Qualquer conferência por tamanho lê destruição como crescimento.
+
+E a guarda já existia no arquivo: `vazio()` do smartbrand, recursiva, aplicada a UMA das quatro colunas. `strategy` era protegida porque era a única onde se SABIA que outra mão escrevia (o Copiloto). A mão do cliente escreve nas quatro.
+
+**Recuperado** do dump `db_20260908_111506` no R2 e restaurado em produção (brand book na versão 22), com snapshot em `brand_book_history` antes da escrita. **Corrigido** (`b1afec2`): mescla nas quatro colunas, bloco que falha não zera mais nada, e histórico gravado antes de toda escrita da extração — antes, `visual_identity` e `design_system` não tinham trilha nenhuma, e foi por isso que a resposta precisou sair de um dump.
+
+Junto: **template próprio de "esqueci a senha"** (`7b60ba6`). Quem esquecia a senha recebia o e-mail de CONVITE, que diz "você recebeu acesso" e "nenhuma conta é criada sem que você defina a senha" — três afirmações falsas para quem já tem conta, e sem a única frase que um e-mail de credencial precisa ter.
+
+### 11/set · HERING — o addon de catálogo, e o que ele revelou
+
+**O addon nunca instalou em lugar nenhum.** A 060 criou `addon_instalacao.workflow_id` e definiu que quem libera escolhe a receita; o botão "Liberar" do painel **nunca gravou essa coluna**. Toda liberação pelo produto caía no estado que a própria 060 chama de quebrado: ativo, visível no menu, tela recusando rodar. A Hering foi ligada por UPDATE à mão — não havia outro caminho.
+
+**A receita carregava a peça do piloto.** Os nós `context` das etapas 1–4 traziam os blocos "A PEÇA" e "O LOOK" do KH6V — sapatilha preta, tote preta, canelado. O addon mandava isso JUNTO com o contexto por SKU da planilha: **dois looks no mesmo prompt**, e o modelo escolhia um por vista. Foi por isso que a bolsa saiu marrom na FRONTAL e preta na TRÊS QUARTOS, com entradas idênticas.
+
+**A etapa 0 pedia o impossível.** O prompt da vista 180° mandava igualar "as outras quatro" e "a vista 135°" — vistas que aquele nó NÃO recebe, porque as cinco gerações da etapa 0 veem só a foto de casting. Instrução sem referente vira licença: um casting de cabelo curto voltou de tranças. (Plano em [`turnaround-arquitetura-b.md`](features/turnaround-arquitetura-b.md).)
+
+⚠️ **E uma lição sobre consertar por texto.** Inflar o `e0_ctx` com âncora de fisionomia e "despir também a metade de baixo" tirou o jeans da foto de casting **e perdeu o rosto** — a transformação ficou maior, e identidade escorrega na proporção do que a imagem precisa mudar. Revertido para o estado que funcionava. **Instrução não vence magnitude de transformação.**
+
+**O formato escolhido era descartado em silêncio** (`a36e50d`). Em edição, quem estava fora do `EDIT_ACCEPTS_ASPECT` não recebia `aspect_ratio` NEM `image_size`; o default da fal é `"auto"` = "infer from input images". Medido: pedido de `1:1` voltou 1920×2720, `16:9` voltou 800×832. Atingia todo i2i fora daquela lista de dois. **O comentário do código descrevia isso como comportamento aceito** — o defeito narrado como decisão é o que impede de encontrá-lo.
+
+**Três modelos novos do fal** (`50f2555`), preços lidos da API no dia: `qwen-image-edit-2511-multiple-angles` ($0,035 → 1 crédito), `nano-banana-2` ($0,12 na nossa resolução → 3), `gemini-3-pro-image-preview` (3). O qwen interessa por ter `horizontal_angle`/`vertical_angle`: faz **por parâmetro** o giro que a etapa 0 implora no texto. O par GPT Image 2.5 ficou de fora — é cobrado por TOKEN, e o `IMAGE_CREDITS` pressupõe custo fixo por imagem.
+
+⚠️ **O Gemini 3 Pro é APELIDO do Nano Banana Pro** (`d2169cb`) — mesma `modelFamily` na fal, mesma data, mesmo preço. Tinham entrado os dois no seletor. Só apareceu porque o Danilo perguntou.
+
+**A peça passou a dizer de que modelo saiu** (`ea9cf6e`). Num bake-off de seis modelos com o mesmo prompt, as saídas eram indistinguíveis. O dado existia (`studio_generations.provider`) e o rótulo também — faltava chegar às telas.
+
+### O achado que fecha o fio: o piloto ensinou UMA CAMISETA à marca
+
+No mesmo bake-off, um modelo devolveu a peça do KH6V em vez da pedida. **77% do prompt (9.158 de 11.834 chars) é `[BRAND CONTEXT]`**, e lá dentro está escrito: *"padrões que a marca APROVA: camiseta marinière… listras azul-marinho… gola alta canelada"*. O modelo priorizou o que mandamos priorizar.
+
+15 das 55 linhas de `brand_dataset` da Hering descrevem aquela peça — o piloto aprovou dezenas de imagens dela, e a destilação concluiu o que a evidência dizia. **Nada está errado no código.** Um SKU dominou o material por volume. E o `brand_books` está VAZIO, então quem procurasse ali não acharia nada.
+
+A §7.2 do `estudio.md` previu, palavra por palavra: *"foi a receita que funcionou, ou aquele produto específico? Sem separação, toda aprovação é ruído."* Detalhe em [`brand-intelligence.md`](features/brand-intelligence.md).
+
+### 🔴 Defeito ATIVO, ainda não corrigido
+
+O `setUltima` do `AddonCatalogo` está DENTRO do laço por SKU: ao fim do lote ele guarda só o roteiro do ÚLTIMO. "Gerar de novo" numa imagem regenera com peça, acessórios e contexto do SKU errado, e grava como se fosse do clicado — **sem erro na tela**. Contorno: planilha de uma linha. Conserto desenhado em [`addon-retomar-e-regerar.md`](features/addon-retomar-e-regerar.md).
+
+### Estado
+
+Deploy `7b60ba6` em produção (11/set, 18h40), sem migration. Esteira verde no dia: 1047 testes, 155/155 mutações, 3/3 ao-vivo, 220 asserções de RLS, 58 migrations replicadas do zero. Na `dev`, aguardando janela: os três commits de modelos/formato/rótulo mais a spec.
+
+---
 
 **Changelog v8.6 (31/ago/2026) — O NÓ PASSA A DIZER O QUE ENTRA: a release dos ajustes da Hering, e três sumiços silenciosos empilhados.**
 

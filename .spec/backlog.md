@@ -148,6 +148,25 @@ grafo à mão — foi literalmente o que aconteceu em 31/ago para explicar o sap
 | **E5b** | a campanha ganha CORPO — grupos, referência própria, a ficha | **D** | — | ⏸️ **ESTACIONADO 03/set** — desenho salvo, nada escrito. Volta pelo A3/agentes |
 | **E5c** | **o portão do addon** — `addon_instalacao`, a loja e a fila de liberação | **D** | ✅ aditiva | ✅ **APLICADO EM PRODUÇÃO 08/set** (059–062, dump `db_20260908_111506` no R2) — release do addon Catálogo no ar (`70d8845`) |
 
+> 🔴 **11/set — O ADDON NUNCA INSTALOU EM LUGAR NENHUM.** A 060 criou
+> `addon_instalacao.workflow_id` e definiu que quem libera escolhe a receita; o botão
+> **"Liberar" do painel nunca gravou essa coluna** — só muda o estado. Toda liberação
+> feita pelo produto caía no caso que a própria 060 chama de quebrado: ativo, visível
+> no menu do cliente, e a tela recusando rodar. **A Hering foi ligada por UPDATE à
+> mão** (primeira instalação da história, 11/set) porque não havia outro caminho.
+>
+> 🔴 **DEFEITO ATIVO, não corrigido:** o `setUltima` do `AddonCatalogo` está DENTRO
+> do laço por SKU, então "gerar de novo" regenera com peça, acessórios e contexto do
+> **último SKU do lote** e grava como se fosse do clicado — sem erro na tela, o
+> resultado só parece alucinação. **Contorno: planilha de UMA linha.** Conserto
+> desenhado em [`features/addon-retomar-e-regerar.md`](features/addon-retomar-e-regerar.md).
+>
+> 🟡 **Fila:** retomar do banco → [lote em background](features/lote-em-background.md)
+> (a tabela `execucao` da 055 já tem tudo e ninguém usa) → [storage no R2](features/storage-unificar-no-r2.md)
+> → [turnaround arquitetura B](features/turnaround-arquitetura-b.md) → organização de
+> pastas. A receita corrigida da Hering vive **só no banco** (é dado, não código): o
+> branch `addon-receita-portavel` guarda a versão ANTERIOR aos consertos de 11/set.
+
 > ⏸️ **A 057 e a 058 FICAM NA PRATELEIRA (decisão do Danilo, 04/set).** Campanha saiu
 > da interface — menu em 03/set, pasta da Biblioteca em 04/set — e com isso **a pressa
 > das duas caiu por terra**. Eu havia argumentado que "cada dia sem a 058 no ar é
@@ -511,6 +530,24 @@ Não é "pode impersonar": é acesso direto, permanente, com a sessão normal, s
 >
 > **A pendência de convites não se aplicava:** as 6 contas que nunca logaram foram criadas com senha temporária (passam pelo `ForcePassword`), não são convites em aberto pelo `workspace-join`.
 >
+> ✅ **RESOLVIDO 10/set — a Zétona perdeu o brand book para um upload, e foi devolvido.**
+> A cliente (`mavidomarketing@`) escreveu o brand book pela tela durante semanas e subiu
+> um manual de EXPRESSÃO. **Sete campos de `verbal_identity` foram a zero** —
+> `narrativa_origem` (1887 chars), `boilerplate`, `valores`, `visao`, `missao`,
+> `proposito`, `proposta_valor`: **3837 caracteres dela**. O modelo não alucinou: o
+> prompt manda devolver vazio para campo sem lastro no manual, e a escrita gravava esse
+> vazio POR CIMA (`extracted.verbal_identity || {}`).
+>
+> ⚠️ **No mesmo ato a coluna CRESCEU** (4380 → 8498 chars, 18 chaves novas em branco).
+> Conferência por tamanho lê destruição como crescimento — foi o que escondeu isso.
+>
+> Recuperado do dump `db_20260908_111506` no R2 e restaurado em produção (versão 22),
+> com snapshot em `brand_book_history` antes. Corrigido em `b1afec2`, **em produção
+> desde 11/set**: mescla nas quatro colunas com a `vazio()` que já existia e era usada
+> em uma só, bloco que falha não zera mais nada, e histórico gravado antes de toda
+> escrita da extração — `visual_identity` e `design_system` não tinham trilha nenhuma,
+> e foi por isso que a resposta precisou sair de um dump em vez de sair do produto.
+
 > ✅ **RESOLVIDO 27/ago — os dois workspaces órfãos.** **Zétona** ganhou dono: `lucas@zetona.com.br` como `owner`, com `mavidomarketing@zetona.com.br` como member. **Escola da Inteligência fica sem dono por decisão do Danilo** (27/ago) — não é marca em operação; quando for, entra pelo `/admin` → Membros, que é o único caminho depois da 052 (o INSERT em `workspace_members` passou a ser só do owner).
 >
 > **Os dois achados HIGH do security gate, corrigidos antes de subir** (commit `ead3d8b`) — nenhum era regressão; os dois eram conserto pela metade, e a produção anterior estava pior nos dois casos:
