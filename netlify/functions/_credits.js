@@ -29,8 +29,10 @@ export const IMAGE_CREDITS = {
   // fal aplica entre 2K e 4K não está escrita na página.
   'fal-ai/nano-banana-2':      3,
   'fal-ai/nano-banana-2/edit': 3,
-  // Gemini 3 Pro Image: $0,15/img (o dobro só em 4K, que não é o nosso caso)
-  // → ⌈18 × 0,15⌉ = 3.
+  // Gemini 3 Pro Image: $0,15/img → ⌈18 × 0,15⌉ = 3.
+  // ⚠️ É APELIDO do Nano Banana Pro — mesma modelFamily na fal, mesma data,
+  // mesmo preço. Fica aqui para cobrar certo se o id vier por outro caminho,
+  // mas NÃO está no seletor (ver studioModels.js).
   'fal-ai/gemini-3-pro-image-preview':      3,
   'fal-ai/gemini-3-pro-image-preview/edit': 3,
   // bytedance/seedream/v5/lite = 1 ($0,035 — mais barato que o 4.5)

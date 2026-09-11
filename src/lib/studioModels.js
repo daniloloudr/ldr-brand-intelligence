@@ -6,7 +6,12 @@ export const IMAGE_MODELS = [
   { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro (Gemini)', group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/nano-banana-2',                         label: 'Nano Banana 2 (Gemini)',   group: 'Mais usados',           refs: true  },
-  { id: 'fal-ai/gemini-3-pro-image-preview',            label: 'Gemini 3 Pro Image',       group: 'Mais usados',           refs: true  },
+  // ⚠️ `fal-ai/gemini-3-pro-image-preview` NÃO entra aqui: é o MESMO modelo que
+  // o Nano Banana Pro acima — mesma `modelFamily` na fal, mesma data, mesmo
+  // preço ($0,15). São dois ids comerciais para uma coisa só. Oferecer os dois
+  // daria ao cliente duas opções idênticas e uma escolha que não existe.
+  // O id segue com preço e rota nos mapas, para cobrar certo se vier por outro
+  // caminho — mesma razão do comentário do gemini-2.5 em credits.js.
   { id: 'openai/gpt-image-2',                           label: 'GPT Image 2 (OpenAI)',     group: 'Mais usados',           refs: true  },
   { id: 'bytedance/seedream/v5/pro/text-to-image',      label: 'Seedream 5.0 Pro',         group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             group: 'Mais usados',           refs: true  },

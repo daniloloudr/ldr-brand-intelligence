@@ -31,8 +31,10 @@ export const IMAGE_CREDITS = {
   // a fatura: a faixa que a fal aplica entre 2K e 4K não está escrita na página.
   'fal-ai/nano-banana-2':      3,
   'fal-ai/nano-banana-2/edit': 3,
-  // Gemini 3 Pro Image: $0,15/img (o dobro só em 4K, que não é o nosso caso)
-  // → ⌈18 × 0,15⌉ = 3.
+  // Gemini 3 Pro Image: $0,15/img → ⌈18 × 0,15⌉ = 3.
+  // ⚠️ É APELIDO do Nano Banana Pro — mesma modelFamily na fal, mesma data,
+  // mesmo preço. Fica aqui para cobrar certo se o id vier por outro caminho,
+  // mas NÃO está no seletor (ver studioModels.js).
   'fal-ai/gemini-3-pro-image-preview':      3,
   'fal-ai/gemini-3-pro-image-preview/edit': 3,
   // demais = 1 (Nano Banana, GPT Image 2, Seedream 4.x e 5 Lite $0,035, FLUX dev/schnell/.2/Pro1.1, Recraft, Qwen, Bria product-shot ~$0,04)
@@ -77,6 +79,7 @@ export const PLAN_LABEL = { trial: 'Trial', starter: 'Essencial', pro: 'Pro', en
 export const IMAGE_GUIDE = [
   { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', beneficio: 'Versátil e rápido, ótimo com referências. Padrão.' },
   { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro',          beneficio: 'Máxima qualidade Gemini, edição avançada, até 4K.' },
+  { id: 'fal-ai/nano-banana-2',                         label: 'Nano Banana 2',            beneficio: 'Geração seguinte do Gemini para imagem e edição.' },
   { id: 'openai/gpt-image-2',                           label: 'GPT Image 2',              beneficio: 'Forte em coerência, composição e instruções.' },
   { id: 'bytedance/seedream/v5/pro/text-to-image',      label: 'Seedream 5.0 Pro',         beneficio: 'Geração atual da ByteDance, fotorrealismo e fidelidade de referência.' },
   { id: 'bytedance/seedream/v5/lite/text-to-image',     label: 'Seedream 5.0 Lite',        beneficio: 'Mesma família, mais barato e rápido.' },
@@ -89,6 +92,7 @@ export const IMAGE_GUIDE = [
   { id: 'fal-ai/fashn/tryon/v1.6',                      label: 'FASHN Try-On',             beneficio: 'Veste a peça real num modelo (moda/e-commerce).' },
   { id: 'fal-ai/flux/dev',                              label: 'FLUX.1 dev',               beneficio: 'Rápido e econômico.' },
   { id: 'fal-ai/qwen-image',                            label: 'Qwen Image',               beneficio: 'Open, bom em renderizar texto.' },
+  { id: 'fal-ai/qwen-image-edit-2511-multiple-angles',  label: 'Qwen · Múltiplos ângulos', beneficio: 'Gera a mesma cena noutro ângulo — exige imagem de referência.' },
 ]
 
 export const VIDEO_GUIDE = [
