@@ -20,6 +20,19 @@ export const IMAGE_CREDITS = {
   'fal-ai/iclight-v2':          2,   // ~$0,10/MP (relight)
   'bytedance/seedream/v5/pro/text-to-image': 2,  // $0,0675/img acima de 1536² (o nosso 1920×2720 é)
   'bytedance/seedream/v5/pro/layerize':      4,  // $0,0675 POR CAMADA gerada — ~3 camadas no caso típico
+  // ── Entrados em 11/set/2026 (preços lidos da API do fal no mesmo dia) ──
+  // Qwen "multiple angles": $0,035/img → ⌈18 × 0,035⌉ = 1.
+  'fal-ai/qwen-image-edit-2511-multiple-angles': 1,
+  // Nano Banana 2: $0,08 no padrão, mas 2K é cobrado a 1,5× — e o nosso
+  // 1920×2720 está acima de 2K. Logo $0,12 → ⌈18 × 0,12⌉ = 3. Se um dia a saída
+  // padrão encolher, isto cai para 2. ⚠️ Conferir contra a fatura: a faixa que a
+  // fal aplica entre 2K e 4K não está escrita na página.
+  'fal-ai/nano-banana-2':      3,
+  'fal-ai/nano-banana-2/edit': 3,
+  // Gemini 3 Pro Image: $0,15/img (o dobro só em 4K, que não é o nosso caso)
+  // → ⌈18 × 0,15⌉ = 3.
+  'fal-ai/gemini-3-pro-image-preview':      3,
+  'fal-ai/gemini-3-pro-image-preview/edit': 3,
   // bytedance/seedream/v5/lite = 1 ($0,035 — mais barato que o 4.5)
   // fal-ai/bria/product-shot = 1 (~$0,04)
 }

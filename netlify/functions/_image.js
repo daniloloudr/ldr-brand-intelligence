@@ -41,6 +41,8 @@ const I2I = {
   // Google / Gemini (Nano Banana) — endpoints de edição dedicados, multi-referência
   'fal-ai/nano-banana-pro':                       { endpoint: 'fal-ai/nano-banana-pro/edit',                field: 'image_urls' },
   'fal-ai/gemini-25-flash-image':                 { endpoint: 'fal-ai/gemini-25-flash-image/edit',          field: 'image_urls' },
+  'fal-ai/nano-banana-2':                         { endpoint: 'fal-ai/nano-banana-2/edit',                  field: 'image_urls' },
+  'fal-ai/gemini-3-pro-image-preview':            { endpoint: 'fal-ai/gemini-3-pro-image-preview/edit',     field: 'image_urls' },
   // OpenAI
   'openai/gpt-image-2':                           { endpoint: 'openai/gpt-image-2/edit',                    field: 'image_urls' },
   // ByteDance Seedream
@@ -58,6 +60,15 @@ const I2I = {
   'fal-ai/flux-pro/v1.1-ultra':                   { endpoint: 'fal-ai/flux-pro/v1.1-ultra/redux',           field: 'image_url'  },
   // Qwen
   'fal-ai/qwen-image':                            { endpoint: 'fal-ai/qwen-image-edit',                     field: 'image_url'  },
+  // ⚠️ EDIT-ONLY: não existe variante text-to-image, e o id NÃO termina em
+  // `/edit`, então o `ALREADY_I2I` não o reconhece. Mapeia para SI MESMO para
+  // que `modelFor` não o deixe passar cru quando há referência.
+  // Gera a MESMA cena em outro ângulo por parâmetro (`horizontal_angle`,
+  // `vertical_angle`), em vez de pedir o giro no texto — que é o que a etapa 0
+  // do catálogo faz hoje, e onde a identidade escorrega. Os parâmetros de
+  // ângulo ainda NÃO são enviados pelo nosso payload: para usá-los, passar via
+  // `extra`. Sem eles, funciona como editor normal.
+  'fal-ai/qwen-image-edit-2511-multiple-angles':   { endpoint: 'fal-ai/qwen-image-edit-2511-multiple-angles', field: 'image_urls' },
   // Design & tipografia
   'fal-ai/ideogram/v2':                           { endpoint: 'fal-ai/ideogram/v2/remix',                   field: 'image_url'  },
   'fal-ai/recraft-v3':                            { endpoint: 'fal-ai/recraft/v3/image-to-image',           field: 'image_url'  },

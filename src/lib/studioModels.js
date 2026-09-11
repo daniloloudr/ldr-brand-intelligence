@@ -5,6 +5,8 @@ export const IMAGE_MODELS = [
   // ── Mais usados ──
   { id: 'fal-ai/nano-banana-pro',                       label: 'Nano Banana Pro (Gemini)', group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/gemini-25-flash-image',                 label: 'Nano Banana (Gemini 2.5)', group: 'Mais usados',           refs: true  },
+  { id: 'fal-ai/nano-banana-2',                         label: 'Nano Banana 2 (Gemini)',   group: 'Mais usados',           refs: true  },
+  { id: 'fal-ai/gemini-3-pro-image-preview',            label: 'Gemini 3 Pro Image',       group: 'Mais usados',           refs: true  },
   { id: 'openai/gpt-image-2',                           label: 'GPT Image 2 (OpenAI)',     group: 'Mais usados',           refs: true  },
   { id: 'bytedance/seedream/v5/pro/text-to-image',      label: 'Seedream 5.0 Pro',         group: 'Mais usados',           refs: true  },
   { id: 'fal-ai/flux-2-pro',                            label: 'FLUX.2 [pro]',             group: 'Mais usados',           refs: true  },
@@ -17,6 +19,10 @@ export const IMAGE_MODELS = [
   { id: 'fal-ai/flux-pro/v1.1',                         label: 'FLUX Pro 1.1',             group: 'Fotorrealismo & edição', refs: false },
   { id: 'fal-ai/flux-pro/kontext',                      label: 'FLUX.1 Kontext [pro]',     group: 'Fotorrealismo & edição', refs: true  },
   { id: 'fal-ai/bytedance/seedream/v4/text-to-image',   label: 'Seedream 4.0',             group: 'Fotorrealismo & edição', refs: true  },
+  // ⚠️ EDIT-ONLY: só funciona COM referência (não tem text-to-image). Gera a
+  // mesma cena noutro ângulo por parâmetro, não por texto — é o turnaround da
+  // etapa 0 do catálogo virando ajuste em vez de súplica no prompt.
+  { id: 'fal-ai/qwen-image-edit-2511-multiple-angles',  label: 'Qwen · Múltiplos ângulos', group: 'Fotorrealismo & edição', refs: true  },
   // ── Rápidos & open ──
   { id: 'fal-ai/flux/dev',                              label: 'FLUX.1 dev',               group: 'Rápidos & open',         refs: false },
   { id: 'fal-ai/flux/schnell',                          label: 'FLUX.1 schnell (rápido)',  group: 'Rápidos & open',         refs: false },
